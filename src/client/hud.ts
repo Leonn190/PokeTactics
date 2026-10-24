@@ -1,4 +1,4 @@
-import { BENCH_SIZE, calculateStats, displayName, ELEMENTS, RARITY_COLORS, SPECIES } from '../../server/data';
+import { calculateStats, displayName, ELEMENTS, RARITY_COLORS, SPECIES } from '../../server/data';
 import type { Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
 import type { ClientView } from './arena';
 
@@ -12,7 +12,6 @@ function shape(family: keyof typeof SPECIES, size: number, stage = 0): string {
 }
 
 export class Hud {
-  private lastBench = '';
   private lastShop = '';
   private lastTraits = '';
   private lastRank = '';
@@ -20,11 +19,10 @@ export class Hud {
   private lastInspector = '';
   private lastChapter = -1;
   private panel: 'rank' | 'combat' = 'rank';
-  private metric: 'dealt' | 'taken' | 'healed' | 'blocked' = 'dealt';
+  private metric: 'status' | 'damage' | 'defense' | 'heal' = 'status';
   private toastTimer = 0;
 
   constructor() {
-    element('benchSlots').innerHTML = Array.from({ length: BENCH_SIZE }, (_, i) => `<div class="bench-slot" data-bench="${i}"><span class="bench-index">${i + 1}</span></div>`).join('');
     document.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach(button => button.addEventListener('click', () => {
       this.panel = button.dataset.panel as 'rank' | 'combat';
       this.lastCombat = '';
@@ -55,39 +53,35 @@ export class Hud {
   render(snapshot: GameSnapshot, view: ClientView): void {
     const player = snapshot.players[0];
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
-    element('phaseLabel').textContent = phaseLabels[snapshot.phase];
-    element('roundLabel').textContent = `${snapshot.chapter} — ${((snapshot.round - 1) % 3) + 1}`;
-    element('countdown').textContent = snapshot.phase === 'finished' ? '—' : String(Math.ceil(snapshot.timeLeft));
+    element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
+    element('roundLabel').textContent = `${snapshot.chapter} — ${snapshot.stage}`;
+    element('countdown').textContent = snapshot.phase === 'finished' ? '—' : snapshot.accelerated ? '3×' : String(Math.ceil(snapshot.timeLeft));
+    const progress = element('stageProgress');
+    progress.style.width = `${Math.max(0, Math.min(100, snapshot.phaseSeconds ? snapshot.timeLeft / snapshot.phaseSeconds * 100 : 0))}%`;
+    progress.classList.toggle('fast', snapshot.accelerated);
     element('goldCount').textContent = String(player.gold);
     element('incomeCount').textContent = `+${5 + Math.min(3, Math.floor(player.gold / 10)) + (player.lastWin ? 1 : 0)}`;
     element('levelNumber').textContent = String(player.level);
     const fielded = player.units.filter(unit => unit.position.area === 'board');
     element('fieldCount').textContent = `${fielded.length} / ${player.level}`;
     element('benchCapacity').textContent = `${player.units.filter(u => u.position.area === 'bench').length} / 10`;
-    element('rerollButton').toggleAttribute('disabled', snapshot.phase !== 'planning' || player.gold < 2 || player.eliminated);
+    element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || player.gold < 2 || player.eliminated);
     element('lockButton').classList.toggle('locked', player.locked);
     element('lockButton').innerHTML = player.locked ? '▣ <span>TRAVADA</span>' : '◇ <span>TRAVAR</span>';
 
-    if (snapshot.chapter !== this.lastChapter) {
+    if (snapshot.round !== this.lastChapter) {
       element('chapterTrack').innerHTML = Array.from({ length: 10 }, (_, i) => {
-        const chapter = i + 1;
-        const state = chapter < snapshot.chapter ? 'past' : chapter === snapshot.chapter ? 'current' : 'next';
-        return `<div class="chapter ${state}" title="Capítulo ${chapter}">${chapter}</div>`;
+        const stage = i + 1;
+        const state = stage < snapshot.stage ? 'past' : stage === snapshot.stage ? 'current' : 'next';
+        return `<div class="chapter ${state}" title="Etapa ${snapshot.chapter}-${stage}">${snapshot.chapter}-${stage}</div>`;
       }).join('');
-      this.lastChapter = snapshot.chapter;
+      this.lastChapter = snapshot.round;
     }
-
-    const benchHtml = Array.from({ length: BENCH_SIZE }, (_, index) => {
-      const unit = player.units.find(u => u.position.area === 'bench' && u.position.index === index);
-      return `<div class="bench-slot ${unit ? 'occupied' : ''} ${view.selectedId === unit?.id ? 'selected' : ''}" data-bench="${index}" ${unit ? `data-unit="${unit.id}"` : ''}>
-        <span class="bench-index">${index + 1}</span>${unit ? `<div class="bench-unit">${shape(unit.family, 27, unit.stage)}<small>${displayName(unit.family, unit.stage)}</small></div>` : ''}</div>`;
-    }).join('');
-    if (benchHtml !== this.lastBench) { element('benchSlots').innerHTML = benchHtml; this.lastBench = benchHtml; }
 
     const shopHtml = player.shop.map((offer: ShopOffer | null, i) => {
       if (!offer) return '<div class="shop-empty"></div>';
       const data = SPECIES[offer.family];
-      const disabled = player.gold < offer.price || snapshot.phase !== 'planning' || player.eliminated;
+      const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
       return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range}">
           <div class="shop-portrait">${shape(offer.family, 38)}</div><div class="shop-name">${data.names[0]}</div>
           <div class="shop-type">${data.elements.map(type => ELEMENTS[type].name).join(' / ')}</div>
@@ -114,23 +108,38 @@ export class Hud {
       <span class="rank-position">${p.placement || i + 1}</span><span class="rank-token"></span><span class="rank-name">${p.name}</span><span class="rank-hp ${p.health === 0 ? 'dead' : p.health < 30 ? 'low' : ''}">${p.health}</span></button>`).join('');
     if (this.lastRank !== ranks) { element('rankRows').innerHTML = ranks; this.lastRank = ranks; }
 
-    const statsForView = snapshot.combatStats[view.scoutId] || snapshot.combatStats.p0 || {};
+    const statsForView = snapshot.observedId === view.scoutId ? snapshot.combatStats[view.scoutId] || {} : {};
     const owner = snapshot.players.find(p => p.id === view.scoutId) || player;
-    const entries = owner.units.map(unit => ({ unit, value: statsForView[unit.id]?.[this.metric] || 0 }))
-      .filter(item => item.unit.position.area === 'board').sort((a, b) => b.value - a.value);
+    const battleUnits = snapshot.observedId === view.scoutId ? snapshot.visibleBattle?.units || [] : [];
+    const entries = owner.units.filter(u => u.position.area === 'board').map(unit => {
+      const metrics = statsForView[unit.id];
+      const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === owner.id);
+      const maxHp = combatant?.maxHp || Math.round(calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp * 5.2 + 60);
+      const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
+      const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
+      const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : this.metric === 'defense' ? (metrics?.blocked || 0) : (metrics?.healed || 0);
+      return { unit, value, hp, maxHp, phys, special };
+    }).sort((a, b) => b.value - a.value);
     const max = Math.max(1, ...entries.map(e => e.value));
-    const combatHtml = entries.length ? entries.map(({ unit, value }) => `<div class="combat-entry"><div class="combat-line">
-      <span class="combat-mini-shape">${shape(unit.family, 14, unit.stage)}</span>
-      <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${Math.round(value)}</span></div>
-      <div class="combat-track"><div class="combat-fill" style="width:${Math.round(value / max * 100)}%;background:${SPECIES[unit.family].glow}"></div></div></div>`).join('') : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
+    const combatHtml = entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special }) => {
+      const isDamage = this.metric === 'damage', isStatus = this.metric === 'status';
+      const valueText = isStatus ? `${Math.ceil(hp)}/${maxHp}` : String(Math.round(value));
+      const bar = isDamage
+        ? `<div class="damage-split"><div class="physical" style="width:${phys / max * 100}%"></div><div class="special" style="width:${special / max * 100}%"></div></div>`
+        : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round((isStatus ? hp / maxHp : value / max) * 100)}%;background:${isStatus ? '#83d49f' : SPECIES[unit.family].glow}"></div></div>`;
+      return `<div class="combat-entry"><div class="combat-line">
+        <span class="combat-mini-shape">${shape(unit.family, 14, unit.stage)}</span>
+        <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${valueText}</span></div>${bar}</div>`;
+    }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : '')
+      : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
     if (combatHtml !== this.lastCombat) { element('combatRows').innerHTML = combatHtml; this.lastCombat = combatHtml; }
 
     const scout = view.scoutId !== 'p0' ? snapshot.players.find(p => p.id === view.scoutId) : null;
-    element('scoutBadge').classList.toggle('hidden', !scout || snapshot.phase !== 'planning');
+    element('scoutBadge').classList.toggle('hidden', !scout);
     element('scoutName').textContent = scout ? `OBSERVANDO ${scout.name}` : '';
     if (snapshot.phase === 'planning') {
       element('battleStatus').textContent = scout ? `ARENA DE ${scout.name}` : 'PREPARE SUA FORMAÇÃO';
-    } else element('battleStatus').textContent = snapshot.log || phaseLabels[snapshot.phase];
+    } else element('battleStatus').textContent = scout ? `ASSISTINDO ${scout.name}` : snapshot.accelerated ? 'COMBATE ACELERADO 3×' : snapshot.log || phaseLabels[snapshot.phase];
 
     const inspected = player.units.find(u => u.id === view.selectedId);
     const inspector = inspected ? this.inspector(inspected) : '';

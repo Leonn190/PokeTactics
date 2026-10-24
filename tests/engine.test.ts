@@ -97,3 +97,66 @@ test('uma partida completa termina com exatamente um campeão e posições finai
   assert.equal(snapshot.players.find(p => p.id === snapshot.winnerId)?.placement, 1);
   assert.deepEqual(snapshot.players.map(p => p.placement).sort((a, b) => Number(a) - Number(b)), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
+
+test('preparação tem 40 segundos e cada capítulo possui exatamente dez etapas', () => {
+  const game = new GameEngine(92);
+  assert.equal(game.snapshot().phaseSeconds, 40);
+  assert.equal(game.snapshot().chapter, 1);
+  assert.equal(game.snapshot().stage, 1);
+  for (let i = 0; i < 20000 && game.snapshot().round < 11; i++) game.tick(.1);
+  const snapshot = game.snapshot();
+  assert.equal(snapshot.round, 11);
+  assert.equal(snapshot.chapter, 2);
+  assert.equal(snapshot.stage, 1);
+});
+
+test('comprar, roletar e reorganizar banco funcionam durante o combate; campo fica travado', () => {
+  const game = new GameEngine(340);
+  const player = game.players[0];
+  player.shop[0] = { id: 'extra', family: 'squirtle', rarity: 2, price: 2 };
+  for (let i = 0; i < 402; i++) game.tick(.1);
+  assert.equal(game.snapshot().phase, 'combat');
+  assert.equal(game.command({ kind: 'buy', slot: 0 }), null);
+  const bench = player.units.find(u => u.position.area === 'bench')!;
+  assert.equal(game.command({ kind: 'move', unitId: bench.id, position: { area: 'bench', index: 9 } }), null);
+  assert.match(game.command({ kind: 'move', unitId: bench.id, position: { area: 'board', col: 3, row: 0 } })!, /banco/);
+  assert.match(game.command({ kind: 'sell', unitId: player.units.find(u => u.position.area === 'board')!.id })!, /campo/);
+  assert.equal(game.command({ kind: 'reroll' }), null);
+  assert.equal(game.snapshot('p3').observedId, 'p3');
+  assert.ok(game.snapshot('p3').visibleBattle?.units.some(u => u.playerId === 'p3'));
+});
+
+test('após 30 segundos com combate pendente entra aceleração 3×', () => {
+  const game = new GameEngine(13);
+  for (let i = 0; i < 402; i++) game.tick(.1);
+  const battle = game.snapshot().visibleBattle!;
+  // Mantém este confronto vivo para testar a regra de aceleração.
+  for (const unit of battle.units) {
+    unit.hp = 1_000_000;
+    unit.maxHp = 1_000_000;
+    unit.attackClock = 100_000;
+  }
+  for (let i = 0; i < 302; i++) game.tick(.1);
+  const snapshot = game.snapshot();
+  assert.equal(snapshot.phase, 'combat');
+  assert.equal(snapshot.accelerated, true);
+  assert.equal(snapshot.timeLeft, 0);
+  const before = snapshot.visibleBattle!.elapsed;
+  game.tick(.1);
+  assert.ok(game.snapshot().visibleBattle!.elapsed - before > .25);
+});
+
+test('painel recebe dano físico e especial separados por Pokémon', () => {
+  const game = new GameEngine(7);
+  const [a, b] = game.players;
+  a.units[0].position = { area: 'board', col: 3, row: 0 };
+  b.units[0].position = { area: 'board', col: 3, row: 0 };
+  const battle = createBattle(a, b, 'damage-split');
+  for (let i = 0; i < 300 && !battle.resolved; i++) tickBattle(battle, .05);
+  const dealt = battle.units.reduce((sum, u) => sum + u.metrics.dealt, 0);
+  const physical = battle.units.reduce((sum, u) => sum + u.metrics.physicalDealt, 0);
+  const special = battle.units.reduce((sum, u) => sum + u.metrics.specialDealt, 0);
+  assert.ok(physical > 0);
+  assert.ok(special > 0);
+  assert.ok(Math.abs(dealt - physical - special) < 0.001);
+});

@@ -38,14 +38,14 @@ export class GameEngine {
   private idCounter = 0;
   private serial = 0;
   private clock = 0;
-  private duration = 19;
+  private duration = 40;
   private phase: Phase = 'planning';
   private round = 1;
   private battles: Battle[] = [];
   private opponentId: string | null = null;
   private log = '';
   private winnerId: string | null = null;
-  private lastCombatStats: Record<string, Record<string, { dealt: number; taken: number; healed: number; blocked: number }>> = {};
+  private lastCombatStats: GameSnapshot['combatStats'] = {};
   readonly players: Player[];
 
   constructor(seed = Date.now()) {
@@ -143,7 +143,7 @@ export class GameEngine {
 
   command(command: GameCommand): string | null {
     const human = this.players[0];
-    if (human.eliminated || this.phase !== 'planning') return 'Aguarde a preparação da próxima rodada';
+    if (human.eliminated || this.phase === 'finished') return 'A partida já terminou para você';
     if (command.kind === 'buy') {
       if (!Number.isInteger(command.slot) || command.slot < 0 || command.slot >= SHOP_SIZE) return 'Slot inválido';
       return this.buy(human, command.slot);
@@ -157,6 +157,7 @@ export class GameEngine {
     if (command.kind === 'lock') { human.locked = !human.locked; return null; }
     const unit = human.units.find(u => u.id === command.unitId);
     if (!unit) return 'Pokémon não encontrado';
+    if (this.phase !== 'planning' && unit.position.area === 'board') return 'Pokémon em campo não pode ser movido durante o combate';
     if (command.kind === 'sell') {
       human.gold += SPECIES[unit.family].rarity * 3 ** unit.stage;
       human.units = human.units.filter(u => u.id !== unit.id);
@@ -164,6 +165,7 @@ export class GameEngine {
     }
     if (command.kind === 'move') {
       const target = command.position;
+      if (this.phase !== 'planning' && target.area === 'board') return 'Você só pode reorganizar o banco durante o combate';
       if (target.area === 'board') {
         if (!Number.isInteger(target.col) || !Number.isInteger(target.row) || target.col < 0 || target.col >= BOARD_COLUMNS || target.row < 0 || target.row >= BOARD_ROWS) return 'Hexágono inválido';
         const deployed = human.units.filter(u => u.position.area === 'board').length;
@@ -271,7 +273,7 @@ export class GameEngine {
 
   private nextRound(): void {
     this.round++;
-    this.phase = 'planning'; this.clock = 0; this.duration = 19;
+    this.phase = 'planning'; this.clock = 0; this.duration = 40;
     for (const p of this.players) {
       if (p.eliminated) continue;
       const interest = Math.min(3, Math.floor(p.gold / 10));
@@ -289,24 +291,32 @@ export class GameEngine {
     this.clock += step;
     if (this.phase === 'planning' && this.clock >= this.duration) this.startCombat();
     else if (this.phase === 'combat') {
-      for (const battle of this.battles) tickBattle(battle, step);
-      if (this.battles.every(b => b.resolved) || this.clock >= this.duration) this.finishCombat();
+      const accelerated = this.clock >= 30;
+      for (const battle of this.battles) tickBattle(battle, accelerated ? step * 3 : step);
+      // Last-resort resolution prevents regeneration stalemates, without truncating normal fights at 30s.
+      if (this.clock >= 65) this.battles.forEach(forceResolveBattle);
+      if (this.battles.every(b => b.resolved)) this.finishCombat();
     } else if (this.phase === 'result' && this.clock >= this.duration) this.nextRound();
   }
 
-  snapshot(): GameSnapshot {
-    const battle = this.battles.find(b => b.playerA === 'p0' || b.playerB === 'p0') || null;
+  snapshot(observedId = 'p0'): GameSnapshot {
+    const watched = this.players.some(p => p.id === observedId) ? observedId : 'p0';
+    const battle = this.battles.find(b => b.playerA === watched || b.playerB === watched) || null;
     const stats = battle ? battleMetrics(battle) : this.lastCombatStats;
     return {
       serial: ++this.serial, phase: this.phase, phaseSeconds: this.duration,
       timeLeft: Math.max(0, this.duration - this.clock), round: this.round,
-      chapter: Math.min(10, Math.ceil(this.round / 3)),
+      chapter: Math.floor((this.round - 1) / 10) + 1,
+      stage: ((this.round - 1) % 10) + 1,
+      accelerated: this.phase === 'combat' && this.clock >= 30,
+      observedId: watched,
       players: this.players.map(p => ({
         ...p, units: p.units.map(u => ({ ...u, iv: { ...u.iv }, position: { ...u.position } })),
         shop: p.id === 'p0' ? p.shop.map(offer => offer && { ...offer }) : []
       })),
       opponentId: this.opponentId,
-      visibleBattle: battle ? structuredClone(battle) : null,
+      // postMessage performs the one structured clone at the worker boundary.
+      visibleBattle: battle,
       combatStats: stats, log: this.log, winnerId: this.winnerId
     };
   }

@@ -27,7 +27,7 @@ tests/                   testes de regras
 ## Regras desta versão
 
 - **8 jogadores, 100 HP cada.** Partidas normais até sobrar um participante. Derrota causa 3 de dano base + 2 por Pokémon inimigo sobrevivente + 1 a cada cinco rodadas.
-- **6 cartas na loja**, reroll por 2 de ouro, trava de loja; **10 espaços de banco**. Apenas as quatro famílias básicas aparecem na loja.
+- **6 cartas na loja**, reroll por 2 de ouro, trava de loja; **10 espaços de banco integrados fisicamente à arena**. Arrastar um Pokémon faz a loja inteira virar a área de venda. Apenas as quatro famílias básicas aparecem na loja.
 - **Cinco raridades** no motor. Bulbasaur e Charmander: 1; Squirtle: 2; Pikachu: 3. As raridades 4 e 5 ficam sem Pokémon até futuras adições.
 - **Nível de jogador automático 1–6** conforme rodadas 1, 4, 8, 13, 19, 26. O limite de Pokémon em campo é igual ao nível de jogador.
 - **Renda:** +5 por rodada, juros de +1 a cada 10 de ouro (limite +3) e +1 após vitória. Ouro inicial: 9.
@@ -35,18 +35,22 @@ tests/                   testes de regras
 - **Evolução:** três unidades iguais da mesma etapa se fundem na próxima etapa; preserva o maior nível das três e a média dos seis IVs. A cadeia é Bulbasaur → Ivysaur → Venusaur, Charmander → Charmeleon → Charizard, Squirtle → Wartortle → Blastoise, Pikachu → Raichu.
 - **Combate:** seleção do alvo vivo mais próximo, avanço até o alcance, ataques físicos comuns que geram +10 de energia, habilidade ao atingir a energia exigida, defesa física/especial, velocidades, barras de vida e energia, efeitos e registro de dano, dano recebido, cura e mitigação.
 - **Tipos:** Planta (regeneração), Venenoso (dano contínuo), Fogo (mais dano), Água (resistência), Elétrico (mais velocidade). Somente Pokémon em campo contam. Cópias idênticas da mesma etapa não aumentam o contador.
-- **Sem batalhas especiais** nesta etapa; trilha mostra os capítulos 1–10 e continua com confrontos comuns até a decisão.
+- **10 etapas por capítulo:** 1-1 até 1-10, depois 2-1 etc. Preparação de **40 segundos**; combate por **30 segundos**, terminando antes se todos os duelos acabarem. Após 30 segundos de duelos pendentes, a simulação acelera 3× até resolver (há um limite de segurança para impasses).
+- **Painel de combate:** status com a vida restante dos Pokémon, dano físico (laranja) e especial (azul), defesa e cura.
+- **Durante combate:** compras, reroll, trava, venda e rearranjo do banco continuam disponíveis. A formação já enviada à batalha permanece bloqueada. É possível observar o confronto de qualquer CPU pelo ranking.
+- **Treinadores:** o seu é controlado por clique direito; cada CPU também possui um pequeno personagem próprio na arena.
+- **Desempenho:** combate das CPUs isolado no Web Worker, traits pré-calculados, busca de alvos sem ordenações repetidas, quadros interpolados e canvas com resolução adaptada para dispositivos de alta densidade.
 
 ## Controles
 
 | Ação | Controle |
 | --- | --- |
 | Mover treinador | Clique direito na arena |
-| Aproximar/afastar câmera | Scroll na arena |
+| Aproximar/afastar câmera | Scroll na arena; o ponto sob o cursor fica fixo |
 | Comprar | Clique na carta da loja |
-| Mover para hexágono / banco / trocar | Arraste o Pokémon |
+| Mover para hexágono / banco / trocar | Arraste o Pokémon no tabuleiro físico |
 | Colocar rapidamente do banco | Dois cliques no Pokémon |
-| Vender | Arraste até VENDER ou selecione e pressione E |
+| Vender | Arraste para a faixa inteira da loja ou selecione e pressione E |
 | Reroll | Botão ROLETAR ou tecla D |
 | Examinar stats/IV | Clique no Pokémon |
 | Espiar rival | Clique no jogador da classificação; VOLTAR para a sua arena |

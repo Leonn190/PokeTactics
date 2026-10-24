@@ -1,7 +1,7 @@
 import { calculateStats, gridXY, SPECIES } from '../data';
-import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Family, Player, Pokemon } from '../types';
+import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon } from '../types';
 
-const metrics = (): CombatMetrics => ({ dealt: 0, taken: 0, healed: 0, blocked: 0 });
+const metrics = (): CombatMetrics => ({ dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0 });
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 
 function makeCombatUnit(pokemon: Pokemon, owner: Player, enemySide: boolean): CombatUnit {
@@ -30,14 +30,16 @@ export function createBattle(playerA: Player, playerB: Player, id: string): Batt
   return {
     id, playerA: playerA.id, playerB: playerB.id,
     units: [...deployed(playerA, false), ...deployed(playerB, true)],
-    effects: [], elapsed: 0, resolved: false, winner: null, loser: null
+    effects: [], elapsed: 0, resolved: false, winner: null, loser: null,
+    traitsByPlayer: { [playerA.id]: countTraits(playerA), [playerB.id]: countTraits(playerB) }
   };
 }
 
-function traits(battle: Battle, owner: string): Record<string, number> {
+function countTraits(player: Player): Partial<Record<Element, number>> {
   const unique = new Set<string>();
-  const count: Record<string, number> = {};
-  for (const u of battle.units.filter(u => u.playerId === owner)) {
+  const count: Partial<Record<Element, number>> = {};
+  for (const u of player.units) {
+    if (u.position.area !== 'board') continue;
     const key = `${u.family}:${u.stage}`;
     if (unique.has(key)) continue;
     unique.add(key);
@@ -58,10 +60,12 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (target.hp <= 0) return 0;
   const shield = magical ? target.stats.spd : target.stats.def;
   const mitigation = 100 / (100 + shield * 0.8);
-  const defenderTraits = traits(battle, target.playerId);
+  const defenderTraits = battle.traitsByPlayer[target.playerId];
   const waterReduction = defenderTraits.water ? Math.min(0.32, defenderTraits.water * 0.1) : 0;
   const damage = Math.max(1, raw * mitigation * (1 - waterReduction) * (1 + traitBoost));
   source.metrics.dealt += damage;
+  if (magical) source.metrics.specialDealt += damage;
+  else source.metrics.physicalDealt += damage;
   target.metrics.taken += damage;
   target.metrics.blocked += Math.max(0, raw * (1 + traitBoost) - damage);
   target.hp = Math.max(0, target.hp - damage);
@@ -87,15 +91,19 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit, traitBoos
     effect(battle, source, source, 'heal', gain);
   } else if (source.family === 'charmander') {
     magic(22 + s * 1.12);
-    target.damageOverTime = { amount: 4 + s * 0.11, time: 3.1 };
+    target.damageOverTime = { amount: 4 + s * 0.11, time: 3.1, sourceId: source.id };
   } else if (source.family === 'squirtle') {
     magic(15 + a * 0.28 + s * 0.9);
     target.slow = 2.8;
   } else {
     magic(20 + s * 1.25);
-    const chained = battle.units
-      .filter(u => u.playerId !== source.playerId && u.id !== target.id && u.hp > 0)
-      .sort((a, b) => distance(a, target) - distance(b, target))[0];
+    let chained: CombatUnit | null = null;
+    let nearest = Infinity;
+    for (const u of battle.units) {
+      if (u.playerId === source.playerId || u.id === target.id || u.hp <= 0) continue;
+      const d = (u.x - target.x) ** 2 + (u.y - target.y) ** 2;
+      if (d < nearest) { chained = u; nearest = d; }
+    }
     if (chained && distance(chained, target) < 2.6) {
       deal(battle, source, chained, 12 + s * 0.65, true, traitBoost);
       effect(battle, source, chained, 'spell', 0);
@@ -107,7 +115,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit, traitBoos
 function resolve(battle: Battle): void {
   const a = battle.units.filter(u => u.playerId === battle.playerA && u.hp > 0);
   const b = battle.units.filter(u => u.playerId === battle.playerB && u.hp > 0);
-  if (a.length && b.length && battle.elapsed < 30) return;
+  if (a.length && b.length && battle.elapsed < 120) return;
   const aHealth = a.reduce((sum, u) => sum + u.hp / u.maxHp, 0);
   const bHealth = b.reduce((sum, u) => sum + u.hp / u.maxHp, 0);
   battle.resolved = true;
@@ -118,28 +126,38 @@ function resolve(battle: Battle): void {
 export function tickBattle(battle: Battle, dt: number): void {
   if (battle.resolved) return;
   battle.elapsed += dt;
-  for (const particle of battle.effects) particle.time += dt;
-  battle.effects = battle.effects.filter(e => e.time < e.duration);
+  for (let i = battle.effects.length - 1; i >= 0; i--) {
+    battle.effects[i].time += dt;
+    if (battle.effects[i].time >= battle.effects[i].duration) battle.effects.splice(i, 1);
+  }
 
   for (const unit of battle.units) {
     if (unit.hp <= 0) continue;
     unit.flash = Math.max(0, unit.flash - dt);
     unit.slow = Math.max(0, unit.slow - dt);
     if (unit.damageOverTime) {
-      unit.hp = Math.max(0, unit.hp - unit.damageOverTime.amount * dt);
-      unit.metrics.taken += unit.damageOverTime.amount * dt;
+      const applied = Math.min(unit.hp, unit.damageOverTime.amount * dt);
+      unit.hp -= applied;
+      unit.metrics.taken += applied;
+      const source = battle.units.find(other => other.id === unit.damageOverTime?.sourceId);
+      if (source) { source.metrics.dealt += applied; source.metrics.specialDealt += applied; }
       unit.damageOverTime.time -= dt;
       if (unit.damageOverTime.time <= 0) unit.damageOverTime = null;
     }
     if (unit.hp <= 0) continue;
 
-    const alliedTraits = traits(battle, unit.playerId);
+    const alliedTraits = battle.traitsByPlayer[unit.playerId];
     if (alliedTraits.grass) heal(unit, unit.maxHp * 0.006 * Math.min(3, alliedTraits.grass) * dt);
     unit.attackClock -= dt;
-    const enemies = battle.units.filter(u => u.playerId !== unit.playerId && u.hp > 0);
-    if (!enemies.length) continue;
-    const target = enemies.sort((a, b) => distance(a, unit) - distance(b, unit))[0];
-    const d = distance(unit, target);
+    let target: CombatUnit | null = null;
+    let distanceSq = Infinity;
+    for (const enemy of battle.units) {
+      if (enemy.playerId === unit.playerId || enemy.hp <= 0) continue;
+      const squared = (enemy.x - unit.x) ** 2 + (enemy.y - unit.y) ** 2;
+      if (squared < distanceSq) { target = enemy; distanceSq = squared; }
+    }
+    if (!target) continue;
+    const d = Math.sqrt(distanceSq);
     if (d > unit.range + 0.08) {
       const travel = Math.min(d - unit.range, dt * (0.68 + unit.stats.speed / 180) * (unit.slow ? 0.65 : 1));
       unit.x += (target.x - unit.x) / d * travel;
@@ -155,7 +173,7 @@ export function tickBattle(battle: Battle, dt: number): void {
       const raw = 8 + unit.stats.atk * 0.48;
       deal(battle, unit, target, raw, false, fireBoost);
       effect(battle, unit, target, 'physical', raw);
-      if (alliedTraits.poison) target.damageOverTime = { amount: 3 * Math.min(3, alliedTraits.poison), time: 3 };
+      if (alliedTraits.poison) target.damageOverTime = { amount: 3 * Math.min(3, alliedTraits.poison), time: 3, sourceId: unit.id };
       unit.energy = Math.min(unit.energyNeeded, unit.energy + 10);
     }
     unit.attackClock = unit.cooldown * (alliedTraits.electric ? 0.86 : 1) * (unit.slow ? 1.3 : 1);
@@ -165,7 +183,7 @@ export function tickBattle(battle: Battle, dt: number): void {
 
 export function forceResolveBattle(battle: Battle): void {
   if (!battle.resolved) {
-    battle.elapsed = 30;
+    battle.elapsed = 120;
     resolve(battle);
   }
 }

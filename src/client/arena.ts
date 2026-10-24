@@ -8,10 +8,14 @@ export interface ClientView {
   dragX: number;
   dragY: number;
   hoveringHex: { col: number; row: number } | null;
+  hoveringBench: number | null;
 }
 
-type Marker = { id: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number };
+type Marker = { id: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean };
 const PI2 = Math.PI * 2;
+const BENCH_Y = 4.49;
+const benchXY = (index: number) => ({ x: -5.17 + index * 1.15, y: BENCH_Y });
+const TRAINER_COLORS = ['#d9f4ea', '#dd9fd0', '#82c4e5', '#b1b3ff', '#f5bc89', '#c3e7a4', '#a9dfdc', '#eeadab'];
 
 export class Arena {
   private context: CanvasRenderingContext2D;
@@ -19,9 +23,11 @@ export class Arena {
   private height = 0;
   private pixelRatio = 1;
   private zoom = 1;
+  private cameraOffset = { x: 0, y: 0 };
   private trainer = { x: -4.75, y: 3.57 };
   private trainerTarget = { x: -4.75, y: 3.57 };
   private visualPositions = new Map<string, { x: number; y: number }>();
+  private lastBattleId = '';
   private lastFrame = 0;
   private frame = 0;
   snapshot: GameSnapshot | null = null;
@@ -37,15 +43,16 @@ export class Arena {
 
   private resize(): void {
     const rect = this.canvas.getBoundingClientRect();
-    this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    // A dense canvas on a Retina screen easily becomes the rendering bottleneck.
+    this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
     this.width = rect.width;
     this.height = rect.height;
     this.canvas.width = Math.round(rect.width * this.pixelRatio);
     this.canvas.height = Math.round(rect.height * this.pixelRatio);
   }
 
-  private get origin() { return { x: this.width / 2 - (this.width > 1200 ? 23 : 0), y: (this.height - 230) / 2 + 37 }; }
-  private get cellScale() { return (this.width < 1000 ? 62 : 70) * this.zoom; }
+  private get origin() { return { x: this.width / 2 - (this.width > 1200 ? 23 : 0) + this.cameraOffset.x, y: (this.height - 170) / 2 + this.cameraOffset.y }; }
+  private get cellScale() { return Math.min(this.width < 1000 ? 61 : 70, Math.max(46, (this.height - 265) / 9.5)) * this.zoom; }
 
   toScreen(x: number, y: number): { x: number; y: number } {
     const o = this.origin;
@@ -59,7 +66,15 @@ export class Arena {
     const rect = this.canvas.getBoundingClientRect();
     return this.fromScreen(clientX - rect.left, clientY - rect.top);
   }
-  zoomAt(delta: number): void { this.zoom = Math.max(.72, Math.min(1.38, this.zoom + (delta > 0 ? -.09 : .09))); }
+  zoomAt(delta: number, clientX: number, clientY: number): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const pointerX = clientX - rect.left, pointerY = clientY - rect.top;
+    const focalPoint = this.fromScreen(pointerX, pointerY);
+    this.zoom = Math.max(.72, Math.min(1.38, this.zoom + (delta > 0 ? -.09 : .09)));
+    const projected = this.toScreen(focalPoint.x, focalPoint.y);
+    this.cameraOffset.x += pointerX - projected.x;
+    this.cameraOffset.y += pointerY - projected.y;
+  }
   moveTrainer(clientX: number, clientY: number): void {
     const dest = this.pointerWorld(clientX, clientY);
     this.trainerTarget = { x: Math.max(-6.2, Math.min(6.2, dest.x)), y: Math.max(-4.4, Math.min(4.65, dest.y)) };
@@ -75,10 +90,23 @@ export class Arena {
     }
     return closest;
   }
+  pickBench(clientX: number, clientY: number): number | null {
+    const world = this.pointerWorld(clientX, clientY);
+    if (Math.abs(world.y - BENCH_Y) > .47) return null;
+    for (let index = 0; index < 10; index++) {
+      if (Math.abs(world.x - benchXY(index).x) < .53) return index;
+    }
+    return null;
+  }
   pickOwnUnit(clientX: number, clientY: number): string | null {
-    if (!this.snapshot || this.snapshot.phase !== 'planning' || this.view.scoutId !== 'p0') return null;
+    if (!this.snapshot || this.snapshot.players[0].eliminated || this.snapshot.phase === 'finished') return null;
     const player = this.snapshot.players[0];
     const world = this.pointerWorld(clientX, clientY);
+    const benchSlot = this.pickBench(clientX, clientY);
+    if (benchSlot !== null) {
+      return player.units.find(u => u.position.area === 'bench' && u.position.index === benchSlot)?.id || null;
+    }
+    if (this.snapshot.phase !== 'planning' || this.view.scoutId !== 'p0') return null;
     for (const unit of player.units) {
       if (unit.position.area !== 'board') continue;
       const p = gridXY(unit.position.col, unit.position.row + 4);
@@ -91,7 +119,7 @@ export class Arena {
     const ctx = this.context;
     const data = SPECIES[family];
     ctx.save(); ctx.translate(x, y);
-    ctx.shadowBlur = radius * 1.3; ctx.shadowColor = enemy ? '#f36c7b' : data.glow;
+    ctx.shadowBlur = radius * .7; ctx.shadowColor = enemy ? '#f36c7b' : data.glow;
     ctx.fillStyle = data.color; ctx.strokeStyle = enemy ? '#fc9686' : '#edffea'; ctx.lineWidth = Math.max(1.2, radius / 11);
     ctx.beginPath();
     if (data.shape === 'circle') ctx.arc(0, 0, radius, 0, PI2);
@@ -118,7 +146,7 @@ export class Arena {
     flare.addColorStop(0, '#44716b4c'); flare.addColorStop(.65, '#152d3560'); flare.addColorStop(1, '#08121b00');
     ctx.fillStyle = flare; ctx.fillRect(0, 0, w, h);
     // Ambient flora and motes are entirely procedural. public/ intentionally has no art assets.
-    for (let i = 0; i < 68; i++) {
+    for (let i = 0; i < 38; i++) {
       const nx = ((i * 173 + 43) % 1000) / 1000;
       const ny = ((i * 379 + 97) % 997) / 997;
       const x = nx * w, y = 80 + ny * (h - 90);
@@ -127,7 +155,7 @@ export class Arena {
       ctx.fillStyle = i % 3 ? `rgba(111,184,155,${.055 + glow * .14})` : `rgba(225,187,119,${.05 + glow * .12})`;
       ctx.beginPath(); ctx.arc(x + Math.sin(time * .4 + i) * 5, y + Math.cos(time * .55 + i) * 5, size * .6, 0, PI2); ctx.fill();
     }
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 13; i++) {
       const x = ((i * 269 + 71) % 1019) / 1019 * w;
       const y = ((i * 149 + 131) % 991) / 991 * h;
       if (x > w * .23 && x < w * .78 && y > h * .17 && y < h * .78) continue;
@@ -145,7 +173,7 @@ export class Arena {
     for (let row = 0; row < 8; row++) for (let col = 0; col < 7; col++) {
       const p = gridXY(col, row), screen = this.toScreen(p.x, p.y);
       const own = row >= 4;
-      const selected = own && this.view.dragId && this.view.hoveringHex?.col === col && this.view.hoveringHex?.row === row - 4;
+      const selected = isEditable && own && this.view.dragId && this.view.hoveringHex?.col === col && this.view.hoveringHex?.row === row - 4;
       const radius = scale * .56;
       ctx.beginPath();
       for (let vertex = 0; vertex < 6; vertex++) {
@@ -170,17 +198,48 @@ export class Arena {
     }
   }
 
+  private drawBench(): void {
+    const ctx = this.context;
+    const left = this.toScreen(-5.76, BENCH_Y - .53);
+    const right = this.toScreen(5.75, BENCH_Y + .53);
+    ctx.fillStyle = '#0d1b23cf';
+    ctx.strokeStyle = '#bca36a73'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(left.x, left.y, right.x - left.x, right.y - left.y, 10); ctx.fill(); ctx.stroke();
+    for (let index = 0; index < 10; index++) {
+      const { x, y } = benchXY(index), p = this.toScreen(x, y);
+      const radiusX = this.cellScale * .51, radiusY = this.cellScale * .39;
+      const selected = this.view.hoveringBench === index && !!this.view.dragId;
+      ctx.beginPath(); ctx.roundRect(p.x - radiusX, p.y - radiusY, radiusX * 2, radiusY * 2, 5);
+      ctx.fillStyle = selected ? '#6ba48e8c' : '#28413f9c';
+      ctx.strokeStyle = selected ? '#f2d59d' : '#50716778'; ctx.lineWidth = selected ? 2 : 1;
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#75939199'; ctx.font = "700 10px 'Barlow Condensed'";
+      ctx.textAlign = 'left'; ctx.fillText(String(index + 1), p.x - radiusX + 5, p.y - radiusY + 12);
+    }
+  }
+
   private markers(): Marker[] {
     const snapshot = this.snapshot;
     if (!snapshot) return [];
-    if (snapshot.phase !== 'planning' && snapshot.visibleBattle) {
-      return snapshot.visibleBattle.units.filter(u => u.hp > 0).map(u => {
+    const bench = snapshot.players[0].units.filter(u => u.position.area === 'bench').map(u => {
+      const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index);
+      return { id: u.id, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
+        own: true, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0, bench: true } as Marker;
+    });
+    if (snapshot.phase !== 'planning' && snapshot.visibleBattle && snapshot.observedId === this.view.scoutId) {
+      if (this.lastBattleId !== snapshot.visibleBattle.id) {
+        this.visualPositions.clear(); this.lastBattleId = snapshot.visibleBattle.id;
+      }
+      const observedOnTop = snapshot.visibleBattle.playerB === this.view.scoutId;
+      const battleMarkers = snapshot.visibleBattle.units.filter(u => u.hp > 0).map(u => {
         const smooth = this.visualPositions.get(u.id) || { x: u.x, y: u.y };
         smooth.x += (u.x - smooth.x) * .27;
         smooth.y += (u.y - smooth.y) * .27;
         this.visualPositions.set(u.id, smooth);
-        return { ...u, x: smooth.x, y: smooth.y, own: u.playerId === 'p0', required: u.energyNeeded };
+        return { ...u, x: smooth.x, y: observedOnTop ? -smooth.y : smooth.y,
+          own: u.playerId === this.view.scoutId, required: u.energyNeeded };
       });
+      return [...battleMarkers, ...bench];
     }
     const friendly = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
     const other = snapshot.players.find(p => p.id === (this.view.scoutId === 'p0' ? snapshot.opponentId : 'p0')) || snapshot.players[1];
@@ -191,13 +250,13 @@ export class Arena {
       return { id: u.id, x: p.x, y: p.y, family: u.family, stage: u.stage,
         level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0 };
     });
-    return [...convert(other.units, false), ...convert(friendly.units, true)];
+    return [...convert(other.units, false), ...convert(friendly.units, true), ...bench];
   }
 
   private drawUnit(unit: Marker, time: number): void {
     const ctx = this.context;
     const p = this.toScreen(unit.x, unit.y);
-    const radius = this.cellScale * .265 * (1 + unit.stage * .1);
+    const radius = this.cellScale * (unit.bench ? .205 : .265) * (1 + unit.stage * .1);
     const float = Math.sin(time * 2.6 + unit.x * 2) * 2;
     // Projected contact shadow.
     ctx.fillStyle = '#0008'; ctx.beginPath(); ctx.ellipse(p.x, p.y + radius + 5, radius * 1.17, 7, 0, 0, PI2); ctx.fill();
@@ -209,6 +268,13 @@ export class Arena {
       ctx.fillStyle = '#fff4d454'; ctx.beginPath(); ctx.arc(p.x, p.y - 2, radius * 1.7, 0, PI2); ctx.fill();
     }
     this.shape(p.x, p.y - 2 + float, unit.family, radius, unit.stage, !unit.own);
+    if (unit.bench) {
+      ctx.font = `700 ${Math.max(9, this.cellScale * .14)}px 'Barlow Condensed'`;
+      ctx.textAlign = 'center'; ctx.strokeStyle = '#081923'; ctx.lineWidth = 2.5;
+      const name = displayName(unit.family, unit.stage);
+      ctx.strokeText(name, p.x, p.y + radius + 13); ctx.fillStyle = '#e7ede8'; ctx.fillText(name, p.x, p.y + radius + 13);
+      return;
+    }
     const label = displayName(unit.family, unit.stage);
     ctx.font = `700 ${Math.max(10, Math.round(this.cellScale * .155))}px 'Barlow Condensed',sans-serif`;
     ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#0a1725';
@@ -225,11 +291,12 @@ export class Arena {
     ctx.fillText(`Lv.${unit.level}`, p.x, p.y - radius - (this.snapshot?.phase === 'planning' ? 12 : 24));
   }
 
-  private effects(effects: CombatEffect[]): void {
+  private effects(effects: CombatEffect[], flipY: boolean): void {
     const ctx = this.context;
     for (const fx of effects) {
       const t = Math.max(0, Math.min(1, fx.time / fx.duration));
-      const p = this.toScreen(fx.x + (fx.targetX - fx.x) * t, fx.y + (fx.targetY - fx.y) * t);
+      const fxY = fx.y + (fx.targetY - fx.y) * t;
+      const p = this.toScreen(fx.x + (fx.targetX - fx.x) * t, flipY ? -fxY : fxY);
       const radius = fx.kind === 'spell' ? 12 : 6;
       ctx.save(); ctx.globalAlpha = Math.max(0, 1 - t);
       ctx.shadowBlur = 24; ctx.shadowColor = SPECIES[fx.family].glow;
@@ -243,7 +310,36 @@ export class Arena {
     }
   }
 
-  private drawTrainer(dt: number, time: number): void {
+  private drawTrainerAvatar(playerId: string, x: number, y: number, time: number, label: string): void {
+    const index = Math.max(0, Math.min(7, Number(playerId.slice(1)) || 0));
+    const color = TRAINER_COLORS[index];
+    const ctx = this.context;
+    const p = this.toScreen(x, y);
+    const radius = 14 * this.zoom;
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + radius, radius + 8, 6, 0, 0, PI2); ctx.fillStyle = '#0008'; ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x, p.y, radius + 8 + Math.sin(time * 2.8 + index) * 2, 0, PI2);
+    ctx.strokeStyle = `${color}70`; ctx.lineWidth = 2; ctx.stroke();
+    ctx.shadowColor = color; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.arc(p.x, p.y + Math.sin(time * 3 + index) * 2, radius, 0, PI2);
+    ctx.fillStyle = color; ctx.fill(); ctx.shadowBlur = 0;
+    if (index) {
+      // Each CPU owns a recognizable little tactician, not a copy of the player's circle.
+      ctx.fillStyle = color; ctx.strokeStyle = '#30444c'; ctx.lineWidth = 2;
+      const ear = (index % 3 + 1) * 3;
+      ctx.beginPath(); ctx.moveTo(p.x - radius * .75, p.y - radius * .55); ctx.lineTo(p.x - radius * .85, p.y - radius - ear);
+      ctx.lineTo(p.x - radius * .15, p.y - radius * .76); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.x + radius * .75, p.y - radius * .55); ctx.lineTo(p.x + radius * .85, p.y - radius - ear);
+      ctx.lineTo(p.x + radius * .15, p.y - radius * .76); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#263c44'; ctx.fillRect(p.x - 4, p.y + radius * .4, 8, 2);
+    }
+    ctx.beginPath(); ctx.arc(p.x - 3, p.y - 2, 1.8, 0, PI2); ctx.arc(p.x + 3, p.y - 2, 1.8, 0, PI2); ctx.fillStyle = '#233d47'; ctx.fill();
+    ctx.textAlign = 'center'; ctx.font = "700 11px 'Barlow Condensed'";
+    ctx.fillStyle = '#f6df9e'; ctx.fillText(label, p.x, p.y - radius - 20);
+    ctx.restore();
+  }
+
+  private drawTrainers(dt: number, time: number): void {
     const dx = this.trainerTarget.x - this.trainer.x, dy = this.trainerTarget.y - this.trainer.y;
     const length = Math.hypot(dx, dy);
     if (length > .015) {
@@ -251,17 +347,18 @@ export class Arena {
       this.trainer.x += dx / length * distance;
       this.trainer.y += dy / length * distance;
     }
-    const p = this.toScreen(this.trainer.x, this.trainer.y);
-    const radius = 14 * this.zoom;
-    const ctx = this.context;
-    ctx.beginPath(); ctx.ellipse(p.x, p.y + radius, radius + 8, 6, 0, 0, PI2); ctx.fillStyle = '#0008'; ctx.fill();
-    ctx.beginPath(); ctx.arc(p.x, p.y, radius + 8 + Math.sin(time * 2.8) * 2, 0, PI2);
-    ctx.strokeStyle = '#d9c48a60'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.shadowColor = '#8cd7d2'; ctx.shadowBlur = 24;
-    ctx.beginPath(); ctx.arc(p.x, p.y + Math.sin(time * 3) * 2, radius, 0, PI2);
-    ctx.fillStyle = '#d9f4ea'; ctx.fill(); ctx.shadowBlur = 0;
-    ctx.beginPath(); ctx.arc(p.x - 3, p.y - 2, 1.8, 0, PI2); ctx.arc(p.x + 3, p.y - 2, 1.8, 0, PI2); ctx.fillStyle = '#233d47'; ctx.fill();
-    ctx.textAlign = 'center'; ctx.font = "700 11px 'Barlow Condensed'"; ctx.fillStyle = '#f6df9e'; ctx.fillText('VOCÊ', p.x, p.y - radius - 18);
+    if (!this.snapshot) return;
+    const watched = this.view.scoutId;
+    const battle = this.snapshot.visibleBattle;
+    const foe = battle && (battle.playerA === watched || battle.playerB === watched)
+      ? (battle.playerA === watched ? battle.playerB : battle.playerA)
+      : watched === 'p0' ? (this.snapshot.opponentId || 'p1') : 'p0';
+    const name = (id: string) => this.snapshot?.players.find(p => p.id === id)?.name || id;
+    const wander = (i: number) => ({ x: Math.sin(time * .55 + i * 1.4) * .13, y: Math.cos(time * .45 + i) * .08 });
+    const a = wander(Number(watched.slice(1))), b = wander(Number(foe.slice(1)));
+    if (watched === 'p0') this.drawTrainerAvatar(watched, this.trainer.x, this.trainer.y, time, name(watched));
+    else this.drawTrainerAvatar(watched, -4.74 + a.x, 3.44 + a.y, time, name(watched));
+    if (foe !== watched) this.drawTrainerAvatar(foe, 4.86 + b.x, -3.44 + b.y, time, name(foe));
   }
 
   private draw(timestamp: number): void {
@@ -271,10 +368,13 @@ export class Arena {
     ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     this.background(this.frame);
     this.hexGrid(this.frame);
+    this.drawBench();
     const markers = this.markers();
     markers.sort((a, b) => a.y - b.y).forEach(marker => this.drawUnit(marker, this.frame));
-    if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle) this.effects(this.snapshot.visibleBattle.effects);
-    this.drawTrainer(dt, this.frame);
+    if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
+      this.effects(this.snapshot.visibleBattle.effects, this.snapshot.visibleBattle.playerB === this.view.scoutId);
+    }
+    this.drawTrainers(dt, this.frame);
     requestAnimationFrame(time => this.draw(time));
   }
 }

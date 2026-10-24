@@ -1,9 +1,9 @@
 import { Arena, type ClientView } from './arena';
 import { Hud } from './hud';
 import { SPECIES } from '../../server/data';
-import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient, UnitPosition } from '../../server/types';
+import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
-const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, dragX: 0, dragY: 0, hoveringHex: null };
+const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, dragX: 0, dragY: 0, hoveringHex: null, hoveringBench: null };
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
@@ -12,19 +12,29 @@ const ghost = document.getElementById('dragGhost')!;
 let state: GameSnapshot | null = null;
 let dragStarted = false;
 let pointerStart = { x: 0, y: 0 };
+let lastHudRender = 0;
+let lastHudPhase = '';
+let lastHudGold = -1;
 
 function send(command: GameCommand): void {
-  if (!state || state.phase !== 'planning' || state.players[0].eliminated) return;
+  if (!state || state.phase === 'finished' || state.players[0].eliminated) return;
   worker.postMessage({ type: 'command', command } satisfies ClientToServer);
+}
+function watch(playerId: string): void {
+  view.scoutId = playerId;
+  worker.postMessage({ type: 'watch', playerId } satisfies ClientToServer);
 }
 
 worker.addEventListener('message', (event: MessageEvent<ServerToClient>) => {
   if (event.data.type === 'rejected') return hud.toast(event.data.reason);
   state = event.data.snapshot;
   arena.snapshot = state;
-  if (state.phase !== 'planning' && view.scoutId !== 'p0') view.scoutId = 'p0';
   if (view.selectedId && !state.players[0].units.some(u => u.id === view.selectedId)) view.selectedId = null;
-  hud.render(state, view);
+  const now = performance.now();
+  if (now - lastHudRender > 95 || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold) {
+    hud.render(state, view);
+    lastHudRender = now; lastHudPhase = state.phase; lastHudGold = state.players[0].gold;
+  }
 });
 worker.addEventListener('error', () => hud.toast('Erro ao iniciar a simulação'));
 worker.postMessage({ type: 'connect' } satisfies ClientToServer);
@@ -37,20 +47,22 @@ document.getElementById('rerollButton')!.addEventListener('click', () => send({ 
 document.getElementById('lockButton')!.addEventListener('click', () => send({ kind: 'lock' }));
 
 document.getElementById('rankRows')!.addEventListener('click', event => {
-  if (!state || state.phase !== 'planning') return;
+  if (!state) return;
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-scout]');
   if (!target) return;
-  view.scoutId = target.dataset.scout || 'p0';
+  watch(target.dataset.scout || 'p0');
   view.selectedId = null;
   hud.render(state, view);
 });
 document.getElementById('returnBoard')!.addEventListener('click', () => {
   if (!state) return;
-  view.scoutId = 'p0'; hud.render(state, view);
+  watch('p0'); hud.render(state, view);
 });
 
 function startDrag(id: string, event: PointerEvent): void {
-  if (!state || state.phase !== 'planning' || view.scoutId !== 'p0') return;
+  if (!state || state.phase === 'finished') return;
+  const unit = state.players[0].units.find(u => u.id === id);
+  if (!unit || (unit.position.area === 'board' && (state.phase !== 'planning' || view.scoutId !== 'p0'))) return;
   view.selectedId = id;
   view.dragId = id;
   pointerStart = { x: event.clientX, y: event.clientY };
@@ -62,71 +74,80 @@ function startDrag(id: string, event: PointerEvent): void {
 function updateGhost(event: PointerEvent): void {
   if (!view.dragId || !state) return;
   view.dragX = event.clientX; view.dragY = event.clientY;
-  if (!dragStarted && Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 5) dragStarted = true;
+  if (!dragStarted && Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 5) {
+    dragStarted = true;
+    const unit = state.players[0].units.find(u => u.id === view.dragId);
+    if (unit) {
+      const species = SPECIES[unit.family];
+      ghost.innerHTML = `<span class="shape ${species.shape} ${unit.stage ? 'evolved' : ''}" style="height:38px;width:38px;--shape-color:${species.color};--shape-glow:${species.glow}"></span>`;
+    }
+    ghost.classList.remove('hidden');
+    document.querySelector('.shop-row')?.classList.add('drag-selling');
+    document.getElementById('sellOverlay')?.classList.remove('hidden');
+  }
   if (!dragStarted) return;
-  const unit = state.players[0].units.find(u => u.id === view.dragId);
-  if (!unit) return;
-  const species = SPECIES[unit.family];
-  ghost.innerHTML = `<span class="shape ${species.shape} ${unit.stage ? 'evolved' : ''}" style="height:38px;width:38px;--shape-color:${species.color};--shape-glow:${species.glow}"></span>`;
-  ghost.style.left = `${event.clientX - 26}px`;
-  ghost.style.top = `${event.clientY - 26}px`;
-  ghost.classList.remove('hidden');
-  view.hoveringHex = arena.pickHex(event.clientX, event.clientY);
+  ghost.style.transform = `translate3d(${event.clientX - 26}px,${event.clientY - 26}px,0)`;
+  view.hoveringBench = arena.pickBench(event.clientX, event.clientY);
+  view.hoveringHex = state.phase === 'planning' && view.scoutId === 'p0' ? arena.pickHex(event.clientX, event.clientY) : null;
+}
+
+function clearDrag(): void {
+  view.dragId = null;
+  view.hoveringHex = null;
+  view.hoveringBench = null;
+  dragStarted = false;
+  ghost.classList.add('hidden');
+  document.querySelector('.shop-row')?.classList.remove('drag-selling');
+  document.getElementById('sellOverlay')?.classList.add('hidden');
+  document.getElementById('sellOverlay')?.classList.remove('hover');
 }
 
 function finishDrag(event: PointerEvent): void {
   if (!view.dragId || !state) return;
   const id = view.dragId;
   const target = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
-  const bench = target?.closest<HTMLElement>('[data-bench]');
-  const sell = target?.closest('#sellZone');
+  const sell = target?.closest('#sellOverlay');
   if (dragStarted) {
     if (sell) send({ kind: 'sell', unitId: id });
-    else if (bench) send({ kind: 'move', unitId: id, position: { area: 'bench', index: Number(bench.dataset.bench) } });
     else if (target === canvas) {
-      const hex = arena.pickHex(event.clientX, event.clientY);
-      if (hex) send({ kind: 'move', unitId: id, position: { area: 'board', ...hex } });
+      const benchIndex = arena.pickBench(event.clientX, event.clientY);
+      if (benchIndex !== null) send({ kind: 'move', unitId: id, position: { area: 'bench', index: benchIndex } });
+      else if (state.phase === 'planning' && view.scoutId === 'p0') {
+        const hex = arena.pickHex(event.clientX, event.clientY);
+        if (hex) send({ kind: 'move', unitId: id, position: { area: 'board', ...hex } });
+      }
     }
   }
-  view.dragId = null;
-  view.hoveringHex = null;
-  dragStarted = false;
-  ghost.classList.add('hidden');
-  document.getElementById('sellZone')?.classList.remove('hover');
+  clearDrag();
   hud.render(state, view);
 }
 
-document.getElementById('benchSlots')!.addEventListener('pointerdown', event => {
-  if (event.button !== 0) return;
-  const button = (event.target as HTMLElement).closest<HTMLElement>('[data-unit]');
-  if (button?.dataset.unit) startDrag(button.dataset.unit, event);
-});
 canvas.addEventListener('pointerdown', event => {
   if (event.button !== 0) return;
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
   if (id) startDrag(id, event);
-  else if (state && state.phase === 'planning') { view.selectedId = null; hud.render(state, view); }
+  else if (state) { view.selectedId = null; hud.render(state, view); }
 });
 document.addEventListener('pointermove', event => {
   if (view.dragId) {
     updateGhost(event);
-    const sell = document.elementFromPoint(event.clientX, event.clientY)?.closest('#sellZone');
-    document.getElementById('sellZone')?.classList.toggle('hover', !!sell);
+    const sell = document.elementFromPoint(event.clientX, event.clientY)?.closest('#sellOverlay');
+    document.getElementById('sellOverlay')?.classList.toggle('hover', !!sell);
   }
 });
 document.addEventListener('pointerup', finishDrag);
-document.addEventListener('pointercancel', () => {
-  view.dragId = null; view.hoveringHex = null; ghost.classList.add('hidden');
-});
+document.addEventListener('pointercancel', clearDrag);
 
-document.getElementById('benchSlots')!.addEventListener('dblclick', event => {
+canvas.addEventListener('dblclick', event => {
   if (!state || state.phase !== 'planning') return;
-  const target = (event.target as HTMLElement).closest<HTMLElement>('[data-unit]');
-  if (!target?.dataset.unit) return;
+  const index = arena.pickBench(event.clientX, event.clientY);
+  if (index === null || view.scoutId !== 'p0') return;
+  const unit = state.players[0].units.find(u => u.position.area === 'bench' && u.position.index === index);
+  if (!unit) return;
   const deployed = state.players[0].units.filter(u => u.position.area === 'board');
   for (let row = 0; row < 4; row++) for (let col = 0; col < 7; col++) {
     if (!deployed.some(u => u.position.area === 'board' && u.position.col === col && u.position.row === row)) {
-      send({ kind: 'move', unitId: target.dataset.unit, position: { area: 'board', col, row } });
+      send({ kind: 'move', unitId: unit.id, position: { area: 'board', col, row } });
       return;
     }
   }
@@ -138,16 +159,16 @@ canvas.addEventListener('contextmenu', event => {
 });
 canvas.addEventListener('wheel', event => {
   event.preventDefault();
-  arena.zoomAt(event.deltaY);
+  arena.zoomAt(event.deltaY, event.clientX, event.clientY);
 }, { passive: false });
 document.addEventListener('keydown', event => {
-  if (!state || event.repeat || state.phase !== 'planning') return;
+  if (!state || event.repeat || state.phase === 'finished') return;
   if (event.key.toLowerCase() === 'd') send({ kind: 'reroll' });
   if (event.key.toLowerCase() === 'e' && view.selectedId) {
     send({ kind: 'sell', unitId: view.selectedId });
     view.selectedId = null;
   }
   if (event.key === 'Escape') {
-    view.selectedId = null; view.scoutId = 'p0'; hud.render(state, view);
+    view.selectedId = null; watch('p0'); hud.render(state, view);
   }
 });

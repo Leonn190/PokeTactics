@@ -40,6 +40,8 @@ export interface Player {
 
 export interface CombatMetrics {
   dealt: number;
+  physicalDealt: number;
+  specialDealt: number;
   taken: number;
   healed: number;
   blocked: number;
@@ -66,7 +68,7 @@ export interface CombatUnit {
   attackClock: number;
   flash: number;
   effects: { kind: string; time: number }[];
-  damageOverTime: { amount: number; time: number } | null;
+  damageOverTime: { amount: number; time: number; sourceId: string } | null;
   slow: number;
   metrics: CombatMetrics;
 }
@@ -94,6 +96,7 @@ export interface Battle {
   resolved: boolean;
   winner: string | null;
   loser: string | null;
+  traitsByPlayer: Record<string, Partial<Record<Element, number>>>;
 }
 
 export interface GameSnapshot {
@@ -103,6 +106,9 @@ export interface GameSnapshot {
   timeLeft: number;
   round: number;
   chapter: number;
+  stage: number;
+  accelerated: boolean;
+  observedId: string;
   players: Player[];
   opponentId: string | null;
   visibleBattle: Battle | null;
@@ -118,5 +124,5 @@ export type GameCommand =
   | { kind: 'move'; unitId: string; position: UnitPosition }
   | { kind: 'sell'; unitId: string };
 
-export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' };
+export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' } | { type: 'watch'; playerId: string };
 export type ServerToClient = { type: 'snapshot'; snapshot: GameSnapshot } | { type: 'rejected'; reason: string };
