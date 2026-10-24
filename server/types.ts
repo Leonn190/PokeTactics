@@ -1,0 +1,122 @@
+export type Family = 'bulbasaur' | 'charmander' | 'squirtle' | 'pikachu';
+export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
+export type Stats = Record<StatKey, number>;
+export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric';
+export type Rarity = 1 | 2 | 3 | 4 | 5;
+export type Phase = 'planning' | 'combat' | 'result' | 'finished';
+export type UnitPosition = { area: 'bench'; index: number } | { area: 'board'; col: number; row: number };
+
+export interface Pokemon {
+  id: string;
+  family: Family;
+  stage: number;
+  level: number;
+  xp: number;
+  iv: Stats;
+  position: UnitPosition;
+}
+
+export interface ShopOffer {
+  id: string;
+  family: Family;
+  rarity: Rarity;
+  price: number;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  health: number;
+  gold: number;
+  level: number;
+  units: Pokemon[];
+  shop: Array<ShopOffer | null>;
+  locked: boolean;
+  eliminated: boolean;
+  lastWin: boolean;
+  streak: number;
+  placement: number | null;
+}
+
+export interface CombatMetrics {
+  dealt: number;
+  taken: number;
+  healed: number;
+  blocked: number;
+}
+
+export interface CombatUnit {
+  id: string;
+  sourceId: string;
+  playerId: string;
+  family: Family;
+  stage: number;
+  level: number;
+  col: number;
+  row: number;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  energy: number;
+  energyNeeded: number;
+  range: number;
+  stats: Stats;
+  cooldown: number;
+  attackClock: number;
+  flash: number;
+  effects: { kind: string; time: number }[];
+  damageOverTime: { amount: number; time: number } | null;
+  slow: number;
+  metrics: CombatMetrics;
+}
+
+export interface CombatEffect {
+  id: string;
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  kind: 'physical' | 'spell' | 'heal' | 'ko';
+  family: Family;
+  time: number;
+  duration: number;
+  value: number;
+}
+
+export interface Battle {
+  id: string;
+  playerA: string;
+  playerB: string;
+  units: CombatUnit[];
+  effects: CombatEffect[];
+  elapsed: number;
+  resolved: boolean;
+  winner: string | null;
+  loser: string | null;
+}
+
+export interface GameSnapshot {
+  serial: number;
+  phase: Phase;
+  phaseSeconds: number;
+  timeLeft: number;
+  round: number;
+  chapter: number;
+  players: Player[];
+  opponentId: string | null;
+  visibleBattle: Battle | null;
+  combatStats: Record<string, Record<string, CombatMetrics>>;
+  log: string;
+  winnerId: string | null;
+}
+
+export type GameCommand =
+  | { kind: 'buy'; slot: number }
+  | { kind: 'reroll' }
+  | { kind: 'lock' }
+  | { kind: 'move'; unitId: string; position: UnitPosition }
+  | { kind: 'sell'; unitId: string };
+
+export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' };
+export type ServerToClient = { type: 'snapshot'; snapshot: GameSnapshot } | { type: 'rejected'; reason: string };

@@ -1,0 +1,59 @@
+---
+import '../styles/global.css';
+---
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d141c" />
+    <meta name="description" content="TFT Pokémon — batalha tática automática com oito participantes." />
+    <title>Poké Tactics</title>
+  </head>
+  <body>
+    <main id="app">
+      <canvas id="battlefield" aria-label="Arena hexagonal com Pokémon em combate"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <header class="top-bar">
+        <div class="brand"><div class="brand-glyph" aria-hidden="true"><span></span></div><div class="brand-words"><strong>POKÉ<span>TACTICS</span></strong><small>AUTO BATTLER</small></div></div>
+        <div class="timeline-wrap"><div id="chapterTrack" class="chapter-track"></div></div>
+        <div class="round-clock"><div class="stage-heading"><span id="phaseLabel">PREPARAÇÃO</span><b id="roundLabel">1 — 1</b></div><div class="countdown" id="countdown">19</div></div>
+      </header>
+
+      <aside class="traits-panel glass" aria-label="Sinergias de tipos">
+        <div class="panel-heading"><span class="eyebrow">EQUIPE</span><span class="panel-title">Sinergias</span></div>
+        <div id="traitRows" class="trait-rows"></div>
+      </aside>
+
+      <aside class="right-panel glass" aria-label="Classificação e dados de combate">
+        <div class="right-panel-tabs"><button id="tabRank" class="right-tab active" data-panel="rank">CLASSIFICAÇÃO</button><button id="tabCombat" class="right-tab" data-panel="combat">COMBATE</button></div>
+        <section id="rankPanel"><div class="panel-subtitle"><span>JOGADORES</span><span>VIDA</span></div><div id="rankRows" class="rank-rows"></div></section>
+        <section id="combatPanel" class="combat-panel hidden"><div id="combatRows" class="combat-rows"></div><div class="combat-bottom-tabs"><button data-metric="dealt" class="metric-tab active" title="Dano causado">DANO</button><button data-metric="taken" class="metric-tab" title="Dano recebido">SOFRIDO</button><button data-metric="healed" class="metric-tab" title="Cura">CURA</button><button data-metric="blocked" class="metric-tab" title="Dano mitigado">DEFESA</button></div></section>
+        <div id="scoutBadge" class="scout-badge hidden"><span id="scoutName"></span><button id="returnBoard">VOLTAR ↲</button></div>
+      </aside>
+
+      <div class="arena-status"><span class="status-spark"></span><span id="battleStatus">ESCOLHA SUA EQUIPE</span></div>
+      <div id="unitInspector" class="unit-inspector glass hidden"></div>
+
+      <footer class="bottom-hud glass">
+        <div class="bottom-header">
+          <div class="economy"><div class="coin-icon">◈</div><strong id="goldCount">9</strong><span class="economy-label">OURO</span><span class="economy-divider"></span><span class="economy-small">RENDA <b id="incomeCount">+5</b></span></div>
+          <div class="bench-title">BANCO <span id="benchCapacity">1 / 10</span></div>
+          <div class="team-cap">EQUIPE <strong id="fieldCount">1 / 1</strong><span class="level-pill">NÍVEL <b id="levelNumber">1</b></span></div>
+        </div>
+        <div id="benchSlots" class="bench-slots" aria-label="Banco de dez posições"></div>
+        <div class="shop-row">
+          <div class="shop-actions"><button id="rerollButton" class="reroll-btn" title="Atualizar loja por 2 de ouro"><span class="reroll-icon">⟳</span><b>ROLETAR</b><small>◈ 2</small></button><button id="lockButton" class="lock-btn" title="Travar loja">◇ <span>TRAVAR</span></button></div>
+          <div id="shopCards" class="shop-cards" aria-label="Loja de seis Pokémon"></div>
+          <div id="sellZone" class="sell-zone" title="Arraste um Pokémon aqui para vender">VENDER <span>◈</span></div>
+        </div>
+      </footer>
+
+      <div id="dragGhost" class="drag-ghost hidden"></div>
+      <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+      <div id="finalBanner" class="final-banner hidden" role="status"><span id="finalKicker"></span><strong id="finalTitle"></strong><small id="finalSubtitle"></small></div>
+    </main>
+    <script src="../client/main.ts"></script>
+  </body>
+</html>

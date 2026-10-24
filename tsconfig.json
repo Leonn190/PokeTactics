@@ -1,0 +1,10 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "WebWorker"],
+    "types": ["astro/client"],
+    "skipLibCheck": true
+  },
+  "include": ["src", "server", "tests"]
+}
