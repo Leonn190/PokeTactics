@@ -1,37 +1,29 @@
-import { calculateStats, gridXY, SPECIES } from '../data';
-import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon } from '../types';
+import { ATTACKS, RULES, calculateStats, gridXY, SPECIES } from '../data';
+import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType } from '../types';
 
 const metrics = (): CombatMetrics => ({ dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0 });
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 
-function makeCombatUnit(pokemon: Pokemon, owner: Player, enemySide: boolean): CombatUnit {
-  const position = pokemon.position;
-  if (position.area !== 'board') throw new Error('Only deployed Pokémon may battle');
-  const row = enemySide ? 3 - position.row : 4 + position.row;
-  const { x, y } = gridXY(position.col, row);
+function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: boolean): CombatUnit {
+  if (pokemon.position.area !== 'board') throw new Error('Only deployed Pokémon may battle');
+  const { col, row: localRow } = pokemon.position;
+  const row = multi ? localRow + 4 : slot === 0 ? localRow + 4 : 3 - localRow;
+  const point = gridXY(col, row);
+  // Four deployment fields meet in the middle of a single common, shared arena.
+  const centers = [{ x: -2.0, y: -1.7 }, { x: 2.0, y: -1.7 }, { x: -2.0, y: 1.7 }, { x: 2.0, y: 1.7 }];
+  const center = centers[slot % centers.length];
+  const { x, y } = multi ? { x: center.x + point.x * .57, y: center.y + (point.y - 2) * .53 } : point;
   const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
   const species = SPECIES[pokemon.family];
-  const maxHp = Math.round(stats.hp * 5.2 + 60);
+  const maxHp = Math.round(stats.hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
   return {
     id: `${owner.id}:${pokemon.id}`, sourceId: pokemon.id, playerId: owner.id,
     family: pokemon.family, stage: pokemon.stage, level: pokemon.level,
-    col: position.col, row, x, y, hp: maxHp, maxHp, energy: 0,
+    col, row, x, y, hp: maxHp, maxHp, energy: 0,
     energyNeeded: species.energy, range: species.range,
-    stats, cooldown: Math.max(0.48, 1.94 - stats.speed / 175),
-    attackClock: 0.5 + (position.col % 4) * 0.13,
+    stats, cooldown: Math.max(RULES.minAttackCooldown, RULES.attackCooldownBase - stats.speed / RULES.attackCooldownSpeedDivisor),
+    attackClock: 0.5 + (col % 4) * 0.13,
     flash: 0, effects: [], damageOverTime: null, slow: 0, metrics: metrics()
-  };
-}
-
-export function createBattle(playerA: Player, playerB: Player, id: string): Battle {
-  const deployed = (p: Player, enemySide: boolean) => p.units
-    .filter(u => u.position.area === 'board')
-    .map(u => makeCombatUnit(u, p, enemySide));
-  return {
-    id, playerA: playerA.id, playerB: playerB.id,
-    units: [...deployed(playerA, false), ...deployed(playerB, true)],
-    effects: [], elapsed: 0, resolved: false, winner: null, loser: null,
-    traitsByPlayer: { [playerA.id]: countTraits(playerA), [playerB.id]: countTraits(playerB) }
   };
 }
 
@@ -48,12 +40,37 @@ function countTraits(player: Player): Partial<Record<Element, number>> {
   return count;
 }
 
+export function createBattleGroup(players: Player[], id: string, kind: StageType = 'battle'): Battle {
+  if (players.length < 2) throw new Error('Batalha precisa de dois ou mais participantes');
+  const multi = players.length > 2;
+  return {
+    id, kind, goldRound: kind === 'gold',
+    playerA: players[0].id, playerB: players[1].id,
+    participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
+    units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi))),
+    effects: [], elapsed: 0, resolved: false, winner: null, loser: null,
+    traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)]))
+  };
+}
+
+export function createBattle(playerA: Player, playerB: Player, id: string): Battle {
+  return createBattleGroup([playerA, playerB], id);
+}
+
 function effect(battle: Battle, source: CombatUnit, target: CombatUnit, kind: CombatEffect['kind'], value: number): void {
   battle.effects.push({
     id: `${battle.id}:${battle.elapsed}:${battle.effects.length}`,
     x: source.x, y: source.y, targetX: target.x, targetY: target.y,
     family: source.family, kind, value: Math.round(value), time: 0, duration: kind === 'ko' ? 0.9 : 0.6
   });
+}
+
+function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage: number): void {
+  effect(battle, killer, target, 'ko', damage);
+  if (!battle.units.some(u => u.playerId === target.playerId && u.hp > 0)) battle.knockoutAt[target.playerId] = battle.elapsed;
+  if (battle.goldRound && killer.playerId !== target.playerId) {
+    battle.goldDrops.push({ id: `${battle.id}:coin:${battle.goldDrops.length}`, x: target.x, y: target.y, ownerId: killer.playerId, claimed: false });
+  }
 }
 
 function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, magical: boolean, traitBoost = 0): number {
@@ -70,7 +87,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   target.metrics.blocked += Math.max(0, raw * (1 + traitBoost) - damage);
   target.hp = Math.max(0, target.hp - damage);
   target.flash = 0.19;
-  if (target.hp <= 0) effect(battle, source, target, 'ko', damage);
+  if (target.hp <= 0) knockout(battle, source, target, damage);
   return damage;
 }
 
@@ -82,21 +99,17 @@ function heal(unit: CombatUnit, amount: number): number {
 }
 
 function spell(battle: Battle, source: CombatUnit, target: CombatUnit, traitBoost: number): void {
-  const a = source.stats.atk;
-  const s = source.stats.spa;
-  const magic = (raw: number) => deal(battle, source, target, raw, true, traitBoost);
-  if (source.family === 'bulbasaur') {
-    magic(15 + a * 0.38 + s * 0.65);
-    const gain = heal(source, 18 + s * 0.45);
+  const move = ATTACKS.moves[SPECIES[source.family].attack];
+  const a = source.stats.atk, s = source.stats.spa;
+  deal(battle, source, target, move.baseDamage + a * (move.attackRatio || 0) + s * move.specialRatio, true, traitBoost);
+  if (move.effect === 'drain') {
+    const gain = heal(source, (move.healBase || 0) + s * (move.healRatio || 0));
     effect(battle, source, source, 'heal', gain);
-  } else if (source.family === 'charmander') {
-    magic(22 + s * 1.12);
-    target.damageOverTime = { amount: 4 + s * 0.11, time: 3.1, sourceId: source.id };
-  } else if (source.family === 'squirtle') {
-    magic(15 + a * 0.28 + s * 0.9);
-    target.slow = 2.8;
-  } else {
-    magic(20 + s * 1.25);
+  } else if (move.effect === 'burn' && target.hp > 0) {
+    target.damageOverTime = { amount: (move.dotBase || 0) + s * (move.dotRatio || 0), time: move.dotDuration || 3, sourceId: source.id };
+  } else if (move.effect === 'slow' && target.hp > 0) {
+    target.slow = move.slowDuration || 2;
+  } else if (move.effect === 'chain') {
     let chained: CombatUnit | null = null;
     let nearest = Infinity;
     for (const u of battle.units) {
@@ -104,8 +117,8 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit, traitBoos
       const d = (u.x - target.x) ** 2 + (u.y - target.y) ** 2;
       if (d < nearest) { chained = u; nearest = d; }
     }
-    if (chained && distance(chained, target) < 2.6) {
-      deal(battle, source, chained, 12 + s * 0.65, true, traitBoost);
+    if (chained && distance(chained, target) < (move.chainRange || 2.6)) {
+      deal(battle, source, chained, (move.chainBase || 0) + s * (move.chainRatio || 0), true, traitBoost);
       effect(battle, source, chained, 'spell', 0);
     }
   }
@@ -113,14 +126,19 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit, traitBoos
 }
 
 function resolve(battle: Battle): void {
-  const a = battle.units.filter(u => u.playerId === battle.playerA && u.hp > 0);
-  const b = battle.units.filter(u => u.playerId === battle.playerB && u.hp > 0);
-  if (a.length && b.length && battle.elapsed < 120) return;
-  const aHealth = a.reduce((sum, u) => sum + u.hp / u.maxHp, 0);
-  const bHealth = b.reduce((sum, u) => sum + u.hp / u.maxHp, 0);
+  const living = battle.participants.filter(id => battle.units.some(u => u.playerId === id && u.hp > 0));
+  if (living.length > 1 && battle.elapsed < 120) return;
+  const score = (id: string) => battle.units.filter(u => u.playerId === id).reduce((sum, u) => sum + Math.max(0, u.hp) / u.maxHp, 0);
+  // A later knockout beats an earlier one; survivors are sorted by remaining health when timed out.
+  battle.rankings = [...battle.participants].sort((a, b) => {
+    const aAlive = living.includes(a), bAlive = living.includes(b);
+    if (aAlive !== bAlive) return aAlive ? -1 : 1;
+    if (!aAlive && !bAlive) return (battle.knockoutAt[b] ?? -1) - (battle.knockoutAt[a] ?? -1);
+    return score(b) - score(a) || battle.participants.indexOf(a) - battle.participants.indexOf(b);
+  });
   battle.resolved = true;
-  battle.winner = aHealth >= bHealth ? battle.playerA : battle.playerB;
-  battle.loser = battle.winner === battle.playerA ? battle.playerB : battle.playerA;
+  battle.winner = battle.rankings[0] || null;
+  battle.loser = battle.rankings[battle.rankings.length - 1] || null;
 }
 
 export function tickBattle(battle: Battle, dt: number): void {
@@ -130,7 +148,6 @@ export function tickBattle(battle: Battle, dt: number): void {
     battle.effects[i].time += dt;
     if (battle.effects[i].time >= battle.effects[i].duration) battle.effects.splice(i, 1);
   }
-
   for (const unit of battle.units) {
     if (unit.hp <= 0) continue;
     unit.flash = Math.max(0, unit.flash - dt);
@@ -140,12 +157,14 @@ export function tickBattle(battle: Battle, dt: number): void {
       unit.hp -= applied;
       unit.metrics.taken += applied;
       const source = battle.units.find(other => other.id === unit.damageOverTime?.sourceId);
-      if (source) { source.metrics.dealt += applied; source.metrics.specialDealt += applied; }
+      if (source) {
+        source.metrics.dealt += applied; source.metrics.specialDealt += applied;
+        if (unit.hp <= 0) knockout(battle, source, unit, applied);
+      }
       unit.damageOverTime.time -= dt;
       if (unit.damageOverTime.time <= 0) unit.damageOverTime = null;
     }
     if (unit.hp <= 0) continue;
-
     const alliedTraits = battle.traitsByPlayer[unit.playerId];
     if (alliedTraits.grass) heal(unit, unit.maxHp * 0.006 * Math.min(3, alliedTraits.grass) * dt);
     unit.attackClock -= dt;
@@ -170,11 +189,12 @@ export function tickBattle(battle: Battle, dt: number): void {
       unit.energy = 0;
       spell(battle, unit, target, fireBoost);
     } else {
-      const raw = 8 + unit.stats.atk * 0.48;
+      const basic = ATTACKS.basic;
+      const raw = basic.damageBase + unit.stats.atk * basic.physicalAttackRatio;
       deal(battle, unit, target, raw, false, fireBoost);
       effect(battle, unit, target, 'physical', raw);
-      if (alliedTraits.poison) target.damageOverTime = { amount: 3 * Math.min(3, alliedTraits.poison), time: 3, sourceId: unit.id };
-      unit.energy = Math.min(unit.energyNeeded, unit.energy + 10);
+      if (alliedTraits.poison && target.hp > 0) target.damageOverTime = { amount: 3 * Math.min(3, alliedTraits.poison), time: 3, sourceId: unit.id };
+      unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain);
     }
     unit.attackClock = unit.cooldown * (alliedTraits.electric ? 0.86 : 1) * (unit.slow ? 1.3 : 1);
   }
@@ -182,10 +202,7 @@ export function tickBattle(battle: Battle, dt: number): void {
 }
 
 export function forceResolveBattle(battle: Battle): void {
-  if (!battle.resolved) {
-    battle.elapsed = 120;
-    resolve(battle);
-  }
+  if (!battle.resolved) { battle.elapsed = 120; resolve(battle); }
 }
 
 export function battleMetrics(battle: Battle): Record<string, Record<string, CombatMetrics>> {

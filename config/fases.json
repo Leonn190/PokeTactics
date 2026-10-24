@@ -1,0 +1,17 @@
+{
+  "stagesPerChapter": 10,
+  "stages": [
+    { "type": "battle", "name": "Batalha" },
+    { "type": "gold", "name": "Batalha do ouro" },
+    { "type": "battle", "name": "Batalha" },
+    { "type": "quad", "name": "Batalha quádrupla" },
+    { "type": "bot", "name": "Batalha PvE" },
+    { "type": "battle", "name": "Batalha" },
+    { "type": "gold", "name": "Batalha do ouro" },
+    { "type": "battle", "name": "Batalha" },
+    { "type": "double", "name": "Dano em dobro" },
+    { "type": "boss", "name": "Chefe lendário" }
+  ],
+  "bot": { "baseLevel": 1, "levelsPerChapter": 3, "extraUnitsEveryChapter": 2, "maxUnits": 6, "iv": 50 },
+  "boss": { "levelPerChapter": 100, "firstChapterIv": 50, "secondChapterIv": 75, "laterChapterIv": 100 }
+}

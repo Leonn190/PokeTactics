@@ -27,6 +27,7 @@ export class Arena {
   private trainer = { x: -4.75, y: 3.57 };
   private trainerTarget = { x: -4.75, y: 3.57 };
   private visualPositions = new Map<string, { x: number; y: number }>();
+  private spriteCache = new Map<string, HTMLImageElement>();
   private lastBattleId = '';
   private lastFrame = 0;
   private frame = 0;
@@ -133,40 +134,54 @@ export class Arena {
       ctx.beginPath(); ctx.arc(0, 0, radius + 7, 0, PI2); ctx.stroke();
       if (stage >= 2) { ctx.beginPath(); ctx.arc(0, 0, radius + 11, -Math.PI * .8, Math.PI * .2); ctx.stroke(); }
     }
+    const url = data.sprites[Math.min(stage, data.sprites.length - 1)];
+    let sprite = this.spriteCache.get(url);
+    if (!sprite) {
+      sprite = new Image(); sprite.src = url; this.spriteCache.set(url, sprite);
+    }
+    if (sprite.complete && sprite.naturalWidth) {
+      ctx.shadowBlur = 0;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(sprite, -radius * 1.75, -radius * 1.8, radius * 3.5, radius * 3.5);
+      ctx.imageSmoothingEnabled = true;
+    }
     ctx.restore();
   }
 
   private background(time: number): void {
     const ctx = this.context, w = this.width, h = this.height;
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, '#111c26'); gradient.addColorStop(.38, '#18353a'); gradient.addColorStop(.72, '#19363b'); gradient.addColorStop(1, '#0e1a25');
+    gradient.addColorStop(0, '#1e4834'); gradient.addColorStop(.38, '#316e3a'); gradient.addColorStop(.72, '#285c34'); gradient.addColorStop(1, '#112e24');
     ctx.fillStyle = gradient; ctx.fillRect(0, 0, w, h);
     const center = this.toScreen(0, 0);
-    const flare = ctx.createRadialGradient(center.x, center.y, 16, center.x, center.y, Math.min(w, 850) * .75);
-    flare.addColorStop(0, '#44716b4c'); flare.addColorStop(.65, '#152d3560'); flare.addColorStop(1, '#08121b00');
-    ctx.fillStyle = flare; ctx.fillRect(0, 0, w, h);
-    // Ambient flora and motes are entirely procedural. public/ intentionally has no art assets.
-    for (let i = 0; i < 38; i++) {
-      const nx = ((i * 173 + 43) % 1000) / 1000;
-      const ny = ((i * 379 + 97) % 997) / 997;
-      const x = nx * w, y = 80 + ny * (h - 90);
-      const size = 1 + i % 4;
-      const glow = (Math.sin(time * .8 + i * 2.4) + 1) / 2;
-      ctx.fillStyle = i % 3 ? `rgba(111,184,155,${.055 + glow * .14})` : `rgba(225,187,119,${.05 + glow * .12})`;
-      ctx.beginPath(); ctx.arc(x + Math.sin(time * .4 + i) * 5, y + Math.cos(time * .55 + i) * 5, size * .6, 0, PI2); ctx.fill();
+    const bounds = [this.toScreen(-4.25, -3.9), this.toScreen(4.25, 3.95)];
+    const left = bounds[0].x, top = bounds[0].y, fieldW = bounds[1].x - left, fieldH = bounds[1].y - top;
+    ctx.fillStyle = '#122e19'; ctx.fillRect(left - 9, top - 9, fieldW + 18, fieldH + 18);
+    ctx.fillStyle = '#397b3f'; ctx.fillRect(left, top, fieldW, fieldH);
+    // Alternating mowing bands and tiny deterministic grass flecks; no permanent hex outlines.
+    for (let i = 0; i < 10; i++) {
+      ctx.fillStyle = i % 2 ? '#214f3029' : '#b4e6870b';
+      ctx.fillRect(left, top + fieldH * i / 10, fieldW, fieldH / 10);
     }
-    for (let i = 0; i < 13; i++) {
-      const x = ((i * 269 + 71) % 1019) / 1019 * w;
-      const y = ((i * 149 + 131) % 991) / 991 * h;
-      if (x > w * .23 && x < w * .78 && y > h * .17 && y < h * .78) continue;
-      ctx.strokeStyle = 'rgba(93,173,145,.13)'; ctx.lineWidth = 1.2;
-      for (let leaf = -1; leaf <= 1; leaf++) {
-        ctx.beginPath(); ctx.moveTo(x, y + 12); ctx.quadraticCurveTo(x + leaf * 8 + Math.sin(time + i) * 3, y - 4, x + leaf * 14, y - 10); ctx.stroke();
-      }
+    ctx.save(); ctx.beginPath(); ctx.rect(left, top, fieldW, fieldH); ctx.clip();
+    for (let i = 0; i < 480; i++) {
+      const x = left + ((i * 173 + 43) % 997) / 997 * fieldW;
+      const y = top + ((i * 379 + 97) % 991) / 991 * fieldH;
+      ctx.strokeStyle = i % 3 ? '#bee7a61f' : '#183e2638'; ctx.lineWidth = .7;
+      ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + (i % 3) - 1, y - 2); ctx.stroke();
+    }
+    ctx.restore();
+    const quad = this.snapshot?.stageType === 'quad' && this.snapshot.phase !== 'planning' && (this.snapshot.visibleBattle?.participants.length || 0) > 2;
+    if (quad) {
+      ctx.fillStyle = '#9ad8a40b'; ctx.fillRect(left, top, fieldW / 2, fieldH / 2);
+      ctx.fillStyle = '#e8d5a109'; ctx.fillRect(left + fieldW / 2, top + fieldH / 2, fieldW / 2, fieldH / 2);
+      ctx.strokeStyle = '#d8e0b52b'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(center.x, top); ctx.lineTo(center.x, top + fieldH); ctx.moveTo(left, center.y); ctx.lineTo(left + fieldW, center.y); ctx.stroke();
     }
   }
 
   private hexGrid(time: number): void {
+    if (!this.view.dragId || this.snapshot?.phase !== 'planning' || this.view.scoutId !== 'p0') return;
     const ctx = this.context;
     const scale = this.cellScale;
     const isEditable = this.snapshot?.phase === 'planning' && this.view.scoutId === 'p0';
@@ -187,11 +202,6 @@ export class Arena {
       ctx.lineWidth = selected ? 2.6 : 1;
       ctx.fill(); ctx.stroke();
     }
-    // Bright dividing path separating the two sides of the fight.
-    const left = this.toScreen(-4.05, 0), right = this.toScreen(4.05, 0);
-    const glimmer = ctx.createLinearGradient(left.x, 0, right.x, 0);
-    glimmer.addColorStop(0, '#c9d8b500'); glimmer.addColorStop(.5, `rgba(202,203,146,${.25 + .08 * Math.sin(time * 2)})`); glimmer.addColorStop(1, '#c9d8b500');
-    ctx.beginPath(); ctx.moveTo(left.x, left.y); ctx.lineTo(right.x, right.y); ctx.strokeStyle = glimmer; ctx.lineWidth = 2; ctx.stroke();
     if (isEditable) {
       ctx.font = `600 12px Inter,sans-serif`; ctx.textAlign = 'center';
       ctx.fillStyle = '#92c4ae9a'; ctx.fillText('SUA ARENA', this.origin.x, this.toScreen(0, 4.08).y);
@@ -230,7 +240,7 @@ export class Arena {
       if (this.lastBattleId !== snapshot.visibleBattle.id) {
         this.visualPositions.clear(); this.lastBattleId = snapshot.visibleBattle.id;
       }
-      const observedOnTop = snapshot.visibleBattle.playerB === this.view.scoutId;
+      const observedOnTop = snapshot.visibleBattle.participants.length === 2 && snapshot.visibleBattle.playerB === this.view.scoutId;
       const battleMarkers = snapshot.visibleBattle.units.filter(u => u.hp > 0).map(u => {
         const smooth = this.visualPositions.get(u.id) || { x: u.x, y: u.y };
         smooth.x += (u.x - smooth.x) * .27;
@@ -250,7 +260,31 @@ export class Arena {
       return { id: u.id, x: p.x, y: p.y, family: u.family, stage: u.stage,
         level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0 };
     });
-    return [...convert(other.units, false), ...convert(friendly.units, true), ...bench];
+    return [...(other.id === friendly.id ? [] : convert(other.units, false)), ...convert(friendly.units, true), ...bench];
+  }
+
+  pickCoin(clientX: number, clientY: number): string | null {
+    const battle = this.snapshot?.visibleBattle;
+    if (!battle || (this.snapshot?.phase !== 'combat' && this.snapshot?.phase !== 'result') || this.view.scoutId !== 'p0') return null;
+    const world = this.pointerWorld(clientX, clientY);
+    const flip = battle.participants.length === 2 && battle.playerB === 'p0';
+    return battle.goldDrops.find(d => d.ownerId === 'p0' && !d.claimed && Math.hypot(world.x - d.x, world.y - (flip ? -d.y : d.y)) < .38)?.id || null;
+  }
+
+  private drawCoins(): void {
+    const battle = this.snapshot?.visibleBattle;
+    if (!battle || this.snapshot?.phase === 'planning') return;
+    const flip = battle.participants.length === 2 && battle.playerB === this.view.scoutId;
+    for (const coin of battle.goldDrops) {
+      if (coin.claimed) continue;
+      const p = this.toScreen(coin.x, flip ? -coin.y : coin.y);
+      const ctx = this.context;
+      ctx.save(); ctx.shadowBlur = 16; ctx.shadowColor = '#ffd77d';
+      ctx.fillStyle = '#e6b74a'; ctx.strokeStyle = '#fff0a2'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y - 10, 10, 0, PI2); ctx.fill(); ctx.stroke();
+      ctx.shadowBlur = 0; ctx.font = '800 14px Inter'; ctx.fillStyle = '#694b1b'; ctx.textAlign = 'center';
+      ctx.fillText('1', p.x, p.y - 5); ctx.restore();
+    }
   }
 
   private drawUnit(unit: Marker, time: number): void {
@@ -350,15 +384,15 @@ export class Arena {
     if (!this.snapshot) return;
     const watched = this.view.scoutId;
     const battle = this.snapshot.visibleBattle;
-    const foe = battle && (battle.playerA === watched || battle.playerB === watched)
-      ? (battle.playerA === watched ? battle.playerB : battle.playerA)
+    const foe = battle && battle.participants.includes(watched)
+      ? battle.participants.find(p => p !== watched) || watched
       : watched === 'p0' ? (this.snapshot.opponentId || 'p1') : 'p0';
     const name = (id: string) => this.snapshot?.players.find(p => p.id === id)?.name || id;
     const wander = (i: number) => ({ x: Math.sin(time * .55 + i * 1.4) * .13, y: Math.cos(time * .45 + i) * .08 });
     const a = wander(Number(watched.slice(1))), b = wander(Number(foe.slice(1)));
     if (watched === 'p0') this.drawTrainerAvatar(watched, this.trainer.x, this.trainer.y, time, name(watched));
     else this.drawTrainerAvatar(watched, -4.74 + a.x, 3.44 + a.y, time, name(watched));
-    if (foe !== watched) this.drawTrainerAvatar(foe, 4.86 + b.x, -3.44 + b.y, time, name(foe));
+    if (foe !== watched && !foe.startsWith('bot:')) this.drawTrainerAvatar(foe, 4.86 + b.x, -3.44 + b.y, time, name(foe));
   }
 
   private draw(timestamp: number): void {
@@ -371,8 +405,9 @@ export class Arena {
     this.drawBench();
     const markers = this.markers();
     markers.sort((a, b) => a.y - b.y).forEach(marker => this.drawUnit(marker, this.frame));
+    this.drawCoins();
     if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
-      this.effects(this.snapshot.visibleBattle.effects, this.snapshot.visibleBattle.playerB === this.view.scoutId);
+      this.effects(this.snapshot.visibleBattle.effects, this.snapshot.visibleBattle.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId);
     }
     this.drawTrainers(dt, this.frame);
     requestAnimationFrame(time => this.draw(time));

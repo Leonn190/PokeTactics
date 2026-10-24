@@ -1,8 +1,11 @@
-export type Family = 'bulbasaur' | 'charmander' | 'squirtle' | 'pikachu';
+import pokemonConfig from '../config/pokemons.json';
+export type Family = keyof typeof pokemonConfig.species;
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
-export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric';
+export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic';
 export type Rarity = 1 | 2 | 3 | 4 | 5;
+export type StageType = 'battle' | 'gold' | 'quad' | 'bot' | 'double' | 'boss';
+export type StageResult = 'win' | 'loss' | 'second' | 'third' | 'fourth' | null;
 export type Phase = 'planning' | 'combat' | 'result' | 'finished';
 export type UnitPosition = { area: 'bench'; index: number } | { area: 'board'; col: number; row: number };
 
@@ -35,6 +38,8 @@ export interface Player {
   eliminated: boolean;
   lastWin: boolean;
   streak: number;
+  roundVictory: boolean;
+  history: StageResult[];
   placement: number | null;
 }
 
@@ -90,6 +95,12 @@ export interface Battle {
   id: string;
   playerA: string;
   playerB: string;
+  participants: string[];
+  rankings: string[];
+  knockoutAt: Record<string, number>;
+  goldDrops: GoldDrop[];
+  goldRound: boolean;
+  kind: StageType;
   units: CombatUnit[];
   effects: CombatEffect[];
   elapsed: number;
@@ -97,6 +108,14 @@ export interface Battle {
   winner: string | null;
   loser: string | null;
   traitsByPlayer: Record<string, Partial<Record<Element, number>>>;
+}
+
+export interface GoldDrop {
+  id: string;
+  x: number;
+  y: number;
+  ownerId: string;
+  claimed: boolean;
 }
 
 export interface GameSnapshot {
@@ -107,6 +126,8 @@ export interface GameSnapshot {
   round: number;
   chapter: number;
   stage: number;
+  stageType: StageType;
+  stageName: string;
   accelerated: boolean;
   observedId: string;
   players: Player[];
@@ -122,7 +143,8 @@ export type GameCommand =
   | { kind: 'reroll' }
   | { kind: 'lock' }
   | { kind: 'move'; unitId: string; position: UnitPosition }
-  | { kind: 'sell'; unitId: string };
+  | { kind: 'sell'; unitId: string }
+  | { kind: 'collect'; dropId: string };
 
 export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' } | { type: 'watch'; playerId: string };
 export type ServerToClient = { type: 'snapshot'; snapshot: GameSnapshot } | { type: 'rejected'; reason: string };

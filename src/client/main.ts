@@ -124,6 +124,8 @@ function finishDrag(event: PointerEvent): void {
 
 canvas.addEventListener('pointerdown', event => {
   if (event.button !== 0) return;
+  const coin = arena.pickCoin(event.clientX, event.clientY);
+  if (coin) { send({ kind: 'collect', dropId: coin }); return; }
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
   if (id) startDrag(id, event);
   else if (state) { view.selectedId = null; hud.render(state, view); }

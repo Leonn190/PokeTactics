@@ -1,0 +1,16 @@
+{
+  "basic": { "name": "Ataque básico", "damageBase": 8, "physicalAttackRatio": 0.48, "energyGain": 10 },
+  "moves": {
+    "vine-whip": { "name": "Chicote de Vinha", "effect": "drain", "baseDamage": 15, "attackRatio": 0.38, "specialRatio": 0.65, "healBase": 18, "healRatio": 0.45 },
+    "ember": { "name": "Brasas", "effect": "burn", "baseDamage": 22, "specialRatio": 1.12, "dotBase": 4, "dotRatio": 0.11, "dotDuration": 3.1 },
+    "water-gun": { "name": "Jato d'Água", "effect": "slow", "baseDamage": 15, "attackRatio": 0.28, "specialRatio": 0.9, "slowDuration": 2.8 },
+    "thunderbolt": { "name": "Choque do Trovão", "effect": "chain", "baseDamage": 20, "specialRatio": 1.25, "chainBase": 12, "chainRatio": 0.65, "chainRange": 2.6 },
+    "legendary-ice": { "name": "Nevasca", "effect": "slow", "baseDamage": 36, "specialRatio": 1.1, "slowDuration": 4 },
+    "legendary-fire": { "name": "Chamas Sagradas", "effect": "burn", "baseDamage": 40, "specialRatio": 1.1, "dotBase": 8, "dotRatio": 0.13, "dotDuration": 4 },
+    "legendary-electric": { "name": "Trovão", "effect": "chain", "baseDamage": 36, "specialRatio": 1.2, "chainBase": 20, "chainRatio": 0.7, "chainRange": 3 },
+    "legendary-water": { "name": "Hidro Bomba", "effect": "slow", "baseDamage": 40, "specialRatio": 1.2, "slowDuration": 3 },
+    "legendary-psychic": { "name": "Psíquico", "effect": "blast", "baseDamage": 45, "specialRatio": 1.25 },
+    "legendary-grass": { "name": "Poder da Natureza", "effect": "drain", "baseDamage": 33, "specialRatio": 1.05, "healBase": 25, "healRatio": 0.45 },
+    "legendary-flying": { "name": "Aeroblast", "effect": "blast", "baseDamage": 50, "specialRatio": 1.4 }
+  }
+}

@@ -1,4 +1,4 @@
-import { calculateStats, displayName, ELEMENTS, RARITY_COLORS, SPECIES } from '../../server/data';
+import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES } from '../../server/data';
 import type { Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
 import type { ClientView } from './arena';
 
@@ -8,7 +8,7 @@ const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk
 
 function shape(family: keyof typeof SPECIES, size: number, stage = 0): string {
   const s = SPECIES[family];
-  return `<span class="shape ${s.shape} ${stage ? 'evolved' : ''}" style="height:${size}px;width:${size}px;--shape-color:${s.color};--shape-glow:${s.glow}"></span>`;
+  return `<span class="shape ${s.shape} ${stage ? 'evolved' : ''}" style="height:${size}px;width:${size}px;--shape-color:${s.color};--shape-glow:${s.glow}"><img class="pokemon-art" src="${s.sprites[Math.min(stage, s.sprites.length - 1)]}" alt="" loading="lazy" /></span>`;
 }
 
 export class Hud {
@@ -17,7 +17,7 @@ export class Hud {
   private lastRank = '';
   private lastCombat = '';
   private lastInspector = '';
-  private lastChapter = -1;
+  private lastTimeline = '';
   private panel: 'rank' | 'combat' = 'rank';
   private metric: 'status' | 'damage' | 'defense' | 'heal' = 'status';
   private toastTimer = 0;
@@ -54,29 +54,31 @@ export class Hud {
     const player = snapshot.players[0];
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
-    element('roundLabel').textContent = `${snapshot.chapter} — ${snapshot.stage}`;
-    element('countdown').textContent = snapshot.phase === 'finished' ? '—' : snapshot.accelerated ? '3×' : String(Math.ceil(snapshot.timeLeft));
+    element('roundLabel').textContent = `${snapshot.chapter}-${snapshot.stage}`;
+    element('countdown').textContent = snapshot.phase === 'finished' ? '—' : String(Math.ceil(snapshot.timeLeft));
     const progress = element('stageProgress');
     progress.style.width = `${Math.max(0, Math.min(100, snapshot.phaseSeconds ? snapshot.timeLeft / snapshot.phaseSeconds * 100 : 0))}%`;
     progress.classList.toggle('fast', snapshot.accelerated);
     element('goldCount').textContent = String(player.gold);
-    element('incomeCount').textContent = `+${5 + Math.min(3, Math.floor(player.gold / 10)) + (player.lastWin ? 1 : 0)}`;
+    const streak = (RULES.streakBonuses as Record<string, number>)[String(Math.min(5, Math.abs(player.streak)))] || 0;
+    element('incomeCount').textContent = `+${RULES.baseIncome + Math.min(RULES.maxInterest, Math.floor(player.gold / RULES.interestEveryGold)) + (player.roundVictory ? RULES.victoryIncome : 0) + streak}`;
     element('levelNumber').textContent = String(player.level);
     const fielded = player.units.filter(unit => unit.position.area === 'board');
     element('fieldCount').textContent = `${fielded.length} / ${player.level}`;
     element('benchCapacity').textContent = `${player.units.filter(u => u.position.area === 'bench').length} / 10`;
-    element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || player.gold < 2 || player.eliminated);
+    element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || player.gold < RULES.rerollCost || player.eliminated);
     element('lockButton').classList.toggle('locked', player.locked);
     element('lockButton').innerHTML = player.locked ? '▣ <span>TRAVADA</span>' : '◇ <span>TRAVAR</span>';
 
-    if (snapshot.round !== this.lastChapter) {
-      element('chapterTrack').innerHTML = Array.from({ length: 10 }, (_, i) => {
+    const timeline = Array.from({ length: PHASES.stagesPerChapter }, (_, i) => {
         const stage = i + 1;
-        const state = stage < snapshot.stage ? 'past' : stage === snapshot.stage ? 'current' : 'next';
-        return `<div class="chapter ${state}" title="Etapa ${snapshot.chapter}-${stage}">${snapshot.chapter}-${stage}</div>`;
+        const outcome = player.history[(snapshot.chapter - 1) * PHASES.stagesPerChapter + i];
+        const state = stage === snapshot.stage ? 'current' : outcome === 'win' ? 'victory' : outcome === 'loss' || outcome === 'fourth' ? 'defeat' : outcome ? 'neutral' : 'next';
+        const type = PHASES.stages[i].type;
+        return `<div class="chapter-dot ${state} ${type}" title="${snapshot.chapter}-${stage} • ${PHASES.stages[i].name}${outcome ? ` • ${outcome}` : ''}" aria-label="Etapa ${snapshot.chapter}-${stage}"><i></i><small>${stage}</small></div>`;
       }).join('');
-      this.lastChapter = snapshot.round;
-    }
+    if (timeline !== this.lastTimeline) { element('chapterTrack').innerHTML = timeline; this.lastTimeline = timeline; }
+    element('stageName').textContent = snapshot.stageName.toUpperCase();
 
     const shopHtml = player.shop.map((offer: ShopOffer | null, i) => {
       if (!offer) return '<div class="shop-empty"></div>';
@@ -114,7 +116,7 @@ export class Hud {
     const entries = owner.units.filter(u => u.position.area === 'board').map(unit => {
       const metrics = statsForView[unit.id];
       const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === owner.id);
-      const maxHp = combatant?.maxHp || Math.round(calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp * 5.2 + 60);
+      const maxHp = combatant?.maxHp || Math.round(calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
       const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
       const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
       const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : this.metric === 'defense' ? (metrics?.blocked || 0) : (metrics?.healed || 0);
@@ -137,9 +139,10 @@ export class Hud {
     const scout = view.scoutId !== 'p0' ? snapshot.players.find(p => p.id === view.scoutId) : null;
     element('scoutBadge').classList.toggle('hidden', !scout);
     element('scoutName').textContent = scout ? `OBSERVANDO ${scout.name}` : '';
+    const pendingCoins = snapshot.visibleBattle?.goldDrops.filter(d => !d.claimed && d.ownerId === 'p0').length || 0;
     if (snapshot.phase === 'planning') {
-      element('battleStatus').textContent = scout ? `ARENA DE ${scout.name}` : 'PREPARE SUA FORMAÇÃO';
-    } else element('battleStatus').textContent = scout ? `ASSISTINDO ${scout.name}` : snapshot.accelerated ? 'COMBATE ACELERADO 3×' : snapshot.log || phaseLabels[snapshot.phase];
+      element('battleStatus').textContent = scout ? `ARENA DE ${scout.name}` : `PREPARE SUA FORMAÇÃO • ${snapshot.stageName.toUpperCase()}`;
+    } else element('battleStatus').textContent = pendingCoins && !scout ? `CLIQUE NAS MOEDAS • ${pendingCoins} PARA COLETAR` : scout ? `ASSISTINDO ${scout.name}` : snapshot.accelerated ? `COMBATE ACELERADO ${RULES.combatAcceleration}×` : snapshot.log || phaseLabels[snapshot.phase];
 
     const inspected = player.units.find(u => u.id === view.selectedId);
     const inspector = inspected ? this.inspector(inspected) : '';

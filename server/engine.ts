@@ -1,6 +1,6 @@
-import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, SHOP_SIZE, SPECIES } from './data';
-import { battleMetrics, createBattle, forceResolveBattle, survivors, tickBattle } from './systems/combat';
-import type { Battle, Family, GameCommand, GameSnapshot, Phase, Player, Pokemon, Rarity, ShopOffer, Stats, UnitPosition } from './types';
+import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
+import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
+import type { Battle, Family, GameCommand, GameSnapshot, Phase, Player, Pokemon, Rarity, ShopOffer, StageResult, StageType, Stats, UnitPosition } from './types';
 
 class Rng {
   constructor(private seed: number) { this.seed ||= 1; }
@@ -22,23 +22,24 @@ class Rng {
 }
 
 const NAMES = ['VOCÊ', 'KAI', 'NOVA', 'LUNA', 'ASTRA', 'NIX', 'ECHO', 'ORION'];
-const FAMILIES = Object.keys(SPECIES) as Family[];
-const SHOP_ODDS = [
-  [100, 0, 0, 0, 0],
-  [80, 20, 0, 0, 0],
-  [65, 25, 10, 0, 0],
-  [50, 30, 15, 5, 0],
-  [35, 35, 20, 8, 2],
-  [20, 35, 28, 14, 3]
-];
-const LEVEL_MILESTONES = [1, 4, 8, 13, 19, 26];
+const FAMILIES = SHOP_FAMILIES;
+const currentStage = (round: number) => PHASES.stages[(round - 1) % PHASES.stagesPerChapter];
+export function chapterDamage(chapter: number): number { return chapter + RULES.chapterBaseDamageOffset; }
+export function streakIncome(streak: number): number {
+  const bonuses = RULES.streakBonuses as Record<string, number>;
+  return bonuses[String(Math.min(Math.abs(streak), Math.max(...Object.keys(bonuses).map(Number))))] || 0;
+}
+export function projectedIncome(player: Player): number {
+  return RULES.baseIncome + Math.min(RULES.maxInterest, Math.floor(player.gold / RULES.interestEveryGold))
+    + (player.roundVictory ? RULES.victoryIncome : 0) + streakIncome(player.streak);
+}
 
 export class GameEngine {
   private rng: Rng;
   private idCounter = 0;
   private serial = 0;
   private clock = 0;
-  private duration = 40;
+  private duration = RULES.preparationSeconds;
   private phase: Phase = 'planning';
   private round = 1;
   private battles: Battle[] = [];
@@ -50,10 +51,10 @@ export class GameEngine {
 
   constructor(seed = Date.now()) {
     this.rng = new Rng(seed);
-    this.players = NAMES.map((name, i) => ({
-      id: `p${i}`, name, health: 100, gold: 9, level: 1,
+    this.players = NAMES.slice(0, RULES.players).map((name, i) => ({
+      id: `p${i}`, name, health: RULES.startingHealth, gold: RULES.startingGold, level: 1,
       units: [], shop: Array(SHOP_SIZE).fill(null), locked: false,
-      eliminated: false, lastWin: false, streak: 0, placement: null
+      eliminated: false, lastWin: false, streak: 0, roundVictory: false, history: [], placement: null
     }));
     this.players.forEach((player, i) => {
       const family = i === 0 ? 'bulbasaur' : this.rng.pick(FAMILIES.slice(0, 3));
@@ -71,11 +72,11 @@ export class GameEngine {
   }
 
   private levelForRound(): number {
-    return LEVEL_MILESTONES.reduce((level, start, i) => this.round >= start ? i + 1 : level, 1);
+    return RULES.levelMilestones.reduce((level, start, i) => this.round >= start ? i + 1 : level, 1);
   }
 
   private refreshShop(player: Player): void {
-    const odds = SHOP_ODDS[player.level - 1];
+    const odds = RULES.shopOddsByLevel[Math.min(RULES.shopOddsByLevel.length - 1, player.level - 1)];
     player.shop = Array.from({ length: SHOP_SIZE }, () => {
       let roll = this.rng.next() * 100;
       let tier: Rarity = 1;
@@ -133,7 +134,7 @@ export class GameEngine {
     if (player.gold < offer.price) return 'Ouro insuficiente';
     const free = this.findFreeBench(player);
     const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= 2;
-    if (free < 0 && !eligibleMerge) return 'Banco cheio (10/10)';
+    if (free < 0 && !eligibleMerge) return `Banco cheio (${BENCH_SIZE}/${BENCH_SIZE})`;
     player.gold -= offer.price;
     player.units.push(this.makePokemon(offer.family, { area: 'bench', index: free < 0 ? BENCH_SIZE : free }));
     player.shop[slot] = null;
@@ -144,13 +145,21 @@ export class GameEngine {
   command(command: GameCommand): string | null {
     const human = this.players[0];
     if (human.eliminated || this.phase === 'finished') return 'A partida já terminou para você';
+    if (command.kind === 'collect') {
+      const battle = this.battles.find(b => b.participants.includes(human.id));
+      const coin = battle?.goldDrops.find(d => d.id === command.dropId && d.ownerId === human.id && !d.claimed);
+      if (!coin || (this.phase !== 'combat' && this.phase !== 'result')) return 'Moeda indisponível';
+      coin.claimed = true;
+      human.gold += RULES.goldDropPerKnockout;
+      return null;
+    }
     if (command.kind === 'buy') {
       if (!Number.isInteger(command.slot) || command.slot < 0 || command.slot >= SHOP_SIZE) return 'Slot inválido';
       return this.buy(human, command.slot);
     }
     if (command.kind === 'reroll') {
-      if (human.gold < 2) return 'Ouro insuficiente';
-      human.gold -= 2;
+      if (human.gold < RULES.rerollCost) return 'Ouro insuficiente';
+      human.gold -= RULES.rerollCost;
       this.refreshShop(human);
       return null;
     }
@@ -218,48 +227,121 @@ export class GameEngine {
     }
   }
 
+  private createNPC(player: Player, kind: 'bot' | 'boss', legendary: Family | null): Player {
+    const chapter = Math.floor((this.round - 1) / PHASES.stagesPerChapter) + 1;
+    const isBoss = kind === 'boss';
+    const size = isBoss ? 1 : Math.min(PHASES.bot.maxUnits, 1 + (chapter - 1) * PHASES.bot.extraUnitsEveryChapter);
+    const level = isBoss ? chapter * PHASES.boss.levelPerChapter : PHASES.bot.baseLevel + (chapter - 1) * PHASES.bot.levelsPerChapter;
+    const ivValue = isBoss ? chapter === 1 ? PHASES.boss.firstChapterIv : chapter === 2 ? PHASES.boss.secondChapterIv : PHASES.boss.laterChapterIv : PHASES.bot.iv;
+    const units = Array.from({ length: size }, (_, i) => {
+      const family = isBoss ? legendary! : this.rng.pick(FAMILIES);
+      const pokemon = this.makePokemon(family, { area: 'board', col: [3, 2, 4, 1, 5, 0][i], row: i % 2 });
+      pokemon.level = level;
+      pokemon.iv = Object.fromEntries(Object.keys(pokemon.iv).map(stat => [stat, ivValue])) as Stats;
+      return pokemon;
+    });
+    return {
+      id: `bot:${player.id}`, name: isBoss ? SPECIES[legendary!].names[0] : `BOT ${chapter}`,
+      health: 100, gold: 0, level: size, units, shop: [], locked: false,
+      eliminated: false, lastWin: false, streak: 0, roundVictory: false, history: [], placement: null
+    };
+  }
+
   private startCombat(): void {
-    this.phase = 'combat'; this.clock = 0; this.duration = 30;
+    this.phase = 'combat'; this.clock = 0; this.duration = RULES.combatSeconds;
+    const stage = currentStage(this.round);
     const alive = this.rng.shuffle(this.players.filter(p => !p.eliminated));
     this.battles = [];
     this.opponentId = null;
-    for (let i = 0; i + 1 < alive.length; i += 2) {
-      const a = alive[i], b = alive[i + 1];
-      this.battles.push(createBattle(a, b, `r${this.round}:${i}`));
-      if (a.id === 'p0') this.opponentId = b.id;
-      if (b.id === 'p0') this.opponentId = a.id;
+    if (stage.type === 'bot' || stage.type === 'boss') {
+      const legendary = stage.type === 'boss' ? this.rng.pick(LEGENDARY_FAMILIES) : null;
+      alive.forEach((player, i) => this.battles.push(createBattleGroup(
+        [player, this.createNPC(player, stage.type as 'bot' | 'boss', legendary)], `r${this.round}:${i}`, stage.type
+      )));
+      this.opponentId = 'bot:p0';
+      this.log = stage.type === 'boss' ? `CHEFE • ${SPECIES[legendary!].names[0]}` : 'BATALHA PvE • TREINADORES BOT';
+      return;
     }
-    this.log = this.opponentId ? `Confronto • ${this.players.find(p => p.id === this.opponentId)?.name}` : 'Rodada de combate';
+    // Groups stay unique. For odd counts a triple fight prevents granting an arbitrary bye.
+    let i = 0;
+    while (i < alive.length) {
+      const left = alive.length - i;
+      let size = stage.type === 'quad' ? Math.min(4, left) : 2;
+      if (left === 3 || (stage.type === 'quad' && left === 6)) size = 3;
+      if (stage.type === 'quad' && left === 5) size = 3;
+      if (size > left) size = left;
+      const group = alive.slice(i, i + size);
+      if (group.length >= 2) {
+        this.battles.push(createBattleGroup(group, `r${this.round}:${i}`, stage.type));
+        if (group.some(p => p.id === 'p0')) this.opponentId = group.find(p => p.id !== 'p0')?.id || null;
+      }
+      i += Math.max(1, size);
+    }
+    this.log = `${stage.name} • ${this.opponentId ? this.players.find(p => p.id === this.opponentId)?.name || '' : ''}`;
+  }
+
+  private recordResult(player: Player, result: StageResult): void {
+    player.history[this.round - 1] = result;
+    player.roundVictory = result === 'win';
+    if (result === 'win') { player.lastWin = true; player.streak = player.streak > 0 ? player.streak + 1 : 1; }
+    else if (result === 'loss' || result === 'fourth') {
+      player.lastWin = false; player.streak = player.streak < 0 ? player.streak - 1 : -1;
+    }
+    // 2nd/3rd in a 4-player round: no +1 for victory and no change to either streak.
   }
 
   private finishCombat(): void {
-    this.phase = 'result'; this.clock = 0; this.duration = 3.2;
+    this.phase = 'result'; this.clock = 0; this.duration = RULES.resultSeconds;
     this.lastCombatStats = {};
+    const beforeDamage = new Map(this.players.map(p => [p.id, p.health]));
+    const stage = currentStage(this.round);
     for (const battle of this.battles) {
       forceResolveBattle(battle);
-      const combatStats = battleMetrics(battle);
-      Object.assign(this.lastCombatStats, combatStats);
-      if (!battle.winner || !battle.loser) continue;
-      const winner = this.players.find(p => p.id === battle.winner)!;
-      const loser = this.players.find(p => p.id === battle.loser)!;
-      const damage = 3 + survivors(battle, winner.id) * 2 + Math.floor((this.round - 1) / 5);
-      loser.health = Math.max(0, loser.health - damage);
-      loser.lastWin = false; loser.streak = Math.min(-1, loser.streak - 1);
-      winner.lastWin = true; winner.streak = Math.max(1, winner.streak + 1);
-      if (loser.health === 0) loser.eliminated = true;
-      if (battle.playerA === 'p0' || battle.playerB === 'p0') {
-        this.log = battle.winner === 'p0' ? `Vitória • ${damage} de dano` : `Derrota • -${damage} de vida`;
+      Object.assign(this.lastCombatStats, battleMetrics(battle));
+      const winnerId = battle.rankings[0];
+      const quad = stage.type === 'quad' && battle.participants.length >= 3;
+      battle.rankings.forEach((id, index) => {
+        const player = this.players.find(p => p.id === id);
+        if (!player) return;
+        const place = index + 1;
+        const result: StageResult = place === 1 ? 'win' : quad ? place === 2 ? 'second' : place === 3 ? 'third' : 'fourth' : 'loss';
+        this.recordResult(player, result);
+        if (place === 1) {
+          if (stage.type === 'gold') player.gold += RULES.goldRoundWinnerBonus;
+          return;
+        }
+        let damage = chapterDamage(Math.floor((this.round - 1) / PHASES.stagesPerChapter) + 1);
+        if (quad) {
+          damage += RULES.quadPlacementExtraDamage[String(place) as keyof typeof RULES.quadPlacementExtraDamage] || 0;
+        } else {
+          damage += survivors(battle, winnerId) * RULES.survivingUnitDamage;
+          if (stage.type === 'double') damage *= RULES.doubleDamageMultiplier;
+        }
+        player.health = Math.max(0, player.health - damage);
+        if (player.id === 'p0') this.log = `${stage.name} • ${quad ? `${place}º lugar` : 'Derrota'} • -${damage} de vida`;
+      });
+      if (winnerId === 'p0') this.log = stage.type === 'gold' ? `Vitória • +${RULES.goldRoundWinnerBonus} ouro bônus` : `Vitória • ${stage.name}`;
+      // CPUs collect their eligible fallen-enemy coins. Human coins are clicked on the field.
+      for (const coin of battle.goldDrops) {
+        const cpu = this.players.find(p => p.id === coin.ownerId && p.id !== 'p0');
+        if (cpu && !coin.claimed) { cpu.gold += RULES.goldDropPerKnockout; coin.claimed = true; }
       }
     }
+    // Simultaneous eliminations should not erase the match champion.
+    if (this.players.every(p => p.eliminated || p.health <= 0)) {
+      const survivor = [...this.players].filter(p => !p.eliminated).sort((a, b) => (beforeDamage.get(b.id) || 0) - (beforeDamage.get(a.id) || 0))[0];
+      if (survivor) survivor.health = 1;
+    }
+    for (const p of this.players) if (!p.eliminated && p.health === 0) p.eliminated = true;
     const eliminated = this.players.filter(p => p.eliminated && p.placement === null)
-      .sort((a, b) => a.health - b.health);
+      .sort((a, b) => (beforeDamage.get(a.id) || 0) - (beforeDamage.get(b.id) || 0));
     for (const p of eliminated) p.placement = this.players.filter(q => q.placement === null).length;
     for (const p of this.players) {
       if (p.eliminated) continue;
       for (const unit of p.units) {
         if (unit.position.area !== 'board') continue;
-        unit.xp += 1;
-        unit.level = Math.min(100, 1 + unit.xp);
+        unit.xp += RULES.experiencePerRound;
+        unit.level = Math.min(RULES.maxPokemonLevel, 1 + unit.xp);
       }
     }
     const surviving = this.players.filter(p => !p.eliminated);
@@ -273,11 +355,11 @@ export class GameEngine {
 
   private nextRound(): void {
     this.round++;
-    this.phase = 'planning'; this.clock = 0; this.duration = 40;
+    this.phase = 'planning'; this.clock = 0; this.duration = RULES.preparationSeconds;
     for (const p of this.players) {
       if (p.eliminated) continue;
-      const interest = Math.min(3, Math.floor(p.gold / 10));
-      p.gold += 5 + interest + (p.lastWin ? 1 : 0);
+      p.gold += projectedIncome(p);
+      p.roundVictory = false;
       p.level = this.levelForRound();
       if (!p.locked) this.refreshShop(p);
       if (p.id !== 'p0') this.runCPU(p);
@@ -291,24 +373,26 @@ export class GameEngine {
     this.clock += step;
     if (this.phase === 'planning' && this.clock >= this.duration) this.startCombat();
     else if (this.phase === 'combat') {
-      const accelerated = this.clock >= 30;
-      for (const battle of this.battles) tickBattle(battle, accelerated ? step * 3 : step);
+      const accelerated = this.clock >= RULES.combatSeconds;
+      for (const battle of this.battles) tickBattle(battle, accelerated ? step * RULES.combatAcceleration : step);
       // Last-resort resolution prevents regeneration stalemates, without truncating normal fights at 30s.
-      if (this.clock >= 65) this.battles.forEach(forceResolveBattle);
+      if (this.clock >= RULES.combatSafetySeconds) this.battles.forEach(forceResolveBattle);
       if (this.battles.every(b => b.resolved)) this.finishCombat();
     } else if (this.phase === 'result' && this.clock >= this.duration) this.nextRound();
   }
 
   snapshot(observedId = 'p0'): GameSnapshot {
     const watched = this.players.some(p => p.id === observedId) ? observedId : 'p0';
-    const battle = this.battles.find(b => b.playerA === watched || b.playerB === watched) || null;
+    const battle = this.battles.find(b => b.participants.includes(watched)) || null;
     const stats = battle ? battleMetrics(battle) : this.lastCombatStats;
     return {
       serial: ++this.serial, phase: this.phase, phaseSeconds: this.duration,
       timeLeft: Math.max(0, this.duration - this.clock), round: this.round,
-      chapter: Math.floor((this.round - 1) / 10) + 1,
-      stage: ((this.round - 1) % 10) + 1,
-      accelerated: this.phase === 'combat' && this.clock >= 30,
+      chapter: Math.floor((this.round - 1) / PHASES.stagesPerChapter) + 1,
+      stage: ((this.round - 1) % PHASES.stagesPerChapter) + 1,
+      stageType: currentStage(this.round).type,
+      stageName: currentStage(this.round).name,
+      accelerated: this.phase === 'combat' && this.clock >= RULES.combatSeconds,
       observedId: watched,
       players: this.players.map(p => ({
         ...p, units: p.units.map(u => ({ ...u, iv: { ...u.iv }, position: { ...u.position } })),

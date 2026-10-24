@@ -1,69 +1,72 @@
-# Poké Tactics — esqueleto inicial
+# Poké Tactics — Astro v3
 
-Auto battler Pokémon em **Astro**, com **oito jogadores** (você + sete CPUs). O site abre diretamente na partida. Não usa imagens, sprites, itens, augments, login ou backend contratado.
+Auto battler Pokémon de oito participantes (um jogador e sete CPUs), executado em Astro. O motor da partida roda em Web Worker no navegador. Não há multiplayer via rede nesta versão.
 
-## Estrutura
+## Editando as configurações
 
-```text
-src/
-  pages/index.astro      interface única
-  styles/global.css      HUD responsivo
-  client/arena.ts        tabuleiro hexagonal, desenho e câmera
-  client/hud.ts          loja, banco, ranking, sinergias e estatísticas
-  client/main.ts         entradas do usuário / ponte com o servidor
-server/
-  data.ts                Pokémon, bases, tipos, IV, nível, alcance
-  types.ts               protocolo de mensagens e tipos de domínio
-  engine.ts              estado autoritativo, economia, CPU, evolução, rounds
-  systems/combat.ts      combate automático e habilidades
-  sim.worker.ts          servidor isolado em Web Worker
-public/                  vazio até a chegada dos sprites
-tests/                   testes de regras
-.github/workflows/       deploy estático por GitHub Actions
+Os **quatro JSONs na raiz `config/` são importados pelo motor no build** (não são exemplos):
+
+| Arquivo | Responsabilidade |
+| --- | --- |
+| `config/pokemons.json` | Pokémon presentes no jogo, nomes por evolução, Pokédex/sprites, status, elementos, alcance, energia, habilidade, raridade e disponibilidade na loja. |
+| `config/ataques.json` | Ataque físico básico; fórmulas e efeitos de habilidades (drenar, queimar, reduzir velocidade, atingir segundo alvo, dano direto). |
+| `config/fases.json` | Sequência das dez etapas de cada capítulo, escalonamento dos bot PvE e IV/nível dos chefes lendários. |
+| `config/regras_gerais.json` | Ouro, juros, streak, dano, bônus, temporizadores, limites, chances da loja, progressão de nível e fórmula de status. |
+
+`server/data.ts` normaliza esses dados para motor e HUD. `server/engine.ts` administra progressão, compra e economia; `server/systems/combat.ts` simula as batalhas 1×1, PvE e múltiplas. `src/client/arena.ts` desenha o campo físico e `src/client/hud.ts` desenha os painéis.
+
+Os PNGs usados nesta versão estão incluídos em `public/sprites/`; cada família aponta para os seus arquivos na seção `sprites` de `config/pokemons.json`. Eles vieram do projeto público PokeAPI/sprites. A arena usa formas coloridas como fallback se alguma imagem estiver ausente. Apenas as quatro famílias originais aparecem na loja; Articuno, Zapdos, Moltres, Mewtwo, Mew, Raikou, Entei, Suicune, Lugia, Ho-Oh e Celebi são os onze chefes possíveis. O jogo já conhece todos seus status e ataques.
+
+## Rodadas
+
+Cada capítulo tem exatamente dez etapas:
+
+| Etapa | Tipo | Regra especial |
+| --- | --- | --- |
+| 1 | Batalha | Combate normal. |
+| 2 | Ouro | Cada nocaute gera uma moeda de ouro para o lado que realizou o nocaute; vencedor recebe mais 4 ouro. |
+| 3 | Batalha | Combate normal. |
+| 4 | Quádrupla | Quatro jogadores na arena compartilhada. |
+| 5 | Bot PvE | Enfrenta uma equipe de Pokémon controlada pelo jogo. |
+| 6 | Batalha | Combate normal. |
+| 7 | Ouro | Mesmo sistema da etapa 2. |
+| 8 | Batalha | Combate normal. |
+| 9 | Dano em dobro | Multiplica por dois o dano de derrota da rodada. |
+| 10 | Chefe PvE | Um dos 11 lendários/míticos das gerações 1 e 2. |
+
+- Preparação: 40 s. Combate: até 30 s normalmente, acelerando 3× depois para resolver lutas prolongadas. Resultados: 3,2 s.
+- Dano normal ao perdedor: **capítulo + 1 + número de Pokémon sobreviventes do vencedor**. Ex.: no capítulo 1, 2 + sobreviventes. Na etapa 9, todo esse dano dobra.
+- Quádrupla: primeiro não recebe dano; segundo recebe `capítulo + 1 + 1`; terceiro recebe `capítulo + 1 + 4`; quarto recebe `capítulo + 1 + 7`. **Não há dano adicional por sobreviventes** nessa etapa. Primeiro conta vitória; quarto conta derrota; segundo e terceiro **preservam** o streak atual e não recebem o bônus de vitória.
+- PvE: cada jogador tem seu próprio confronto com bot. Na etapa 10 o chefe tem nível 100 e IV 50 em cada status no capítulo 1, nível 200/IV 75 no capítulo 2 e nível `100 × capítulo`/IV 100 a partir do capítulo 3. Os chefes continuam escalando além do nível 100.
+- Quando restam três jogadores, ocorre uma batalha a três para evitar uma folga injusta. Nas etapas quádruplas com menos de quatro sobreviventes são formados os grupos possíveis; um duelo a dois usa o dano normal.
+- Se várias eliminações zerarem todos os jogadores numa mesma rodada, o jogador de maior HP antes do dano é preservado com 1 HP para haver um campeão. Empates de confronto no limite de tempo são resolvidos pela vida restante.
+
+## Economia
+
+Cada nova rodada (a partir da segunda) concede:
+
+`5 de base + min(5, floor(ouro_atual / 10)) de juros + (1 se venceu a rodada anterior) + bônus de streak`.
+
+O streak conta tanto vitórias quanto derrotas consecutivas: 2→+1 ouro, 3→+2, 4→+3, 5 ou mais→+4. Renda é calculada com o ouro **antes** de receber a renda da rodada; os bônus de 4 ouro e moedas da rodada de ouro chegam após a batalha. Ouro inicial: 9. Reroll da loja: 2 ouro.
+
+Na rodada de ouro, cada nocaute cria uma moeda **na posição onde o Pokémon caiu**. O lado que causou o KO pode recolhê-la. **Clique nas moedas amarelas na arena durante a batalha ou na tela de resultado para coletar.** Moedas de CPUs são coletadas automaticamente, e moedas não coletadas somem na próxima rodada.
+
+## Interface e controles
+
+- A arena é gramada e **as casas hexagonais aparecem somente enquanto você segura um Pokémon** para posicioná-lo. Há um banco físico de 10 posições no campo.
+- O painel flutuante superior tem dez pontos por capítulo: **azul = vitória, vermelho = derrota, amarelo = etapa atual, cinza = colocação neutra ou etapa futura**. Ele também exibe etapa (`4-3`), modo, fase, segundos restantes e uma barra de tempo na parte inferior.
+- Arraste Pokémon para reposicionar entre campo e banco. Soltar sobre a loja vende; dois cliques num Pokémon no banco tentam colocá-lo em campo. Compras, venda, reroll e rearranjo do banco são permitidos durante combate (sem mover Pokémon já em campo).
+- Clique direito move seu treinador; scroll aplica zoom. Tecla `D` roleta loja; `E` vende o selecionado; `Esc` volta a observar seu campo.
+- A aba **COMBATE** permite comparar vida restante, dano físico/especial, defesa e cura por Pokémon. A **CLASSIFICAÇÃO** permite assistir aos combates das CPUs.
+
+## Executar e publicar
+
+```bash
+npm ci
+npm run check
+npm test
+npm run build
+npm run dev
 ```
 
-**GitHub Pages é estático.** Portanto `server/sim.worker.ts` roda como servidor simulado em um Web Worker local, separado da thread da interface. Toda compra, posicionamento e economia é validada pela classe `GameEngine`, não pelo HUD. No multiplayer, será possível reutilizar o motor e o protocolo (`ClientToServer`/`ServerToClient`) em um processo real conectado por WebSocket; não há partidas compartilhadas entre navegadores nesta versão.
-
-## Regras desta versão
-
-- **8 jogadores, 100 HP cada.** Partidas normais até sobrar um participante. Derrota causa 3 de dano base + 2 por Pokémon inimigo sobrevivente + 1 a cada cinco rodadas.
-- **6 cartas na loja**, reroll por 2 de ouro, trava de loja; **10 espaços de banco integrados fisicamente à arena**. Arrastar um Pokémon faz a loja inteira virar a área de venda. Apenas as quatro famílias básicas aparecem na loja.
-- **Cinco raridades** no motor. Bulbasaur e Charmander: 1; Squirtle: 2; Pikachu: 3. As raridades 4 e 5 ficam sem Pokémon até futuras adições.
-- **Nível de jogador automático 1–6** conforme rodadas 1, 4, 8, 13, 19, 26. O limite de Pokémon em campo é igual ao nível de jogador.
-- **Renda:** +5 por rodada, juros de +1 a cada 10 de ouro (limite +3) e +1 após vitória. Ouro inicial: 9.
-- **Pokémon:** cada um tem seis stats base (Vida, Vel, Atk, Def, SpA, SpD), um IV independente por status (0–100) e nível 1–100. Multiplicador: `(0,8 + IV × 0,004) × (1 + nível × 0,05)`; nível 0 seria a base sem aumento e nível 100 alcança +500%. Evoluções têm multiplicador adicional próprio.
-- **Evolução:** três unidades iguais da mesma etapa se fundem na próxima etapa; preserva o maior nível das três e a média dos seis IVs. A cadeia é Bulbasaur → Ivysaur → Venusaur, Charmander → Charmeleon → Charizard, Squirtle → Wartortle → Blastoise, Pikachu → Raichu.
-- **Combate:** seleção do alvo vivo mais próximo, avanço até o alcance, ataques físicos comuns que geram +10 de energia, habilidade ao atingir a energia exigida, defesa física/especial, velocidades, barras de vida e energia, efeitos e registro de dano, dano recebido, cura e mitigação.
-- **Tipos:** Planta (regeneração), Venenoso (dano contínuo), Fogo (mais dano), Água (resistência), Elétrico (mais velocidade). Somente Pokémon em campo contam. Cópias idênticas da mesma etapa não aumentam o contador.
-- **10 etapas por capítulo:** 1-1 até 1-10, depois 2-1 etc. Preparação de **40 segundos**; combate por **30 segundos**, terminando antes se todos os duelos acabarem. Após 30 segundos de duelos pendentes, a simulação acelera 3× até resolver (há um limite de segurança para impasses).
-- **Painel de combate:** status com a vida restante dos Pokémon, dano físico (laranja) e especial (azul), defesa e cura.
-- **Durante combate:** compras, reroll, trava, venda e rearranjo do banco continuam disponíveis. A formação já enviada à batalha permanece bloqueada. É possível observar o confronto de qualquer CPU pelo ranking.
-- **Treinadores:** o seu é controlado por clique direito; cada CPU também possui um pequeno personagem próprio na arena.
-- **Desempenho:** combate das CPUs isolado no Web Worker, traits pré-calculados, busca de alvos sem ordenações repetidas, quadros interpolados e canvas com resolução adaptada para dispositivos de alta densidade.
-
-## Controles
-
-| Ação | Controle |
-| --- | --- |
-| Mover treinador | Clique direito na arena |
-| Aproximar/afastar câmera | Scroll na arena; o ponto sob o cursor fica fixo |
-| Comprar | Clique na carta da loja |
-| Mover para hexágono / banco / trocar | Arraste o Pokémon no tabuleiro físico |
-| Colocar rapidamente do banco | Dois cliques no Pokémon |
-| Vender | Arraste para a faixa inteira da loja ou selecione e pressione E |
-| Reroll | Botão ROLETAR ou tecla D |
-| Examinar stats/IV | Clique no Pokémon |
-| Espiar rival | Clique no jogador da classificação; VOLTAR para a sua arena |
-| Dados de combate | Aba COMBATE; métricas no rodapé do painel |
-
-## GitHub Pages
-
-1. Coloque **todo o conteúdo desta pasta** na raiz de um repositório GitHub.
-2. Em *Settings → Pages → Build and deployment*, escolha **GitHub Actions**.
-3. Envie um commit para `main` ou `master`. O workflow instala dependências com `npm ci`, confere os tipos, executa testes, gera `dist/` e publica o site.
-
-O caminho base do Astro é calculado a partir de `GITHUB_REPOSITORY` pelo próprio build, funcionando em repositórios do tipo `usuario.github.io` e `usuario.github.io/nome-do-repositorio`. Também é possível definir `PUBLIC_BASE_PATH` manualmente se necessário.
-
-### Desenvolvimento local opcional
-
-`npm install`, `npm run dev`, `npm test`, `npm run check`, `npm run build`.
+O workflow GitHub Actions existente publica uma build estática no GitHub Pages. O base path é calculado pelo `astro.config.mjs` conforme `GITHUB_REPOSITORY` (ou definido manualmente com `PUBLIC_BASE_PATH`). Os JSONs são empacotados no código durante o build: **editar um JSON requer recompilar/publicar** para aplicar as alterações.

@@ -15,12 +15,14 @@ import '../styles/global.css';
       <canvas id="battlefield" aria-label="Arena hexagonal com Pokémon em combate"></canvas>
       <div class="vignette" aria-hidden="true"></div>
 
-      <header class="top-bar">
+      <div class="top-bar">
         <div class="brand"><div class="brand-glyph" aria-hidden="true"><span></span></div><div class="brand-words"><strong>POKÉ<span>TACTICS</span></strong><small>AUTO BATTLER</small></div></div>
-        <div class="timeline-wrap"><div id="chapterTrack" class="chapter-track"></div></div>
-        <div class="round-clock"><div class="stage-heading"><span id="phaseLabel">PREPARAÇÃO</span><b id="roundLabel">1 — 1</b></div><div class="countdown" id="countdown">19</div></div>
-        <div class="stage-progress-track"><div id="stageProgress" class="stage-progress"></div></div>
-      </header>
+        <div class="timeline-panel glass">
+          <div class="timeline-wrap"><div class="timeline-heading"><span>CAPÍTULO / ETAPA</span><b id="stageName">BATALHA</b></div><div id="chapterTrack" class="chapter-track"></div></div>
+          <div class="round-clock"><div class="stage-heading"><span id="phaseLabel">PREPARAÇÃO</span><b id="roundLabel">1 — 1</b></div><div class="countdown" id="countdown">40</div><small class="seconds-label">SEG</small></div>
+          <div class="stage-progress-track"><div id="stageProgress" class="stage-progress"></div></div>
+        </div>
+      </div>
 
       <aside class="traits-panel glass" aria-label="Sinergias de tipos">
         <div class="panel-heading"><span class="eyebrow">EQUIPE</span><span class="panel-title">Sinergias</span></div>

@@ -1,19 +1,123 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import test from 'node:test';
-import { calculateStats, SPECIES } from '../server/data';
-import { GameEngine } from '../server/engine';
-import { createBattle, tickBattle } from '../server/systems/combat';
+import { calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SPECIES } from '../server/data';
+import { chapterDamage, GameEngine, projectedIncome, streakIncome } from '../server/engine';
+import { createBattle, createBattleGroup, tickBattle } from '../server/systems/combat';
 import type { Stats } from '../server/types';
 
 const all = (value: number): Stats => ({ hp: value, speed: value, atk: value, def: value, spa: value, spd: value });
 
-test('IV 0 / 50 / 100 e nível 100 seguem os modificadores definidos', () => {
+test('IV 0 / 50 / 100 e níveis acima de 100 continuam escalando para chefes', () => {
   const base = SPECIES.bulbasaur.base;
   assert.equal(calculateStats('bulbasaur', 0, all(0), 0).hp, Math.round(base.hp * .8));
   assert.equal(calculateStats('bulbasaur', 0, all(50), 0).atk, base.atk);
   assert.equal(calculateStats('bulbasaur', 0, all(100), 0).spa, Math.round(base.spa * 1.2));
   assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, base.hp * 6);
-  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, base.hp * 6);
+  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 13.5));
+});
+
+test('as quatro configurações são reais, chefes são Gen 1/2 e lendários ficam fora da loja', () => {
+  assert.equal(PHASES.stagesPerChapter, 10);
+  assert.deepEqual(PHASES.stages.map(s => s.type), ['battle','gold','battle','quad','bot','battle','gold','battle','double','boss']);
+  assert.equal(LEGENDARY_FAMILIES.length, 11);
+  assert.equal(SHOP_FAMILIES.length, 4);
+  assert.ok(LEGENDARY_FAMILIES.every(f => !SPECIES[f].shop && SPECIES[f].sprites[0].includes('.png')));
+  for (const species of Object.values(SPECIES)) {
+    assert.equal(species.names.length, species.sprites.length);
+    for (const sprite of species.sprites) {
+      assert.ok(existsSync(resolve('public', sprite.replace(/^\.\/sprites\//, 'sprites/'))), `Sprite ausente: ${sprite}`);
+    }
+  }
+  assert.equal(RULES.maxInterest, 5);
+});
+
+test('renda = 5 + juros até 5 + vitória + streak de 2 a 5', () => {
+  const player = new GameEngine(99).players[0];
+  player.gold = 59; player.streak = 2; player.roundVictory = true;
+  assert.equal(projectedIncome(player), 12);
+  player.gold = 200; player.streak = -5; player.roundVictory = false;
+  assert.equal(projectedIncome(player), 14);
+  assert.equal(streakIncome(1), 0);
+  assert.equal(streakIncome(3), 2);
+  assert.equal(streakIncome(4), 3);
+  assert.equal(streakIncome(18), 4);
+});
+
+test('dano por capítulo escala como 2, 3, 4; bônus por peças vivas e rodada dupla', () => {
+  assert.equal(chapterDamage(1), 2);
+  assert.equal(chapterDamage(2), 3);
+  assert.equal(chapterDamage(3), 4);
+  const game = new GameEngine(76);
+  const anyGame = game as any;
+  anyGame.round = 9;
+  const battle = createBattle(game.players[0], game.players[1], 'double-test');
+  battle.resolved = true; battle.winner = 'p0'; battle.loser = 'p1'; battle.rankings = ['p0','p1'];
+  anyGame.battles = [battle]; anyGame.finishCombat();
+  assert.equal(game.players[1].health, 100 - (2 + 1) * 2);
+});
+
+test('batalha quádrupla une quatro equipes, preserva streak neutro e aplica +1/+4/+7', () => {
+  const game = new GameEngine(72);
+  const anyGame = game as any;
+  anyGame.round = 4;
+  game.players[1].streak = 3;
+  game.players[2].streak = -2;
+  const battle = createBattleGroup(game.players.slice(0, 4), 'quad-test', 'quad');
+  assert.equal(battle.participants.length, 4);
+  assert.equal(new Set(battle.units.map(u => `${u.x},${u.y}`)).size, 4);
+  battle.rankings = ['p0','p1','p2','p3']; battle.resolved = true; battle.winner = 'p0'; battle.loser = 'p3';
+  anyGame.battles = [battle]; anyGame.finishCombat();
+  assert.equal(game.players[0].health, 100);
+  assert.equal(game.players[1].health, 97);
+  assert.equal(game.players[2].health, 94);
+  assert.equal(game.players[3].health, 91);
+  assert.equal(game.players[1].streak, 3);
+  assert.equal(game.players[2].streak, -2);
+  assert.equal(game.players[3].streak, -1);
+  assert.equal(game.players[1].roundVictory, false);
+});
+
+test('moedas surgem em KO na etapa 2, só o dono coleta e prêmio +4 para vencedor', () => {
+  const game = new GameEngine(13);
+  const anyGame = game as any;
+  anyGame.round = 2; anyGame.startCombat();
+  const battle = createBattleGroup(game.players.slice(0, 2), 'coin-test', 'gold');
+  const attacker = battle.units.find(u => u.playerId === 'p0')!;
+  const victim = battle.units.find(u => u.playerId === 'p1')!;
+  attacker.x = victim.x; attacker.y = victim.y;
+  attacker.attackClock = 0; victim.attackClock = 100;
+  victim.hp = 1;
+  tickBattle(battle, .1);
+  assert.equal(battle.goldDrops.length, 1);
+  const coin = battle.goldDrops[0];
+  anyGame.battles = [battle];
+  assert.equal(game.command({ kind: 'collect', dropId: coin.id }), null);
+  assert.equal(game.command({ kind: 'collect', dropId: coin.id }), 'Moeda indisponível');
+  assert.equal(game.players[0].gold, 10);
+  anyGame.finishCombat();
+  assert.equal(game.players[0].gold, 14);
+});
+
+test('PvE na etapa 5 e lendário na etapa 10 com nível e IV prescritos por capítulo', () => {
+  for (const chapter of [1, 2, 3]) {
+    const game = new GameEngine(130 + chapter);
+    const anyGame = game as any;
+    anyGame.round = (chapter - 1) * 10 + 5;
+    anyGame.startCombat();
+    assert.equal(game.snapshot().stageType, 'bot');
+    assert.ok(game.snapshot().visibleBattle?.units.some(u => u.playerId === 'bot:p0'));
+    anyGame.round = chapter * 10;
+    anyGame.startCombat();
+    const snapshot = game.snapshot();
+    assert.equal(snapshot.stageType, 'boss');
+    const boss = snapshot.visibleBattle?.units.find(u => u.playerId === 'bot:p0');
+    assert.ok(boss);
+    assert.ok(LEGENDARY_FAMILIES.includes(boss.family));
+    assert.equal(boss.level, chapter * 100);
+    assert.equal(boss.stats.hp, calculateStats(boss.family, chapter * 100, all(chapter === 1 ? 50 : chapter === 2 ? 75 : 100), 0).hp);
+  }
 });
 
 test('o servidor cria oito participantes, vida cheia, loja seis e dez posições de banco', () => {
