@@ -80,11 +80,13 @@ export interface CombatUnit {
 
 export interface CombatEffect {
   id: string;
+  targetId?: string;
   x: number;
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'physical' | 'spell' | 'heal' | 'ko';
+  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage';
+  damageType?: 'physical' | 'special' | 'true';
   family: Family;
   time: number;
   duration: number;
@@ -108,6 +110,7 @@ export interface Battle {
   winner: string | null;
   loser: string | null;
   traitsByPlayer: Record<string, Partial<Record<Element, number>>>;
+  benches: Record<string, Pokemon[]>;
 }
 
 export interface GoldDrop {
@@ -132,6 +135,7 @@ export interface GameSnapshot {
   observedId: string;
   players: Player[];
   opponentId: string | null;
+  possibleOpponents: Record<string, string[][]>;
   visibleBattle: Battle | null;
   combatStats: Record<string, Record<string, CombatMetrics>>;
   log: string;

@@ -1,6 +1,7 @@
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
+import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
-import type { Battle, Family, GameCommand, GameSnapshot, Phase, Player, Pokemon, Rarity, ShopOffer, StageResult, StageType, Stats, UnitPosition } from './types';
+import type { Battle, Family, GameCommand, GameSnapshot, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition } from './types';
 
 class Rng {
   constructor(private seed: number) { this.seed ||= 1; }
@@ -44,6 +45,9 @@ export class GameEngine {
   private round = 1;
   private battles: Battle[] = [];
   private opponentId: string | null = null;
+  private schedules: string[][][] = [];
+  private encounterCounts = new Map<string, number>();
+  private lastOpponents = new Set<string>();
   private log = '';
   private winnerId: string | null = null;
   private lastCombatStats: GameSnapshot['combatStats'] = {};
@@ -61,6 +65,7 @@ export class GameEngine {
       player.units.push(this.makePokemon(family, { area: 'board', col: i % 3 + 2, row: 1 }));
       this.refreshShop(player);
     });
+    this.prepareMatchmaking();
   }
 
   private id(): string { return `u${++this.idCounter}`; }
@@ -76,20 +81,62 @@ export class GameEngine {
   }
 
   private refreshShop(player: Player): void {
-    const odds = RULES.shopOddsByLevel[Math.min(RULES.shopOddsByLevel.length - 1, player.level - 1)];
     player.shop = Array.from({ length: SHOP_SIZE }, () => {
-      let roll = this.rng.next() * 100;
-      let tier: Rarity = 1;
-      for (let t = 0; t < 5; t++) {
-        roll -= odds[t];
-        if (roll < 0) { tier = (t + 1) as Rarity; break; }
-      }
-      // Rarities 4 and 5 exist in the system but have no released Pokémon yet.
-      const available = FAMILIES.filter(f => SPECIES[f].rarity === tier);
-      const fallback = FAMILIES.filter(f => SPECIES[f].rarity <= tier);
-      const family = this.rng.pick(available.length ? available : fallback);
-      return { id: this.id(), family, rarity: SPECIES[family].rarity, price: SPECIES[family].rarity };
+      const { family, rarity } = rollFamily(player, () => this.rng.next());
+      return { id: this.id(), family, rarity, price: rarity };
     });
+  }
+
+  private pairKey(a: string, b: string): string { return [a, b].sort().join(':'); }
+
+  /** Três calendários completos possíveis, sorteados com chances iguais no começo da luta.
+   * O custo desencoraja repetir um confronto antes de encontrar outros jogadores. */
+  private prepareMatchmaking(): void {
+    const active = this.players.filter(p => !p.eliminated).map(p => p.id);
+    if (currentStage(this.round).type === 'bot' || currentStage(this.round).type === 'boss' || active.length < 2) {
+      this.schedules = []; return;
+    }
+    const quad = currentStage(this.round).type === 'quad';
+    const groupSize = (remaining: number): number => {
+      if (quad) return remaining === 5 || remaining === 6 || remaining === 3 ? 3 : remaining >= 4 ? 4 : 2;
+      return remaining % 2 === 1 ? 3 : 2;
+    };
+    const pickCombos = (list: string[], n: number): string[][] => {
+      if (n === 0) return [[]];
+      return list.flatMap((id, i) => pickCombos(list.slice(i + 1), n - 1).map(tail => [id, ...tail]));
+    };
+    const partitions = (remaining: string[]): string[][][] => {
+      if (!remaining.length) return [[]];
+      const [first, ...rest] = remaining;
+      const size = Math.min(remaining.length, groupSize(remaining.length));
+      if (size < 2) return [];
+      return pickCombos(rest, size - 1).flatMap(members => {
+        const group = [first, ...members];
+        const leftover = rest.filter(id => !members.includes(id));
+        return partitions(leftover).map(tail => [group, ...tail]);
+      });
+    };
+    const candidates = partitions(active);
+    const pairs = (schedule: string[][]) => schedule.flatMap(group => group.flatMap((id, i) => group.slice(i + 1).map(other => this.pairKey(id, other))));
+    const score = (schedule: string[][]) => pairs(schedule).reduce((total, key) => total + (this.encounterCounts.get(key) || 0) * RULES.matchmaking.repeatPenalty + (this.lastOpponents.has(key) ? RULES.matchmaking.recentRepeatPenalty : 0), 0);
+    const chosen: string[][][] = [];
+    while (chosen.length < RULES.matchmaking.options && candidates.length) {
+      const rank = candidates.map((groups, i) => ({ groups, i, value: score(groups) + chosen.reduce((sum, prior) => {
+        const seen = new Set(pairs(prior));
+        return sum + pairs(groups).filter(key => seen.has(key)).length * RULES.matchmaking.repeatPenalty * 1.5;
+      }, 0) + this.rng.next() * 12 })).sort((a, b) => a.value - b.value);
+      const winner = rank[0];
+      chosen.push(winner.groups);
+      candidates.splice(winner.i, 1);
+    }
+    this.schedules = chosen.length ? Array.from({ length: RULES.matchmaking.options }, (_, i) => chosen[i % chosen.length]) : [];
+  }
+
+  private matchupOptions(): Record<string, string[][]> {
+    return Object.fromEntries(this.players.map(player => [player.id, this.schedules.map(schedule => {
+      const group = schedule.find(g => g.includes(player.id)) || [];
+      return group.filter(id => id !== player.id);
+    })]));
   }
 
   private findFreeBench(player: Player): number {
@@ -250,7 +297,7 @@ export class GameEngine {
   private startCombat(): void {
     this.phase = 'combat'; this.clock = 0; this.duration = RULES.combatSeconds;
     const stage = currentStage(this.round);
-    const alive = this.rng.shuffle(this.players.filter(p => !p.eliminated));
+    const alive = this.players.filter(p => !p.eliminated);
     this.battles = [];
     this.opponentId = null;
     if (stage.type === 'bot' || stage.type === 'boss') {
@@ -262,21 +309,20 @@ export class GameEngine {
       this.log = stage.type === 'boss' ? `CHEFE • ${SPECIES[legendary!].names[0]}` : 'BATALHA PvE • TREINADORES BOT';
       return;
     }
-    // Groups stay unique. For odd counts a triple fight prevents granting an arbitrary bye.
-    let i = 0;
-    while (i < alive.length) {
-      const left = alive.length - i;
-      let size = stage.type === 'quad' ? Math.min(4, left) : 2;
-      if (left === 3 || (stage.type === 'quad' && left === 6)) size = 3;
-      if (stage.type === 'quad' && left === 5) size = 3;
-      if (size > left) size = left;
-      const group = alive.slice(i, i + size);
-      if (group.length >= 2) {
-        this.battles.push(createBattleGroup(group, `r${this.round}:${i}`, stage.type));
-        if (group.some(p => p.id === 'p0')) this.opponentId = group.find(p => p.id !== 'p0')?.id || null;
-      }
-      i += Math.max(1, size);
-    }
+    if (!this.schedules.length) this.prepareMatchmaking();
+    const selected = this.schedules[this.rng.int(this.schedules.length)] || [];
+    this.lastOpponents.clear();
+    selected.forEach((ids, i) => {
+      const group = ids.map(id => alive.find(p => p.id === id)).filter((p): p is Player => !!p);
+      if (group.length < 2) return;
+      this.battles.push(createBattleGroup(group, `r${this.round}:${i}`, stage.type));
+      if (group.some(p => p.id === 'p0')) this.opponentId = group.find(p => p.id !== 'p0')?.id || null;
+      ids.forEach((id, index) => ids.slice(index + 1).forEach(other => {
+        const key = this.pairKey(id, other);
+        this.encounterCounts.set(key, (this.encounterCounts.get(key) || 0) + 1);
+        this.lastOpponents.add(key);
+      }));
+    });
     this.log = `${stage.name} • ${this.opponentId ? this.players.find(p => p.id === this.opponentId)?.name || '' : ''}`;
   }
 
@@ -337,10 +383,8 @@ export class GameEngine {
       .sort((a, b) => (beforeDamage.get(a.id) || 0) - (beforeDamage.get(b.id) || 0));
     for (const p of eliminated) p.placement = this.players.filter(q => q.placement === null).length;
     for (const p of this.players) {
-      if (p.eliminated) continue;
       for (const unit of p.units) {
-        if (unit.position.area !== 'board') continue;
-        unit.xp += RULES.experiencePerRound;
+        unit.xp += unit.position.area === 'board' ? RULES.pokemonExperience.activePerBattle : RULES.pokemonExperience.benchPerBattle;
         unit.level = Math.min(RULES.maxPokemonLevel, 1 + unit.xp);
       }
     }
@@ -364,6 +408,7 @@ export class GameEngine {
       if (!p.locked) this.refreshShop(p);
       if (p.id !== 'p0') this.runCPU(p);
     }
+    this.prepareMatchmaking();
     this.log = `Preparação • Rodada ${this.round}`;
   }
 
@@ -398,7 +443,8 @@ export class GameEngine {
         ...p, units: p.units.map(u => ({ ...u, iv: { ...u.iv }, position: { ...u.position } })),
         shop: p.id === 'p0' ? p.shop.map(offer => offer && { ...offer }) : []
       })),
-      opponentId: this.opponentId,
+      opponentId: this.phase === 'planning' ? null : this.opponentId,
+      possibleOpponents: this.phase === 'planning' ? this.matchupOptions() : {},
       // postMessage performs the one structured clone at the worker boundary.
       visibleBattle: battle,
       combatStats: stats, log: this.log, winnerId: this.winnerId

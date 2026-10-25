@@ -9,10 +9,13 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
   const { col, row: localRow } = pokemon.position;
   const row = multi ? localRow + 4 : slot === 0 ? localRow + 4 : 3 - localRow;
   const point = gridXY(col, row);
-  // Four deployment fields meet in the middle of a single common, shared arena.
-  const centers = [{ x: -2.0, y: -1.7 }, { x: 2.0, y: -1.7 }, { x: -2.0, y: 1.7 }, { x: 2.0, y: 1.7 }];
-  const center = centers[slot % centers.length];
-  const { x, y } = multi ? { x: center.x + point.x * .57, y: center.y + (point.y - 2) * .53 } : point;
+  // Quatro tabuleiros 7×4 contíguos, sem tabuleiro central sobreposto.
+  // Cada jogador ocupa um quadrante e sua linha 0 fica próxima do centro.
+  const quadrants = [{ x: -2.2, sign: -1 }, { x: 2.2, sign: -1 }, { x: -2.2, sign: 1 }, { x: 2.2, sign: 1 }];
+  const quadrant = quadrants[slot % quadrants.length];
+  const { x, y } = multi
+    ? { x: quadrant.x + (col - 3) * .6 + (localRow % 2 ? .13 : -.13), y: quadrant.sign * (.42 + localRow * .81) }
+    : point;
   const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
   const species = SPECIES[pokemon.family];
   const maxHp = Math.round(stats.hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
@@ -49,6 +52,7 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
     units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi))),
     effects: [], elapsed: 0, resolved: false, winner: null, loser: null,
+    benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
     traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)]))
   };
 }
@@ -63,6 +67,15 @@ function effect(battle: Battle, source: CombatUnit, target: CombatUnit, kind: Co
     x: source.x, y: source.y, targetX: target.x, targetY: target.y,
     family: source.family, kind, value: Math.round(value), time: 0, duration: kind === 'ko' ? 0.9 : 0.6
   });
+}
+
+function floatingDamage(battle: Battle, target: CombatUnit, amount: number, damageType: 'physical' | 'special' | 'true'): void {
+  // Pequenos ticks de veneno se somam em uma só etiqueta por alvo.
+  const recent = [...battle.effects].reverse().find(fx => fx.kind === 'damage' && fx.targetId === target.id && fx.damageType === damageType && fx.time < .12);
+  if (recent) { recent.value += amount; return; }
+  battle.effects.push({ id: `${battle.id}:hit:${battle.elapsed}:${battle.effects.length}`, targetId: target.id,
+    x: target.x, y: target.y, targetX: target.x, targetY: target.y,
+    kind: 'damage', damageType, family: target.family, value: amount, time: 0, duration: .85 });
 }
 
 function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage: number): void {
@@ -86,6 +99,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   target.metrics.taken += damage;
   target.metrics.blocked += Math.max(0, raw * (1 + traitBoost) - damage);
   target.hp = Math.max(0, target.hp - damage);
+  floatingDamage(battle, target, damage, magical ? 'special' : 'physical');
   target.flash = 0.19;
   if (target.hp <= 0) knockout(battle, source, target, damage);
   return damage;
@@ -156,6 +170,7 @@ export function tickBattle(battle: Battle, dt: number): void {
       const applied = Math.min(unit.hp, unit.damageOverTime.amount * dt);
       unit.hp -= applied;
       unit.metrics.taken += applied;
+      floatingDamage(battle, unit, applied, 'special');
       const source = battle.units.find(other => other.id === unit.damageOverTime?.sourceId);
       if (source) {
         source.metrics.dealt += applied; source.metrics.specialDealt += applied;

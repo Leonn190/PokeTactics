@@ -14,7 +14,7 @@ export interface ClientView {
 type Marker = { id: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean };
 const PI2 = Math.PI * 2;
 const BENCH_Y = 4.49;
-const benchXY = (index: number) => ({ x: -5.17 + index * 1.15, y: BENCH_Y });
+const benchXY = (index: number, enemy = false) => ({ x: -5.17 + index * 1.15, y: enemy ? -BENCH_Y : BENCH_Y });
 const TRAINER_COLORS = ['#d9f4ea', '#dd9fd0', '#82c4e5', '#b1b3ff', '#f5bc89', '#c3e7a4', '#a9dfdc', '#eeadab'];
 
 export class Arena {
@@ -52,8 +52,8 @@ export class Arena {
     this.canvas.height = Math.round(rect.height * this.pixelRatio);
   }
 
-  private get origin() { return { x: this.width / 2 - (this.width > 1200 ? 23 : 0) + this.cameraOffset.x, y: (this.height - 170) / 2 + this.cameraOffset.y }; }
-  private get cellScale() { return Math.min(this.width < 1000 ? 61 : 70, Math.max(46, (this.height - 265) / 9.5)) * this.zoom; }
+  private get origin() { return { x: this.width / 2 - (this.width > 1200 ? 23 : 0) + this.cameraOffset.x, y: (this.height - 104) / 2 + this.cameraOffset.y }; }
+  private get cellScale() { return Math.min(this.width < 1000 ? 61 : 70, Math.max(35, (this.height - 310) / 9.4)) * this.zoom; }
 
   toScreen(x: number, y: number): { x: number; y: number } {
     const o = this.origin;
@@ -92,6 +92,7 @@ export class Arena {
     return closest;
   }
   pickBench(clientX: number, clientY: number): number | null {
+    if (this.view.scoutId !== 'p0') return null;
     const world = this.pointerWorld(clientX, clientY);
     if (Math.abs(world.y - BENCH_Y) > .47) return null;
     for (let index = 0; index < 10; index++) {
@@ -100,7 +101,7 @@ export class Arena {
     return null;
   }
   pickOwnUnit(clientX: number, clientY: number): string | null {
-    if (!this.snapshot || this.snapshot.players[0].eliminated || this.snapshot.phase === 'finished') return null;
+    if (!this.snapshot || this.view.scoutId !== 'p0' || this.snapshot.players[0].eliminated || this.snapshot.phase === 'finished') return null;
     const player = this.snapshot.players[0];
     const world = this.pointerWorld(clientX, clientY);
     const benchSlot = this.pickBench(clientX, clientY);
@@ -153,11 +154,15 @@ export class Arena {
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
     gradient.addColorStop(0, '#1e4834'); gradient.addColorStop(.38, '#316e3a'); gradient.addColorStop(.72, '#285c34'); gradient.addColorStop(1, '#112e24');
     ctx.fillStyle = gradient; ctx.fillRect(0, 0, w, h);
-    const center = this.toScreen(0, 0);
     const bounds = [this.toScreen(-4.25, -3.9), this.toScreen(4.25, 3.95)];
     const left = bounds[0].x, top = bounds[0].y, fieldW = bounds[1].x - left, fieldH = bounds[1].y - top;
-    ctx.fillStyle = '#122e19'; ctx.fillRect(left - 9, top - 9, fieldW + 18, fieldH + 18);
-    ctx.fillStyle = '#397b3f'; ctx.fillRect(left, top, fieldW, fieldH);
+    ctx.fillStyle = '#112d22'; ctx.fillRect(left - 10, top - 10, fieldW + 20, fieldH + 20);
+    const field = ctx.createLinearGradient(left, top, left, top + fieldH);
+    field.addColorStop(0, '#356a48'); field.addColorStop(.48, '#397748'); field.addColorStop(.52, '#438752'); field.addColorStop(1, '#336f3c');
+    ctx.fillStyle = field; ctx.fillRect(left, top, fieldW, fieldH);
+    // O território fica legível mesmo quando as casas estão ocultas.
+    ctx.fillStyle = '#ad4f4a12'; ctx.fillRect(left, top, fieldW, fieldH / 2);
+    ctx.fillStyle = '#7aff8b09'; ctx.fillRect(left, top + fieldH / 2, fieldW, fieldH / 2);
     // Alternating mowing bands and tiny deterministic grass flecks; no permanent hex outlines.
     for (let i = 0; i < 10; i++) {
       ctx.fillStyle = i % 2 ? '#214f3029' : '#b4e6870b';
@@ -172,11 +177,31 @@ export class Arena {
     }
     ctx.restore();
     const quad = this.snapshot?.stageType === 'quad' && this.snapshot.phase !== 'planning' && (this.snapshot.visibleBattle?.participants.length || 0) > 2;
+    ctx.strokeStyle = '#e5e2ae60'; ctx.lineWidth = 2;
+    ctx.strokeRect(left + 5, top + 5, fieldW - 10, fieldH - 10);
+    // Linha central acompanha as coordenadas do tabuleiro, não o centro visual da tela.
+    const middle = this.toScreen(0, 0);
     if (quad) {
-      ctx.fillStyle = '#9ad8a40b'; ctx.fillRect(left, top, fieldW / 2, fieldH / 2);
-      ctx.fillStyle = '#e8d5a109'; ctx.fillRect(left + fieldW / 2, top + fieldH / 2, fieldW / 2, fieldH / 2);
-      ctx.strokeStyle = '#d8e0b52b'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(center.x, top); ctx.lineTo(center.x, top + fieldH); ctx.moveTo(left, center.y); ctx.lineTo(left + fieldW, center.y); ctx.stroke();
+      const sectors = [
+        { x: left, y: top, tint: '#c3a28a16' }, { x: middle.x, y: top, tint: '#acd9ca0f' },
+        { x: left, y: middle.y, tint: '#c8d7a017' }, { x: middle.x, y: middle.y, tint: '#b1cfde10' }
+      ];
+      sectors.forEach(sector => { ctx.fillStyle = sector.tint; ctx.fillRect(sector.x, sector.y, fieldW / 2, fieldH / 2); });
+      ctx.strokeStyle = '#dce6afad'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(middle.x, top + 5); ctx.lineTo(middle.x, top + fieldH - 5); ctx.moveTo(left + 5, middle.y); ctx.lineTo(left + fieldW - 5, middle.y); ctx.stroke();
+      const battle = this.snapshot?.visibleBattle;
+      if (battle) battle.participants.forEach((id, index) => {
+        const label = this.snapshot?.players.find(p => p.id === id)?.name || id;
+        const sector = sectors[index]; if (!sector) return;
+        ctx.textAlign = 'center'; ctx.font = `800 ${Math.max(10, this.cellScale * .19)}px 'Barlow Condensed'`;
+        ctx.fillStyle = '#f5ecd2b8'; ctx.fillText(label, sector.x + fieldW / 4, sector.y + (index < 2 ? 25 : fieldH / 2 - 18));
+      });
+    } else {
+      ctx.strokeStyle = '#f6e5b681'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(left + 4, middle.y); ctx.lineTo(left + fieldW - 4, middle.y); ctx.stroke();
+      ctx.fillStyle = '#e5eacf9c'; ctx.textAlign = 'center'; ctx.font = `800 ${Math.max(10, this.cellScale * .18)}px 'Barlow Condensed'`;
+      ctx.fillText('ADVERSÁRIO', middle.x, top + 20);
+      ctx.fillText('SUA EQUIPE', middle.x, top + fieldH - 12);
     }
   }
 
@@ -208,33 +233,47 @@ export class Arena {
     }
   }
 
-  private drawBench(): void {
+  private drawBench(enemy = false): void {
     const ctx = this.context;
-    const left = this.toScreen(-5.76, BENCH_Y - .53);
-    const right = this.toScreen(5.75, BENCH_Y + .53);
-    ctx.fillStyle = '#0d1b23cf';
-    ctx.strokeStyle = '#bca36a73'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(left.x, left.y, right.x - left.x, right.y - left.y, 10); ctx.fill(); ctx.stroke();
+    const left = this.toScreen(-5.76, (enemy ? -BENCH_Y : BENCH_Y) - .53);
+    const right = this.toScreen(5.75, (enemy ? -BENCH_Y : BENCH_Y) + .53);
+    const slab = ctx.createLinearGradient(left.x, left.y, left.x, right.y);
+    slab.addColorStop(0, '#667877'); slab.addColorStop(.53, '#405753'); slab.addColorStop(1, '#273b3d');
+    ctx.fillStyle = slab; ctx.strokeStyle = enemy ? '#be8b85' : '#d1d1a8'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(left.x, left.y, right.x - left.x, right.y - left.y, 9); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#263a3c83'; ctx.lineWidth = 1;
+    for (let i = 1; i < 10; i++) { const x = left.x + (right.x - left.x) * i / 10; ctx.beginPath(); ctx.moveTo(x, left.y); ctx.lineTo(x, right.y); ctx.stroke(); }
     for (let index = 0; index < 10; index++) {
-      const { x, y } = benchXY(index), p = this.toScreen(x, y);
+      const { x, y } = benchXY(index, enemy), p = this.toScreen(x, y);
       const radiusX = this.cellScale * .51, radiusY = this.cellScale * .39;
-      const selected = this.view.hoveringBench === index && !!this.view.dragId;
+      const selected = !enemy && this.view.hoveringBench === index && !!this.view.dragId;
       ctx.beginPath(); ctx.roundRect(p.x - radiusX, p.y - radiusY, radiusX * 2, radiusY * 2, 5);
-      ctx.fillStyle = selected ? '#6ba48e8c' : '#28413f9c';
-      ctx.strokeStyle = selected ? '#f2d59d' : '#50716778'; ctx.lineWidth = selected ? 2 : 1;
+      ctx.fillStyle = selected ? '#8ebfa5b8' : index % 2 ? '#3a535099' : '#344744ab';
+      ctx.strokeStyle = selected ? '#f2d59d' : '#b6c2aa4b'; ctx.lineWidth = selected ? 2 : 1;
       ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#75939199'; ctx.font = "700 10px 'Barlow Condensed'";
       ctx.textAlign = 'left'; ctx.fillText(String(index + 1), p.x - radiusX + 5, p.y - radiusY + 12);
     }
+    ctx.fillStyle = '#edf0d2a8'; ctx.font = `800 11px 'Barlow Condensed'`; ctx.textAlign = 'center';
+    ctx.fillText(enemy ? 'BANCO ADVERSÁRIO' : 'SEU BANCO', (left.x + right.x) / 2, enemy ? right.y + 14 : left.y - 8);
   }
 
   private markers(): Marker[] {
     const snapshot = this.snapshot;
     if (!snapshot) return [];
-    const bench = snapshot.players[0].units.filter(u => u.position.area === 'bench').map(u => {
+    const watched = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
+    const bench = watched.units.filter(u => u.position.area === 'bench').map(u => {
       const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index);
       return { id: u.id, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
         own: true, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0, bench: true } as Marker;
+    });
+    const foeId = snapshot.visibleBattle?.participants.find(id => id !== this.view.scoutId) || null;
+    const foePlayer = snapshot.players.find(p => p.id === foeId);
+    const enemyBenchUnits = foePlayer ? foePlayer.units.filter(u => u.position.area === 'bench') : foeId ? snapshot.visibleBattle?.benches[foeId] || [] : [];
+    const foeBench = enemyBenchUnits.map(u => {
+      const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index, true);
+      return { id: u.id, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
+        own: false, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0, bench: true } as Marker;
     });
     if (snapshot.phase !== 'planning' && snapshot.visibleBattle && snapshot.observedId === this.view.scoutId) {
       if (this.lastBattleId !== snapshot.visibleBattle.id) {
@@ -249,10 +288,9 @@ export class Arena {
         return { ...u, x: smooth.x, y: observedOnTop ? -smooth.y : smooth.y,
           own: u.playerId === this.view.scoutId, required: u.energyNeeded };
       });
-      return [...battleMarkers, ...bench];
+      return [...battleMarkers, ...bench, ...foeBench];
     }
-    const friendly = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
-    const other = snapshot.players.find(p => p.id === (this.view.scoutId === 'p0' ? snapshot.opponentId : 'p0')) || snapshot.players[1];
+    const friendly = watched;
     const convert = (units: Pokemon[], own: boolean): Marker[] => units.filter(u => u.position.area === 'board').map(u => {
       const pos = u.position as Extract<UnitPosition, { area: 'board' }>;
       const row = own ? 4 + pos.row : 3 - pos.row;
@@ -260,7 +298,8 @@ export class Arena {
       return { id: u.id, x: p.x, y: p.y, family: u.family, stage: u.stage,
         level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0 };
     });
-    return [...(other.id === friendly.id ? [] : convert(other.units, false)), ...convert(friendly.units, true), ...bench];
+    // Nunca vazar a formação do próximo rival durante a preparação.
+    return [...convert(friendly.units, true), ...bench];
   }
 
   pickCoin(clientX: number, clientY: number): string | null {
@@ -329,6 +368,18 @@ export class Arena {
     const ctx = this.context;
     for (const fx of effects) {
       const t = Math.max(0, Math.min(1, fx.time / fx.duration));
+      if (fx.kind === 'damage') {
+        // Flutua apenas sobre o Pokémon atingido. O projétil é desenhado separadamente.
+        const p = this.toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
+        const amount = Math.max(1, Math.round(fx.value));
+        const size = Math.min(35, 13 + Math.sqrt(amount) * 1.8);
+        const color = fx.damageType === 'physical' ? '#ffd1a0' : fx.damageType === 'special' ? '#97d0ff' : '#eab1ff';
+        ctx.save(); ctx.globalAlpha = Math.min(1, (1 - t) * 1.55);
+        ctx.font = `900 ${size}px 'Barlow Condensed',sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 3.5; ctx.strokeStyle = '#122027';
+        const posY = p.y - this.cellScale * .4 - 24 - t * 54;
+        ctx.strokeText(String(amount), p.x, posY); ctx.fillStyle = color; ctx.fillText(String(amount), p.x, posY);
+        ctx.restore(); continue;
+      }
       const fxY = fx.y + (fx.targetY - fx.y) * t;
       const p = this.toScreen(fx.x + (fx.targetX - fx.x) * t, flipY ? -fxY : fxY);
       const radius = fx.kind === 'spell' ? 12 : 6;
@@ -336,10 +387,6 @@ export class Arena {
       ctx.shadowBlur = 24; ctx.shadowColor = SPECIES[fx.family].glow;
       ctx.fillStyle = fx.kind === 'heal' ? '#97f3be' : fx.kind === 'ko' ? '#f1d3a9' : SPECIES[fx.family].glow;
       ctx.beginPath(); ctx.arc(p.x, p.y - 11, radius * (1 + t * .8), 0, PI2); ctx.fill();
-      if (fx.value > 1 && fx.kind !== 'heal') {
-        ctx.shadowBlur = 0; ctx.font = "700 13px Inter"; ctx.textAlign = 'center'; ctx.fillStyle = '#ffe7be';
-        ctx.fillText(String(fx.value), p.x, p.y - 29 - t * 15);
-      }
       ctx.restore();
     }
   }
@@ -384,14 +431,18 @@ export class Arena {
     if (!this.snapshot) return;
     const watched = this.view.scoutId;
     const battle = this.snapshot.visibleBattle;
-    const foe = battle && battle.participants.includes(watched)
+    const foe = this.snapshot.phase === 'planning' ? watched : battle && battle.participants.includes(watched)
       ? battle.participants.find(p => p !== watched) || watched
-      : watched === 'p0' ? (this.snapshot.opponentId || 'p1') : 'p0';
+      : watched;
     const name = (id: string) => this.snapshot?.players.find(p => p.id === id)?.name || id;
     const wander = (i: number) => ({ x: Math.sin(time * .55 + i * 1.4) * .13, y: Math.cos(time * .45 + i) * .08 });
     const a = wander(Number(watched.slice(1))), b = wander(Number(foe.slice(1)));
     if (watched === 'p0') this.drawTrainerAvatar(watched, this.trainer.x, this.trainer.y, time, name(watched));
-    else this.drawTrainerAvatar(watched, -4.74 + a.x, 3.44 + a.y, time, name(watched));
+    else {
+      this.drawTrainerAvatar(watched, -4.74 + a.x, 3.44 + a.y, time, name(watched));
+      // O treinador do usuário visita fisicamente a arena que está observando.
+      this.drawTrainerAvatar('p0', this.trainer.x + 1.5, this.trainer.y, time, 'VOCÊ · VISITA');
+    }
     if (foe !== watched && !foe.startsWith('bot:')) this.drawTrainerAvatar(foe, 4.86 + b.x, -3.44 + b.y, time, name(foe));
   }
 
@@ -403,6 +454,7 @@ export class Arena {
     this.background(this.frame);
     this.hexGrid(this.frame);
     this.drawBench();
+    if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) this.drawBench(true);
     const markers = this.markers();
     markers.sort((a, b) => a.y - b.y).forEach(marker => this.drawUnit(marker, this.frame));
     this.drawCoins();

@@ -1,4 +1,5 @@
 import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES } from '../../server/data';
+import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
 import type { Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
 import type { ClientView } from './arena';
 
@@ -61,11 +62,22 @@ export class Hud {
     progress.classList.toggle('fast', snapshot.accelerated);
     element('goldCount').textContent = String(player.gold);
     const streak = (RULES.streakBonuses as Record<string, number>)[String(Math.min(5, Math.abs(player.streak)))] || 0;
-    element('incomeCount').textContent = `+${RULES.baseIncome + Math.min(RULES.maxInterest, Math.floor(player.gold / RULES.interestEveryGold)) + (player.roundVictory ? RULES.victoryIncome : 0) + streak}`;
+    const interest = Math.min(RULES.maxInterest, Math.floor(player.gold / RULES.interestEveryGold));
+    const victory = player.roundVictory ? RULES.victoryIncome : 0;
+    element('incomeCount').textContent = `+${RULES.baseIncome + interest + victory + streak}`;
+    const streakText = player.streak > 0 ? `${player.streak} vitórias seguidas` : player.streak < 0 ? `${-player.streak} derrotas seguidas` : 'sem sequência';
+    element('incomeBreakdown').innerHTML = `<strong>PRÓXIMA RENDA</strong><div>Renda base <b>+${RULES.baseIncome}</b></div><div>Juros (${player.gold} ÷ ${RULES.interestEveryGold}, limite ${RULES.maxInterest}) <b>+${interest}</b></div><div>Última vitória <b>+${victory}</b></div><div>Sequência (${streakText}) <b>+${streak}</b></div><hr /><div class="total">Total projetado <b>+${RULES.baseIncome + interest + victory + streak}</b></div><small>Se vencer a próxima batalha, receberá +${RULES.victoryIncome} no pagamento seguinte. Juros e sequência serão recalculados.</small>`;
     element('levelNumber').textContent = String(player.level);
     const fielded = player.units.filter(unit => unit.position.area === 'board');
-    element('fieldCount').textContent = `${fielded.length} / ${player.level}`;
-    element('benchCapacity').textContent = `${player.units.filter(u => u.position.area === 'bench').length} / 10`;
+    const odds = shopOdds(player.level);
+    const rarities = ['COMUM', 'INCOMUM', 'RARO', 'ÉPICO', 'LENDÁRIO'];
+    element('shopChances').innerHTML = rarities.map((label, i) => `<div class="rarity-chance" title="${label}: peso ${odds[i]}%${odds.reduce((a,b) => a+b,0) !== 100 ? ' (pesos normalizados no sorteio)' : ''}"><i style="background:${RARITY_COLORS[i]}"></i><span>${label}</span><b>${odds[i]}%</b></div>`).join('');
+    const influence = typeInfluence(player);
+    const topTypes = (Object.keys(influence.points) as Element[]).sort((a,b) => (influence.points[b] || 0) - (influence.points[a] || 0) || a.localeCompare(b)).slice(0, RULES.typeShopBias.maxShown);
+    element('typeInfluence').innerHTML = `<span class="influence-caption" title="Ativos: ${RULES.typeShopBias.activePoints} pontos por tipo · banco: ${RULES.typeShopBias.benchPoints} · bônus: metade da participação, com metade do bônus secundário em tipos duplos">TIPAGEM <i>ⓘ</i></span><div class="influence-track">${topTypes.length ? topTypes.map(type => {
+      const info = ELEMENTS[type], fraction = influence.shares[type] || 0;
+      return `<div class="influence-segment" style="width:${fraction * 100}%;--type-color:${info.color}" title="${info.name}: ${influence.points[type]} pontos • ${(fraction * 100).toFixed(1)}% da barra • +${(fraction * RULES.typeShopBias.shareBonusMultiplier * 100).toFixed(1)}% no peso de aparição"><span>${info.name} ${(fraction * 100).toFixed(0)}%</span></div>`;
+    }).join('') : '<span class="influence-empty">Sem tipos</span>'}</div>`;
     element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || player.gold < RULES.rerollCost || player.eliminated);
     element('lockButton').classList.toggle('locked', player.locked);
     element('lockButton').innerHTML = player.locked ? '▣ <span>TRAVADA</span>' : '◇ <span>TRAVAR</span>';
@@ -84,7 +96,7 @@ export class Hud {
       if (!offer) return '<div class="shop-empty"></div>';
       const data = SPECIES[offer.family];
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
-      return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range}">
+      return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, typeInfluence(player).shares)).toFixed(1)}%">
           <div class="shop-portrait">${shape(offer.family, 38)}</div><div class="shop-name">${data.names[0]}</div>
           <div class="shop-type">${data.elements.map(type => ELEMENTS[type].name).join(' / ')}</div>
           <div class="shop-cost"><i>◈</i> ${offer.price}</div></button>`;
@@ -106,8 +118,16 @@ export class Hud {
     if (this.lastTraits !== traitsHtml) { element('traitRows').innerHTML = traitsHtml; this.lastTraits = traitsHtml; }
 
     const ranked = [...snapshot.players].sort((a, b) => Number(a.eliminated) - Number(b.eliminated) || b.health - a.health || a.name.localeCompare(b.name));
-    const ranks = ranked.map((p, i) => `<button class="rank-row ${p.id === 'p0' ? 'you' : ''} ${view.scoutId === p.id && p.id !== 'p0' ? 'scouting' : ''} ${p.eliminated ? 'out' : ''}" data-scout="${p.id}" title="${p.id === 'p0' ? 'Sua arena' : `Inspecionar arena de ${p.name}`}">
-      <span class="rank-position">${p.placement || i + 1}</span><span class="rank-token"></span><span class="rank-name">${p.name}</span><span class="rank-hp ${p.health === 0 ? 'dead' : p.health < 30 ? 'low' : ''}">${p.health}</span></button>`).join('');
+    const possibilities = snapshot.possibleOpponents.p0 || [];
+    const pve = snapshot.stageType === 'bot' || snapshot.stageType === 'boss';
+    element('matchupPreview').innerHTML = snapshot.phase === 'planning' && !pve && possibilities.length
+      ? `<div class="matchup-heading">⚔ POSSÍVEIS CONFRONTOS <span>1/3 CADA</span></div>${possibilities.map((group, i) => `<div class="matchup-option"><b>${i + 1}</b><span>${group.map(id => snapshot.players.find(p => p.id === id)?.name || '?').join(' + ')}</span><small>33,33%</small></div>`).join('')}`
+      : snapshot.phase === 'planning' && pve ? '<div class="matchup-heading">⚔ RODADA PvE · SEM SORTEIO</div>' : '';
+    const ranks = ranked.map((p, i) => {
+      const slots = possibilities.flatMap((group, j) => group.includes(p.id) ? [j + 1] : []);
+      return `<button class="rank-row ${p.id === 'p0' ? 'you' : ''} ${view.scoutId === p.id && p.id !== 'p0' ? 'scouting' : ''} ${p.eliminated ? 'out' : ''}" data-scout="${p.id}" title="${p.id === 'p0' ? 'Sua arena' : `Inspecionar arena de ${p.name}`}">
+      <span class="rank-position">${p.placement || i + 1}</span><span class="rank-token"></span><span class="rank-name">${p.name}</span>${slots.length ? `<span class="match-icon" title="Possível confronto nas opções ${slots.join(', ')}">⚔${slots.join('·')}</span>` : ''}<span class="rank-hp ${p.health === 0 ? 'dead' : p.health < 30 ? 'low' : ''}">${p.health}</span></button>`;
+    }).join('');
     if (this.lastRank !== ranks) { element('rankRows').innerHTML = ranks; this.lastRank = ranks; }
 
     const statsForView = snapshot.observedId === view.scoutId ? snapshot.combatStats[view.scoutId] || {} : {};

@@ -73,7 +73,7 @@ export const BOARD_ROWS = RULES.boardRows;
 export function calculateStats(family: Family, level: number, iv: Stats, stage: number): Stats {
   const base = SPECIES[family].base;
   const formula = RULES.statFormula;
-  const levelScale = 1 + Math.max(0, level) * formula.levelPerPoint;
+  const levelScale = 1 + Math.max(0, level - 1) * formula.levelPerPoint;
   const evolutionScale = formula.evolutionMultipliers[Math.min(formula.evolutionMultipliers.length - 1, stage)] || 1;
   return Object.fromEntries((Object.keys(base) as Array<keyof Stats>).map(key => [
     key, Math.round(base[key] * (formula.ivBase + Math.max(0, Math.min(100, iv[key])) * formula.ivPerPoint) * levelScale * evolutionScale)
@@ -85,5 +85,5 @@ export function displayName(family: Family, stage: number): string {
 }
 
 export function gridXY(col: number, row: number): { x: number; y: number } {
-  return { x: (col - 3) * 1.04 + (row % 2 ? 0.52 : 0), y: (row - 3.5) * 0.91 };
+  return { x: (col - 3) * 1.04 + (row % 2 ? 0.26 : -0.26), y: (row - 3.5) * 0.91 };
 }

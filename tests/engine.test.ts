@@ -4,18 +4,21 @@ import { resolve } from 'node:path';
 import test from 'node:test';
 import { calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SPECIES } from '../server/data';
 import { chapterDamage, GameEngine, projectedIncome, streakIncome } from '../server/engine';
+import { normalizedOdds, rollFamily, shopOdds, typeBonus, typeInfluence } from '../server/shop';
 import { createBattle, createBattleGroup, tickBattle } from '../server/systems/combat';
 import type { Stats } from '../server/types';
 
 const all = (value: number): Stats => ({ hp: value, speed: value, atk: value, def: value, spa: value, spd: value });
 
-test('IV 0 / 50 / 100 e níveis acima de 100 continuam escalando para chefes', () => {
+test('IV 0 / 50 / 100 e +4% por nível após o nível 1, inclusive chefes', () => {
   const base = SPECIES.bulbasaur.base;
   assert.equal(calculateStats('bulbasaur', 0, all(0), 0).hp, Math.round(base.hp * .8));
   assert.equal(calculateStats('bulbasaur', 0, all(50), 0).atk, base.atk);
   assert.equal(calculateStats('bulbasaur', 0, all(100), 0).spa, Math.round(base.spa * 1.2));
-  assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, base.hp * 6);
-  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 13.5));
+  assert.equal(calculateStats('bulbasaur', 1, all(50), 0).hp, base.hp);
+  assert.equal(calculateStats('bulbasaur', 2, all(50), 0).hp, Math.round(base.hp * 1.04));
+  assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, Math.round(base.hp * 4.96));
+  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 10.96));
 });
 
 test('as quatro configurações são reais, chefes são Gen 1/2 e lendários ficam fora da loja', () => {
@@ -127,6 +130,80 @@ test('o servidor cria oito participantes, vida cheia, loja seis e dez posições
   assert.equal(game.snapshot().phase, 'planning');
   assert.equal(game.snapshot().players[0].units.length, 1);
   assert.equal(game.snapshot().players[1].shop.length, 0, 'a loja da CPU não é exposta ao cliente');
+});
+
+test('seis tabelas da loja reproduzem os pesos pedidos; níveis 5/6 normalizam 101%', () => {
+  assert.deepEqual(RULES.shopOddsByLevel, [[38,33,29,0,0],[36,33,30,1,0],[32,34,31,3,0],[29,31,32,7,1],[26,29,34,10,2],[25,27,31,15,3]]);
+  assert.deepEqual(shopOdds(7), shopOdds(6));
+  assert.ok(Math.abs(normalizedOdds(5).reduce((a,b) => a+b, 0) - 1) < 1e-10);
+  const game = new GameEngine(33);
+  game.players[0].level = 6;
+  const rolled = Array.from({length:100}, () => rollFamily(game.players[0], Math.random));
+  assert.ok(rolled.every(offer => SPECIES[offer.family].shop && offer.rarity <= 3));
+});
+
+test('influência dos tipos inclui ativos e banco; tipos duplos recebem bônus secundário pela metade', () => {
+  const game = new GameEngine(3), player = game.players[0];
+  const starter = player.units[0];
+  starter.family = 'bulbasaur';
+  const another = { ...starter, id:'bench-test', family: 'squirtle' as const, position: {area:'bench' as const,index:0} };
+  player.units.push(another);
+  const result = typeInfluence(player);
+  assert.equal(result.points.grass, 2);
+  assert.equal(result.points.poison, 2);
+  assert.equal(result.points.water, 1);
+  assert.equal(result.total, 5);
+  assert.equal(typeBonus('bulbasaur', { grass: .3, poison: .5 }), .25 + .075);
+});
+
+test('milestones de jogador e experiência de cada Pokémon na primeira batalha', () => {
+  const game = new GameEngine(91);
+  const player = game.players[0];
+  const benchPokemon = { ...player.units[0], id:'new-bench', position: { area: 'bench' as const, index: 0 }, xp:0, level:1 };
+  player.units.push(benchPokemon);
+  const anyGame = game as any;
+  anyGame.round = 1;
+  const battle = createBattle(game.players[0], game.players[1], 'xp-test');
+  battle.rankings = ['p0','p1']; battle.resolved = true;
+  anyGame.battles = [battle]; anyGame.finishCombat();
+  assert.equal(player.units[0].level, 3);
+  assert.equal(benchPokemon.level, 2);
+  for (const [round, level] of [[1,1],[3,2],[7,3],[12,4],[16,5],[21,6]]) {
+    anyGame.round = round;
+    assert.equal(anyGame.levelForRound(), level);
+  }
+});
+
+test('pré-confrontos geram três calendários igualmente sorteáveis e não vazam o próximo rival', () => {
+  const game = new GameEngine(452);
+  const planned = game.snapshot();
+  assert.equal(planned.opponentId, null);
+  assert.equal(planned.possibleOpponents.p0.length, 3);
+  for (const player of game.players) {
+    assert.equal(planned.possibleOpponents[player.id].length, 3);
+    assert.ok(planned.possibleOpponents[player.id].every(option => option.length === 1));
+  }
+  (game as any).startCombat();
+  assert.ok(planned.possibleOpponents.p0.some(option => option.includes(game.snapshot().opponentId!)));
+  const battles = (game as any).battles;
+  assert.equal(new Set(battles.flatMap((battle: any) => battle.participants)).size, 8);
+});
+
+test('arena quádrupla distribui equipes em quadrantes exclusivos e dano gera popup no alvo', () => {
+  const game = new GameEngine(10);
+  const battle = createBattleGroup(game.players.slice(0, 4), 'quad-layout', 'quad');
+  assert.ok(battle.units[0].x < 0 && battle.units[0].y < 0);
+  assert.ok(battle.units[1].x > 0 && battle.units[1].y < 0);
+  assert.ok(battle.units[2].x < 0 && battle.units[2].y > 0);
+  assert.ok(battle.units[3].x > 0 && battle.units[3].y > 0);
+  const duel = createBattle(game.players[0], game.players[1], 'damage-anchors');
+  duel.units[0].attackClock = 0;
+  duel.units[1].attackClock = 100;
+  duel.units[0].range = 100;
+  tickBattle(duel, .1);
+  const popup = duel.effects.find(fx => fx.kind === 'damage');
+  assert.ok(popup && popup.targetId === duel.units[1].id);
+  assert.ok(Math.abs(popup.x - duel.units[1].x) < .05, 'o popup surge na posição do alvo no momento do dano');
 });
 
 test('três cópias evoluem e os IVs são herdados pela média', () => {
