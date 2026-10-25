@@ -36,6 +36,7 @@ test('metadados PMD das 11 evoluções usam os caminhos reais do GitHub sem dupl
   const hudSource = readFileSync(resolve('src/client/hud.ts'), 'utf8');
   const mainSource = readFileSync(resolve('src/client/main.ts'), 'utf8');
   const indexSource = readFileSync(resolve('src/pages/index.astro'), 'utf8');
+  const stylesSource = readFileSync(resolve('src/styles/global.css'), 'utf8');
   assert.ok(arenaSource.includes('BASE_URL}sprite/'));
   assert.ok(hudSource.includes('portrait/${String(id).padStart'));
   assert.ok(hudSource.includes('tipos/${type}.svg'));
@@ -44,6 +45,10 @@ test('metadados PMD das 11 evoluções usam os caminhos reais do GitHub sem dupl
   assert.ok(indexSource.includes('id="opponentCombatRows"'), 'extensão rival preserva a equipe local');
   assert.ok(indexSource.includes('id="combatRows"'), 'comparação deve exibir ambos os lados');
   assert.ok(indexSource.indexOf('id="lockButton"') > indexSource.indexOf('id="sellOverlay"'), 'aba de trava fora da linha da loja');
+  assert.ok(indexSource.includes('data-metric="mitigation"') && !indexSource.includes('data-metric="heal"'), 'DEF, SPD e cura dividem uma aba');
+  assert.ok(stylesSource.includes('.combat-side-tab.active{left:calc(-100%'), 'a orelhinha acompanha a expansão do painel');
+  assert.ok(stylesSource.includes('grid-template-rows:minmax(0,1fr) 34px'), 'o retrato tem faixa exclusiva sem sobreposição da base');
+  assert.ok(mainSource.includes('arena.dragSpriteScale()'), 'o arraste usa a escala da arena');
   for (const id of [1, 2, 3, 4, 5, 6, 7, 8, 9, 25, 26]) {
     const anims = (pmd as Record<string, Record<string, { file: string; width: number; height: number; durations: number[]; directions: number }>>)[String(id)];
     assert.ok(anims, `Pokémon ${id} sem manifest`);
@@ -83,6 +88,30 @@ test('sinergias não alteram dano, velocidade, cura ou mitigação', () => {
   assert.equal(boosted.attacker.hp, previouslyHit);
 });
 
+test('mitigação registra DEF e SPD separadas; barra combinada preserva o total', () => {
+  const duel = fixture('charmander', 1);
+  duel.attacker.energy = 0;
+  duel.foes[0].stats.def = 120;
+  duel.foes[0].stats.spd = 140;
+  duel.foes[0].hp = duel.foes[0].maxHp = 10000;
+  tickBattle(duel.battle, .05);
+  assert.ok(duel.foes[0].metrics.blockedPhysical > 0, 'ataque básico mitigado por DEF');
+  duel.attacker.attackClock = 0;
+  duel.attacker.energy = duel.attacker.energyNeeded;
+  tickBattle(duel.battle, .05);
+  duel.attacker.attackClock = 100;
+  for (let i = 0; i < 6; i++) tickBattle(duel.battle, .05);
+  assert.equal(duel.foes[0].metrics.blocked,
+    duel.foes[0].metrics.blockedPhysical + duel.foes[0].metrics.blockedSpecial);
+  const ranged = fixture('pikachu', 1);
+  ranged.foes[0].hp = ranged.foes[0].maxHp = 10000;
+  ranged.foes[0].stats.spd = 100;
+  tickBattle(ranged.battle, .05);
+  ranged.attacker.attackClock = 100;
+  for (let i = 0; i < 5; i++) tickBattle(ranged.battle, .05);
+  assert.ok(ranged.foes[0].metrics.blockedSpecial > 0, 'ataque mágico mitigado por SPD');
+});
+
 test('vantagem elemental altera apenas carregados, inclusive golpes físicos carregados', () => {
   const { battle, attacker, foes } = fixture('charmander', 1);
   foes[0].family = 'squirtle';
@@ -95,6 +124,9 @@ test('vantagem elemental altera apenas carregados, inclusive golpes físicos car
   attacker.attackClock = 0;
   attacker.energy = attacker.energyNeeded;
   tickBattle(battle, .05);
+  assert.equal(attacker.metrics.dealt, 8 + 100 * .48, 'o golpe carregado não acerta antes do projétil');
+  attacker.attackClock = 100;
+  for (let i = 0; i < 6; i++) tickBattle(battle, .05);
   assert.equal(attacker.metrics.dealt, 8 + 100 * .48 + 100 * 1.5 * .75,
     'golpe carregado de fogo resistido por água, multiplicador 0,75×');
 });
@@ -158,6 +190,9 @@ test('Golpe Flamejante escala com Atk (150/155/165%), é físico e ativa Hurt ac
     foes[0].stats.def = 0;
     foes[0].hp = foes[0].maxHp = 1000;
     tickBattle(battle, .05);
+    assert.equal(foes[0].hp, 1000, 'o golpe não atinge antes da chama chegar');
+    attacker.attackClock = 100;
+    for (let i = 0; i < 5; i++) tickBattle(battle, .05);
     assert.equal(foes[0].hp, 1000 - 200 * ratio * .75);
     assert.equal(attacker.animation?.name, 'Strike');
     assert.equal(foes[0].animation?.name, 'Hurt');
@@ -173,6 +208,9 @@ test('Pikachu atinge 1 alvo passivo até 2 casas e Raichu atinge 2 com coeficien
     foes.forEach(u => { u.hp = u.maxHp = 1000; u.stats.spd = 0; });
     foes[0].x = 1; foes[1].x = 1.7; foes[2].x = 2.1; foes[3].x = 5;
     tickBattle(battle, .05);
+    assert.equal(foes[0].hp, 1000, 'o raio só deve causar dano ao atingir');
+    attacker.attackClock = 100;
+    for (let i = 0; i < 4; i++) tickBattle(battle, .05);
     assert.equal(foes[0].hp, 1000 - (stage ? 130 : 120));
     assert.equal(foes[1].hp, 1000 - (stage ? 65 : 60));
     assert.equal(foes[2].hp, 1000 - (stage ? 65 : 0));

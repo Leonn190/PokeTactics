@@ -24,7 +24,7 @@ export class Hud {
   private lastInspector = '';
   private lastTimeline = '';
   private panel: 'rank' | 'combat' = 'rank';
-  private metric: 'status' | 'damage' | 'defense' | 'heal' = 'status';
+  private metric: 'status' | 'damage' | 'mitigation' = 'status';
   private showOpponent = false;
   private latestSnapshot: GameSnapshot | null = null;
   private latestView: ClientView | null = null;
@@ -162,23 +162,28 @@ export class Hud {
         const maxHp = combatant?.maxHp || Math.round(calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
         const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
         const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
-        const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : this.metric === 'defense' ? (metrics?.blocked || 0) : (metrics?.healed || 0);
-        return { unit, value, hp, maxHp, phys, special };
+        const physicalMitigated = metrics?.blockedPhysical || 0;
+        const specialMitigated = metrics?.blockedSpecial || 0;
+        const healed = metrics?.healed || 0;
+        const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : physicalMitigated + specialMitigated + healed;
+        return { unit, value, hp, maxHp, phys, special, physicalMitigated, specialMitigated, healed };
       }).sort((a, b) => b.value - a.value);
     };
     const ownEntries = entriesFor(view.scoutId);
     const enemyEntries = opponentId ? entriesFor(opponentId) : [];
     const max = Math.max(1, ...ownEntries.map(e => e.value), ...enemyEntries.map(e => e.value));
-    const combatHtml = (entries: ReturnType<typeof entriesFor>) => entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special }) => {
+    const combatHtml = (entries: ReturnType<typeof entriesFor>) => entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special, physicalMitigated, specialMitigated, healed }) => {
       const isDamage = this.metric === 'damage', isStatus = this.metric === 'status';
       const valueText = isStatus ? `${Math.ceil(hp)}/${maxHp}` : String(Math.round(value));
       const bar = isDamage
         ? `<div class="damage-split"><div class="physical" style="width:${phys / max * 100}%"></div><div class="special" style="width:${special / max * 100}%"></div></div>`
+        : this.metric === 'mitigation'
+        ? `<div class="damage-split mitigation-split"><div class="mitigation-def" style="width:${physicalMitigated / max * 100}%"></div><div class="mitigation-spd" style="width:${specialMitigated / max * 100}%"></div><div class="mitigation-heal" style="width:${healed / max * 100}%"></div></div>`
         : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round((isStatus ? hp / maxHp : value / max) * 100)}%;background:${isStatus ? '#83d49f' : SPECIES[unit.family].glow}"></div></div>`;
       return `<div class="combat-entry"><div class="combat-line">
         <span class="combat-mini-shape">${portrait(unit.family, 31, unit.stage)}</span>
         <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${valueText}</span></div>${bar}</div>`;
-    }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : '')
+    }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : this.metric === 'mitigation' ? '<div class="metric-legend"><span><i class="def"></i>DEF</span><span><i class="spd"></i>SPD</span><span><i class="heal"></i>CURA</span></div>' : '')
       : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
     const ownHtml = combatHtml(ownEntries), enemyHtml = combatHtml(enemyEntries);
     if (ownHtml !== this.lastCombat) { element('combatRows').innerHTML = ownHtml; this.lastCombat = ownHtml; }

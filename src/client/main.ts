@@ -20,6 +20,8 @@ const pmd = pmdManifest as Record<string, Record<string, GhostSheet>>;
 let ghostImage: HTMLImageElement | null = null;
 let ghostIdle: GhostSheet | null = null;
 let ghostStarted = 0;
+let ghostWidth = 96;
+let ghostHeight = 96;
 let state: GameSnapshot | null = null;
 let dragStarted = false;
 let pointerStart = { x: 0, y: 0 };
@@ -85,10 +87,16 @@ function startDrag(id: string, event: PointerEvent): void {
 }
 
 function setDragSprite(family: keyof typeof SPECIES, stage: number): void {
-  ghostContext.clearRect(0, 0, 96, 96);
   const species = SPECIES[family];
   const dex = species.pokedexIds[Math.min(stage, species.pokedexIds.length - 1)];
   ghostIdle = pmd[String(dex)]?.Idle || null;
+  const scale = arena.dragSpriteScale();
+  const size = ghostIdle ? { w: ghostIdle.width * scale, h: ghostIdle.height * scale } : { w: arena.dragSpriteScale() * 48, h: arena.dragSpriteScale() * 48 };
+  ghostWidth = Math.ceil(size.w);
+  ghostHeight = Math.ceil(size.h);
+  ghostCanvas.width = ghostWidth; ghostCanvas.height = ghostHeight;
+  ghost.style.width = `${ghostWidth}px`;
+  ghost.style.height = `${ghostHeight}px`;
   ghostImage = new Image();
   ghostImage.decoding = 'async';
   ghostImage.src = ghostIdle
@@ -100,19 +108,17 @@ function setDragSprite(family: keyof typeof SPECIES, stage: number): void {
 function drawDraggedIdle(time: number): void {
   if (view.dragging && ghostImage?.complete && ghostImage.naturalWidth) {
     const ctx = ghostContext;
-    ctx.clearRect(0, 0, 96, 96);
+    ctx.clearRect(0, 0, ghostWidth, ghostHeight);
     ctx.imageSmoothingEnabled = false;
     if (ghostIdle) {
       const ticks = ghostIdle.durations.reduce((sum, duration) => sum + duration, 0);
       let tick = ((time - ghostStarted) / 1000 * 60) % ticks;
       let frame = 0;
       while (frame < ghostIdle.durations.length - 1 && tick >= ghostIdle.durations[frame]) tick -= ghostIdle.durations[frame++];
-      const scale = Math.min(1.65, 82 / Math.max(ghostIdle.width, ghostIdle.height));
-      const w = ghostIdle.width * scale, h = ghostIdle.height * scale;
       ctx.drawImage(ghostImage, frame * ghostIdle.width, 0, ghostIdle.width, ghostIdle.height,
-        (96 - w) / 2, 90 - h, w, h);
+        0, 0, ghostWidth, ghostHeight);
     } else {
-      ctx.drawImage(ghostImage, 8, 8, 80, 80);
+      ctx.drawImage(ghostImage, 0, 0, ghostWidth, ghostHeight);
     }
   }
   requestAnimationFrame(drawDraggedIdle);
@@ -132,7 +138,7 @@ function updateGhost(event: PointerEvent): void {
     document.getElementById('sellOverlay')?.classList.remove('hidden');
   }
   if (!dragStarted) return;
-  ghost.style.transform = `translate3d(${event.clientX - 48}px,${event.clientY - 80}px,0)`;
+  ghost.style.transform = `translate3d(${event.clientX - ghostWidth / 2}px,${event.clientY - ghostHeight + 6}px,0)`;
   view.hoveringBench = arena.pickBench(event.clientX, event.clientY);
   view.hoveringHex = state.phase === 'planning' && view.scoutId === 'p0' ? arena.pickHex(event.clientX, event.clientY) : null;
 }

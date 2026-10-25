@@ -76,6 +76,9 @@ export class Arena {
     return Math.min(normal, this.quadActive ? Math.max(21, (this.width - 550) / 18) : normal) * this.zoom;
   }
 
+  // Mesmo fator aplicado ao Pokémon que aparece fisicamente sobre a arena.
+  dragSpriteScale(): number { return this.cellScale / 48 * 1.13; }
+
   toScreen(x: number, y: number): { x: number; y: number } {
     const o = this.origin;
     return { x: o.x + x * this.cellScale, y: o.y + y * this.cellScale };
@@ -495,7 +498,8 @@ export class Arena {
       }
       ctx.save();
       if (fx.kind === 'pollen') {
-        const fly = Math.min(1, t / .65);
+        // O Morteiro de Pólen leva 0,3 s desde o lançamento até o dano no motor.
+        const fly = Math.min(1, t / (.3 / fx.duration));
         const x = from.x + (to.x - from.x) * fly;
         const y = from.y + (to.y - from.y) * fly - Math.sin(fly * Math.PI) * this.cellScale * .85;
         if (fly < 1) {
@@ -508,7 +512,7 @@ export class Arena {
             ctx.beginPath(); ctx.ellipse(x + Math.cos(a) * 12, y - 12 + Math.sin(a) * 10, 3.5, 2.2, a, 0, PI2); ctx.fill();
           }
         } else {
-          const q = (t - .65) / .35;
+          const q = (t - .3 / fx.duration) / (1 - .3 / fx.duration);
           const radius = (fx.value || 1.65) * this.cellScale * q;
           ctx.globalAlpha = (1 - q) * .62;
           ctx.fillStyle = '#b9f5a37b'; ctx.strokeStyle = '#e7ffd0'; ctx.lineWidth = 4 * (1 - q);

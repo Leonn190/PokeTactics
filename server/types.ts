@@ -50,6 +50,8 @@ export interface CombatMetrics {
   taken: number;
   healed: number;
   blocked: number;
+  blockedPhysical: number;
+  blockedSpecial: number;
 }
 
 export interface CombatUnit {
@@ -101,6 +103,15 @@ export interface CombatEffect {
   time: number;
   duration: number;
   value: number;
+  pendingHit?: {
+    sourceId: string;
+    targetId: string;
+    raw: number;
+    magical: boolean;
+    charged: boolean;
+    arrival: number;
+    onHit?: 'drain' | 'burn' | 'slow';
+  };
 }
 
 export interface Battle {

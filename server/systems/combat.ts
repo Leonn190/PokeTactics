@@ -2,7 +2,7 @@ import { ATTACKS, RULES, calculateStats, gridXY, SPECIES } from '../data';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType } from '../types';
 import { chargedEffectiveness } from './effectiveness';
 
-const metrics = (): CombatMetrics => ({ dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0 });
+const metrics = (): CombatMetrics => ({ dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0, blockedPhysical: 0, blockedSpecial: 0 });
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
 const stageValue = (values: number[] | undefined, stage: number, fallback = 0) => values?.[Math.min(stage, values.length - 1)] ?? fallback;
@@ -86,6 +86,39 @@ function effect(battle: Battle, source: CombatUnit, target: { x: number; y: numb
   });
 }
 
+// A animação do projétil e a aplicação do dano compartilham o mesmo relógio.
+// O impacto ocorre no mesmo ponto (fração da duração) em que o canvas desenha a chegada.
+function projectile(battle: Battle, caster: CombatUnit, target: CombatUnit,
+  kind: CombatEffect['kind'], raw: number, magical: boolean, charged: boolean,
+  arrival: number, onHit?: 'drain' | 'burn' | 'slow', origin: CombatUnit = caster): void {
+  effect(battle, origin, target, kind, 0);
+  battle.effects[battle.effects.length - 1].pendingHit = {
+    sourceId: caster.id, targetId: target.id, raw, magical, charged, arrival, onHit
+  };
+}
+
+function landProjectiles(battle: Battle, dt: number): void {
+  for (const fx of battle.effects) {
+    fx.time += dt;
+    const hit = fx.pendingHit;
+    if (!hit || fx.time < fx.duration * hit.arrival) continue;
+    fx.pendingHit = undefined; // impacto único, inclusive em simulações aceleradas
+    const caster = battle.units.find(u => u.id === hit.sourceId);
+    const target = battle.units.find(u => u.id === hit.targetId);
+    if (!caster || !target || target.hp <= 0) continue;
+    deal(battle, caster, target, hit.raw, hit.magical, hit.charged);
+    const move = ATTACKS.moves[SPECIES[caster.family].attack];
+    if (hit.onHit === 'drain') {
+      const gained = heal(caster, (move.healBase || 0) + caster.stats.spa * (move.healRatio || 0));
+      if (gained > 0) effect(battle, caster, caster, 'heal', gained);
+    } else if (hit.onHit === 'burn' && target.hp > 0) {
+      target.damageOverTime = { amount: (move.dotBase || 0) + caster.stats.spa * (move.dotRatio || 0), time: move.dotDuration || 3, sourceId: caster.id };
+    } else if (hit.onHit === 'slow' && target.hp > 0) {
+      target.slow = move.slowDuration || 2;
+    }
+  }
+}
+
 function floatingDamage(battle: Battle, target: CombatUnit, amount: number, damageType: 'physical' | 'special' | 'true'): void {
   // Pequenos ticks de veneno se somam em uma só etiqueta por alvo.
   const recent = [...battle.effects].reverse().find(fx => fx.kind === 'damage' && fx.targetId === target.id && fx.damageType === damageType && fx.time < .12);
@@ -114,7 +147,10 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (magical) source.metrics.specialDealt += damage;
   else source.metrics.physicalDealt += damage;
   target.metrics.taken += damage;
-  target.metrics.blocked += Math.max(0, raw - damage);
+  const blockedByStat = Math.max(0, raw * typeFactor * (1 - target.spinReduction) - damage);
+  target.metrics.blocked += blockedByStat;
+  if (magical) target.metrics.blockedSpecial += blockedByStat;
+  else target.metrics.blockedPhysical += blockedByStat;
   target.hp = Math.max(0, target.hp - damage);
   floatingDamage(battle, target, damage, magical ? 'special' : 'physical');
   target.flash = 0.19;
@@ -163,33 +199,24 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit): void {
   }
   if (move.effect === 'flame-strike') {
     animate(source, 'Strike', .46);
-    deal(battle, source, target, a * stageValue(move.damageRatioByStage, source.stage, 1.5), false, true);
-    effect(battle, source, target, 'flame', 0);
+    projectile(battle, source, target, 'flame', a * stageValue(move.damageRatioByStage, source.stage, 1.5), false, true, 1 / 2.7);
     return;
   }
   if (move.effect === 'shock') {
     animate(source, 'Attack', .42);
-    deal(battle, source, target, s * stageValue(move.damageRatioByStage, source.stage, 1.2), true, true);
-    effect(battle, source, target, 'lightning', 0);
+    projectile(battle, source, target, 'lightning', s * stageValue(move.damageRatioByStage, source.stage, 1.2), true, true, 1 / 3);
     const count = stageValue(move.secondaryTargetsByStage, source.stage, 1);
     const other = battle.units.filter(u => u.playerId !== source.playerId && u.id !== target.id && u.hp > 0 && distance(u, target) <= (move.chainRange || 2))
       .sort((u, v) => distance(u, target) - distance(v, target));
     for (const chained of other.slice(0, count)) {
-      deal(battle, source, chained, s * stageValue(move.secondaryRatioByStage, source.stage, .6), true, true);
-      effect(battle, target, chained, 'lightning', 0);
+      projectile(battle, source, chained, 'lightning', s * stageValue(move.secondaryRatioByStage, source.stage, .6), true, true, 1 / 3, undefined, target);
     }
     return;
   }
   animate(source, 'Attack', .38);
-  deal(battle, source, target, move.baseDamage + a * (move.attackRatio || 0) + s * move.specialRatio, true, true);
-  if (move.effect === 'drain') {
-    const gain = heal(source, (move.healBase || 0) + s * (move.healRatio || 0));
-    effect(battle, source, source, 'heal', gain);
-  } else if (move.effect === 'burn' && target.hp > 0) {
-    target.damageOverTime = { amount: (move.dotBase || 0) + s * (move.dotRatio || 0), time: move.dotDuration || 3, sourceId: source.id };
-  } else if (move.effect === 'slow' && target.hp > 0) {
-    target.slow = move.slowDuration || 2;
-  } else if (move.effect === 'chain') {
+  projectile(battle, source, target, 'spell', move.baseDamage + a * (move.attackRatio || 0) + s * move.specialRatio,
+    true, true, 1, move.effect === 'drain' || move.effect === 'burn' || move.effect === 'slow' ? move.effect : undefined);
+  if (move.effect === 'chain') {
     let chained: CombatUnit | null = null;
     let nearest = Infinity;
     for (const u of battle.units) {
@@ -198,11 +225,9 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit): void {
       if (d < nearest) { chained = u; nearest = d; }
     }
     if (chained && distance(chained, target) < (move.chainRange || 2.6)) {
-      deal(battle, source, chained, (move.chainBase || 0) + s * (move.chainRatio || 0), true, true);
-      effect(battle, source, chained, 'spell', 0);
+      projectile(battle, source, chained, 'spell', (move.chainBase || 0) + s * (move.chainRatio || 0), true, true, 1);
     }
   }
-  effect(battle, source, target, 'spell', 0);
 }
 
 function pollenTick(battle: Battle, source: CombatUnit, dt: number): void {
@@ -248,6 +273,7 @@ function spinTick(battle: Battle, source: CombatUnit, dt: number): void {
 }
 
 function resolve(battle: Battle): void {
+  if (battle.effects.some(fx => fx.pendingHit) && battle.elapsed < 120) return;
   const living = battle.participants.filter(id => battle.units.some(u => u.playerId === id && u.hp > 0));
   if (living.length > 1 && battle.elapsed < 120) return;
   const score = (id: string) => battle.units.filter(u => u.playerId === id).reduce((sum, u) => sum + Math.max(0, u.hp) / u.maxHp, 0);
@@ -309,8 +335,8 @@ export function tickBattle(battle: Battle, dt: number): void {
   battle.introElapsed += dt;
   // O treinador lança as Pokébolas antes de começar a luta.
   if (battle.introElapsed < 1.5) return;
+  landProjectiles(battle, dt);
   for (let i = battle.effects.length - 1; i >= 0; i--) {
-    battle.effects[i].time += dt;
     if (battle.effects[i].time >= battle.effects[i].duration) battle.effects.splice(i, 1);
   }
   for (const unit of battle.units) {
@@ -365,8 +391,8 @@ export function tickBattle(battle: Battle, dt: number): void {
       animate(unit, unit.family === 'bulbasaur' ? 'Shoot' : 'Attack', .40);
       const basic = ATTACKS.basic;
       const raw = basic.damageBase + unit.stats.atk * basic.physicalAttackRatio;
-      deal(battle, unit, target, raw, false);
-      effect(battle, unit, target, unit.family === 'bulbasaur' ? 'seed' : 'physical', raw);
+      if (unit.family === 'bulbasaur') projectile(battle, unit, target, 'seed', raw, false, false, 1);
+      else { deal(battle, unit, target, raw, false); effect(battle, unit, target, 'physical', raw); }
       unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain);
     }
     unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);

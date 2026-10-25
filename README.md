@@ -1,4 +1,4 @@
-# Poké Tactics — Astro v6 (integração com assets existentes)
+# Poké Tactics — Astro v9 (integração com assets existentes)
 
 ## IMPORTANTE: pacote de código SEM sprites PMD e portraits
 
@@ -20,7 +20,15 @@ espelhamento que excluam pastas ausentes do ZIP.
 Caso teste o ZIP isoladamente, os assets visuais ficarão ausentes até que ele
 seja combinado com a árvore `public/` original.
 
-## Mudanças v6
+## Ajustes V9
+
+- A loja reserva uma área independente para o portrait: a tarja de nome, tipo e custo não cobre mais a imagem do Pokémon.
+- O Pokémon arrastado usa a animação Idle PMD na mesma escala de pixels do sprite da arena (a escala acompanha o zoom).
+- Ataques com projéteis aplicam dano, popup e eventual efeito secundário no impacto visual; a chegada da semente, chama, raio e feitiço não fica atrás da exibição do dano.
+- Combate reúne **mitigação física (amarelo)**, **mitigação especial (azul)** e **cura (verde)** em uma só aba. A aba de comparação adversária se desloca junto com o painel expandido.
+- O código não adiciona nem redistribui arquivos de imagens; as três pastas de assets da instalação original permanecem necessárias.
+
+## Histórico v6
 
 - Pokémon das famílias Bulbasaur, Charmander, Squirtle e Pikachu (11 espécies) usam `Idle`, `Rotate`, `Walk`, `Sleep`, `Hurt`, `Attack`, `Shoot`, `Charge`, `Strike` ou `Withdraw` conforme ação e disponibilidade no XML do PMD; os frames, durações e direções são lidos do manifesto.
 - O **Giro Aquático** do Squirtle, Wartortle e Blastoise usa `Withdraw` enquanto gira entre as oito direções, aplica dano por segundo e uma mitigação temporária fixa; não ataca nem se desloca durante a canalização.

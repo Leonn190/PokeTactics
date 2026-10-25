@@ -89,11 +89,14 @@ test('moedas surgem em KO na etapa 2, só o dono coleta e prêmio +4 para venced
   const attacker = battle.units.find(u => u.playerId === 'p0')!;
   const victim = battle.units.find(u => u.playerId === 'p1')!;
   attacker.x = victim.x; attacker.y = victim.y;
-  attacker.animation = null; // Teste de impacto imediato após a rotação inicial.
+  attacker.animation = null; // Contorna a rotação; o dano deve aguardar o projétil.
   battle.introElapsed = 1.5;
   attacker.attackClock = 0; victim.attackClock = 100;
   victim.hp = 1;
   tickBattle(battle, .1);
+  assert.equal(battle.goldDrops.length, 0, 'a moeda só surge quando o projétil alcança o alvo');
+  attacker.attackClock = 100;
+  for (let i = 0; i < 7; i++) tickBattle(battle, .1);
   assert.equal(battle.goldDrops.length, 1);
   const coin = battle.goldDrops[0];
   anyGame.battles = [battle];
@@ -242,6 +245,10 @@ test('arena quádrupla distribui equipes em quadrantes exclusivos e dano gera po
   duel.units[0].range = 100;
   duel.introElapsed = 1.5;
   tickBattle(duel, .1);
+  assert.ok(duel.effects.some(fx => fx.pendingHit), 'projétil em voo ainda não deve criar popup');
+  assert.ok(!duel.effects.some(fx => fx.kind === 'damage'));
+  duel.units[0].attackClock = 100;
+  for (let i = 0; i < 7; i++) tickBattle(duel, .1);
   const popup = duel.effects.find(fx => fx.kind === 'damage');
   assert.ok(popup && popup.targetId === duel.units[1].id);
   assert.ok(Math.abs(popup.x - duel.units[1].x) < .05, 'o popup surge na posição do alvo no momento do dano');

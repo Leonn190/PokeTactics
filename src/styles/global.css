@@ -163,3 +163,23 @@
 @media(max-width:1300px){.shop-actions{margin-top:-37px}.shop-ledger{min-height:96px}.shop-card-footer{gap:2px;padding:4px 2px}.shop-card .shop-name{font-size:12px}.shop-card .shop-type .type-icon{width:14px;height:14px}.combat-extension{width:100%}}
 @media(max-width:980px){.shop-ledger{min-height:91px}.shop-actions{margin-top:-34px;height:calc(100% + 34px)}.lock-btn{right:-22px;width:23px;height:52px}.combat-side-tab{left:-23px;width:24px}.combat-extension{width:min(300px,70vw)}.shop-card .shop-name{font-size:11px}.shop-card .shop-type .type-icon{width:13px;height:13px}}
 @media(max-height:740px){.shop-ledger{min-height:82px}.shop-actions{margin-top:-29px;height:calc(100% + 29px)}.reroll-btn{min-height:43px}}
+
+/* V9: cartucho com área exclusiva para imagem; a base nunca se sobrepõe ao retrato. */
+.shop-card{display:grid;grid-template-rows:minmax(0,1fr) 34px;align-items:stretch;overflow:hidden}
+.shop-portrait{height:100%;min-height:0;min-width:0;overflow:hidden;display:grid;place-items:center;isolation:isolate}
+.shop-portrait .pokemon-portrait{display:block;box-sizing:border-box;width:100%;height:100%;min-height:0;object-fit:contain;object-position:center center;padding:6px 7px 4px}
+.shop-card-footer{position:relative;z-index:1;min-height:0;height:34px;box-sizing:border-box;align-self:stretch;background:#0d1e25;border-top:1px solid color-mix(in srgb,var(--rarity),transparent 30%)}
+
+/* A aba viaja junto da extensão comparativa, como uma gaveta. */
+.combat-side-tab{transition:left .22s ease,background .22s ease}
+.combat-side-tab.active{left:calc(-100% - 35px)}
+.combat-extension{width:100%}
+.mitigation-split .mitigation-def{background:#f3ca59}
+.mitigation-split .mitigation-spd{background:#6faef4}
+.mitigation-split .mitigation-heal{background:#77d897}
+.metric-legend .def{background:#f3ca59}
+.metric-legend .spd{background:#6faef4}
+.metric-legend .heal{background:#77d897}
+.metric-legend{gap:7px;white-space:nowrap}
+.pokemon-drag-idle{width:100%;height:100%;image-rendering:pixelated}
+@media(max-width:980px){.combat-side-tab.active{left:calc(-100% - 32px)}.shop-card-footer{padding:3px 2px}.shop-card .shop-name{font-size:11px}.shop-card .shop-type .type-icon{width:13px;height:13px}}
