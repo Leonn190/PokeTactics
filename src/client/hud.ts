@@ -20,11 +20,14 @@ export class Hud {
   private lastTraits = '';
   private lastRank = '';
   private lastCombat = '';
+  private lastOpponentCombat = '';
   private lastInspector = '';
   private lastTimeline = '';
   private panel: 'rank' | 'combat' = 'rank';
   private metric: 'status' | 'damage' | 'defense' | 'heal' = 'status';
   private showOpponent = false;
+  private latestSnapshot: GameSnapshot | null = null;
+  private latestView: ClientView | null = null;
   private toastTimer = 0;
 
   constructor() {
@@ -32,15 +35,19 @@ export class Hud {
       this.panel = button.dataset.panel as 'rank' | 'combat';
       this.lastCombat = '';
       this.setPanel();
+      if (this.latestSnapshot && this.latestView) this.render(this.latestSnapshot, this.latestView);
     }));
     document.querySelectorAll<HTMLButtonElement>('[data-metric]').forEach(button => button.addEventListener('click', () => {
       this.metric = button.dataset.metric as typeof this.metric;
       this.lastCombat = '';
+      this.lastOpponentCombat = '';
       document.querySelectorAll('[data-metric]').forEach(tab => tab.classList.toggle('active', tab === button));
+      if (this.latestSnapshot && this.latestView) this.render(this.latestSnapshot, this.latestView);
     }));
     element<HTMLButtonElement>('combatSideButton').addEventListener('click', () => {
       this.showOpponent = !this.showOpponent;
-      this.lastCombat = '';
+      this.lastOpponentCombat = '';
+      if (this.latestSnapshot && this.latestView) this.render(this.latestSnapshot, this.latestView);
     });
     this.setPanel();
   }
@@ -50,6 +57,7 @@ export class Hud {
     element('combatPanel').classList.toggle('hidden', this.panel !== 'combat');
     element('tabRank').classList.toggle('active', this.panel === 'rank');
     element('tabCombat').classList.toggle('active', this.panel === 'combat');
+    element('rightPanel').classList.toggle('combat-active', this.panel === 'combat');
   }
 
   toast(message: string): void {
@@ -60,6 +68,8 @@ export class Hud {
   }
 
   render(snapshot: GameSnapshot, view: ClientView): void {
+    this.latestSnapshot = snapshot;
+    this.latestView = view;
     const player = snapshot.players[0];
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
@@ -107,9 +117,9 @@ export class Hud {
       const data = SPECIES[offer.family];
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
       return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, typeInfluence(player).shares)).toFixed(1)}%">
-          <div class="shop-portrait">${portrait(offer.family, 100)}</div><div class="shop-card-footer"><div class="shop-name">${data.names[0]}</div>
-          <div class="shop-footer-bottom"><div class="shop-type">${data.elements.map(type => typeIcon(type, 19)).join('')}</div>
-          <div class="shop-cost"><i>◈</i> ${offer.price}</div></div></div></button>`;
+          <div class="shop-portrait">${portrait(offer.family, 100)}</div><div class="shop-card-footer"><span class="shop-name">${data.names[0]}</span>
+          <span class="shop-type">${data.elements.map(type => typeIcon(type, 18)).join('')}</span>
+          <span class="shop-cost"><i>◈</i>${offer.price}</span></div></button>`;
     }).join('');
     if (shopHtml !== this.lastShop) { element('shopCards').innerHTML = shopHtml; this.lastShop = shopHtml; }
 
@@ -141,27 +151,25 @@ export class Hud {
     const battle = snapshot.observedId === view.scoutId ? snapshot.visibleBattle : null;
     const opponentId = battle?.participants.find(id => id !== view.scoutId)
       || (view.scoutId === 'p0' ? snapshot.opponentId || snapshot.lastOpponentId : null);
-    const displayId = this.showOpponent && opponentId ? opponentId : view.scoutId;
-    const statsForView = snapshot.combatStats[displayId] || {};
-    const owner = snapshot.players.find(p => p.id === displayId);
     const battleUnits = snapshot.observedId === view.scoutId ? snapshot.visibleBattle?.units || [] : [];
-    const combatRoster = battleUnits.filter(u => u.playerId === displayId);
-    const roster = owner?.units.filter(u => u.position.area === 'board') || combatRoster.map(u => this.fromCombat(u));
-    const entries = roster.map(unit => {
-      const metrics = statsForView[unit.id];
-      const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === displayId);
-      const maxHp = combatant?.maxHp || Math.round(calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
-      const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
-      const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
-      const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : this.metric === 'defense' ? (metrics?.blocked || 0) : (metrics?.healed || 0);
-      return { unit, value, hp, maxHp, phys, special };
-    }).sort((a, b) => b.value - a.value);
-    element('combatSideButton').toggleAttribute('disabled', !opponentId);
-    element('combatSideLabel').textContent = this.showOpponent && opponentId
-      ? `ADVERSÁRIO · ${safe(owner?.name || opponentId.replace('bot:', 'BOT '))}` : `EQUIPE · ${safe(watched.name)}`;
-    element('combatSideButton').classList.toggle('active', this.showOpponent && !!opponentId);
-    const max = Math.max(1, ...entries.map(e => e.value));
-    const combatHtml = entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special }) => {
+    const entriesFor = (id: string) => {
+      const owner = snapshot.players.find(p => p.id === id);
+      const roster = owner?.units.filter(u => u.position.area === 'board') || battleUnits.filter(u => u.playerId === id).map(u => this.fromCombat(u));
+      const metricsByUnit = snapshot.combatStats[id] || {};
+      return roster.map(unit => {
+        const metrics = metricsByUnit[unit.id];
+        const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === id);
+        const maxHp = combatant?.maxHp || Math.round(calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
+        const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
+        const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
+        const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : this.metric === 'defense' ? (metrics?.blocked || 0) : (metrics?.healed || 0);
+        return { unit, value, hp, maxHp, phys, special };
+      }).sort((a, b) => b.value - a.value);
+    };
+    const ownEntries = entriesFor(view.scoutId);
+    const enemyEntries = opponentId ? entriesFor(opponentId) : [];
+    const max = Math.max(1, ...ownEntries.map(e => e.value), ...enemyEntries.map(e => e.value));
+    const combatHtml = (entries: ReturnType<typeof entriesFor>) => entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special }) => {
       const isDamage = this.metric === 'damage', isStatus = this.metric === 'status';
       const valueText = isStatus ? `${Math.ceil(hp)}/${maxHp}` : String(Math.round(value));
       const bar = isDamage
@@ -172,7 +180,19 @@ export class Hud {
         <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${valueText}</span></div>${bar}</div>`;
     }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : '')
       : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
-    if (combatHtml !== this.lastCombat) { element('combatRows').innerHTML = combatHtml; this.lastCombat = combatHtml; }
+    const ownHtml = combatHtml(ownEntries), enemyHtml = combatHtml(enemyEntries);
+    if (ownHtml !== this.lastCombat) { element('combatRows').innerHTML = ownHtml; this.lastCombat = ownHtml; }
+    if (enemyHtml !== this.lastOpponentCombat) { element('opponentCombatRows').innerHTML = enemyHtml; this.lastOpponentCombat = enemyHtml; }
+    element('combatOwnLabel').textContent = `EQUIPE · ${watched.name}`;
+    element('combatSideLabel').textContent = `ADVERSÁRIO · ${snapshot.players.find(p => p.id === opponentId)?.name || opponentId?.replace('bot:', 'BOT ') || '—'}`;
+    const toggle = element<HTMLButtonElement>('combatSideButton');
+    toggle.classList.toggle('hidden', this.panel !== 'combat');
+    toggle.disabled = !opponentId;
+    toggle.classList.toggle('active', this.showOpponent && !!opponentId);
+    toggle.textContent = this.showOpponent ? '›' : '‹';
+    toggle.setAttribute('aria-expanded', String(this.showOpponent && !!opponentId));
+    toggle.setAttribute('aria-label', this.showOpponent ? 'Ocultar equipe adversária' : 'Mostrar equipe adversária');
+    element('opponentCombatPanel').classList.toggle('hidden', this.panel !== 'combat' || !this.showOpponent || !opponentId);
 
     const scout = view.scoutId !== 'p0' ? snapshot.players.find(p => p.id === view.scoutId) : null;
     element('scoutBadge').classList.toggle('hidden', !scout);
@@ -209,10 +229,10 @@ export class Hud {
   private inspector(pokemon: Pokemon, owner: string, combatant?: CombatUnit): string {
     const data = SPECIES[pokemon.family];
     const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
-    const ivTotal = Object.values(pokemon.iv).reduce((a, b) => a + b, 0);
+    const ivAverage = Object.values(pokemon.iv).reduce((a, b) => a + b, 0) / Object.keys(pokemon.iv).length;
     const power = Object.values(stats).reduce((a, b) => a + b, 0);
     return `<div class="inspector-top">${portrait(pokemon.family, 42, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">${safe(owner)} · NÍVEL ${pokemon.level} · ALCANCE ${data.range}</div></div></div>
-      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV TOTAL <b>${ivTotal}/600</b></span></div>
+      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span></div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
       <div class="inspector-footer">${safe(data.ability)} · ${data.energy} energia${combatant ? ` · HP ${Math.ceil(combatant.hp)}/${combatant.maxHp}` : ''}<div class="inspector-types">${data.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }

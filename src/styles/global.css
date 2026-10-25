@@ -130,3 +130,36 @@
 @media(max-width:1300px){.right-panel{width:273px}.bottom-hud{left:163px;right:287px}.bottom-header{padding-left:98px}.shop-actions{width:91px}.rarity-chance{padding:4px}.rarity-chance span{display:none}.influence-caption{display:none}}
 @media(max-width:980px){.right-panel{width:220px;max-height:calc(100% - 346px);min-height:275px}.bottom-hud{height:204px;left:8px;right:8px}.shop-actions{width:85px}.bottom-header{padding-left:92px}.shop-ledger{padding:3px 5px}.shop-card-footer{padding:3px}.shop-name{font-size:12px}.shop-cost{font-size:14px}.shop-type .type-icon{width:15px;height:15px}.unit-inspector{bottom:219px}}
 @media(max-height:740px){.right-panel{min-height:300px;max-height:calc(100% - 255px)}.bottom-hud{height:185px}.shop-ledger{min-height:70px}.unit-inspector{bottom:196px}.rank-row{height:36px}.combat-entry{margin-bottom:3px}}
+
+/* V8 · visual da loja e painéis comparativos lado a lado. */
+.right-panel{overflow:visible;z-index:6}
+.right-panel-tabs{border-radius:8px 8px 0 0;overflow:hidden}
+.combat-side-tab{position:absolute;left:-26px;top:79px;width:27px;height:63px;z-index:8;border:1px solid #7a9a89;border-right:0;border-radius:8px 0 0 8px;background:linear-gradient(180deg,#284a4d,#142d33);font:800 25px 'Barlow Condensed';color:#f5dca2;box-shadow:-5px 5px 15px #0008}
+.combat-side-tab.active{background:#514d32;border-color:#c6a76a}
+.combat-side-tab:disabled{opacity:.35;cursor:default}
+.combat-extension{position:absolute;right:calc(100% + 8px);top:40px;width:100%;height:calc(100% - 40px);display:flex;flex-direction:column;border-radius:8px;z-index:7;min-height:0;background:linear-gradient(155deg,#243a3ce9,#102329f2)}
+.combat-extension-heading{flex:none;height:33px;display:flex;align-items:center;padding:0 12px;background:#3d3930;border-bottom:1px solid #b19c6975;font:800 12px 'Barlow Condensed';letter-spacing:1px;color:#f0d5a2;border-radius:8px 8px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combat-extension .combat-rows{flex:1;min-height:0}
+.combat-perspective{flex:none}.combat-perspective span{font-size:12px}
+.bottom-hud{overflow:visible}
+.bottom-header{padding-right:0}
+.shop-row{padding-right:0}
+.shop-actions{margin-top:-37px;height:calc(100% + 37px);position:relative;z-index:2}
+.shop-ledger{min-height:101px;flex:none;padding:8px 9px;gap:6px}
+.level-inline{font-size:11px}.level-inline b{font-size:19px}
+.gold-inline{height:26px}.gold-inline b{font-size:27px}
+.reroll-btn{min-height:49px;flex:1;gap:3px;flex-wrap:wrap;align-content:center;padding:5px 2px}
+.reroll-icon{font-size:23px}.reroll-btn b{font-size:14px}.reroll-btn small{font-size:11px}
+.lock-btn{right:-28px;top:49px;width:28px;height:66px;border-left:0;border-radius:0 8px 8px 0;z-index:8;font-size:22px}
+.bottom-hud:has(.shop-row.drag-selling)>.lock-btn{visibility:hidden}
+.shop-card-footer{display:flex;align-items:center;gap:3px;min-height:33px;padding:5px 4px;white-space:nowrap;overflow:hidden}
+.shop-card .shop-name{flex:1 1 auto;min-width:0;font:800 13px 'Barlow Condensed';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:18px}
+.shop-card .shop-type{flex:0 0 auto;gap:2px;min-height:0;display:inline-flex}
+.shop-card .shop-type .type-icon{width:16px;height:16px}
+.shop-card .shop-cost{flex:0 0 auto;font-size:15px;white-space:nowrap}
+.shop-portrait{min-height:0}.shop-portrait .pokemon-portrait{width:100%;height:100%;padding:3px 4px}
+.drag-ghost{width:96px;height:96px;display:block;opacity:.94;filter:drop-shadow(0 7px 7px #0008)}
+.pokemon-drag-idle{display:block;width:96px;height:96px;image-rendering:pixelated}
+@media(max-width:1300px){.shop-actions{margin-top:-37px}.shop-ledger{min-height:96px}.shop-card-footer{gap:2px;padding:4px 2px}.shop-card .shop-name{font-size:12px}.shop-card .shop-type .type-icon{width:14px;height:14px}.combat-extension{width:100%}}
+@media(max-width:980px){.shop-ledger{min-height:91px}.shop-actions{margin-top:-34px;height:calc(100% + 34px)}.lock-btn{right:-22px;width:23px;height:52px}.combat-side-tab{left:-23px;width:24px}.combat-extension{width:min(300px,70vw)}.shop-card .shop-name{font-size:11px}.shop-card .shop-type .type-icon{width:13px;height:13px}}
+@media(max-height:740px){.shop-ledger{min-height:82px}.shop-actions{margin-top:-29px;height:calc(100% + 29px)}.reroll-btn{min-height:43px}}

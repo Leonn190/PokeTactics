@@ -29,10 +29,15 @@ import '../styles/global.css';
         <div id="traitRows" class="trait-rows"></div>
       </aside>
 
-      <aside class="right-panel glass" aria-label="Classificação e dados de combate">
+      <aside id="rightPanel" class="right-panel glass" aria-label="Classificação e dados de combate">
+        <button id="combatSideButton" class="combat-side-tab hidden" title="Expandir comparação com a equipe adversária" aria-label="Mostrar equipe adversária" aria-expanded="false" aria-controls="opponentCombatPanel">‹</button>
+        <aside id="opponentCombatPanel" class="combat-extension glass hidden" aria-label="Estatísticas da equipe adversária">
+          <div class="combat-extension-heading" id="combatSideLabel">ADVERSÁRIO</div>
+          <div id="opponentCombatRows" class="combat-rows"></div>
+        </aside>
         <div class="right-panel-tabs"><button id="tabRank" class="right-tab active" data-panel="rank">CLASSIFICAÇÃO</button><button id="tabCombat" class="right-tab" data-panel="combat">COMBATE</button></div>
         <section id="rankPanel"><div class="panel-subtitle"><span>JOGADORES</span><span>VIDA</span></div><div id="rankRows" class="rank-rows"></div></section>
-        <section id="combatPanel" class="combat-panel hidden"><div class="combat-perspective"><button id="combatSideButton" title="Alternar entre sua equipe e a do adversário">⇄</button><span id="combatSideLabel">SEU TIME</span></div><div id="combatRows" class="combat-rows"></div><div class="combat-bottom-tabs"><button data-metric="status" class="metric-tab active" title="Vida restante">STATUS</button><button data-metric="damage" class="metric-tab" title="Dano físico e especial causado">DANO</button><button data-metric="defense" class="metric-tab" title="Dano defendido">DEFESA</button><button data-metric="heal" class="metric-tab" title="Cura realizada">CURA</button></div></section>
+        <section id="combatPanel" class="combat-panel hidden"><div class="combat-perspective"><span id="combatOwnLabel">SUA EQUIPE</span></div><div id="combatRows" class="combat-rows"></div><div class="combat-bottom-tabs"><button data-metric="status" class="metric-tab active" title="Vida restante">STATUS</button><button data-metric="damage" class="metric-tab" title="Dano físico e especial causado">DANO</button><button data-metric="defense" class="metric-tab" title="Dano defendido">DEFESA</button><button data-metric="heal" class="metric-tab" title="Cura realizada">CURA</button></div></section>
         <div id="scoutBadge" class="scout-badge hidden"><span id="scoutName"></span><button id="returnBoard">VOLTAR ↲</button></div>
       </aside>
 
@@ -49,9 +54,9 @@ import '../styles/global.css';
             <button id="rerollButton" class="reroll-btn" title="Atualizar loja por 2 de ouro"><span class="reroll-icon">⟳</span><b>ROLETAR</b><small>◈ 2</small></button>
           </div>
           <div id="shopCards" class="shop-cards" aria-label="Loja de seis Pokémon"></div>
-          <button id="lockButton" class="lock-btn" aria-label="Travar loja" title="Travar loja">◇</button>
           <div id="sellOverlay" class="sell-overlay hidden">SOLTE PARA VENDER <span>◈</span></div>
         </div>
+        <button id="lockButton" class="lock-btn" aria-label="Travar loja" title="Travar loja">◇</button>
       </footer>
 
       <div id="dragGhost" class="drag-ghost hidden"></div>

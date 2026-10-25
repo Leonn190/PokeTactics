@@ -34,9 +34,16 @@ function fixture(family: Family, enemies: number, stage = 0, allies = 0) {
 test('metadados PMD das 11 evoluções usam os caminhos reais do GitHub sem duplicar os assets', () => {
   const arenaSource = readFileSync(resolve('src/client/arena.ts'), 'utf8');
   const hudSource = readFileSync(resolve('src/client/hud.ts'), 'utf8');
+  const mainSource = readFileSync(resolve('src/client/main.ts'), 'utf8');
+  const indexSource = readFileSync(resolve('src/pages/index.astro'), 'utf8');
   assert.ok(arenaSource.includes('BASE_URL}sprite/'));
   assert.ok(hudSource.includes('portrait/${String(id).padStart'));
   assert.ok(hudSource.includes('tipos/${type}.svg'));
+  assert.ok(mainSource.includes('ghostIdle') && mainSource.includes('sprite/${String(dex)'), 'o arraste utiliza Idle PMD');
+  assert.ok(arenaSource.includes('Nunca renderizar sprites PNG estáticos'), 'não pode surgir imagem parada enquanto a sheet carrega');
+  assert.ok(indexSource.includes('id="opponentCombatRows"'), 'extensão rival preserva a equipe local');
+  assert.ok(indexSource.includes('id="combatRows"'), 'comparação deve exibir ambos os lados');
+  assert.ok(indexSource.indexOf('id="lockButton"') > indexSource.indexOf('id="sellOverlay"'), 'aba de trava fora da linha da loja');
   for (const id of [1, 2, 3, 4, 5, 6, 7, 8, 9, 25, 26]) {
     const anims = (pmd as Record<string, Record<string, { file: string; width: number; height: number; durations: number[]; directions: number }>>)[String(id)];
     assert.ok(anims, `Pokémon ${id} sem manifest`);

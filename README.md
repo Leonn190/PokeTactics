@@ -110,11 +110,22 @@ Na rodada de ouro, cada nocaute cria uma moeda **na posição onde o Pokémon ca
 - Ao resolver um duelo, os Pokémon que sobreviveram ficam de frente para a câmera. Os do vencedor usam **Shoot** e disparam projéteis guiados na direção do(s) treinador(es) derrotado(s). Depois voltam a **Idle**. O jogo aguarda a finalização visual de todos os duelos da rodada, sem continuar causando dano nessa animação.
 - A trava da loja continua impedindo a rolagem automática, agora por meio da **aba estreita no lado direito**. Retratos PMD ocupam os cartões inteiros, com nome, tipos e custo na faixa inferior e borda da raridade. Nível, ouro e renda ficam empilhados acima do botão **ROLETAR**.
 - O painel de tipos mostra somente tipos distintos efetivamente presentes no campo **do jogador que está sendo observado**. Nenhuma sinergia concede bônus estatístico ou de combate.
-- O botão **⇄** dentro de COMBATE alterna suas métricas e as do adversário, usando o oponente atual ou o último conhecido. Ao clicar em qualquer Pokémon no campo, inclusive inimigos e chefes, aparecem seus status, **IV total** (soma dos seis IVs, de 0 a 600) e **poder total** (soma dos seis atributos calculados). Os painéis foram ampliados para acomodar sete Pokémon e têm rolagem quando necessário.
+- Na V8, uma aba lateral de **COMBATE** abre uma extensão com os adversários **ao lado** da sua equipe para comparação simultânea, usando o oponente atual ou o último conhecido. Ao clicar em qualquer Pokémon no campo, inclusive inimigos e chefes, aparecem seus status, **IV** (média dos seis IVs, de 0 a 100) e **poder total** (soma dos seis atributos calculados). Os painéis foram ampliados para acomodar sete Pokémon e têm rolagem quando necessário.
 - Fusões em três copias agora escolhem **o maior IV de cada atributo** entre as três unidades usadas. Uma fusão de três Pokémon poderá formar um perfil híbrido de IVs; não usa mais a média.
 - Ataques **carregados apenas** consultam `server/systems/effectiveness.ts`: vantagem padrão 2× vira **1,5×**, resistência 0,5× vira **0,75×**, e dois tipos são combinados antes de reduzir o impacto pela metade. Não existem imunidades. Golpes carregados físicos, atingimentos secundários e danos contínuos de habilidades também seguem a regra. Ataques básicos continuam neutros.
 
 O ZIP segue **sem sprites, portraits, ícones ou outros assets binários**, porque esses recursos já existem em `public/` no repositório original. Preserve essas pastas ao aplicar o `src/` e as demais alterações.
+
+## V8 — acabamento da interface e animação
+
+- Ao arrastar uma unidade, o cursor acompanha a animação **Idle** da sprite sheet PMD, em vez de um portrait. O sprite que ficava na posição original some durante o arraste.
+- Na loja, o portrait ocupa o cartão e as informações ficam **na linha imediatamente abaixo**, com nome à esquerda, ícones da tipagem ao lado e custo à direita.
+- A evolução agora recebe as posições e as espécies das três unidades originais. Primeiro, as três cópias se movimentam em direção ao ponto da fusão; a forma evoluída aparece somente depois do efeito luminoso.
+- O botão de travar fica **do lado de fora da borda direita** da loja, como uma aba vertical. A coluna de nível, ouro, renda e rolagem sobe para preencher o vazio à esquerda dos percentuais de raridade.
+- COMBATE mantém as suas estatísticas visíveis e permite expandir/fechar a **coluna do adversário à esquerda**, em vez de substituir as próprias métricas. Os dois lados seguem a mesma escala para comparar os danos.
+- O renderizador evita trocar uma sprite sheet PMD temporariamente indisponível por um PNG parado: usa **Idle** como fallback animado até a sheet do ataque terminar de carregar. As animações conhecidas são carregadas antecipadamente; frames ativos são interpolados entre atualizações do worker; a leitura de contornos dos frames tem um limite de trabalho por quadro; a textura estática do campo é reutilizada até a câmera mudar.
+
+Esses ajustes foram testados por compilação e testes de lógica. A inspeção visual com os arquivos binários PMD precisa ser realizada ao aplicar o ZIP no repositório original; os lendários que ainda não possuem sheet PMD continuam utilizando PNGs estáticos por definição.
 
 ## Executar e publicar
 

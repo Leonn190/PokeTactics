@@ -169,7 +169,10 @@ export class GameEngine {
             xp: Math.max(...triple.map(u => u.xp)), position: { ...anchor.position }
           };
           player.units.push(evolved);
-          this.visualEvents.push({ id: this.id(), unitId: evolved.id, ownerId: player.id, kind: 'evolve', age: 0 });
+          this.visualEvents.push({
+            id: this.id(), unitId: evolved.id, ownerId: player.id, kind: 'evolve', age: 0,
+            sources: triple.map(u => ({ family: u.family, stage: u.stage, position: { ...u.position } }))
+          });
           if (player.id === 'p0') this.log = `${SPECIES[family].names[stage + 1]} evoluiu!`;
           changed = true;
           break;

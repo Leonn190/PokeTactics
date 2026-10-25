@@ -139,6 +139,7 @@ export interface UnitVisualEvent {
   ownerId: string;
   kind: 'summon' | 'evolve';
   age: number;
+  sources?: Array<{ family: Family; stage: number; position: UnitPosition }>;
 }
 
 export interface GameSnapshot {

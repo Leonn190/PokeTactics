@@ -264,7 +264,10 @@ test('três cópias evoluem herdando o maior IV de cada atributo', () => {
   const merged = player.units[0];
   assert.equal(merged.iv.hp, Math.max(50, 80, merged.iv.hp));
   assert.ok(merged.iv.atk >= 90 && merged.iv.speed >= 50);
-  assert.ok(game.snapshot().visualEvents.some(event => event.kind === 'evolve' && event.unitId === merged.id));
+  const evolution = game.snapshot().visualEvents.find(event => event.kind === 'evolve' && event.unitId === merged.id);
+  assert.ok(evolution);
+  assert.equal(evolution.sources?.length, 3, 'os três Pokémon originais são preservados na animação de fusão');
+  assert.equal(evolution.sources?.filter(unit => unit.position.area === 'board').length, 1);
 });
 
 test('comandos não podem superar limite de campo nem gastar ouro sem saldo', () => {

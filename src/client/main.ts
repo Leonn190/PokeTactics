@@ -1,14 +1,25 @@
 import { Arena, type ClientView } from './arena';
 import { Hud } from './hud';
 import { SPECIES } from '../../server/data';
+import pmdManifest from './pmd-manifest.json';
 import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
-const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, dragX: 0, dragY: 0, hoveringHex: null, hoveringBench: null };
+const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, dragging: false, dragX: 0, dragY: 0, hoveringHex: null, hoveringBench: null };
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
 const worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
 const ghost = document.getElementById('dragGhost')!;
+const ghostCanvas = document.createElement('canvas');
+ghostCanvas.width = 96; ghostCanvas.height = 96;
+ghostCanvas.className = 'pokemon-drag-idle';
+ghost.append(ghostCanvas);
+const ghostContext = ghostCanvas.getContext('2d')!;
+type GhostSheet = { file: string; width: number; height: number; durations: number[]; directions: number };
+const pmd = pmdManifest as Record<string, Record<string, GhostSheet>>;
+let ghostImage: HTMLImageElement | null = null;
+let ghostIdle: GhostSheet | null = null;
+let ghostStarted = 0;
 let state: GameSnapshot | null = null;
 let dragStarted = false;
 let pointerStart = { x: 0, y: 0 };
@@ -29,6 +40,7 @@ worker.addEventListener('message', (event: MessageEvent<ServerToClient>) => {
   if (event.data.type === 'rejected') return hud.toast(event.data.reason);
   state = event.data.snapshot;
   arena.snapshot = state;
+  arena.snapshotReceivedAt = performance.now();
   if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
     && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
   const now = performance.now();
@@ -72,29 +84,63 @@ function startDrag(id: string, event: PointerEvent): void {
   hud.render(state, view);
 }
 
+function setDragSprite(family: keyof typeof SPECIES, stage: number): void {
+  ghostContext.clearRect(0, 0, 96, 96);
+  const species = SPECIES[family];
+  const dex = species.pokedexIds[Math.min(stage, species.pokedexIds.length - 1)];
+  ghostIdle = pmd[String(dex)]?.Idle || null;
+  ghostImage = new Image();
+  ghostImage.decoding = 'async';
+  ghostImage.src = ghostIdle
+    ? `${import.meta.env.BASE_URL}sprite/${String(dex).padStart(4, '0')}/${ghostIdle.file}`
+    : `${import.meta.env.BASE_URL}${species.sprites[Math.min(stage, species.sprites.length - 1)].replace(/^\.\//, '')}`;
+  ghostStarted = performance.now();
+}
+
+function drawDraggedIdle(time: number): void {
+  if (view.dragging && ghostImage?.complete && ghostImage.naturalWidth) {
+    const ctx = ghostContext;
+    ctx.clearRect(0, 0, 96, 96);
+    ctx.imageSmoothingEnabled = false;
+    if (ghostIdle) {
+      const ticks = ghostIdle.durations.reduce((sum, duration) => sum + duration, 0);
+      let tick = ((time - ghostStarted) / 1000 * 60) % ticks;
+      let frame = 0;
+      while (frame < ghostIdle.durations.length - 1 && tick >= ghostIdle.durations[frame]) tick -= ghostIdle.durations[frame++];
+      const scale = Math.min(1.65, 82 / Math.max(ghostIdle.width, ghostIdle.height));
+      const w = ghostIdle.width * scale, h = ghostIdle.height * scale;
+      ctx.drawImage(ghostImage, frame * ghostIdle.width, 0, ghostIdle.width, ghostIdle.height,
+        (96 - w) / 2, 90 - h, w, h);
+    } else {
+      ctx.drawImage(ghostImage, 8, 8, 80, 80);
+    }
+  }
+  requestAnimationFrame(drawDraggedIdle);
+}
+requestAnimationFrame(drawDraggedIdle);
+
 function updateGhost(event: PointerEvent): void {
   if (!view.dragId || !state) return;
   view.dragX = event.clientX; view.dragY = event.clientY;
   if (!dragStarted && Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 5) {
     dragStarted = true;
+    view.dragging = true;
     const unit = state.players[0].units.find(u => u.id === view.dragId);
-    if (unit) {
-      const species = SPECIES[unit.family];
-      const dex = species.pokedexIds[Math.min(unit.stage, species.pokedexIds.length - 1)];
-      ghost.innerHTML = `<img class="pokemon-drag-portrait" src="${import.meta.env.BASE_URL}portrait/${String(dex).padStart(4, '0')}/Normal.png" alt="" draggable="false" />`;
-    }
+    if (unit) setDragSprite(unit.family, unit.stage);
     ghost.classList.remove('hidden');
     document.querySelector('.shop-row')?.classList.add('drag-selling');
     document.getElementById('sellOverlay')?.classList.remove('hidden');
   }
   if (!dragStarted) return;
-  ghost.style.transform = `translate3d(${event.clientX - 26}px,${event.clientY - 26}px,0)`;
+  ghost.style.transform = `translate3d(${event.clientX - 48}px,${event.clientY - 80}px,0)`;
   view.hoveringBench = arena.pickBench(event.clientX, event.clientY);
   view.hoveringHex = state.phase === 'planning' && view.scoutId === 'p0' ? arena.pickHex(event.clientX, event.clientY) : null;
 }
 
 function clearDrag(): void {
   view.dragId = null;
+  view.dragging = false;
+  ghostImage = null;
   view.hoveringHex = null;
   view.hoveringBench = null;
   dragStarted = false;

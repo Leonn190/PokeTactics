@@ -7,6 +7,7 @@ export interface ClientView {
   scoutId: string;
   selectedId: string | null;
   dragId: string | null;
+  dragging: boolean;
   dragX: number;
   dragY: number;
   hoveringHex: { col: number; row: number } | null;
@@ -36,10 +37,16 @@ export class Arena {
   private visualPositions = new Map<string, { x: number; y: number }>();
   private spriteCache = new Map<string, HTMLImageElement>();
   private pixelBounds = new Map<string, { left: number; right: number; top: number; bottom: number }>();
+  private lastSheetBounds = new Map<string, { left: number; right: number; top: number; bottom: number }>();
+  private boundsBudget = 2;
+  private warmedSpecies = new Set<number>();
   private readbackCanvas = document.createElement('canvas');
+  private grassCanvas: HTMLCanvasElement | null = null;
+  private grassKey = '';
   private lastBattleId = '';
   private lastFrame = 0;
   private frame = 0;
+  snapshotReceivedAt = performance.now();
   snapshot: GameSnapshot | null = null;
   view: ClientView;
 
@@ -145,9 +152,17 @@ export class Arena {
   private image(url: string): HTMLImageElement {
     let sprite = this.spriteCache.get(url);
     if (!sprite) {
-      sprite = new Image(); sprite.src = url; this.spriteCache.set(url, sprite);
+      sprite = new Image(); sprite.decoding = 'async'; sprite.src = url; this.spriteCache.set(url, sprite);
     }
     return sprite;
+  }
+
+  private warmAnimationSheets(dex: number, anims: PmdEntry): void {
+    if (this.warmedSpecies.has(dex)) return;
+    this.warmedSpecies.add(dex);
+    for (const action of ['Idle', 'Walk', 'Rotate', 'Attack', 'Shoot', 'Hurt', 'Charge', 'Strike', 'Withdraw', 'Sleep']) {
+      if (anims[action]) this.image(`${import.meta.env.BASE_URL}sprite/${String(dex).padStart(4, '0')}/${anims[action].file}`);
+    }
   }
 
   private direction(x: number, y: number): number {
@@ -158,6 +173,9 @@ export class Arena {
   private bounds(sprite: HTMLImageElement, key: string, sx: number, sy: number, fw: number, fh: number) {
     const cached = this.pixelBounds.get(key);
     if (cached) return cached;
+    const sheetKey = key.split(':').slice(0, -2).join(':');
+    if (this.boundsBudget <= 0) return this.lastSheetBounds.get(sheetKey) || { left: fw * .18, right: fw * .82, top: fh * .15, bottom: fh * .9 };
+    this.boundsBudget--;
     const canvas = this.readbackCanvas;
     canvas.width = fw; canvas.height = fh;
     const context = canvas.getContext('2d', { willReadFrequently: true })!;
@@ -172,6 +190,7 @@ export class Arena {
     }
     const result = left >= fw ? { left: fw * .2, right: fw * .8, top: fh * .15, bottom: fh * .9 } : { left, right, top, bottom };
     this.pixelBounds.set(key, result);
+    this.lastSheetBounds.set(sheetKey, result);
     return result;
   }
 
@@ -181,25 +200,33 @@ export class Arena {
     const id = SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
     const anims = PMD[String(id)];
     if (anims) {
+      this.warmAnimationSheets(id, anims);
       const action = unit.bench ? 'Sleep' : this.snapshot?.phase === 'planning' ? 'Idle'
         : unit.animation?.name || (unit.moving ? 'Walk' : 'Idle');
-      const animation = anims[action] || anims.Idle;
-      const url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
-      const sprite = this.image(url);
+      let selectedAction = anims[action] ? action : 'Idle';
+      let animation = anims[selectedAction];
+      let url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
+      let sprite = this.image(url);
+      if ((!sprite.complete || !sprite.naturalWidth) && selectedAction !== 'Idle') {
+        selectedAction = 'Idle'; animation = anims.Idle;
+        url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
+        sprite = this.image(url);
+      }
       if (sprite.complete && sprite.naturalWidth) {
         const durations = animation.durations;
         const totalTicks = durations.reduce((sum, n) => sum + n, 0);
-        const active = unit.animation && !unit.bench && this.snapshot?.phase !== 'planning' && action === unit.animation.name;
-        const elapsedTicks = active && action !== 'Withdraw'
-          ? Math.min(totalTicks - .001, (unit.animation!.elapsed / unit.animation!.duration) * totalTicks)
+        const active = unit.animation && !unit.bench && this.snapshot?.phase !== 'planning' && selectedAction === unit.animation.name;
+        const extrapolation = Math.max(0, Math.min(.055, (performance.now() - this.snapshotReceivedAt) / 1000));
+        const elapsedTicks = active && selectedAction !== 'Withdraw'
+          ? Math.min(totalTicks - .001, ((unit.animation!.elapsed + extrapolation) / unit.animation!.duration) * totalTicks)
           : (time * 60 + ((unit.id.charCodeAt(unit.id.length - 1) || 0) % 13) * 2) % totalTicks;
         let tick = elapsedTicks, frame = 0;
         while (frame < durations.length - 1 && tick >= durations[frame]) tick -= durations[frame++];
         const flipped = this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle?.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId;
         // Withdraw encolhe na concha; alternar as oito direções faz o giro aquático de verdade.
-        const spinning = action === 'Withdraw' && !!unit.spinTime;
+        const spinning = selectedAction === 'Withdraw' && !!unit.spinTime;
         const dir = spinning ? Math.floor(((unit.spinDuration || 2) - (unit.spinTime || 0)) / .095) % 8
-          : action === 'Rotate' || this.snapshot?.visibleBattle?.resolved || this.snapshot?.phase === 'planning' || unit.bench ? 0
+          : selectedAction === 'Rotate' || this.snapshot?.visibleBattle?.resolved || this.snapshot?.phase === 'planning' || unit.bench ? 0
           : this.direction(unit.facingX || 0, flipped ? -(unit.facingY || 0) : (unit.facingY || 0));
         const row = animation.directions === 1 ? 0 : dir % animation.directions;
         // Tamanho baseado em pixels dos próprios sprites; sem formas geométricas.
@@ -213,6 +240,8 @@ export class Arena {
         ctx.restore();
         return y - (bounds.bottom - bounds.top) * sizeScale;
       }
+      // Nunca renderizar sprites PNG estáticos quando uma animação PMD ainda carrega.
+      return y - this.cellScale * .85;
     }
     // Lendários ainda não receberam sheets PMD; continuam como PNGs, sem figuras coloridas.
     const path = SPECIES[unit.family].sprites[Math.min(unit.stage, SPECIES[unit.family].sprites.length - 1)];
@@ -226,8 +255,8 @@ export class Arena {
     return y - this.cellScale * .85;
   }
 
-  private background(time: number): void {
-    const ctx = this.context, w = this.width, h = this.height;
+  private paintBackground(ctx: CanvasRenderingContext2D): void {
+    const w = this.width, h = this.height;
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
     gradient.addColorStop(0, '#102b29'); gradient.addColorStop(.5, '#183c2d'); gradient.addColorStop(1, '#0a231e');
     ctx.fillStyle = gradient; ctx.fillRect(0, 0, w, h);
@@ -266,6 +295,23 @@ export class Arena {
       ctx.strokeStyle = '#194c3299'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(middle.x + 5, top + 5); ctx.lineTo(middle.x + 5, top + fieldH - 5); ctx.stroke();
     }
+  }
+
+  private background(): void {
+    const origin = this.origin;
+    const key = [this.width, this.height, this.pixelRatio, this.cellScale,
+      origin.x, origin.y, this.quadActive].join(':');
+    if (!this.grassCanvas || key !== this.grassKey) {
+      this.grassCanvas ||= document.createElement('canvas');
+      this.grassCanvas.width = this.canvas.width;
+      this.grassCanvas.height = this.canvas.height;
+      const ctx = this.grassCanvas.getContext('2d')!;
+      ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+      this.paintBackground(ctx);
+      this.grassKey = key;
+    }
+    // Textura, gramado e suas centenas de fibras só são recalculados quando a câmera muda.
+    this.context.drawImage(this.grassCanvas, 0, 0, this.width, this.height);
   }
 
   private hexGrid(time: number): void {
@@ -632,7 +678,9 @@ export class Arena {
       if (event.ownerId !== this.view.scoutId) continue;
       const unit = watched.units.find(u => u.id === event.unitId);
       if (!unit) continue;
-      const world = unit.position.area === 'bench' ? benchXY(unit.position.index) : gridXY(unit.position.col, unit.position.row + 4);
+      const positionWorld = (position: UnitPosition) => position.area === 'bench'
+        ? benchXY(position.index) : gridXY(position.col, position.row + 4);
+      const world = positionWorld(unit.position);
       const to = this.toScreen(world.x, world.y);
       const t = event.age;
       if (event.kind === 'summon') {
@@ -646,6 +694,25 @@ export class Arena {
           ctx.beginPath(); ctx.ellipse(to.x, to.y - 26, (t - .42) * 85, (t - .42) * 60, 0, 0, PI2); ctx.stroke(); ctx.restore();
         }
       } else {
+        // Três cópias convergem para a posição da evolução antes de mostrar a forma nova.
+        if (event.sources && t < .74) {
+          const progress = Math.min(1, t / .64);
+          const ease = progress * progress * (3 - 2 * progress);
+          event.sources.forEach((source, i) => {
+            const from = positionWorld(source.position);
+            const x = from.x + (world.x - from.x) * ease + Math.sin(progress * Math.PI) * (i - 1) * .32;
+            const y = from.y + (world.y - from.y) * ease - Math.sin(progress * Math.PI) * .24;
+            const p = this.toScreen(x, y);
+            const donor: Marker = {
+              id: `merge:${event.id}:${i}`, sourceId: event.unitId, ownerId: event.ownerId,
+              x, y, family: source.family, stage: source.stage, own: true,
+              level: unit.level, hp: 1, maxHp: 1, energy: 0, required: 1, flash: 0
+            };
+            ctx.save(); ctx.globalAlpha = t < .46 ? 1 : Math.max(0, (.74 - t) / .28);
+            this.drawPokemonSprite(p.x, p.y, donor, this.frame);
+            ctx.restore();
+          });
+        }
         const f = Math.max(0, 1 - t / 1.45);
         ctx.save(); ctx.globalAlpha = f;
         ctx.strokeStyle = '#ffe5a5'; ctx.shadowColor = '#f8d176'; ctx.shadowBlur = 25; ctx.lineWidth = 3 + f * 3;
@@ -653,7 +720,11 @@ export class Arena {
           const r = this.cellScale * (.28 + ring * .17 + t * .24);
           ctx.beginPath(); ctx.ellipse(to.x, to.y - 17, r, r * .48, 0, 0, PI2); ctx.stroke();
         }
-        ctx.fillStyle = '#fff3bd'; ctx.beginPath(); ctx.arc(to.x, to.y - 28, Math.max(0, 35 * Math.sin(Math.min(1, t / 1.35) * Math.PI)), 0, PI2); ctx.fill();
+        if (t >= .54) {
+          ctx.fillStyle = '#fff3bd';
+          const pulse = Math.max(0, 1 - Math.abs(t - .76) / .4);
+          ctx.beginPath(); ctx.arc(to.x, to.y - 28, 45 * pulse, 0, PI2); ctx.fill();
+        }
         ctx.restore();
       }
     }
@@ -672,8 +743,9 @@ export class Arena {
     const ctx = this.context;
     const dt = Math.min(.05, (timestamp - this.lastFrame) / 1000 || 0);
     this.lastFrame = timestamp; this.frame += dt;
+    this.boundsBudget = 2;
     ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
-    this.background(this.frame);
+    this.background();
     this.hexGrid(this.frame);
     if (this.quadActive) {
       const participants = this.snapshot!.visibleBattle!.participants;
@@ -689,12 +761,14 @@ export class Arena {
     const battle = this.snapshot?.visibleBattle;
     const intro = this.snapshot?.phase === 'combat' && battle && !battle.resolved && battle.introElapsed < 1.5;
     markers.filter(marker => {
+      if (this.view.dragging && marker.ownerId === 'p0' && marker.sourceId === this.view.dragId) return false;
       if (intro && !marker.bench && marker.ownerId !== this.view.scoutId) {
         const enemyIndex = battle!.units.filter(u => u.playerId !== this.view.scoutId).findIndex(u => u.id === marker.id);
         if (battle!.introElapsed < .77 + (enemyIndex % 7) * .06 + Math.floor(enemyIndex / 7) * .13) return false;
       }
       const animation = this.snapshot?.visualEvents.find(e => e.unitId === marker.sourceId && e.ownerId === marker.ownerId);
-      return !(animation?.kind === 'summon' && animation.age < .42);
+      return !(animation?.kind === 'summon' && animation.age < .42)
+        && !(animation?.kind === 'evolve' && animation.age < .74);
     }).sort((a, b) => a.y - b.y).forEach(marker => this.drawUnit(marker, this.frame));
     this.drawUnitVisuals();
     if (intro) this.drawArrival(battle!);
