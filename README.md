@@ -1,4 +1,18 @@
-# Poké Tactics — Astro v4
+# Poké Tactics — Astro v5 (PMD Animado)
+
+## Animações e habilidades implementadas na v5
+
+- As **11 espécies das famílias Bulbasaur, Charmander, Squirtle e Pikachu** usam spritesheets do PMD Sprite Repository, com proporções, 8 direções e durações de quadros lidas de `AnimData.xml`. Não existem mais fichas geométricas sobrepostas aos Pokémon.
+- Na **preparação**, a animação `Idle` olha para frente; ao começar o combate, `Rotate` precede a orientação para o inimigo. Caminhada usa `Walk`; todo Pokémon no banco usa `Sleep`; golpes que retiram **mais de 20% da vida máxima num único impacto** ativam `Hurt`.
+- **Bulbasaur / Ivysaur / Venusaur (ranged):** ataque básico `Shoot`. O **Morteiro de Pólen** usa `Charge` → `Shoot`, procura a concentração máxima de inimigos num raio de 1,65 casas, causa dano especial **40/60/90 + 0,70×SpA** a cada inimigo da área e cura todos os aliados vivos (incluindo o usuário) em **25/40/60 + 0,30×SpA** por aliado.
+- **Squirtle / Wartortle / Blastoise (melee):** básico `Attack`. **Giro Aquático** usa `Withdraw` durante **2 s + 0,25 s para cada bloco completo de 80 SpA**; enquanto gira, causa **20/40/65 + 0,30×SpA** de dano especial por segundo aos inimigos em um raio de 1,7 casas, e recebe **20/24/30% menos dano**. Não caminha nem dá básicos durante o giro.
+- **Charmander / Charmeleon / Charizard (melee):** básico `Attack`, carregado `Strike`. **Golpe Flamejante** dá um único impacto **físico** de **150/155/165% do Atk** ao alvo (mesma mecânica e animação nas três evoluções).
+- **Pikachu / Raichu (melee):** básico `Attack`. **Choque do Trovão** dá dano especial de **120/130% do SpA** no alvo e encadeia **60/65% do SpA** a até **1/2 alvos adicionais** dentro de duas casas do alvo principal, sem repetir alvos.
+- Os efeitos de projéteis, nuvem de pólen, espirais d'água, chamas e relâmpagos são desenhados no canvas. Chefes não incluídos nas quatro famílias continuam com sprite PNG estático até receberem spritesheets próprias.
+
+Os valores intermediários de escala de SpA e os raios das áreas foram escolhidos nesta implementação porque não foram especificados numericamente. Podem ser balanceados em `config/ataques.json`. Arquivos e condições de uso: [ASSET_CREDITS.md](ASSET_CREDITS.md).
+
+Para atualizar sprites de fonte oficial use `python3 scripts/fetch_pmd.py`; os quadros/direções importados ficam em `src/client/pmd-manifest.json` e os PNGs em `public/pmd/`.
 
 Auto battler Pokémon de oito participantes (um jogador e sete CPUs), executado em Astro. O motor da partida roda em Web Worker no navegador. Não há multiplayer via rede nesta versão.
 
@@ -9,7 +23,7 @@ Os **quatro JSONs na raiz `config/` são importados pelo motor no build** (não 
 | Arquivo | Responsabilidade |
 | --- | --- |
 | `config/pokemons.json` | Pokémon presentes no jogo, nomes por evolução, Pokédex/sprites, status, elementos, alcance, energia, habilidade, raridade e disponibilidade na loja. |
-| `config/ataques.json` | Ataque físico básico; fórmulas e efeitos de habilidades (drenar, queimar, reduzir velocidade, atingir segundo alvo, dano direto). |
+| `config/ataques.json` | Ataque físico básico e fórmulas/configurações dos golpes: alvos adicionais, área, cura, dano por segundo, duração e redução de dano. |
 | `config/fases.json` | Sequência das dez etapas de cada capítulo, escalonamento dos bot PvE e IV/nível dos chefes lendários. |
 | `config/regras_gerais.json` | Ouro, juros, streak, dano, bônus, temporizadores, limites, chances da loja, progressão de nível e fórmula de status. |
 
@@ -24,7 +38,7 @@ Os **quatro JSONs na raiz `config/` são importados pelo motor no build** (não 
 - Influência de tipagem: cada tipo de um Pokémon **ativo vale 2 pontos** e cada tipo do **banco vale 1**. A barra apresenta as cinco maiores participações. O bônus individual do tipo é `participação × 0,5`; Pokémon de dois tipos usam **maior bônus + metade do bônus menor**. Assim, uma influência de 50% Água (+25%) e 30% Planta (+15%) rende **+32,5%** de peso relativo para um Pokémon Água/Planta. Esses multiplicadores estão em `typeShopBias`.
 - Confrontos PvP: o motor prepara **três calendários completos**, penalizando duelos repetidos, e sorteia um deles com **1/3 de chance** quando começa a luta. A classificação mostra as três possibilidades; sua arena não apresenta antecipadamente nenhuma formação inimiga. Quando só restam dois jogadores, os três calendários necessariamente representam o mesmo adversário; em batalhas a três/quatro, cada opção contém um *grupo* de possíveis adversários. PvE não usa sorteio de adversário.
 
-Os PNGs usados nesta versão estão incluídos em `public/sprites/`; cada família aponta para os seus arquivos na seção `sprites` de `config/pokemons.json`. Eles vieram do projeto público PokeAPI/sprites. A arena usa formas coloridas como fallback se alguma imagem estiver ausente. Apenas as quatro famílias originais aparecem na loja; Articuno, Zapdos, Moltres, Mewtwo, Mew, Raikou, Entei, Suicune, Lugia, Ho-Oh e Celebi são os onze chefes possíveis. O jogo já conhece todos seus status e ataques.
+As quatro famílias iniciais usam sheets animadas em `public/pmd/` com metadados por espécie. `public/sprites/` mantém imagens PNG estáticas vindas do PokeAPI para as miniaturas da interface e para os chefes ainda sem spritesheets. Não há mais formas coloridas como fichas de batalha. Apenas as quatro famílias originais aparecem na loja; Articuno, Zapdos, Moltres, Mewtwo, Mew, Raikou, Entei, Suicune, Lugia, Ho-Oh e Celebi são os onze chefes possíveis. O jogo já conhece todos seus status e ataques.
 
 ## Rodadas
 

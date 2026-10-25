@@ -79,7 +79,7 @@ function updateGhost(event: PointerEvent): void {
     const unit = state.players[0].units.find(u => u.id === view.dragId);
     if (unit) {
       const species = SPECIES[unit.family];
-      ghost.innerHTML = `<span class="shape ${species.shape} ${unit.stage ? 'evolved' : ''}" style="height:38px;width:38px;--shape-color:${species.color};--shape-glow:${species.glow}"></span>`;
+      ghost.innerHTML = `<img class="pokemon-drag-icon" src="${species.sprites[Math.min(unit.stage, species.sprites.length - 1)]}" alt="" />`;
     }
     ghost.classList.remove('hidden');
     document.querySelector('.shop-row')?.classList.add('drag-selling');

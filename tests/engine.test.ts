@@ -90,6 +90,7 @@ test('moedas surgem em KO na etapa 2, só o dono coleta e prêmio +4 para venced
   const attacker = battle.units.find(u => u.playerId === 'p0')!;
   const victim = battle.units.find(u => u.playerId === 'p1')!;
   attacker.x = victim.x; attacker.y = victim.y;
+  attacker.animation = null; // Salta a animação inicial de Rotate no teste de KO imediato.
   attacker.attackClock = 0; victim.attackClock = 100;
   victim.hp = 1;
   tickBattle(battle, .1);
@@ -197,6 +198,7 @@ test('arena quádrupla distribui equipes em quadrantes exclusivos e dano gera po
   assert.ok(battle.units[2].x < 0 && battle.units[2].y > 0);
   assert.ok(battle.units[3].x > 0 && battle.units[3].y > 0);
   const duel = createBattle(game.players[0], game.players[1], 'damage-anchors');
+  duel.units[0].animation = null; // Salta Rotate: verifica só o impacto e o popup.
   duel.units[0].attackClock = 0;
   duel.units[1].attackClock = 100;
   duel.units[0].range = 100;

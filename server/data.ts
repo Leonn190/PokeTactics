@@ -22,11 +22,15 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
   chainRatio?: number; chainRange?: number;
+  damageByStage?: number[]; healByStage?: number[]; damageRatioByStage?: number[];
+  splashRange?: number; shieldByStage?: number[]; seconds?: number;
+  secondsPerSpA?: number; durationSpaStep?: number;
+  secondaryRatioByStage?: number[]; secondaryTargetsByStage?: number[];
 };
 
 export const ATTACKS = movesConfig as unknown as {
