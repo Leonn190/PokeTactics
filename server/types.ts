@@ -59,6 +59,7 @@ export interface CombatUnit {
   family: Family;
   stage: number;
   level: number;
+  iv: Stats;
   col: number;
   row: number;
   x: number;
@@ -94,7 +95,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning';
+  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit';
   damageType?: 'physical' | 'special' | 'true';
   family: Family;
   time: number;
@@ -115,6 +116,8 @@ export interface Battle {
   units: CombatUnit[];
   effects: CombatEffect[];
   elapsed: number;
+  introElapsed: number;
+  outcomeElapsed: number;
   resolved: boolean;
   winner: string | null;
   loser: string | null;
@@ -128,6 +131,14 @@ export interface GoldDrop {
   y: number;
   ownerId: string;
   claimed: boolean;
+}
+
+export interface UnitVisualEvent {
+  id: string;
+  unitId: string;
+  ownerId: string;
+  kind: 'summon' | 'evolve';
+  age: number;
 }
 
 export interface GameSnapshot {
@@ -144,6 +155,8 @@ export interface GameSnapshot {
   observedId: string;
   players: Player[];
   opponentId: string | null;
+  lastOpponentId: string | null;
+  visualEvents: UnitVisualEvent[];
   possibleOpponents: Record<string, string[][]>;
   visibleBattle: Battle | null;
   combatStats: Record<string, Record<string, CombatMetrics>>;

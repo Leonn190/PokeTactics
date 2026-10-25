@@ -1,5 +1,6 @@
 import { gridXY, SPECIES } from '../../server/data';
 import type { CombatEffect, CombatUnit, Family, GameSnapshot, Pokemon, UnitPosition } from '../../server/types';
+import { trainerSpot } from '../../server/systems/combat';
 import pmdManifest from './pmd-manifest.json';
 
 export interface ClientView {
@@ -12,7 +13,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number };
 type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number };
 type PmdEntry = Record<string, PmdSheet>;
 const PMD = pmdManifest as Record<string, PmdEntry>;
@@ -134,6 +135,13 @@ export class Arena {
     return null;
   }
 
+  pickUnit(clientX: number, clientY: number): { id: string; ownerId: string; sourceId: string } | null {
+    const pointer = this.pointerWorld(clientX, clientY);
+    const markers = this.markers().filter(u => !u.bench);
+    const hit = [...markers].reverse().find(unit => Math.hypot(unit.x - pointer.x, unit.y - pointer.y) < .49);
+    return hit ? { id: hit.id, ownerId: hit.ownerId, sourceId: hit.sourceId } : null;
+  }
+
   private image(url: string): HTMLImageElement {
     let sprite = this.spriteCache.get(url);
     if (!sprite) {
@@ -191,7 +199,7 @@ export class Arena {
         // Withdraw encolhe na concha; alternar as oito direções faz o giro aquático de verdade.
         const spinning = action === 'Withdraw' && !!unit.spinTime;
         const dir = spinning ? Math.floor(((unit.spinDuration || 2) - (unit.spinTime || 0)) / .095) % 8
-          : action === 'Rotate' || this.snapshot?.phase === 'planning' || unit.bench ? 0
+          : action === 'Rotate' || this.snapshot?.visibleBattle?.resolved || this.snapshot?.phase === 'planning' || unit.bench ? 0
           : this.direction(unit.facingX || 0, flipped ? -(unit.facingY || 0) : (unit.facingY || 0));
         const row = animation.directions === 1 ? 0 : dir % animation.directions;
         // Tamanho baseado em pixels dos próprios sprites; sem formas geométricas.
@@ -307,16 +315,16 @@ export class Arena {
     const snapshot = this.snapshot;
     if (!snapshot) return [];
     const watched = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
-    const benchUnits = (units: Pokemon[], own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
+    const benchUnits = (units: Pokemon[], ownerId: string, own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
       const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index, enemy, offset);
-      return { id: u.id, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
+      return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
         own, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0, bench: true } as Marker;
     });
-    const bench = benchUnits(watched.units, true, false, 0);
+    const bench = benchUnits(watched.units, watched.id, true, false, 0);
     const foeId = snapshot.visibleBattle?.participants.find(id => id !== this.view.scoutId) || null;
     const foePlayer = snapshot.players.find(p => p.id === foeId);
     const enemyBenchUnits = foePlayer ? foePlayer.units.filter(u => u.position.area === 'bench') : foeId ? snapshot.visibleBattle?.benches[foeId] || [] : [];
-    const foeBench = benchUnits(enemyBenchUnits, false, true, 0);
+    const foeBench = benchUnits(enemyBenchUnits, foeId || '', false, true, 0);
     if (snapshot.phase !== 'planning' && snapshot.visibleBattle && snapshot.observedId === this.view.scoutId) {
       if (this.lastBattleId !== snapshot.visibleBattle.id) {
         this.visualPositions.clear(); this.lastBattleId = snapshot.visibleBattle.id;
@@ -327,7 +335,7 @@ export class Arena {
         smooth.x += (u.x - smooth.x) * .27;
         smooth.y += (u.y - smooth.y) * .27;
         this.visualPositions.set(u.id, smooth);
-        return { ...u, x: smooth.x, y: observedOnTop ? -smooth.y : smooth.y,
+        return { ...u, ownerId: u.playerId, x: smooth.x, y: observedOnTop ? -smooth.y : smooth.y,
           own: u.playerId === this.view.scoutId, required: u.energyNeeded };
       });
       if (this.quadActive) {
@@ -335,7 +343,7 @@ export class Arena {
           const player = snapshot.players.find(p => p.id === id);
           const units = player?.units || snapshot.visibleBattle!.benches[id] || [];
           const enemy = slot === 1 || slot === 2;
-          return benchUnits(units, id === this.view.scoutId, enemy, slot < 2 ? -QUAD_OFFSET : QUAD_OFFSET);
+          return benchUnits(units, id, id === this.view.scoutId, enemy, slot < 2 ? -QUAD_OFFSET : QUAD_OFFSET);
         });
         return [...battleMarkers, ...quadBenches];
       }
@@ -346,7 +354,7 @@ export class Arena {
       const pos = u.position as Extract<UnitPosition, { area: 'board' }>;
       const row = own ? 4 + pos.row : 3 - pos.row;
       const p = gridXY(pos.col, row);
-      return { id: u.id, x: p.x, y: p.y, family: u.family, stage: u.stage,
+      return { id: u.id, sourceId: u.id, ownerId: friendly.id, x: p.x, y: p.y, family: u.family, stage: u.stage,
         level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
@@ -384,7 +392,7 @@ export class Arena {
     // Sombra encostada nos pés; nenhum bob/flutuação artificial.
     ctx.save(); ctx.fillStyle = '#071a0f73'; ctx.filter = 'blur(3px)';
     ctx.beginPath(); ctx.ellipse(p.x, p.y + 1.5, radius * 1.18, Math.max(3, radius * .23), 0, 0, PI2); ctx.fill(); ctx.restore();
-    if (this.view.selectedId === unit.id && this.snapshot?.phase === 'planning') {
+    if ((this.view.selectedId === unit.id || this.view.selectedId === unit.sourceId)) {
       ctx.beginPath(); ctx.ellipse(p.x, p.y + 3, radius * 1.7, radius * .5, 0, 0, PI2);
       ctx.strokeStyle = '#eed18d'; ctx.lineWidth = 3; ctx.stroke();
     }
@@ -415,6 +423,18 @@ export class Arena {
       const t = Math.max(0, Math.min(1, fx.time / fx.duration));
       const from = this.toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = this.toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
+      if (fx.kind === 'trainer-hit') {
+        const flight = Math.min(1, t / .78);
+        // Projétil guiado; descreve um arco que converge para o avatar.
+        const ease = flight * flight * (3 - 2 * flight);
+        const x = from.x + (to.x - from.x) * ease + Math.sin(flight * Math.PI) * 9;
+        const y = from.y + (to.y - from.y) * ease - Math.sin(flight * Math.PI) * 55 - 23;
+        ctx.save(); ctx.shadowColor = SPECIES[fx.family].glow; ctx.shadowBlur = 22;
+        ctx.fillStyle = '#fffce6'; ctx.strokeStyle = SPECIES[fx.family].glow; ctx.lineWidth = 3;
+        ctx.globalAlpha = flight < 1 ? 1 : Math.max(0, 1 - (t - .78) / .22);
+        ctx.beginPath(); ctx.arc(x, y, flight < 1 ? 7 : 10 + (t - .78) * 75, 0, PI2); ctx.fill(); ctx.stroke();
+        ctx.restore(); continue;
+      }
       if (fx.kind === 'damage') {
         // Flutua apenas sobre o Pokémon atingido. O projétil é desenhado separadamente.
         const p = to;
@@ -573,6 +593,81 @@ export class Arena {
     if (foe !== watched && !foe.startsWith('bot:')) this.drawTrainerAvatar(foe, 4.86 + b.x, -3.44 + b.y, time, name(foe));
   }
 
+  private renderPokeball(x: number, y: number, radius: number): void {
+    const ctx = this.context;
+    ctx.save(); ctx.shadowColor = '#fff0cf'; ctx.shadowBlur = 10;
+    ctx.fillStyle = '#f1f3ed'; ctx.beginPath(); ctx.arc(x, y, radius, 0, PI2); ctx.fill();
+    ctx.fillStyle = '#e85e57'; ctx.beginPath(); ctx.arc(x, y, radius, Math.PI, PI2); ctx.fill();
+    ctx.strokeStyle = '#20383f'; ctx.lineWidth = Math.max(1.5, radius * .17);
+    ctx.beginPath(); ctx.moveTo(x - radius, y); ctx.lineTo(x + radius, y); ctx.stroke();
+    ctx.fillStyle = '#f8f4d8'; ctx.beginPath(); ctx.arc(x, y, radius * .23, 0, PI2); ctx.fill();
+    ctx.strokeStyle = '#20383f'; ctx.beginPath(); ctx.arc(x, y, radius * .23, 0, PI2); ctx.stroke();
+    ctx.restore();
+  }
+
+  private drawArrival(battle: NonNullable<GameSnapshot['visibleBattle']>): void {
+    if (battle.introElapsed >= 1.51) return;
+    const flip = battle.participants.length === 2 && battle.playerB === this.view.scoutId;
+    const opponentUnits = battle.units.filter(u => u.playerId !== this.view.scoutId);
+    opponentUnits.forEach((unit, i) => {
+      const slot = battle.participants.indexOf(unit.playerId);
+      const trainer = trainerSpot(slot, battle.participants.length > 2);
+      const from = this.toScreen(trainer.x, flip ? -trainer.y : trainer.y);
+      const to = this.toScreen(unit.x, flip ? -unit.y : unit.y);
+      const start = .12 + (i % 7) * .06 + Math.floor(i / 7) * .13, duration = .65;
+      const progress = (battle.introElapsed - start) / duration;
+      if (progress < 0 || progress >= 1) return;
+      const x = from.x + (to.x - from.x) * progress;
+      const y = from.y - 20 + (to.y - from.y + 20) * progress - Math.sin(progress * Math.PI) * this.cellScale * .8;
+      this.renderPokeball(x, y, Math.max(5, 9 * this.zoom));
+    });
+  }
+
+  private drawUnitVisuals(): void {
+    if (!this.snapshot) return;
+    const ctx = this.context;
+    const watched = this.snapshot.players.find(p => p.id === this.view.scoutId);
+    if (!watched) return;
+    for (const event of this.snapshot.visualEvents) {
+      if (event.ownerId !== this.view.scoutId) continue;
+      const unit = watched.units.find(u => u.id === event.unitId);
+      if (!unit) continue;
+      const world = unit.position.area === 'bench' ? benchXY(unit.position.index) : gridXY(unit.position.col, unit.position.row + 4);
+      const to = this.toScreen(world.x, world.y);
+      const t = event.age;
+      if (event.kind === 'summon') {
+        if (t < .42) {
+          const from = this.toScreen(this.trainer.x, this.trainer.y);
+          const k = Math.min(1, t / .42);
+          this.renderPokeball(from.x + (to.x - from.x) * k,
+            from.y - 17 + (to.y - from.y + 17) * k - Math.sin(k * Math.PI) * this.cellScale * .85, 8);
+        } else if (t < 1.05) {
+          ctx.save(); ctx.strokeStyle = '#eafeee'; ctx.lineWidth = 3; ctx.globalAlpha = (1.05 - t) / .63;
+          ctx.beginPath(); ctx.ellipse(to.x, to.y - 26, (t - .42) * 85, (t - .42) * 60, 0, 0, PI2); ctx.stroke(); ctx.restore();
+        }
+      } else {
+        const f = Math.max(0, 1 - t / 1.45);
+        ctx.save(); ctx.globalAlpha = f;
+        ctx.strokeStyle = '#ffe5a5'; ctx.shadowColor = '#f8d176'; ctx.shadowBlur = 25; ctx.lineWidth = 3 + f * 3;
+        for (let ring = 0; ring < 3; ring++) {
+          const r = this.cellScale * (.28 + ring * .17 + t * .24);
+          ctx.beginPath(); ctx.ellipse(to.x, to.y - 17, r, r * .48, 0, 0, PI2); ctx.stroke();
+        }
+        ctx.fillStyle = '#fff3bd'; ctx.beginPath(); ctx.arc(to.x, to.y - 28, Math.max(0, 35 * Math.sin(Math.min(1, t / 1.35) * Math.PI)), 0, PI2); ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  private drawBattleTrainers(time: number, battle: NonNullable<GameSnapshot['visibleBattle']>): void {
+    const flip = battle.participants.length === 2 && battle.playerB === this.view.scoutId;
+    battle.participants.forEach((id, slot) => {
+      const pos = trainerSpot(slot, battle.participants.length > 2);
+      const label = this.snapshot?.players.find(p => p.id === id)?.name || id.replace('bot:', 'BOT ');
+      this.drawTrainerAvatar(id, pos.x, flip ? -pos.y : pos.y, time, label);
+    });
+  }
+
   private draw(timestamp: number): void {
     const ctx = this.context;
     const dt = Math.min(.05, (timestamp - this.lastFrame) / 1000 || 0);
@@ -591,12 +686,24 @@ export class Arena {
       if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) this.drawBench(true);
     }
     const markers = this.markers();
-    markers.sort((a, b) => a.y - b.y).forEach(marker => this.drawUnit(marker, this.frame));
+    const battle = this.snapshot?.visibleBattle;
+    const intro = this.snapshot?.phase === 'combat' && battle && !battle.resolved && battle.introElapsed < 1.5;
+    markers.filter(marker => {
+      if (intro && !marker.bench && marker.ownerId !== this.view.scoutId) {
+        const enemyIndex = battle!.units.filter(u => u.playerId !== this.view.scoutId).findIndex(u => u.id === marker.id);
+        if (battle!.introElapsed < .77 + (enemyIndex % 7) * .06 + Math.floor(enemyIndex / 7) * .13) return false;
+      }
+      const animation = this.snapshot?.visualEvents.find(e => e.unitId === marker.sourceId && e.ownerId === marker.ownerId);
+      return !(animation?.kind === 'summon' && animation.age < .42);
+    }).sort((a, b) => a.y - b.y).forEach(marker => this.drawUnit(marker, this.frame));
+    this.drawUnitVisuals();
+    if (intro) this.drawArrival(battle!);
     this.drawCoins();
     if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
       this.effects(this.snapshot.visibleBattle.effects, this.snapshot.visibleBattle.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId);
     }
-    if (!this.quadActive) this.drawTrainers(dt, this.frame);
+    if (battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(this.frame, battle);
+    else this.drawTrainers(dt, this.frame);
     requestAnimationFrame(time => this.draw(time));
   }
 }

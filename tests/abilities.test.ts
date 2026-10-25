@@ -19,6 +19,7 @@ function fixture(family: Family, enemies: number, stage = 0, allies = 0) {
   game.players[0].units = [make(family, 'source', 0, stage), ...Array.from({ length: allies }, (_, i) => make('charmander', `ally${i}`, i + 1))];
   game.players[1].units = Array.from({ length: enemies }, (_, i) => make('charmander', `enemy${i}`, i));
   const battle = createBattle(game.players[0], game.players[1], 'abilities');
+  battle.introElapsed = 1.5; // Contorno do ritual de entrada ao testar somente habilidades.
   battle.traitsByPlayer.p0 = {}; // Testes unitários isolam a força da habilidade das sinergias de tipo.
   const attacker = battle.units.find(u => u.sourceId === 'source')!;
   const friends = battle.units.filter(u => u.playerId === 'p0' && u !== attacker);
@@ -75,6 +76,22 @@ test('sinergias não alteram dano, velocidade, cura ou mitigação', () => {
   assert.equal(boosted.attacker.hp, previouslyHit);
 });
 
+test('vantagem elemental altera apenas carregados, inclusive golpes físicos carregados', () => {
+  const { battle, attacker, foes } = fixture('charmander', 1);
+  foes[0].family = 'squirtle';
+  foes[0].stats.def = 0;
+  foes[0].maxHp = foes[0].hp = 10000;
+  attacker.stats.atk = 100;
+  attacker.energy = 0;
+  tickBattle(battle, .05);
+  assert.equal(attacker.metrics.dealt, 8 + 100 * .48, 'ataque básico sem resistência');
+  attacker.attackClock = 0;
+  attacker.energy = attacker.energyNeeded;
+  tickBattle(battle, .05);
+  assert.equal(attacker.metrics.dealt, 8 + 100 * .48 + 100 * 1.5 * .75,
+    'golpe carregado de fogo resistido por água, multiplicador 0,75×');
+});
+
 test('Bulbasaur atinge o maior grupo, cura aliados e mantém Charge → Shoot', () => {
   const { battle, attacker, friends, foes } = fixture('bulbasaur', 3, 0, 1);
   foes[0].x = 1; foes[1].x = 1.5; foes[2].x = 5;
@@ -106,7 +123,7 @@ test('Morteiro de Pólen escala dano e cura por evolução mantendo a mesma mec�
     values.push(4000 - foes[0].hp);
     heals.push(friends[0].hp - 1);
   }
-  assert.deepEqual(values, [103, 123, 153]);
+  assert.deepEqual(values, [77.25, 92.25, 114.75]);
   assert.ok(heals.every((value, i) => Math.abs(value - [52, 67, 87][i]) < 1), `cura inesperada: ${heals}`);
 });
 
@@ -134,10 +151,10 @@ test('Golpe Flamejante escala com Atk (150/155/165%), é físico e ativa Hurt ac
     foes[0].stats.def = 0;
     foes[0].hp = foes[0].maxHp = 1000;
     tickBattle(battle, .05);
-    assert.equal(foes[0].hp, 1000 - 200 * ratio);
+    assert.equal(foes[0].hp, 1000 - 200 * ratio * .75);
     assert.equal(attacker.animation?.name, 'Strike');
     assert.equal(foes[0].animation?.name, 'Hurt');
-    assert.equal(attacker.metrics.physicalDealt, 200 * ratio);
+    assert.equal(attacker.metrics.physicalDealt, 200 * ratio * .75);
     assert.equal(attacker.metrics.specialDealt, 0);
   }
 });

@@ -34,5 +34,5 @@
   "shopOddsByLevel": [[38,33,29,0,0],[36,33,30,1,0],[32,34,31,3,0],[29,31,32,7,1],[26,29,34,10,2],[25,27,31,15,3]],
   "typeShopBias": { "activePoints": 2, "benchPoints": 1, "shareBonusMultiplier": 0.5, "secondaryTypeMultiplier": 0.5, "maxShown": 5 },
   "matchmaking": { "options": 3, "repeatPenalty": 100, "recentRepeatPenalty": 300 },
-  "statFormula": { "ivBase": 0.8, "ivPerPoint": 0.004, "levelPerPoint": 0.04, "evolutionMultipliers": [1,1.45,2.1] }
+  "statFormula": { "ivBase": 0.8, "ivPerPoint": 0.004, "levelPerPoint": 0.03, "evolutionMultipliers": [1,1.45,2.1] }
 }

@@ -1,7 +1,7 @@
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
 import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
-import type { Battle, Family, GameCommand, GameSnapshot, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition } from './types';
+import type { Battle, Family, GameCommand, GameSnapshot, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
 
 class Rng {
   constructor(private seed: number) { this.seed ||= 1; }
@@ -45,6 +45,8 @@ export class GameEngine {
   private round = 1;
   private battles: Battle[] = [];
   private opponentId: string | null = null;
+  private lastOpponentId: string | null = null;
+  private visualEvents: UnitVisualEvent[] = [];
   private schedules: string[][][] = [];
   private encounterCounts = new Map<string, number>();
   private lastOpponents = new Set<string>();
@@ -158,14 +160,16 @@ export class GameEngine {
           const triple = matches.slice(0, 3);
           const anchor = triple.find(u => u.position.area === 'board') || triple[0];
           const iv = Object.fromEntries((Object.keys(anchor.iv) as Array<keyof Stats>).map(stat => [
-            stat, Math.round(triple.reduce((sum, u) => sum + u.iv[stat], 0) / 3)
+            stat, Math.max(...triple.map(u => u.iv[stat]))
           ])) as unknown as Stats;
           player.units = player.units.filter(u => !triple.includes(u));
-          player.units.push({
+          const evolved: Pokemon = {
             id: this.id(), family, stage: stage + 1, iv,
             level: Math.max(...triple.map(u => u.level)),
             xp: Math.max(...triple.map(u => u.xp)), position: { ...anchor.position }
-          });
+          };
+          player.units.push(evolved);
+          this.visualEvents.push({ id: this.id(), unitId: evolved.id, ownerId: player.id, kind: 'evolve', age: 0 });
           if (player.id === 'p0') this.log = `${SPECIES[family].names[stage + 1]} evoluiu!`;
           changed = true;
           break;
@@ -183,9 +187,13 @@ export class GameEngine {
     const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= 2;
     if (free < 0 && !eligibleMerge) return `Banco cheio (${BENCH_SIZE}/${BENCH_SIZE})`;
     player.gold -= offer.price;
-    player.units.push(this.makePokemon(offer.family, { area: 'bench', index: free < 0 ? BENCH_SIZE : free }));
+    const bought = this.makePokemon(offer.family, { area: 'bench', index: free < 0 ? BENCH_SIZE : free });
+    player.units.push(bought);
     player.shop[slot] = null;
     this.merge(player);
+    if (player.units.some(u => u.id === bought.id)) {
+      this.visualEvents.push({ id: this.id(), unitId: bought.id, ownerId: player.id, kind: 'summon', age: 0 });
+    }
     return null;
   }
 
@@ -305,7 +313,7 @@ export class GameEngine {
       alive.forEach((player, i) => this.battles.push(createBattleGroup(
         [player, this.createNPC(player, stage.type as 'bot' | 'boss', legendary)], `r${this.round}:${i}`, stage.type
       )));
-      this.opponentId = 'bot:p0';
+      this.opponentId = 'bot:p0'; this.lastOpponentId = this.opponentId;
       this.log = stage.type === 'boss' ? `CHEFE • ${SPECIES[legendary!].names[0]}` : 'BATALHA PvE • TREINADORES BOT';
       return;
     }
@@ -323,6 +331,7 @@ export class GameEngine {
         this.lastOpponents.add(key);
       }));
     });
+    if (this.opponentId) this.lastOpponentId = this.opponentId;
     this.log = `${stage.name} • ${this.opponentId ? this.players.find(p => p.id === this.opponentId)?.name || '' : ''}`;
   }
 
@@ -415,6 +424,8 @@ export class GameEngine {
   tick(dt: number): void {
     if (this.phase === 'finished') return;
     const step = Math.max(0, Math.min(0.1, dt));
+    for (const animation of this.visualEvents) animation.age += step;
+    this.visualEvents = this.visualEvents.filter(animation => animation.age < 1.7);
     this.clock += step;
     if (this.phase === 'planning' && this.clock >= this.duration) this.startCombat();
     else if (this.phase === 'combat') {
@@ -422,7 +433,7 @@ export class GameEngine {
       for (const battle of this.battles) tickBattle(battle, accelerated ? step * RULES.combatAcceleration : step);
       // Last-resort resolution prevents regeneration stalemates, without truncating normal fights at 30s.
       if (this.clock >= RULES.combatSafetySeconds) this.battles.forEach(forceResolveBattle);
-      if (this.battles.every(b => b.resolved)) this.finishCombat();
+      if (this.battles.every(b => b.resolved && b.outcomeElapsed >= 1.5)) this.finishCombat();
     } else if (this.phase === 'result' && this.clock >= this.duration) this.nextRound();
   }
 
@@ -444,6 +455,8 @@ export class GameEngine {
         shop: p.id === 'p0' ? p.shop.map(offer => offer && { ...offer }) : []
       })),
       opponentId: this.phase === 'planning' ? null : this.opponentId,
+      lastOpponentId: this.lastOpponentId,
+      visualEvents: this.visualEvents.filter(a => a.ownerId === watched || a.ownerId === 'p0').map(a => ({ ...a })),
       possibleOpponents: this.phase === 'planning' ? this.matchupOptions() : {},
       // postMessage performs the one structured clone at the worker boundary.
       visibleBattle: battle,

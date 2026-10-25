@@ -4,19 +4,20 @@ import { calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SPECI
 import { chapterDamage, GameEngine, projectedIncome, streakIncome } from '../server/engine';
 import { normalizedOdds, rollFamily, shopOdds, typeBonus, typeInfluence } from '../server/shop';
 import { createBattle, createBattleGroup, tickBattle } from '../server/systems/combat';
+import { chargedEffectiveness } from '../server/systems/effectiveness';
 import type { Stats } from '../server/types';
 
 const all = (value: number): Stats => ({ hp: value, speed: value, atk: value, def: value, spa: value, spd: value });
 
-test('IV 0 / 50 / 100 e +4% por nível após o nível 1, inclusive chefes', () => {
+test('IV 0 / 50 / 100 e +3% por nível após o nível 1, inclusive chefes', () => {
   const base = SPECIES.bulbasaur.base;
   assert.equal(calculateStats('bulbasaur', 0, all(0), 0).hp, Math.round(base.hp * .8));
   assert.equal(calculateStats('bulbasaur', 0, all(50), 0).atk, base.atk);
   assert.equal(calculateStats('bulbasaur', 0, all(100), 0).spa, Math.round(base.spa * 1.2));
   assert.equal(calculateStats('bulbasaur', 1, all(50), 0).hp, base.hp);
-  assert.equal(calculateStats('bulbasaur', 2, all(50), 0).hp, Math.round(base.hp * 1.04));
-  assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, Math.round(base.hp * 4.96));
-  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 10.96));
+  assert.equal(calculateStats('bulbasaur', 2, all(50), 0).hp, Math.round(base.hp * 1.03));
+  assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, Math.round(base.hp * 3.97));
+  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 8.47));
 });
 
 test('as quatro configurações são reais, chefes são Gen 1/2 e lendários ficam fora da loja', () => {
@@ -89,6 +90,7 @@ test('moedas surgem em KO na etapa 2, só o dono coleta e prêmio +4 para venced
   const victim = battle.units.find(u => u.playerId === 'p1')!;
   attacker.x = victim.x; attacker.y = victim.y;
   attacker.animation = null; // Teste de impacto imediato após a rotação inicial.
+  battle.introElapsed = 1.5;
   attacker.attackClock = 0; victim.attackClock = 100;
   victim.hp = 1;
   tickBattle(battle, .1);
@@ -155,6 +157,43 @@ test('influência dos tipos inclui ativos e banco; tipos duplos recebem bônus s
   assert.equal(typeBonus('bulbasaur', { grass: .3, poison: .5 }), .25 + .075);
 });
 
+test('fraqueza e resistência são reduzidas à metade, tipos duplos combinam sem imunidade', () => {
+  assert.equal(chargedEffectiveness('fire', ['grass']), 1.5);
+  assert.equal(chargedEffectiveness('fire', ['water']), .75);
+  assert.equal(chargedEffectiveness('fire', ['grass', 'ice']), 2.5);
+  assert.equal(chargedEffectiveness('grass', ['fire', 'poison']), .625);
+  assert.equal(chargedEffectiveness('psychic', ['electric']), 1);
+});
+
+test('vitória executa Shoot, dispara projéteis para o treinador e termina em idle', () => {
+  const game = new GameEngine(303);
+  const battle = createBattle(game.players[0], game.players[1], 'finisher');
+  battle.introElapsed = 1.5;
+  battle.units[1].hp = 0;
+  tickBattle(battle, .1);
+  assert.equal(battle.resolved, true);
+  assert.equal(battle.winner, 'p0');
+  tickBattle(battle, .3);
+  tickBattle(battle, .1);
+  assert.equal(battle.units[0].animation?.name, 'Shoot');
+  const shot = battle.effects.find(fx => fx.kind === 'trainer-hit');
+  assert.ok(shot && shot.targetX > 4 && shot.targetY < 0);
+  tickBattle(battle, 1);
+  assert.equal(battle.units[0].animation, null);
+  assert.ok(battle.outcomeElapsed >= 1.4);
+});
+
+test('trava mantém ofertas entre rodadas e clique alterna o estado', () => {
+  const game = new GameEngine(313);
+  const before = game.players[0].shop.map(offer => offer?.id);
+  assert.equal(game.command({ kind: 'lock' }), null);
+  (game as any).nextRound();
+  assert.deepEqual(game.players[0].shop.map(offer => offer?.id), before);
+  assert.equal(game.command({ kind: 'lock' }), null);
+  (game as any).nextRound();
+  assert.notDeepEqual(game.players[0].shop.map(offer => offer?.id), before);
+});
+
 test('milestones de jogador e experiência de cada Pokémon na primeira batalha', () => {
   const game = new GameEngine(91);
   const player = game.players[0];
@@ -201,25 +240,31 @@ test('arena quádrupla distribui equipes em quadrantes exclusivos e dano gera po
   duel.units[0].attackClock = 0;
   duel.units[1].attackClock = 100;
   duel.units[0].range = 100;
+  duel.introElapsed = 1.5;
   tickBattle(duel, .1);
   const popup = duel.effects.find(fx => fx.kind === 'damage');
   assert.ok(popup && popup.targetId === duel.units[1].id);
   assert.ok(Math.abs(popup.x - duel.units[1].x) < .05, 'o popup surge na posição do alvo no momento do dano');
 });
 
-test('três cópias evoluem e os IVs são herdados pela média', () => {
+test('três cópias evoluem herdando o maior IV de cada atributo', () => {
   const game = new GameEngine(42);
   const player = game.players[0];
   const starter = player.units[0];
   starter.iv = all(50);
   player.shop[0] = { id: 'force-a', family: 'bulbasaur', rarity: 1, price: 1 };
   assert.equal(game.command({ kind: 'buy', slot: 0 }), null);
+  const second = player.units.find(u => u.position.area === 'bench')!;
+  second.iv = { hp: 80, speed: 30, atk: 90, def: 5, spa: 25, spd: 70 };
   player.shop[0] = { id: 'force-b', family: 'bulbasaur', rarity: 1, price: 1 };
   assert.equal(game.command({ kind: 'buy', slot: 0 }), null);
   assert.equal(player.units.length, 1);
   assert.equal(player.units[0].stage, 1);
   assert.equal(player.units[0].position.area, 'board');
-  assert.ok(player.units[0].iv.hp >= 0 && player.units[0].iv.hp <= 100);
+  const merged = player.units[0];
+  assert.equal(merged.iv.hp, Math.max(50, 80, merged.iv.hp));
+  assert.ok(merged.iv.atk >= 90 && merged.iv.speed >= 50);
+  assert.ok(game.snapshot().visualEvents.some(event => event.kind === 'evolve' && event.unitId === merged.id));
 });
 
 test('comandos não podem superar limite de campo nem gastar ouro sem saldo', () => {

@@ -52,7 +52,7 @@ Os **quatro JSONs na raiz `config/` são importados pelo motor no build** (não 
 ## Novas regras de nível, loja e tipagem (v4)
 
 - O jogador inicia no nível 1 e sobe automaticamente para **2 na etapa 1-3**, **3 na 1-7**, **4 na 2-2**, **5 na 2-6** e **6 na 3-1**. Para capítulos posteriores permanece no 6 até serem definidos novos marcos. As rodadas absolutas são `[1,3,7,12,16,21]` em `levelMilestones`.
-- Todos os Pokémon começam no nível 1: quem estava em campo ao término do combate recebe **+2 níveis**, quem estava no banco recebe **+1 nível** (respeitando `maxPokemonLevel`). Cada nível *acima do primeiro* acrescenta **4%** aos status, preservando os fatores independentes de IV e evolução.
+- Todos os Pokémon começam no nível 1: quem estava em campo ao término do combate recebe **+2 níveis**, quem estava no banco recebe **+1 nível** (respeitando `maxPokemonLevel`). Cada nível *acima do primeiro* acrescenta **3%** aos status, preservando os fatores independentes de IV e evolução.
 - Probabilidades da loja por nível (comum / incomum / raro / épico / lendário): `38/33/29/0/0`, `36/33/30/1/0`, `32/34/31/3/0`, `29/31/32/7/1`, `26/29/34/10/2`, `25/27/31/15/3`. Os valores fornecidos nos níveis 5 e 6 totalizam **101** devido a arredondamento; os percentuais exibidos reproduzem a configuração, e o sorteio usa esses números como pesos **normalizados**. O nível 6 vale para níveis posteriores até existir outra tabela.
 - A raridade é sorteada primeiro e o tipo altera os **pesos relativos das espécies dentro da raridade**, sem alterar o preço/raridade. Como ainda não há espécies épicas na loja e os 11 lendários são chefes PvE, pesos de raridades indisponíveis são redistribuídos proporcionalmente entre as raridades com espécies lançadas. Quando você cadastrar um novo Pokémon com `shop:true`, a raridade começa a funcionar automaticamente.
 - Influência de tipagem: cada tipo de um Pokémon **ativo vale 2 pontos** e cada tipo do **banco vale 1**. A barra apresenta as cinco maiores participações. O bônus individual do tipo é `participação × 0,5`; Pokémon de dois tipos usam **maior bônus + metade do bônus menor**. Assim, uma influência de 50% Água (+25%) e 30% Planta (+15%) rende **+32,5%** de peso relativo para um Pokémon Água/Planta. Esses multiplicadores estão em `typeShopBias`.
@@ -96,13 +96,25 @@ Na rodada de ouro, cada nocaute cria uma moeda **na posição onde o Pokémon ca
 
 ## Interface e controles
 
-- A arena é gramada e **as casas hexagonais aparecem somente enquanto você segura um Pokémon** para posicioná-lo. Há um banco físico de pedra de 10 posições no campo; durante duelos também aparece o banco adversário na parte superior.
+- A arena é gramada e **as casas hexagonais aparecem somente enquanto você segura um Pokémon** para posicioná-lo. Há um banco físico gramado de 10 posições no campo; durante duelos também aparece o banco adversário na parte superior.
 - O painel flutuante superior tem dez pontos por capítulo: **azul = vitória, vermelho = derrota, amarelo = etapa atual, cinza = colocação neutra ou etapa futura**. Ele também exibe etapa (`4-3`), modo, fase, segundos restantes e uma barra de tempo na parte inferior.
 - Arraste Pokémon para reposicionar entre campo e banco. Soltar sobre a loja vende; dois cliques num Pokémon no banco tentam colocá-lo em campo. Compras, venda, reroll e rearranjo do banco são permitidos durante combate (sem mover Pokémon já em campo).
 - Clique direito move seu treinador; scroll aplica zoom. Tecla `D` roleta loja; `E` vende o selecionado; `Esc` volta a observar seu campo.
 - A aba **COMBATE** permite comparar vida restante, dano físico/especial, dano mitigado pela defesa e cura por Pokémon. Os números de dano sobem acima do Pokémon atingido: **laranja para físico, azul para especial**, com tamanho proporcional ao dano. A **CLASSIFICAÇÃO** permite assistir aos combates das CPUs e marca possíveis adversários somente com o ícone ⚔.
 - Durante combates quádruplos, **duas arenas 7×8 lado a lado** formam um campo retangular 14×8, com duas equipes em cada arena (uma metade superior, uma inferior). Confrontos com três participantes também usam este espaço estendido. Os confrontos 1×1 mantêm uma arena 7×8.
 - Passe o mouse ou dê foco por teclado à **RENDA** para consultar base, juros, streak, bônus de vitória e o total previsto.
+
+## Atualização v7 — combate, loja e evolução
+
+- Ao começar um confronto, o treinador adversário lança Pokébolas para as posições da equipe; o combate espera a entrada terminar. Em quádruplas, cada lado usa seu próprio treinador. A compra lança uma Pokébola na posição do novo Pokémon; a fusão em três cópias produz um círculo luminoso de evolução.
+- Ao resolver um duelo, os Pokémon que sobreviveram ficam de frente para a câmera. Os do vencedor usam **Shoot** e disparam projéteis guiados na direção do(s) treinador(es) derrotado(s). Depois voltam a **Idle**. O jogo aguarda a finalização visual de todos os duelos da rodada, sem continuar causando dano nessa animação.
+- A trava da loja continua impedindo a rolagem automática, agora por meio da **aba estreita no lado direito**. Retratos PMD ocupam os cartões inteiros, com nome, tipos e custo na faixa inferior e borda da raridade. Nível, ouro e renda ficam empilhados acima do botão **ROLETAR**.
+- O painel de tipos mostra somente tipos distintos efetivamente presentes no campo **do jogador que está sendo observado**. Nenhuma sinergia concede bônus estatístico ou de combate.
+- O botão **⇄** dentro de COMBATE alterna suas métricas e as do adversário, usando o oponente atual ou o último conhecido. Ao clicar em qualquer Pokémon no campo, inclusive inimigos e chefes, aparecem seus status, **IV total** (soma dos seis IVs, de 0 a 600) e **poder total** (soma dos seis atributos calculados). Os painéis foram ampliados para acomodar sete Pokémon e têm rolagem quando necessário.
+- Fusões em três copias agora escolhem **o maior IV de cada atributo** entre as três unidades usadas. Uma fusão de três Pokémon poderá formar um perfil híbrido de IVs; não usa mais a média.
+- Ataques **carregados apenas** consultam `server/systems/effectiveness.ts`: vantagem padrão 2× vira **1,5×**, resistência 0,5× vira **0,75×**, e dois tipos são combinados antes de reduzir o impacto pela metade. Não existem imunidades. Golpes carregados físicos, atingimentos secundários e danos contínuos de habilidades também seguem a regra. Ataques básicos continuam neutros.
+
+O ZIP segue **sem sprites, portraits, ícones ou outros assets binários**, porque esses recursos já existem em `public/` no repositório original. Preserve essas pastas ao aplicar o `src/` e as demais alterações.
 
 ## Executar e publicar
 

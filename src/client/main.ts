@@ -29,7 +29,8 @@ worker.addEventListener('message', (event: MessageEvent<ServerToClient>) => {
   if (event.data.type === 'rejected') return hud.toast(event.data.reason);
   state = event.data.snapshot;
   arena.snapshot = state;
-  if (view.selectedId && !state.players[0].units.some(u => u.id === view.selectedId)) view.selectedId = null;
+  if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
+    && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
   const now = performance.now();
   if (now - lastHudRender > 95 || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold) {
     hud.render(state, view);
@@ -129,7 +130,11 @@ canvas.addEventListener('pointerdown', event => {
   if (coin) { send({ kind: 'collect', dropId: coin }); return; }
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
   if (id) startDrag(id, event);
-  else if (state) { view.selectedId = null; hud.render(state, view); }
+  else if (state) {
+    const target = arena.pickUnit(event.clientX, event.clientY);
+    view.selectedId = target ? target.ownerId === 'p0' ? target.sourceId : target.id : null;
+    hud.render(state, view);
+  }
 });
 document.addEventListener('pointermove', event => {
   if (view.dragId) {

@@ -1,5 +1,6 @@
 import { ATTACKS, RULES, calculateStats, gridXY, SPECIES } from '../data';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType } from '../types';
+import { chargedEffectiveness } from './effectiveness';
 
 const metrics = (): CombatMetrics => ({ dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0 });
 const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -33,7 +34,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
   const maxHp = Math.round(stats.hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
   return {
     id: `${owner.id}:${pokemon.id}`, sourceId: pokemon.id, playerId: owner.id,
-    family: pokemon.family, stage: pokemon.stage, level: pokemon.level,
+    family: pokemon.family, stage: pokemon.stage, level: pokemon.level, iv: { ...pokemon.iv },
     col, row, x, y, hp: maxHp, maxHp, energy: 0,
     energyNeeded: species.energy, range: species.range,
     stats, cooldown: Math.max(RULES.minAttackCooldown, RULES.attackCooldownBase - stats.speed / RULES.attackCooldownSpeedDivisor),
@@ -66,7 +67,7 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     playerA: players[0].id, playerB: players[1].id,
     participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
     units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi))),
-    effects: [], elapsed: 0, resolved: false, winner: null, loser: null,
+    effects: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
     benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
     traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)]))
   };
@@ -102,12 +103,13 @@ function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage
   }
 }
 
-function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, magical: boolean): number {
+function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, magical: boolean, charged = false): number {
   if (target.hp <= 0) return 0;
   const shield = magical ? target.stats.spd : target.stats.def;
   const mitigation = 100 / (100 + shield * 0.8);
   // Sinergias elementais são SOMENTE contagem visual: nenhum bônus de combate.
-  const damage = Math.max(.001, raw * mitigation * (1 - target.spinReduction));
+  const typeFactor = charged ? chargedEffectiveness(SPECIES[source.family].elements[0], SPECIES[target.family].elements) : 1;
+  const damage = Math.max(.001, raw * mitigation * (1 - target.spinReduction) * typeFactor);
   source.metrics.dealt += damage;
   if (magical) source.metrics.specialDealt += damage;
   else source.metrics.physicalDealt += damage;
@@ -161,25 +163,25 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit): void {
   }
   if (move.effect === 'flame-strike') {
     animate(source, 'Strike', .46);
-    deal(battle, source, target, a * stageValue(move.damageRatioByStage, source.stage, 1.5), false);
+    deal(battle, source, target, a * stageValue(move.damageRatioByStage, source.stage, 1.5), false, true);
     effect(battle, source, target, 'flame', 0);
     return;
   }
   if (move.effect === 'shock') {
     animate(source, 'Attack', .42);
-    deal(battle, source, target, s * stageValue(move.damageRatioByStage, source.stage, 1.2), true);
+    deal(battle, source, target, s * stageValue(move.damageRatioByStage, source.stage, 1.2), true, true);
     effect(battle, source, target, 'lightning', 0);
     const count = stageValue(move.secondaryTargetsByStage, source.stage, 1);
     const other = battle.units.filter(u => u.playerId !== source.playerId && u.id !== target.id && u.hp > 0 && distance(u, target) <= (move.chainRange || 2))
       .sort((u, v) => distance(u, target) - distance(v, target));
     for (const chained of other.slice(0, count)) {
-      deal(battle, source, chained, s * stageValue(move.secondaryRatioByStage, source.stage, .6), true);
+      deal(battle, source, chained, s * stageValue(move.secondaryRatioByStage, source.stage, .6), true, true);
       effect(battle, target, chained, 'lightning', 0);
     }
     return;
   }
   animate(source, 'Attack', .38);
-  deal(battle, source, target, move.baseDamage + a * (move.attackRatio || 0) + s * move.specialRatio, true);
+  deal(battle, source, target, move.baseDamage + a * (move.attackRatio || 0) + s * move.specialRatio, true, true);
   if (move.effect === 'drain') {
     const gain = heal(source, (move.healBase || 0) + s * (move.healRatio || 0));
     effect(battle, source, source, 'heal', gain);
@@ -196,7 +198,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit): void {
       if (d < nearest) { chained = u; nearest = d; }
     }
     if (chained && distance(chained, target) < (move.chainRange || 2.6)) {
-      deal(battle, source, chained, (move.chainBase || 0) + s * (move.chainRatio || 0), true);
+      deal(battle, source, chained, (move.chainBase || 0) + s * (move.chainRatio || 0), true, true);
       effect(battle, source, chained, 'spell', 0);
     }
   }
@@ -215,7 +217,7 @@ function pollenTick(battle: Battle, source: CombatUnit, dt: number): void {
   }
   if (pending.remaining > 0) return;
   for (const enemy of battle.units.filter(u => u.playerId !== source.playerId && u.hp > 0 && distance(u, center) <= (move.splashRange || 1.65))) {
-    deal(battle, source, enemy, stageValue(move.damageByStage, source.stage) + source.stats.spa * move.specialRatio, true);
+    deal(battle, source, enemy, stageValue(move.damageByStage, source.stage) + source.stats.spa * move.specialRatio, true, true);
   }
   for (const ally of battle.units.filter(u => u.playerId === source.playerId && u.hp > 0)) {
     const gained = heal(ally, stageValue(move.healByStage, source.stage) + source.stats.spa * (move.healRatio || 0));
@@ -230,7 +232,7 @@ function spinTick(battle: Battle, source: CombatUnit, dt: number): void {
   const dps = stageValue(move.damageByStage, source.stage) + source.stats.spa * move.specialRatio;
   for (const enemy of battle.units) {
     if (enemy.playerId === source.playerId || enemy.hp <= 0 || distance(source, enemy) > (move.splashRange || 1.7)) continue;
-    deal(battle, source, enemy, dps * duration, true);
+    deal(battle, source, enemy, dps * duration, true, true);
   }
   source.waterFxClock -= duration;
   if (source.waterFxClock <= 0) {
@@ -259,11 +261,54 @@ function resolve(battle: Battle): void {
   battle.resolved = true;
   battle.winner = battle.rankings[0] || null;
   battle.loser = battle.rankings[battle.rankings.length - 1] || null;
+  for (const unit of battle.units) {
+    if (unit.hp <= 0) continue;
+    unit.moving = false;
+    unit.spinTime = 0;
+    unit.pendingPollen = null;
+    unit.animation = null;
+    unit.facingX = 0; unit.facingY = 1;
+  }
+}
+
+/** Posições compartilhadas com os avatares do canvas. */
+export function trainerSpot(slot: number, quad: boolean): { x: number; y: number } {
+  if (!quad) return slot === 0 ? { x: -4.78, y: 3.52 } : { x: 4.82, y: -3.52 };
+  return [
+    { x: -9.12, y: 3.53 }, { x: -9.12, y: -3.53 },
+    { x: 9.12, y: -3.53 }, { x: 9.12, y: 3.53 }
+  ][slot] || { x: 0, y: 0 };
+}
+
+function tickOutcome(battle: Battle, dt: number): void {
+  const before = battle.outcomeElapsed;
+  battle.outcomeElapsed += dt;
+  for (let i = battle.effects.length - 1; i >= 0; i--) {
+    battle.effects[i].time += dt;
+    if (battle.effects[i].time >= battle.effects[i].duration) battle.effects.splice(i, 1);
+  }
+  for (const u of battle.units) if (u.hp > 0) advanceAnimation(u, dt);
+  // Apenas sobreviventes do vencedor atacam os treinadores derrotados.
+  if (before < .35 && battle.outcomeElapsed >= .35) {
+    const targets = battle.participants.filter(id => id !== battle.winner);
+    for (const unit of battle.units.filter(u => u.hp > 0 && u.playerId === battle.winner)) {
+      animate(unit, 'Shoot', .45);
+      const id = targets[unit.col % targets.length];
+      if (!id) continue;
+      const target = trainerSpot(battle.participants.indexOf(id), battle.participants.length > 2);
+      battle.effects.push({ id: `${battle.id}:trainer:${unit.id}`, x: unit.x, y: unit.y,
+        targetX: target.x, targetY: target.y, family: unit.family,
+        kind: 'trainer-hit', time: 0, duration: 1.03, value: 0 });
+    }
+  }
 }
 
 export function tickBattle(battle: Battle, dt: number): void {
-  if (battle.resolved) return;
+  if (battle.resolved) { tickOutcome(battle, dt); return; }
   battle.elapsed += dt;
+  battle.introElapsed += dt;
+  // O treinador lança as Pokébolas antes de começar a luta.
+  if (battle.introElapsed < 1.5) return;
   for (let i = battle.effects.length - 1; i >= 0; i--) {
     battle.effects[i].time += dt;
     if (battle.effects[i].time >= battle.effects[i].duration) battle.effects.splice(i, 1);
@@ -275,11 +320,12 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.flash = Math.max(0, unit.flash - dt);
     unit.slow = Math.max(0, unit.slow - dt);
     if (unit.damageOverTime) {
-      const applied = Math.min(unit.hp, unit.damageOverTime.amount * dt);
+      const source = battle.units.find(other => other.id === unit.damageOverTime?.sourceId);
+      const typeFactor = source ? chargedEffectiveness(SPECIES[source.family].elements[0], SPECIES[unit.family].elements) : 1;
+      const applied = Math.min(unit.hp, unit.damageOverTime.amount * dt * typeFactor);
       unit.hp -= applied;
       unit.metrics.taken += applied;
       floatingDamage(battle, unit, applied, 'special');
-      const source = battle.units.find(other => other.id === unit.damageOverTime?.sourceId);
       if (source) {
         source.metrics.dealt += applied; source.metrics.specialDealt += applied;
         if (unit.hp <= 0) knockout(battle, source, unit, applied);

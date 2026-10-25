@@ -32,7 +32,7 @@ import '../styles/global.css';
       <aside class="right-panel glass" aria-label="Classificação e dados de combate">
         <div class="right-panel-tabs"><button id="tabRank" class="right-tab active" data-panel="rank">CLASSIFICAÇÃO</button><button id="tabCombat" class="right-tab" data-panel="combat">COMBATE</button></div>
         <section id="rankPanel"><div class="panel-subtitle"><span>JOGADORES</span><span>VIDA</span></div><div id="rankRows" class="rank-rows"></div></section>
-        <section id="combatPanel" class="combat-panel hidden"><div id="combatRows" class="combat-rows"></div><div class="combat-bottom-tabs"><button data-metric="status" class="metric-tab active" title="Vida restante">STATUS</button><button data-metric="damage" class="metric-tab" title="Dano físico e especial causado">DANO</button><button data-metric="defense" class="metric-tab" title="Dano defendido">DEFESA</button><button data-metric="heal" class="metric-tab" title="Cura realizada">CURA</button></div></section>
+        <section id="combatPanel" class="combat-panel hidden"><div class="combat-perspective"><button id="combatSideButton" title="Alternar entre sua equipe e a do adversário">⇄</button><span id="combatSideLabel">SEU TIME</span></div><div id="combatRows" class="combat-rows"></div><div class="combat-bottom-tabs"><button data-metric="status" class="metric-tab active" title="Vida restante">STATUS</button><button data-metric="damage" class="metric-tab" title="Dano físico e especial causado">DANO</button><button data-metric="defense" class="metric-tab" title="Dano defendido">DEFESA</button><button data-metric="heal" class="metric-tab" title="Cura realizada">CURA</button></div></section>
         <div id="scoutBadge" class="scout-badge hidden"><span id="scoutName"></span><button id="returnBoard">VOLTAR ↲</button></div>
       </aside>
 
@@ -41,13 +41,15 @@ import '../styles/global.css';
 
       <footer class="bottom-hud glass">
         <div class="bottom-header">
-          <div class="economy"><div class="coin-icon">◈</div><strong id="goldCount">9</strong><span class="economy-label">OURO</span><span class="economy-divider"></span><div class="income-tip" tabindex="0" aria-label="Detalhes da renda"><span class="economy-small">RENDA <b id="incomeCount">+5</b> <span aria-hidden="true">ⓘ</span></span><div id="incomeBreakdown" class="income-breakdown" role="tooltip"></div></div></div>
           <div class="shop-meta"><div class="shop-chances" id="shopChances" aria-label="Probabilidades por raridade"></div><div id="typeInfluence" class="type-influence" aria-label="Influência dos tipos nos sorteios da loja"></div></div>
-          <div class="team-cap"><span class="level-pill">NÍVEL <b id="levelNumber">1</b></span></div>
         </div>
         <div class="shop-row">
-          <div class="shop-actions"><button id="rerollButton" class="reroll-btn" title="Atualizar loja por 2 de ouro"><span class="reroll-icon">⟳</span><b>ROLETAR</b><small>◈ 2</small></button><button id="lockButton" class="lock-btn" title="Travar loja">◇ <span>TRAVAR</span></button></div>
+          <div class="shop-actions">
+            <div class="shop-ledger"><div class="level-inline">NÍVEL <b id="levelNumber">1</b></div><div class="gold-inline"><i>◈</i><b id="goldCount">9</b><span>OURO</span></div><div class="income-tip" tabindex="0" aria-label="Detalhes da renda"><span class="economy-small">RENDA <b id="incomeCount">+5</b> ⓘ</span><div id="incomeBreakdown" class="income-breakdown" role="tooltip"></div></div></div>
+            <button id="rerollButton" class="reroll-btn" title="Atualizar loja por 2 de ouro"><span class="reroll-icon">⟳</span><b>ROLETAR</b><small>◈ 2</small></button>
+          </div>
           <div id="shopCards" class="shop-cards" aria-label="Loja de seis Pokémon"></div>
+          <button id="lockButton" class="lock-btn" aria-label="Travar loja" title="Travar loja">◇</button>
           <div id="sellOverlay" class="sell-overlay hidden">SOLTE PARA VENDER <span>◈</span></div>
         </div>
       </footer>

@@ -90,3 +90,43 @@
 .match-icon{background:none;border:none;font-size:18px;padding:0 3px;color:#f1d7a0;text-shadow:0 0 7px #e6c47688}
 @media(max-width:1330px){.rarity-chance span{display:none}.rarity-chance{padding:4px}.shop-meta{gap:6px}.economy{min-width:165px}}
 @media(max-width:980px){.bottom-hud{height:191px}.bottom-header{gap:5px}.type-influence{min-width:75px;flex-basis:95px}.influence-caption{display:none}.influence-segment span{display:none}.rarity-chance{padding:2px}.shop-portrait{height:43px}.shop-portrait .pokemon-portrait{width:39px;height:39px}.shop-name{font-size:12px}.shop-type .type-icon{height:16px;width:16px}}
+
+/* V7 · Loja em retratos, gaveta de trava e painel de equipes com até 7 unidades. */
+.right-panel{width:314px;min-height:410px;max-height:calc(100% - 290px)}
+.rank-row{height:42px}.rank-rows{padding:5px 9px 10px}
+.combat-panel{min-height:338px}.combat-perspective{height:33px;display:flex;align-items:center;gap:8px;padding:3px 10px;background:#172b31;border-bottom:1px solid #355154}
+.combat-perspective button{width:27px;height:25px;background:#31484a;border:1px solid #658882;border-radius:5px;font-size:20px;line-height:18px;color:#e9d4a7}
+.combat-perspective button:disabled{opacity:.3;cursor:default}.combat-perspective button.active{border-color:#e6c785;background:#5e5237}
+.combat-perspective span{font:800 11px 'Barlow Condensed';color:#c9dcd0;letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.combat-rows{padding:6px 10px;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#698f83 #15262c}
+.combat-entry{margin-bottom:5px}.combat-line{min-height:30px;margin-bottom:1px}.combat-mini-shape{width:28px;height:28px}.combat-mini-shape .pokemon-portrait{width:28px;height:28px}.combat-track{height:4px}.combat-name{font-size:12px}
+.traits-empty{padding:11px 5px;color:#779d91;font:600 12px 'Barlow Condensed'}
+.unit-inspector{width:274px;bottom:232px}.inspector-totals{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.inspector-totals span{background:#24403b;border:1px solid #537f6a;border-radius:4px;padding:7px 5px;color:#9fcebb;font:700 10px 'Barlow Condensed';text-align:center;letter-spacing:.4px}
+.inspector-totals b{display:block;font:800 19px 'Barlow Condensed';color:#f1d39a;margin-top:3px}
+.bottom-hud{height:214px;left:max(177px,calc((100% - 1190px)/2));right:max(326px,calc((100% - 1190px)/2));padding:9px 13px 12px}
+.bottom-header{height:36px;padding-left:111px;padding-right:27px}.shop-meta{gap:9px}.shop-chances{gap:5px}.rarity-chance{padding:5px 6px}
+.type-influence{min-width:155px;flex:1 1 185px}.influence-track{height:27px}.influence-caption{display:inline;font-size:9px}
+.shop-row{margin-top:7px;padding-right:27px;gap:9px;min-height:0}
+.shop-actions{width:102px;flex:none;gap:6px}
+.shop-ledger{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:3px;background:#11272bbd;border:1px solid #405d5b;border-radius:5px;padding:5px 8px;min-height:83px}
+.level-inline{font:800 10px 'Barlow Condensed';letter-spacing:1px;color:#a8cbba}.level-inline b{font-size:17px;color:#f0dea7;margin-left:6px}
+.gold-inline{display:flex;align-items:center;gap:5px;height:22px}.gold-inline i{color:#e6c67b;font-size:18px;font-style:normal}.gold-inline b{font:800 24px 'Barlow Condensed';color:#f6d38e}.gold-inline span{font:800 9px Inter;color:#b8ae8e}
+.shop-ledger .income-tip{border:0}.shop-ledger .economy-small{font:800 11px 'Barlow Condensed';letter-spacing:.5px;color:#abcbc2}.shop-ledger .economy-small b{color:#a1e1b9}
+.shop-ledger .income-breakdown{bottom:calc(100% + 4px);left:0}
+.reroll-btn{flex:1;min-height:34px;flex-direction:row;gap:5px;border-radius:5px}.reroll-icon{font-size:21px}.reroll-btn b{font-size:13px}.reroll-btn small{font-size:10px}
+.lock-btn{position:absolute;right:-9px;top:0;width:27px;height:55px;border-radius:0 7px 7px 0;background:linear-gradient(160deg,#344a4b,#1b3035);border:1px solid #65837d;border-left:0;box-shadow:3px 3px 9px #0006;z-index:3;font-size:20px}
+.lock-btn.locked{background:#755f35;color:#ffe7a3;border-color:#e1ba67}
+.shop-cards{gap:6px}.shop-card{padding:0;gap:0;border-width:2px;border-bottom-width:3px;background:#142529}
+.shop-card:before{width:100%;height:95%;top:0;border-radius:0;transform:none;left:0;filter:blur(30px);opacity:.16}
+.shop-portrait{flex:1;min-height:0;height:auto;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,color-mix(in srgb,var(--rarity),transparent 82%),transparent 80%)}
+.shop-portrait .pokemon-portrait{width:100%;height:100%;max-width:100%;max-height:100%;padding:3px 6px;object-fit:contain;filter:drop-shadow(0 8px 8px #0008)}
+.shop-card-footer{flex:none;position:relative;background:linear-gradient(180deg,#142327eb,#08171cea);border-top:1px solid color-mix(in srgb,var(--rarity),transparent 45%);padding:5px 5px 4px}
+.shop-name{font-size:15px;line-height:18px;margin:0;text-align:left;font-weight:800}
+.shop-footer-bottom{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:4px}
+.shop-type{justify-content:flex-start;gap:3px;margin:0;min-height:19px}.shop-type .type-icon{width:19px;height:19px}
+.shop-card .shop-cost{font:800 17px 'Barlow Condensed';color:#f6d997;margin:0;padding:0;white-space:nowrap}
+.shop-row.drag-selling .lock-btn{visibility:hidden}
+@media(max-width:1300px){.right-panel{width:273px}.bottom-hud{left:163px;right:287px}.bottom-header{padding-left:98px}.shop-actions{width:91px}.rarity-chance{padding:4px}.rarity-chance span{display:none}.influence-caption{display:none}}
+@media(max-width:980px){.right-panel{width:220px;max-height:calc(100% - 346px);min-height:275px}.bottom-hud{height:204px;left:8px;right:8px}.shop-actions{width:85px}.bottom-header{padding-left:92px}.shop-ledger{padding:3px 5px}.shop-card-footer{padding:3px}.shop-name{font-size:12px}.shop-cost{font-size:14px}.shop-type .type-icon{width:15px;height:15px}.unit-inspector{bottom:219px}}
+@media(max-height:740px){.right-panel{min-height:300px;max-height:calc(100% - 255px)}.bottom-hud{height:185px}.shop-ledger{min-height:70px}.unit-inspector{bottom:196px}.rank-row{height:36px}.combat-entry{margin-bottom:3px}}

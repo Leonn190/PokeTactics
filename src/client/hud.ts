@@ -1,6 +1,6 @@
 import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES } from '../../server/data';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
-import type { Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
+import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
 import type { ClientView } from './arena';
 
 const element = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -24,6 +24,7 @@ export class Hud {
   private lastTimeline = '';
   private panel: 'rank' | 'combat' = 'rank';
   private metric: 'status' | 'damage' | 'defense' | 'heal' = 'status';
+  private showOpponent = false;
   private toastTimer = 0;
 
   constructor() {
@@ -37,6 +38,10 @@ export class Hud {
       this.lastCombat = '';
       document.querySelectorAll('[data-metric]').forEach(tab => tab.classList.toggle('active', tab === button));
     }));
+    element<HTMLButtonElement>('combatSideButton').addEventListener('click', () => {
+      this.showOpponent = !this.showOpponent;
+      this.lastCombat = '';
+    });
     this.setPanel();
   }
 
@@ -83,7 +88,9 @@ export class Hud {
     }).join('') : '<span class="influence-empty">Sem tipos</span>'}</div>`;
     element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || player.gold < RULES.rerollCost || player.eliminated);
     element('lockButton').classList.toggle('locked', player.locked);
-    element('lockButton').innerHTML = player.locked ? '▣ <span>TRAVADA</span>' : '◇ <span>TRAVAR</span>';
+    element('lockButton').innerHTML = player.locked ? '▣' : '◇';
+    element('lockButton').setAttribute('aria-label', player.locked ? 'Destravar loja' : 'Travar loja');
+    element('lockButton').setAttribute('title', player.locked ? 'Destravar loja' : 'Travar loja');
 
     const timeline = Array.from({ length: PHASES.stagesPerChapter }, (_, i) => {
         const stage = i + 1;
@@ -100,24 +107,25 @@ export class Hud {
       const data = SPECIES[offer.family];
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
       return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, typeInfluence(player).shares)).toFixed(1)}%">
-          <div class="shop-portrait">${portrait(offer.family, 44)}</div><div class="shop-name">${data.names[0]}</div>
-          <div class="shop-type">${data.elements.map(type => typeIcon(type, 19)).join('')}</div>
-          <div class="shop-cost"><i>◈</i> ${offer.price}</div></button>`;
+          <div class="shop-portrait">${portrait(offer.family, 100)}</div><div class="shop-card-footer"><div class="shop-name">${data.names[0]}</div>
+          <div class="shop-footer-bottom"><div class="shop-type">${data.elements.map(type => typeIcon(type, 19)).join('')}</div>
+          <div class="shop-cost"><i>◈</i> ${offer.price}</div></div></div></button>`;
     }).join('');
     if (shopHtml !== this.lastShop) { element('shopCards').innerHTML = shopHtml; this.lastShop = shopHtml; }
 
+    const watched = snapshot.players.find(p => p.id === view.scoutId) || player;
     const counts: Partial<Record<Element, number>> = {};
     const unique = new Set<string>();
-    fielded.forEach(u => {
+    watched.units.filter(u => u.position.area === 'board').forEach(u => {
       const key = `${u.family}:${u.stage}`;
       if (unique.has(key)) return;
       unique.add(key);
       SPECIES[u.family].elements.forEach(type => counts[type] = (counts[type] || 0) + 1);
     });
-    const traitsHtml = (Object.keys(ELEMENTS) as Element[]).map(type => {
+    const traitsHtml = (Object.keys(ELEMENTS) as Element[]).filter(type => !!counts[type]).map(type => {
       const trait = ELEMENTS[type], count = counts[type] || 0;
       return `<div class="trait-row ${count ? 'active' : ''}" title="${trait.name}: ${count} Pokémon diferentes em campo; sem bônus de sinergia">${typeIcon(type, 24)}<span class="trait-name">${trait.name}</span><span class="trait-count">${count}</span></div>`;
-    }).join('');
+    }).join('') || '<div class="traits-empty">Nenhum tipo em campo</div>';
     if (this.lastTraits !== traitsHtml) { element('traitRows').innerHTML = traitsHtml; this.lastTraits = traitsHtml; }
 
     const ranked = [...snapshot.players].sort((a, b) => Number(a.eliminated) - Number(b.eliminated) || b.health - a.health || a.name.localeCompare(b.name));
@@ -130,18 +138,28 @@ export class Hud {
     }).join('');
     if (this.lastRank !== ranks) { element('rankRows').innerHTML = ranks; this.lastRank = ranks; }
 
-    const statsForView = snapshot.observedId === view.scoutId ? snapshot.combatStats[view.scoutId] || {} : {};
-    const owner = snapshot.players.find(p => p.id === view.scoutId) || player;
+    const battle = snapshot.observedId === view.scoutId ? snapshot.visibleBattle : null;
+    const opponentId = battle?.participants.find(id => id !== view.scoutId)
+      || (view.scoutId === 'p0' ? snapshot.opponentId || snapshot.lastOpponentId : null);
+    const displayId = this.showOpponent && opponentId ? opponentId : view.scoutId;
+    const statsForView = snapshot.combatStats[displayId] || {};
+    const owner = snapshot.players.find(p => p.id === displayId);
     const battleUnits = snapshot.observedId === view.scoutId ? snapshot.visibleBattle?.units || [] : [];
-    const entries = owner.units.filter(u => u.position.area === 'board').map(unit => {
+    const combatRoster = battleUnits.filter(u => u.playerId === displayId);
+    const roster = owner?.units.filter(u => u.position.area === 'board') || combatRoster.map(u => this.fromCombat(u));
+    const entries = roster.map(unit => {
       const metrics = statsForView[unit.id];
-      const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === owner.id);
+      const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === displayId);
       const maxHp = combatant?.maxHp || Math.round(calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
       const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
       const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
       const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : this.metric === 'defense' ? (metrics?.blocked || 0) : (metrics?.healed || 0);
       return { unit, value, hp, maxHp, phys, special };
     }).sort((a, b) => b.value - a.value);
+    element('combatSideButton').toggleAttribute('disabled', !opponentId);
+    element('combatSideLabel').textContent = this.showOpponent && opponentId
+      ? `ADVERSÁRIO · ${safe(owner?.name || opponentId.replace('bot:', 'BOT '))}` : `EQUIPE · ${safe(watched.name)}`;
+    element('combatSideButton').classList.toggle('active', this.showOpponent && !!opponentId);
     const max = Math.max(1, ...entries.map(e => e.value));
     const combatHtml = entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special }) => {
       const isDamage = this.metric === 'damage', isStatus = this.metric === 'status';
@@ -164,9 +182,13 @@ export class Hud {
       element('battleStatus').textContent = scout ? `ARENA DE ${scout.name}` : `PREPARE SUA FORMAÇÃO • ${snapshot.stageName.toUpperCase()}`;
     } else element('battleStatus').textContent = pendingCoins && !scout ? `CLIQUE NAS MOEDAS • ${pendingCoins} PARA COLETAR` : scout ? `ASSISTINDO ${scout.name}` : snapshot.accelerated ? `COMBATE ACELERADO ${RULES.combatAcceleration}×` : snapshot.log || phaseLabels[snapshot.phase];
 
-    const inspected = player.units.find(u => u.id === view.selectedId);
-    const inspector = inspected ? this.inspector(inspected) : '';
-    element('unitInspector').classList.toggle('hidden', !inspected);
+    const inspected = snapshot.players.flatMap(p => p.units.map(unit => ({ unit, owner: p.name })))
+      .find(item => item.unit.id === view.selectedId);
+    const battleInspected = battleUnits.find(u => u.id === view.selectedId || u.sourceId === view.selectedId);
+    const inspectedPokemon = inspected?.unit || (battleInspected ? this.fromCombat(battleInspected) : null);
+    const inspectOwner = inspected?.owner || (battleInspected ? snapshot.players.find(p => p.id === battleInspected.playerId)?.name || 'BOT' : '');
+    const inspector = inspectedPokemon ? this.inspector(inspectedPokemon, inspectOwner, battleInspected) : '';
+    element('unitInspector').classList.toggle('hidden', !inspectedPokemon);
     if (inspector !== this.lastInspector) { element('unitInspector').innerHTML = inspector; this.lastInspector = inspector; }
 
     const final = snapshot.phase === 'finished';
@@ -179,11 +201,19 @@ export class Hud {
     }
   }
 
-  private inspector(pokemon: Pokemon): string {
+  private fromCombat(unit: CombatUnit): Pokemon {
+    return { id: unit.sourceId, family: unit.family, stage: unit.stage, level: unit.level,
+      iv: unit.iv, xp: 0, position: { area: 'board', col: unit.col, row: unit.row } };
+  }
+
+  private inspector(pokemon: Pokemon, owner: string, combatant?: CombatUnit): string {
     const data = SPECIES[pokemon.family];
     const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
-    return `<div class="inspector-top">${portrait(pokemon.family, 42, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${data.range}</div></div></div>
+    const ivTotal = Object.values(pokemon.iv).reduce((a, b) => a + b, 0);
+    const power = Object.values(stats).reduce((a, b) => a + b, 0);
+    return `<div class="inspector-top">${portrait(pokemon.family, 42, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">${safe(owner)} · NÍVEL ${pokemon.level} · ALCANCE ${data.range}</div></div></div>
+      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV TOTAL <b>${ivTotal}/600</b></span></div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
-      <div class="inspector-footer">${safe(data.ability)} · ${data.energy} energia<div class="inspector-types">${data.elements.map(t => typeIcon(t, 20)).join('')}<span>E para vender</span></div></div>`;
+      <div class="inspector-footer">${safe(data.ability)} · ${data.energy} energia${combatant ? ` · HP ${Math.ceil(combatant.hp)}/${combatant.maxHp}` : ''}<div class="inspector-types">${data.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }
 }
