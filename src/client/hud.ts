@@ -7,9 +7,12 @@ const element = <T extends HTMLElement>(id: string): T => document.getElementByI
 const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk: 'ATK', def: 'DEF', spa: 'SPA', spd: 'SPD' };
 
-function shape(family: keyof typeof SPECIES, size: number, stage = 0): string {
+const base = import.meta.env.BASE_URL;
+const typeIcon = (type: Element, size = 18): string => `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
+function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
   const s = SPECIES[family];
-  return `<span class="shape ${s.shape} ${stage ? 'evolved' : ''}" style="height:${size}px;width:${size}px;--shape-color:${s.color};--shape-glow:${s.glow}"><img class="pokemon-art" src="${s.sprites[Math.min(stage, s.sprites.length - 1)]}" alt="" loading="lazy" /></span>`;
+  const id = s.pokedexIds[Math.min(stage, s.pokedexIds.length - 1)];
+  return `<img class="pokemon-portrait" src="${base}portrait/${String(id).padStart(4, '0')}/Normal.png" width="${size}" height="${size}" alt="${safe(s.names[Math.min(stage, s.names.length - 1)])}" loading="lazy" draggable="false" />`;
 }
 
 export class Hud {
@@ -74,9 +77,9 @@ export class Hud {
     element('shopChances').innerHTML = rarities.map((label, i) => `<div class="rarity-chance" title="${label}: peso ${odds[i]}%${odds.reduce((a,b) => a+b,0) !== 100 ? ' (pesos normalizados no sorteio)' : ''}"><i style="background:${RARITY_COLORS[i]}"></i><span>${label}</span><b>${odds[i]}%</b></div>`).join('');
     const influence = typeInfluence(player);
     const topTypes = (Object.keys(influence.points) as Element[]).sort((a,b) => (influence.points[b] || 0) - (influence.points[a] || 0) || a.localeCompare(b)).slice(0, RULES.typeShopBias.maxShown);
-    element('typeInfluence').innerHTML = `<span class="influence-caption" title="Ativos: ${RULES.typeShopBias.activePoints} pontos por tipo · banco: ${RULES.typeShopBias.benchPoints} · bônus: metade da participação, com metade do bônus secundário em tipos duplos">TIPAGEM <i>ⓘ</i></span><div class="influence-track">${topTypes.length ? topTypes.map(type => {
+    element('typeInfluence').innerHTML = `<span class="influence-caption" title="Influência de tipos na loja: ativos valem ${RULES.typeShopBias.activePoints} pontos e banco ${RULES.typeShopBias.benchPoints}. Não concede bônus de combate.">TIPOS</span><div class="influence-track">${topTypes.length ? topTypes.map(type => {
       const info = ELEMENTS[type], fraction = influence.shares[type] || 0;
-      return `<div class="influence-segment" style="width:${fraction * 100}%;--type-color:${info.color}" title="${info.name}: ${influence.points[type]} pontos • ${(fraction * 100).toFixed(1)}% da barra • +${(fraction * RULES.typeShopBias.shareBonusMultiplier * 100).toFixed(1)}% no peso de aparição"><span>${info.name} ${(fraction * 100).toFixed(0)}%</span></div>`;
+      return `<div class="influence-segment" style="width:${fraction * 100}%;--type-color:${info.color}" title="${info.name}: ${influence.points[type]} pontos • ${(fraction * 100).toFixed(1)}% da influência">${typeIcon(type, 16)}<span>${(fraction * 100).toFixed(0)}%</span></div>`;
     }).join('') : '<span class="influence-empty">Sem tipos</span>'}</div>`;
     element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || player.gold < RULES.rerollCost || player.eliminated);
     element('lockButton').classList.toggle('locked', player.locked);
@@ -97,8 +100,8 @@ export class Hud {
       const data = SPECIES[offer.family];
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
       return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, typeInfluence(player).shares)).toFixed(1)}%">
-          <div class="shop-portrait">${shape(offer.family, 38)}</div><div class="shop-name">${data.names[0]}</div>
-          <div class="shop-type">${data.elements.map(type => ELEMENTS[type].name).join(' / ')}</div>
+          <div class="shop-portrait">${portrait(offer.family, 44)}</div><div class="shop-name">${data.names[0]}</div>
+          <div class="shop-type">${data.elements.map(type => typeIcon(type, 19)).join('')}</div>
           <div class="shop-cost"><i>◈</i> ${offer.price}</div></button>`;
     }).join('');
     if (shopHtml !== this.lastShop) { element('shopCards').innerHTML = shopHtml; this.lastShop = shopHtml; }
@@ -113,20 +116,17 @@ export class Hud {
     });
     const traitsHtml = (Object.keys(ELEMENTS) as Element[]).map(type => {
       const trait = ELEMENTS[type], count = counts[type] || 0;
-      return `<div class="trait-row ${count ? 'active' : ''}" title="${trait.description}"><span class="trait-emblem" style="color:${trait.color}"><i>${trait.name[0]}</i></span><span class="trait-name">${trait.name}</span><span class="trait-count">${count}</span></div>`;
+      return `<div class="trait-row ${count ? 'active' : ''}" title="${trait.name}: ${count} Pokémon diferentes em campo; sem bônus de sinergia">${typeIcon(type, 24)}<span class="trait-name">${trait.name}</span><span class="trait-count">${count}</span></div>`;
     }).join('');
     if (this.lastTraits !== traitsHtml) { element('traitRows').innerHTML = traitsHtml; this.lastTraits = traitsHtml; }
 
     const ranked = [...snapshot.players].sort((a, b) => Number(a.eliminated) - Number(b.eliminated) || b.health - a.health || a.name.localeCompare(b.name));
     const possibilities = snapshot.possibleOpponents.p0 || [];
     const pve = snapshot.stageType === 'bot' || snapshot.stageType === 'boss';
-    element('matchupPreview').innerHTML = snapshot.phase === 'planning' && !pve && possibilities.length
-      ? `<div class="matchup-heading">⚔ POSSÍVEIS CONFRONTOS <span>1/3 CADA</span></div>${possibilities.map((group, i) => `<div class="matchup-option"><b>${i + 1}</b><span>${group.map(id => snapshot.players.find(p => p.id === id)?.name || '?').join(' + ')}</span><small>33,33%</small></div>`).join('')}`
-      : snapshot.phase === 'planning' && pve ? '<div class="matchup-heading">⚔ RODADA PvE · SEM SORTEIO</div>' : '';
+    const likely = new Set(snapshot.phase === 'planning' && !pve ? possibilities.flat() : []);
     const ranks = ranked.map((p, i) => {
-      const slots = possibilities.flatMap((group, j) => group.includes(p.id) ? [j + 1] : []);
       return `<button class="rank-row ${p.id === 'p0' ? 'you' : ''} ${view.scoutId === p.id && p.id !== 'p0' ? 'scouting' : ''} ${p.eliminated ? 'out' : ''}" data-scout="${p.id}" title="${p.id === 'p0' ? 'Sua arena' : `Inspecionar arena de ${p.name}`}">
-      <span class="rank-position">${p.placement || i + 1}</span><span class="rank-token"></span><span class="rank-name">${p.name}</span>${slots.length ? `<span class="match-icon" title="Possível confronto nas opções ${slots.join(', ')}">⚔${slots.join('·')}</span>` : ''}<span class="rank-hp ${p.health === 0 ? 'dead' : p.health < 30 ? 'low' : ''}">${p.health}</span></button>`;
+      <span class="rank-position">${p.placement || i + 1}</span><span class="rank-token"></span><span class="rank-name">${p.name}</span>${likely.has(p.id) ? '<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>' : ''}<span class="rank-hp ${p.health === 0 ? 'dead' : p.health < 30 ? 'low' : ''}">${p.health}</span></button>`;
     }).join('');
     if (this.lastRank !== ranks) { element('rankRows').innerHTML = ranks; this.lastRank = ranks; }
 
@@ -150,7 +150,7 @@ export class Hud {
         ? `<div class="damage-split"><div class="physical" style="width:${phys / max * 100}%"></div><div class="special" style="width:${special / max * 100}%"></div></div>`
         : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round((isStatus ? hp / maxHp : value / max) * 100)}%;background:${isStatus ? '#83d49f' : SPECIES[unit.family].glow}"></div></div>`;
       return `<div class="combat-entry"><div class="combat-line">
-        <span class="combat-mini-shape">${shape(unit.family, 14, unit.stage)}</span>
+        <span class="combat-mini-shape">${portrait(unit.family, 31, unit.stage)}</span>
         <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${valueText}</span></div>${bar}</div>`;
     }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : '')
       : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
@@ -182,8 +182,8 @@ export class Hud {
   private inspector(pokemon: Pokemon): string {
     const data = SPECIES[pokemon.family];
     const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
-    return `<div class="inspector-top">${shape(pokemon.family, 35, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${data.range}</div></div></div>
+    return `<div class="inspector-top">${portrait(pokemon.family, 42, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${data.range}</div></div></div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
-      <div class="inspector-footer">${safe(data.ability)} · ${data.energy} energia<br />${data.elements.map(t => ELEMENTS[t].name).join(' / ')} · <span style="color:#d9bc8f">E para vender</span></div>`;
+      <div class="inspector-footer">${safe(data.ability)} · ${data.energy} energia<div class="inspector-types">${data.elements.map(t => typeIcon(t, 20)).join('')}<span>E para vender</span></div></div>`;
   }
 }

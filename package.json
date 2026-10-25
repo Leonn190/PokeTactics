@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview --host 0.0.0.0",
     "check": "tsc --noEmit",
-    "test": "node --import tsx tests/engine.test.ts"
+    "test": "node --import tsx tests/run.ts"
   },
   "dependencies": {
     "astro": "^5.14.0"

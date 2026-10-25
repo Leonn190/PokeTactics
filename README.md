@@ -1,4 +1,38 @@
-# Poké Tactics — Astro v4
+# Poké Tactics — Astro v6 (integração com assets existentes)
+
+## IMPORTANTE: pacote de código SEM sprites PMD e portraits
+
+Este ZIP foi preparado para **atualizar o projeto existente no GitHub**,
+[Leonn190/PokeTactics](https://github.com/Leonn190/PokeTactics).
+**Não substitua nem apague as pastas de assets do repositório**. Elas já existem
+e são referenciadas diretamente pelo código:
+
+- `public/sprite/0001/Idle-Anim.png` e demais `public/sprite/<DEX>/...`
+- `public/portrait/0001/Normal.png` e demais `public/portrait/<DEX>/Normal.png`
+- `public/tipos/grass.svg`, `fire.svg`, `water.svg`, `electric.svg` etc.
+- `public/sprites/` para os lendários com miniaturas estáticas.
+
+O pacote contém apenas o manifesto de metadados de animação
+`src/client/pmd-manifest.json`. Não baixa nem distribui spritesheets, portraits
+ou SVGs. Extraia o ZIP e copie **o conteúdo da pasta `poke-tft/` para a raiz
+do checkout do GitHub**, mesclando os arquivos de código, sem usar opções de
+espelhamento que excluam pastas ausentes do ZIP.
+Caso teste o ZIP isoladamente, os assets visuais ficarão ausentes até que ele
+seja combinado com a árvore `public/` original.
+
+## Mudanças v6
+
+- Pokémon das famílias Bulbasaur, Charmander, Squirtle e Pikachu (11 espécies) usam `Idle`, `Rotate`, `Walk`, `Sleep`, `Hurt`, `Attack`, `Shoot`, `Charge`, `Strike` ou `Withdraw` conforme ação e disponibilidade no XML do PMD; os frames, durações e direções são lidos do manifesto.
+- O **Giro Aquático** do Squirtle, Wartortle e Blastoise usa `Withdraw` enquanto gira entre as oito direções, aplica dano por segundo e uma mitigação temporária fixa; não ataca nem se desloca durante a canalização.
+- Bulbasaur é ranged, com **Morteiro de Pólen** em área e cura para aliados. Charmander é melee, com **Golpe Flamejante** físico em alvo único. Pikachu é melee, com **Choque do Trovão** e encadeamento por evolução. As fórmulas estão em `config/ataques.json`.
+- **Nenhuma sinergia de combate está ativa**: tipos não concedem regeneração, bônus de ataque, resistência, velocidade ou veneno. Contagem dos tipos é apenas informativa. A influência intencional na probabilidade da loja permanece.
+- Os sprites ficam ancorados no **último pixel opaco inferior**, com sombra no chão e nível/vida/energia posicionados em relação ao topo visível; sem nomes embaixo das unidades.
+- Banco gramado integrado, com **mesma largura do tabuleiro**. Combate de 3–4 jogadores vira dois tabuleiros `7×8` unidos lateralmente, formando `14×8`.
+- Classificação mostra somente `⚔` nos adversários possíveis, sem painel extra de probabilidades.
+- Loja com chances à esquerda e barra de tipagem à direita **na mesma altura**. Portraits PMD nos cards, inspetor, painel de combate e ao arrastar. Ícones SVG redondos nos tipos da loja, barra e painel lateral.
+
+As spritesheets originais e suas condições de uso/créditos pertencem ao
+[PMD Sprite Repository](https://github.com/PMDCollab/SpriteCollab).
 
 Auto battler Pokémon de oito participantes (um jogador e sete CPUs), executado em Astro. O motor da partida roda em Web Worker no navegador. Não há multiplayer via rede nesta versão.
 
@@ -24,7 +58,7 @@ Os **quatro JSONs na raiz `config/` são importados pelo motor no build** (não 
 - Influência de tipagem: cada tipo de um Pokémon **ativo vale 2 pontos** e cada tipo do **banco vale 1**. A barra apresenta as cinco maiores participações. O bônus individual do tipo é `participação × 0,5`; Pokémon de dois tipos usam **maior bônus + metade do bônus menor**. Assim, uma influência de 50% Água (+25%) e 30% Planta (+15%) rende **+32,5%** de peso relativo para um Pokémon Água/Planta. Esses multiplicadores estão em `typeShopBias`.
 - Confrontos PvP: o motor prepara **três calendários completos**, penalizando duelos repetidos, e sorteia um deles com **1/3 de chance** quando começa a luta. A classificação mostra as três possibilidades; sua arena não apresenta antecipadamente nenhuma formação inimiga. Quando só restam dois jogadores, os três calendários necessariamente representam o mesmo adversário; em batalhas a três/quatro, cada opção contém um *grupo* de possíveis adversários. PvE não usa sorteio de adversário.
 
-Os PNGs usados nesta versão estão incluídos em `public/sprites/`; cada família aponta para os seus arquivos na seção `sprites` de `config/pokemons.json`. Eles vieram do projeto público PokeAPI/sprites. A arena usa formas coloridas como fallback se alguma imagem estiver ausente. Apenas as quatro famílias originais aparecem na loja; Articuno, Zapdos, Moltres, Mewtwo, Mew, Raikou, Entei, Suicune, Lugia, Ho-Oh e Celebi são os onze chefes possíveis. O jogo já conhece todos seus status e ataques.
+As imagens PNG e as spritesheets estão no repositório original e **não são redistribuídas neste ZIP**. As quatro famílias da loja usam animações PMD no campo e portraits PMD nos painéis. Os lendários mantêm imagens estáticas até receberem animações próprias. Apenas as quatro famílias originais aparecem na loja; Articuno, Zapdos, Moltres, Mewtwo, Mew, Raikou, Entei, Suicune, Lugia, Ho-Oh e Celebi são os onze chefes possíveis.
 
 ## Rodadas
 
@@ -66,8 +100,8 @@ Na rodada de ouro, cada nocaute cria uma moeda **na posição onde o Pokémon ca
 - O painel flutuante superior tem dez pontos por capítulo: **azul = vitória, vermelho = derrota, amarelo = etapa atual, cinza = colocação neutra ou etapa futura**. Ele também exibe etapa (`4-3`), modo, fase, segundos restantes e uma barra de tempo na parte inferior.
 - Arraste Pokémon para reposicionar entre campo e banco. Soltar sobre a loja vende; dois cliques num Pokémon no banco tentam colocá-lo em campo. Compras, venda, reroll e rearranjo do banco são permitidos durante combate (sem mover Pokémon já em campo).
 - Clique direito move seu treinador; scroll aplica zoom. Tecla `D` roleta loja; `E` vende o selecionado; `Esc` volta a observar seu campo.
-- A aba **COMBATE** permite comparar vida restante, dano físico/especial, dano mitigado pela defesa e cura por Pokémon. Os números de dano sobem acima do Pokémon atingido: **laranja para físico, azul para especial**, com tamanho proporcional ao dano. A **CLASSIFICAÇÃO** permite assistir aos combates das CPUs e visualizar três opções de duelo nas preparações PvP. Seu treinador aparece como visitante ao observar outro campo.
-- Durante combates quádruplos, as quatro formações ocupam **quadrantes lado a lado (2×2)** dentro de um único retângulo compartilhado. Não há um campo extra no centro. Os confrontos 1×1 mostram oponente e jogador em metades separadas.
+- A aba **COMBATE** permite comparar vida restante, dano físico/especial, dano mitigado pela defesa e cura por Pokémon. Os números de dano sobem acima do Pokémon atingido: **laranja para físico, azul para especial**, com tamanho proporcional ao dano. A **CLASSIFICAÇÃO** permite assistir aos combates das CPUs e marca possíveis adversários somente com o ícone ⚔.
+- Durante combates quádruplos, **duas arenas 7×8 lado a lado** formam um campo retangular 14×8, com duas equipes em cada arena (uma metade superior, uma inferior). Confrontos com três participantes também usam este espaço estendido. Os confrontos 1×1 mantêm uma arena 7×8.
 - Passe o mouse ou dê foco por teclado à **RENDA** para consultar base, juros, streak, bônus de vitória e o total previsto.
 
 ## Executar e publicar

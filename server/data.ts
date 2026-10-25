@@ -9,8 +9,6 @@ export interface SpeciesData {
   pokedexIds: number[];
   rarity: Rarity;
   shop: boolean;
-  shape: 'circle' | 'square' | 'triangle' | 'crystal';
-  color: string;
   glow: string;
   base: Stats;
   range: number;
@@ -22,11 +20,15 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
   chainRatio?: number; chainRange?: number;
+  damageByStage?: number[]; healByStage?: number[]; damageRatioByStage?: number[];
+  splashRange?: number; shieldByStage?: number[]; seconds?: number;
+  secondsPerSpA?: number; durationSpaStep?: number;
+  secondaryRatioByStage?: number[]; secondaryTargetsByStage?: number[];
 };
 
 export const ATTACKS = movesConfig as unknown as {
@@ -53,11 +55,11 @@ export const SHOP_FAMILIES = (Object.keys(SPECIES) as Family[]).filter(f => SPEC
 export const LEGENDARY_FAMILIES = (Object.keys(SPECIES) as Family[]).filter(f => !SPECIES[f].shop);
 
 export const ELEMENTS: Record<Element, { name: string; color: string; description: string }> = {
-  grass: { name: 'Planta', color: '#81d9a2', description: 'Regeneração de vida' },
-  poison: { name: 'Venenoso', color: '#c38aff', description: 'Ataques aplicam veneno' },
-  fire: { name: 'Fogo', color: '#ff8a5f', description: 'Ataques mais fortes' },
-  water: { name: 'Água', color: '#77bfff', description: 'Mais resistência' },
-  electric: { name: 'Elétrico', color: '#f9d769', description: 'Mais velocidade' },
+  grass: { name: 'Planta', color: '#81d9a2', description: 'Sem bônus de sinergia por enquanto' },
+  poison: { name: 'Venenoso', color: '#c38aff', description: 'Sem bônus de sinergia por enquanto' },
+  fire: { name: 'Fogo', color: '#ff8a5f', description: 'Sem bônus de sinergia por enquanto' },
+  water: { name: 'Água', color: '#77bfff', description: 'Sem bônus de sinergia por enquanto' },
+  electric: { name: 'Elétrico', color: '#f9d769', description: 'Sem bônus de sinergia por enquanto' },
   ice: { name: 'Gelo', color: '#a7edff', description: 'Tipo de chefe lendário' },
   flying: { name: 'Voador', color: '#a9d1fa', description: 'Tipo de chefe lendário' },
   psychic: { name: 'Psíquico', color: '#f2b4e5', description: 'Tipo de chefe lendário' }

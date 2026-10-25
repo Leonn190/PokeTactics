@@ -1,6 +1,4 @@
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import test from 'node:test';
 import { calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SPECIES } from '../server/data';
 import { chapterDamage, GameEngine, projectedIncome, streakIncome } from '../server/engine';
@@ -30,7 +28,7 @@ test('as quatro configurações são reais, chefes são Gen 1/2 e lendários fic
   for (const species of Object.values(SPECIES)) {
     assert.equal(species.names.length, species.sprites.length);
     for (const sprite of species.sprites) {
-      assert.ok(existsSync(resolve('public', sprite.replace(/^\.\/sprites\//, 'sprites/'))), `Sprite ausente: ${sprite}`);
+      assert.match(sprite, /^\.\/sprites\/\d+\.png$/, `Referência PNG inválida: ${sprite}`);
     }
   }
   assert.equal(RULES.maxInterest, 5);
@@ -90,6 +88,7 @@ test('moedas surgem em KO na etapa 2, só o dono coleta e prêmio +4 para venced
   const attacker = battle.units.find(u => u.playerId === 'p0')!;
   const victim = battle.units.find(u => u.playerId === 'p1')!;
   attacker.x = victim.x; attacker.y = victim.y;
+  attacker.animation = null; // Teste de impacto imediato após a rotação inicial.
   attacker.attackClock = 0; victim.attackClock = 100;
   victim.hp = 1;
   tickBattle(battle, .1);
@@ -192,11 +191,13 @@ test('pré-confrontos geram três calendários igualmente sorteáveis e não vaz
 test('arena quádrupla distribui equipes em quadrantes exclusivos e dano gera popup no alvo', () => {
   const game = new GameEngine(10);
   const battle = createBattleGroup(game.players.slice(0, 4), 'quad-layout', 'quad');
-  assert.ok(battle.units[0].x < 0 && battle.units[0].y < 0);
-  assert.ok(battle.units[1].x > 0 && battle.units[1].y < 0);
-  assert.ok(battle.units[2].x < 0 && battle.units[2].y > 0);
+  assert.ok(battle.units[0].x < 0 && battle.units[0].y > 0);
+  assert.ok(battle.units[1].x < 0 && battle.units[1].y < 0);
+  assert.ok(battle.units[2].x > 0 && battle.units[2].y < 0);
   assert.ok(battle.units[3].x > 0 && battle.units[3].y > 0);
+  assert.ok(Math.max(...battle.units.map(u => u.x)) - Math.min(...battle.units.map(u => u.x)) > 8, 'arenas lado a lado');
   const duel = createBattle(game.players[0], game.players[1], 'damage-anchors');
+  duel.units[0].animation = null;
   duel.units[0].attackClock = 0;
   duel.units[1].attackClock = 100;
   duel.units[0].range = 100;
