@@ -2,3 +2,4 @@
 import './engine.test';
 import './abilities.test';
 import './rebalance.test';
+import './v11.test';

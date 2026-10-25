@@ -6,7 +6,9 @@ const root = resolve(import.meta.dirname, '..');
 const reference = process.argv.find(a => a.startsWith('--repo='))?.slice(7);
 const destination = join(root, 'src/client/pmd-manifest.json');
 const manifest = JSON.parse(readFileSync(destination, 'utf8'));
-const ids = [10, 11, 12, 13, 14, 15, 109, 110, 143];
+const pokemon = JSON.parse(readFileSync(join(root, 'config/pokemons.json'), 'utf8'));
+const ids = [...new Set(Object.values(pokemon.species).flatMap(species => species.pokedexIds))];
+const skipMissing = process.argv.includes('--skip-missing');
 function source(path) {
   if (existsSync(join(root, path))) return readFileSync(join(root, path), 'utf8');
   if (reference) return execFileSync('git', ['show', `HEAD:${path}`], { cwd: reference, encoding: 'utf8' });
@@ -19,6 +21,11 @@ function existsInRepo(path) {
 const field = (block, tag) => new RegExp(`<${tag}>([^<]+)</${tag}>`).exec(block)?.[1];
 for (const id of ids) {
   const folder = `public/sprite/${String(id).padStart(4, '0')}`;
+  if (!existsInRepo(`${folder}/AnimData.xml`)) {
+    if (!manifest[String(id)]) console.warn(`PMD ${id}: AnimData.xml ausente (sem baixar assets).`);
+    if (skipMissing) continue;
+    throw new Error(`${folder}/AnimData.xml não existe; forneça o checkout com assets.`);
+  }
   const xml = source(`${folder}/AnimData.xml`);
   const raw = Object.fromEntries([...xml.matchAll(/<Anim>([\s\S]*?)<\/Anim>/g)].map(([, block]) => [field(block, 'Name'), {
     copy: field(block, 'CopyOf'), width: Number(field(block, 'FrameWidth')),
@@ -41,7 +48,10 @@ for (const id of ids) {
     animations[name] = { file, width: a.width, height: a.height, durations: a.durations,
       directions: name === 'Sleep' ? 1 : 8, ...(a.hitFrame ? { hitFrame: a.hitFrame } : {}) };
   }
-  if (!animations.Idle || !animations.Attack) throw new Error(`Animações básicas ausentes para ${id}`);
+  if (!animations.Idle || !animations.Attack) {
+    if (skipMissing) { console.warn(`PMD ${id}: Idle/Attack ausentes, preservando o manifesto existente.`); continue; }
+    throw new Error(`Animações básicas ausentes para ${id}`);
+  }
   manifest[String(id)] = animations;
   console.log(`${id}: ${Object.keys(animations).join(', ')}`);
 }

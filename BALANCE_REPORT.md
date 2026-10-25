@@ -1,4 +1,6 @@
-# PokéTactics v10 — auditoria inicial do balanceamento
+# PokéTactics v10 — auditoria histórica (não representa o elenco v11.2)
+
+> Estes resultados foram medidos com o elenco e os atributos da v10. Após a inclusão de 49 formas e a substituição dos atributos-base na v11.2, os percentuais, DPS e comparações abaixo não são resultados atualizados. Rode novas simulações para avaliar o balanceamento final.
 
 Os valores de atributos e de habilidades do pedido foram preservados exatamente. Não foi aplicado ajuste automático com base nestas simulações.
 

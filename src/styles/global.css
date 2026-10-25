@@ -14,6 +14,21 @@
 @media(max-width:980px){.bottom-hud{height:153px}.unit-inspector{bottom:170px}.right-panel{max-height:calc(100% - 275px)}}@media(max-height:740px){.bottom-hud{height:145px}.unit-inspector{bottom:158px}.shop-portrait{height:42px}}
 .glass{backdrop-filter:none}
 
+/* Escolha de evolução Eevee: bloqueia apenas enquanto há quatro cópias prontas. */
+.evolution-overlay{position:absolute;inset:0;z-index:35;display:flex;align-items:center;justify-content:center;background:#061314da;padding:22px}
+.evolution-panel{width:min(760px,96vw);padding:27px;border-radius:15px;text-align:center;background:linear-gradient(155deg,#142b2d,#0b1c28)}
+.evolution-kicker{font-size:11px;letter-spacing:3px;color:#d6bd7b;font-weight:800}
+.evolution-panel h2{font-family:'Barlow Condensed',sans-serif;font-size:38px;letter-spacing:1.5px;margin:6px 0 8px}
+.evolution-panel p{font-size:12px;color:#9fb6ba;margin:0 0 19px}
+.evolution-choices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.evolution-choice{min-height:128px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:10px 4px;background:#10242ded;border:1px solid var(--evo-glow);border-radius:10px;transition:background .2s,transform .2s}
+.evolution-choice:hover,.evolution-choice:focus-visible{background:#284449;transform:translateY(-3px)}
+.evolution-choice img{object-fit:contain;image-rendering:pixelated}
+.evolution-choice strong{font-family:'Barlow Condensed';font-size:20px;color:#f6e7c4}
+.evolution-choice small{display:flex;align-items:center;gap:3px;font-size:9px;color:#abc3bd}
+.type-fallback{display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:50%;color:#17262a;font-size:8px;font-weight:900;vertical-align:middle}
+@media(max-width:600px){.evolution-choices{grid-template-columns:repeat(2,minmax(0,1fr))}.evolution-panel{max-height:93vh;overflow:auto}}
+
 /* V3: floating round panel; the rest of the screen is unobstructed grass. */
 .top-bar{position:absolute;top:13px;left:14px;right:14px;height:83px;background:none;padding:0;display:block;pointer-events:none;z-index:4}
 .top-bar .brand{position:absolute;left:0;top:9px;pointer-events:auto;filter:drop-shadow(0 4px 9px #08250b)}

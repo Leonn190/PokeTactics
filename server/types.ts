@@ -2,7 +2,7 @@ import pokemonConfig from '../config/pokemons.json';
 export type Family = keyof typeof pokemonConfig.species;
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
-export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal';
+export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy';
 export type Rarity = 1 | 2 | 3 | 4 | 5;
 export type StageType = 'battle' | 'gold' | 'quad' | 'bot' | 'double' | 'boss';
 export type StageResult = 'win' | 'loss' | 'second' | 'third' | 'fourth' | null;
@@ -41,6 +41,7 @@ export interface Player {
   roundVictory: boolean;
   history: StageResult[];
   placement: number | null;
+  pendingEvolution?: string[];
 }
 
 export interface CombatMetrics {
@@ -55,7 +56,11 @@ export interface CombatMetrics {
   blockedPhysical: number;
   blockedSpecial: number;
   barrierAbsorbed: number;
+  abilityMitigated: number;
 }
+
+export interface TimedStatEffect { sourceId: string; stat: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; amount: number; until: number }
+export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' }
 
 export interface CombatUnit {
   id: string;
@@ -91,6 +96,10 @@ export interface CombatUnit {
   damageOverTime: { amount: number; time: number; sourceId: string } | null;
   poison: { amount: number; time: number; sourceId: string; accumulator: number } | null;
   barrier: { hp: number; time: number; maxHp: number } | null;
+  barriers: TimedBarrier[];
+  buffs: TimedStatEffect[];
+  defenseShreds: TimedStatEffect[];
+  guardUntil: number;
   combo: { targetId: string; hits: number; time: number; interval: number } | null;
   gasTime: number;
   support: { time: number; moveId: string } | null;
@@ -98,6 +107,8 @@ export interface CombatUnit {
   jumpHeight: number;
   stunTime: number;
   knockUpTime: number;
+  knockUpDuration: number;
+  controlImmune?: boolean;
   stunUntil: number;
   knockUpUntil: number;
   slow: number;
@@ -111,7 +122,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp';
+  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact';
   damageType?: 'physical' | 'special' | 'true';
   family: Family;
   time: number;
@@ -128,7 +139,13 @@ export interface CombatEffect {
     arrival: number;
     onHit?: 'drain' | 'burn' | 'slow' | 'poison';
     chain?: { remaining: number; visited: string[]; ratio: number; range: number };
+    special?: 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg';
   };
+}
+
+export interface KnockupEvent {
+  battle_id: string; target_unit_id: string; source_unit_id: string;
+  knockup_instance_id: string; start_time: number;
 }
 
 export interface Battle {
@@ -151,6 +168,7 @@ export interface Battle {
   loser: string | null;
   traitsByPlayer: Record<string, Partial<Record<Element, number>>>;
   benches: Record<string, Pokemon[]>;
+  knockupEvents: KnockupEvent[];
 }
 
 export interface GoldDrop {
@@ -199,6 +217,7 @@ export type GameCommand =
   | { kind: 'lock' }
   | { kind: 'move'; unitId: string; position: UnitPosition }
   | { kind: 'sell'; unitId: string }
+  | { kind: 'choose-eevee'; branch: Family }
   | { kind: 'collect'; dropId: string };
 
 export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' } | { type: 'watch'; playerId: string };

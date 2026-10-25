@@ -1,4 +1,4 @@
-import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, getStageData, ATTACKS } from '../../server/data';
+import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, getStageData, ATTACKS } from '../../server/data';
 import { totalPower } from '../../server/formulas';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
 import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
@@ -9,7 +9,9 @@ const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').r
 const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk: 'ATK', def: 'DEF', spa: 'SPA', spd: 'SPD' };
 
 const base = import.meta.env.BASE_URL;
-const typeIcon = (type: Element, size = 18): string => `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
+const typeIcon = (type: Element, size = 18): string => ['ground','rock','steel','dark','fairy'].includes(type)
+  ? `<span class="type-fallback" title="${safe(ELEMENTS[type].name)}" style="width:${size}px;height:${size}px;background:${ELEMENTS[type].color}">${ELEMENTS[type].name.slice(0,2).toUpperCase()}</span>`
+  : `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
 function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
   const s = SPECIES[family];
   const id = s.pokedexIds[Math.min(stage, s.pokedexIds.length - 1)];
@@ -72,6 +74,13 @@ export class Hud {
     this.latestSnapshot = snapshot;
     this.latestView = view;
     const player = snapshot.players[0];
+    const choosing = (player.pendingEvolution?.length || 0) === 4;
+    element('eeveeEvolution').classList.toggle('hidden', !choosing);
+    if (choosing) element('eeveeBranches').innerHTML = EEVEE_BRANCHES.map(branch => {
+      const s = SPECIES[branch], move = ATTACKS.moves[s.attack];
+      return `<button class="evolution-choice" data-eevee-branch="${branch}" style="--evo-glow:${s.glow}">
+        ${portrait(branch,70)}<strong>${s.names[0]}</strong><small>${s.elements.map(t=>typeIcon(t,16)).join('')} ${safe(move.name)}</small></button>`;
+    }).join('');
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
     element('roundLabel').textContent = `${snapshot.chapter}-${snapshot.stage}`;

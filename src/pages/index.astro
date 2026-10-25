@@ -60,6 +60,14 @@ import '../styles/global.css';
       </footer>
 
       <div id="dragGhost" class="drag-ghost hidden"></div>
+      <div id="eeveeEvolution" class="evolution-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="eeveeTitle">
+        <div class="evolution-panel glass">
+          <span class="evolution-kicker">QUATRO EEVEE REUNIDOS</span>
+          <h2 id="eeveeTitle">Escolha sua evolução</h2>
+          <p>As quatro cópias serão fundidas. A forma escolhida mantém os maiores IVs, nível e experiência.</p>
+          <div id="eeveeBranches" class="evolution-choices"></div>
+        </div>
+      </div>
       <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
       <div id="finalBanner" class="final-banner hidden" role="status"><span id="finalKicker"></span><strong id="finalTitle"></strong><small id="finalSubtitle"></small></div>
     </main>

@@ -1,4 +1,4 @@
-import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
+import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
 import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
@@ -154,6 +154,15 @@ export class GameEngine {
     while (changed) {
       changed = false;
       for (const family of FAMILIES) {
+        if (family === 'eevee') {
+          const eevees = player.units.filter(u => u.family === 'eevee');
+          if (eevees.length >= 4) {
+            if (player.id === 'p0') player.pendingEvolution = eevees.slice(0, 4).map(u => u.id);
+            else this.chooseEevee(player, this.rng.pick(EEVEE_BRANCHES));
+            if (player.id !== 'p0') changed = true;
+          } else player.pendingEvolution = undefined;
+          continue;
+        }
         const maxStage = SPECIES[family].names.length - 1;
         for (let stage = 0; stage < maxStage; stage++) {
           const matches = player.units.filter(u => u.family === family && u.stage === stage);
@@ -183,12 +192,28 @@ export class GameEngine {
     }
   }
 
+  private chooseEevee(player: Player, branch: Family): void {
+    const four = player.units.filter(u => u.family === 'eevee').slice(0, 4);
+    if (four.length !== 4) return;
+    const anchor = four.find(u => u.position.area === 'board') || four[0];
+    const iv = Object.fromEntries((Object.keys(anchor.iv) as Array<keyof Stats>).map(key =>
+      [key, Math.max(...four.map(unit => unit.iv[key]))])) as Stats;
+    player.units = player.units.filter(unit => !four.includes(unit));
+    const evolved: Pokemon = { id:this.id(), family:branch, stage:1, iv,
+      level:Math.max(...four.map(u => u.level)), xp:Math.max(...four.map(u => u.xp)), position:{...anchor.position} };
+    player.units.push(evolved);
+    player.pendingEvolution = undefined;
+    this.visualEvents.push({ id:this.id(), unitId:evolved.id, ownerId:player.id, kind:'evolve', age:0,
+      sources:four.map(u => ({ family:u.family, stage:u.stage, position:{...u.position} })) });
+    if (player.id === 'p0') this.log = `${SPECIES[branch].names[0]} evoluiu!`;
+  }
+
   private buy(player: Player, slot: number): string | null {
     const offer = player.shop[slot];
     if (!offer) return 'Slot vazio';
     if (player.gold < offer.price) return 'Ouro insuficiente';
     const free = this.findFreeBench(player);
-    const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= 2;
+    const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= (offer.family === 'eevee' ? 3 : 2);
     if (free < 0 && !eligibleMerge) return `Banco cheio (${BENCH_SIZE}/${BENCH_SIZE})`;
     player.gold -= offer.price;
     const bought = this.makePokemon(offer.family, { area: 'bench', index: free < 0 ? BENCH_SIZE : free });
@@ -212,6 +237,14 @@ export class GameEngine {
       human.gold += RULES.goldDropPerKnockout;
       return null;
     }
+    if (command.kind === 'choose-eevee') {
+      if (!EEVEE_BRANCHES.includes(command.branch)) return 'Evolução inválida';
+      const ids = human.pendingEvolution;
+      if (!ids || ids.length !== 4 || ids.some(id => !human.units.some(u => u.id === id && u.family === 'eevee'))) return 'Reúna quatro Eevee para evoluir';
+      this.chooseEevee(human, command.branch);
+      this.merge(human);
+      return null;
+    }
     if (command.kind === 'buy') {
       if (!Number.isInteger(command.slot) || command.slot < 0 || command.slot >= SHOP_SIZE) return 'Slot inválido';
       return this.buy(human, command.slot);
@@ -227,8 +260,9 @@ export class GameEngine {
     if (!unit) return 'Pokémon não encontrado';
     if (this.phase !== 'planning' && unit.position.area === 'board') return 'Pokémon em campo não pode ser movido durante o combate';
     if (command.kind === 'sell') {
-      human.gold += SPECIES[unit.family].rarity * 3 ** unit.stage;
+      human.gold += SPECIES[unit.family].rarity * (SPECIES[unit.family].eeveeBranch ? 4 : 3 ** unit.stage);
       human.units = human.units.filter(u => u.id !== unit.id);
+      if (human.pendingEvolution?.includes(unit.id)) this.merge(human);
       return null;
     }
     if (command.kind === 'move') {

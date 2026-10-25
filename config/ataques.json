@@ -1,24 +1,431 @@
 {
-  "basic": { "name": "Ataque básico", "offensiveRatio": 0.5, "energyGain": 10 },
+  "basic": {
+    "name": "Ataque básico",
+    "offensiveRatio": 0.5,
+    "energyGain": 10
+  },
   "moves": {
-    "pollen-mortar": { "name": "Morteiro de Pólen", "effect": "pollen", "baseDamage": 0, "specialRatio": 0.62, "damageByStage": [32,50,72], "healByStage": [16,28,40], "healRatio": 0.24, "healRange": 3.3, "healTargets": 2, "splashRange": 1.45 },
-    "flaming-strike": { "name": "Golpe Flamejante", "effect": "flame-strike", "baseDamage": 0, "specialRatio": 0, "damageRatioByStage": [1.55,1.65,1.75] },
-    "aqua-spin": { "name": "Giro Aquático", "effect": "spin", "baseDamage": 0, "specialRatio": 0.28, "damageByStage": [22,36,54], "shieldByStage": [0.2,0.24,0.28], "splashRange": 1.65, "seconds": 2 },
-    "thunder-shock": { "name": "Choque do Trovão", "effect": "shock", "baseDamage": 0, "specialRatio": 0, "damageRatioByStage": [1.05,1.18], "secondaryRatioByStage": [0.5,0.6], "secondaryTargetsByStage": [1,2], "chainRange": 2 },
-    "toxic-thread": { "name": "Fio Venenoso", "effect": "poison-shot", "baseDamage": 20, "specialRatio": 0.45, "dotBase": 4, "dotRatio": 0.07, "dotDuration": 3 },
-    "toxic-shell": { "name": "Casulo Tóxico", "effect": "poison-shot", "baseDamage": 12, "specialRatio": 0.25, "dotBase": 4, "dotRatio": 0.07, "dotDuration": 3, "shieldBase": 45, "shieldDefenseRatio": 0.6, "shieldDuration": 3.5 },
-    "healing-powder": { "name": "Pó Revigorante", "effect": "heal-powder", "baseDamage": 0, "specialRatio": 0, "healBase": 32, "healRatio": 0.65, "healTargets": 2, "healRange": 3.5 },
-    "stinger": { "name": "Ferroada", "effect": "sting", "baseDamage": 18, "attackRatio": 0.95, "specialRatio": 0 },
-    "firm-cocoon": { "name": "Casulo Firme", "effect": "shield", "baseDamage": 0, "specialRatio": 0, "shieldBase": 60, "shieldDefenseRatio": 0.85, "shieldDuration": 4 },
-    "multi-jab": { "name": "Multistrike", "effect": "multi", "baseDamage": 14, "attackRatio": 0.4, "specialRatio": 0, "hits": 4, "seconds": 0.9 },
-    "gas-cloud": { "name": "Nuvem de Gás", "effect": "gas", "baseDamage": 0, "specialRatio": 0, "damageByStage": [30,42], "attackRatioByStage": [0.9,1], "radiusByStage": [1.85,2.05] },
-    "heavy-stomp": { "name": "Pancada Sonolenta", "effect": "stomp", "baseDamage": 50, "attackRatio": 0.9, "specialRatio": 0, "splashRange": 1.75, "jumpRange": 3, "stunDuration": 1 },
-    "legendary-ice": { "name": "Nevasca", "effect": "slow", "baseDamage": 36, "specialRatio": 1.1, "slowDuration": 4 },
-    "legendary-fire": { "name": "Chamas Sagradas", "effect": "burn", "baseDamage": 40, "specialRatio": 1.1, "dotBase": 8, "dotRatio": 0.13, "dotDuration": 4 },
-    "legendary-electric": { "name": "Trovão", "effect": "chain", "baseDamage": 36, "specialRatio": 1.2, "chainBase": 20, "chainRatio": 0.7, "chainRange": 3 },
-    "legendary-water": { "name": "Hidro Bomba", "effect": "slow", "baseDamage": 40, "specialRatio": 1.2, "slowDuration": 3 },
-    "legendary-psychic": { "name": "Psíquico", "effect": "blast", "baseDamage": 45, "specialRatio": 1.25 },
-    "legendary-grass": { "name": "Poder da Natureza", "effect": "drain", "baseDamage": 33, "specialRatio": 1.05, "healBase": 25, "healRatio": 0.45 },
-    "legendary-flying": { "name": "Aeroblast", "effect": "blast", "baseDamage": 50, "specialRatio": 1.4 }
+    "pollen-mortar": {
+      "name": "Morteiro de Pólen",
+      "effect": "pollen",
+      "baseDamage": 0,
+      "specialRatio": 0.62,
+      "damageByStage": [
+        32,
+        50,
+        72
+      ],
+      "healByStage": [
+        16,
+        28,
+        40
+      ],
+      "healRatio": 0.24,
+      "healRange": 3.3,
+      "healTargets": 2,
+      "splashRange": 1.45
+    },
+    "flaming-strike": {
+      "name": "Golpe Flamejante",
+      "effect": "flame-strike",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "damageRatioByStage": [
+        1.55,
+        1.65,
+        1.75
+      ]
+    },
+    "aqua-spin": {
+      "name": "Giro Aquático",
+      "effect": "spin",
+      "baseDamage": 0,
+      "specialRatio": 0.28,
+      "damageByStage": [
+        22,
+        36,
+        54
+      ],
+      "shieldByStage": [
+        0.2,
+        0.24,
+        0.28
+      ],
+      "splashRange": 1.65,
+      "seconds": 2
+    },
+    "thunder-shock": {
+      "name": "Choque do Trovão",
+      "effect": "shock",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "damageRatioByStage": [
+        1.05,
+        1.18
+      ],
+      "secondaryRatioByStage": [
+        0.5,
+        0.6
+      ],
+      "secondaryTargetsByStage": [
+        1,
+        2
+      ],
+      "chainRange": 2
+    },
+    "toxic-thread": {
+      "name": "Fio Venenoso",
+      "effect": "poison-shot",
+      "baseDamage": 20,
+      "specialRatio": 0.45,
+      "dotBase": 4,
+      "dotRatio": 0.07,
+      "dotDuration": 3
+    },
+    "toxic-shell": {
+      "name": "Casulo Tóxico",
+      "effect": "poison-shot",
+      "baseDamage": 12,
+      "specialRatio": 0.25,
+      "dotBase": 4,
+      "dotRatio": 0.07,
+      "dotDuration": 3,
+      "shieldBase": 45,
+      "shieldDefenseRatio": 0.6,
+      "shieldDuration": 3.5
+    },
+    "healing-powder": {
+      "name": "Pó Revigorante",
+      "effect": "heal-powder",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "healBase": 32,
+      "healRatio": 0.65,
+      "healTargets": 2,
+      "healRange": 3.5
+    },
+    "stinger": {
+      "name": "Ferroada",
+      "effect": "sting",
+      "baseDamage": 18,
+      "attackRatio": 0.95,
+      "specialRatio": 0
+    },
+    "firm-cocoon": {
+      "name": "Casulo Firme",
+      "effect": "shield",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "shieldBase": 60,
+      "shieldDefenseRatio": 0.85,
+      "shieldDuration": 4
+    },
+    "multi-jab": {
+      "name": "Multistrike",
+      "effect": "multi",
+      "baseDamage": 14,
+      "attackRatio": 0.4,
+      "specialRatio": 0,
+      "hits": 4,
+      "seconds": 0.9
+    },
+    "gas-cloud": {
+      "name": "Nuvem de Gás",
+      "effect": "gas",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "damageByStage": [
+        30,
+        42
+      ],
+      "attackRatioByStage": [
+        0.9,
+        1
+      ],
+      "radiusByStage": [
+        1.85,
+        2.05
+      ]
+    },
+    "heavy-stomp": {
+      "name": "Pancada Sonolenta",
+      "effect": "stomp",
+      "baseDamage": 50,
+      "attackRatio": 0.9,
+      "specialRatio": 0,
+      "splashRange": 1.75,
+      "jumpRange": 3,
+      "stunDuration": 1
+    },
+    "legendary-ice": {
+      "name": "Nevasca",
+      "effect": "slow",
+      "baseDamage": 36,
+      "specialRatio": 1.1,
+      "slowDuration": 4
+    },
+    "legendary-fire": {
+      "name": "Chamas Sagradas",
+      "effect": "burn",
+      "baseDamage": 40,
+      "specialRatio": 1.1,
+      "dotBase": 8,
+      "dotRatio": 0.13,
+      "dotDuration": 4
+    },
+    "legendary-electric": {
+      "name": "Trovão",
+      "effect": "chain",
+      "baseDamage": 36,
+      "specialRatio": 1.2,
+      "chainBase": 20,
+      "chainRatio": 0.7,
+      "chainRange": 3
+    },
+    "legendary-water": {
+      "name": "Hidro Bomba",
+      "effect": "slow",
+      "baseDamage": 40,
+      "specialRatio": 1.2,
+      "slowDuration": 3
+    },
+    "legendary-psychic": {
+      "name": "Psíquico",
+      "effect": "blast",
+      "baseDamage": 45,
+      "specialRatio": 1.25
+    },
+    "legendary-grass": {
+      "name": "Poder da Natureza",
+      "effect": "drain",
+      "baseDamage": 33,
+      "specialRatio": 1.05,
+      "healBase": 25,
+      "healRatio": 0.45
+    },
+    "legendary-flying": {
+      "name": "Aeroblast",
+      "effect": "blast",
+      "baseDamage": 50,
+      "specialRatio": 1.4
+    },
+    "ball-eevee": {
+      "name": "Bola Neutra",
+      "effect": "eevee-ball",
+      "baseDamage": 22,
+      "attackRatio": 1,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "none"
+      }
+    },
+    "ball-vaporeon": {
+      "name": "Bola d'Água",
+      "effect": "eevee-ball",
+      "baseDamage": 25,
+      "attackRatio": 1.05,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "stat_buff",
+        "stat": "spd",
+        "points_per_damage_per_ally": 0.07,
+        "duration_seconds": 6
+      }
+    },
+    "ball-flareon": {
+      "name": "Bola de Fogo",
+      "effect": "eevee-ball",
+      "baseDamage": 30,
+      "attackRatio": 1.2,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "stat_buff",
+        "stat": "atk",
+        "points_per_damage_per_ally": 0.065,
+        "duration_seconds": 6
+      }
+    },
+    "ball-jolteon": {
+      "name": "Bola Elétrica",
+      "effect": "eevee-ball",
+      "baseDamage": 24,
+      "attackRatio": 1.1,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "stat_buff",
+        "stat": "speed",
+        "points_per_damage_per_ally": 0.045,
+        "duration_seconds": 4.5
+      }
+    },
+    "ball-umbreon": {
+      "name": "Bola Sombria",
+      "effect": "eevee-ball",
+      "baseDamage": 24,
+      "attackRatio": 0.9,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "stat_buff",
+        "stat": "def",
+        "points_per_damage_per_ally": 0.07,
+        "duration_seconds": 6
+      }
+    },
+    "ball-sylveon": {
+      "name": "Bola Feérica",
+      "effect": "eevee-ball",
+      "baseDamage": 24,
+      "attackRatio": 1.05,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "heal",
+        "healing_pool_per_damage": 0.4,
+        "distribution": "equal_split_among_actual_recipients",
+        "overheal": "discard"
+      }
+    },
+    "ball-leafeon": {
+      "name": "Bola de Folhas",
+      "effect": "eevee-ball",
+      "baseDamage": 26,
+      "attackRatio": 1.08,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "barrier",
+        "shield_pool_per_damage": 0.34,
+        "duration_seconds": 7,
+        "distribution": "equal_split_among_actual_recipients",
+        "max_barrier_fraction_of_target_max_hp": 0.25
+      }
+    },
+    "ball-glaceon": {
+      "name": "Bola Glacial",
+      "effect": "eevee-ball",
+      "baseDamage": 29,
+      "attackRatio": 1.15,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "barrier",
+        "shield_pool_per_damage": 0.42,
+        "duration_seconds": 5,
+        "distribution": "equal_split_among_actual_recipients",
+        "max_barrier_fraction_of_target_max_hp": 0.3
+      }
+    },
+    "ball-espeon": {
+      "name": "Bola Psíquica",
+      "effect": "eevee-ball",
+      "baseDamage": 34,
+      "attackRatio": 1.25,
+      "specialRatio": 0,
+      "splashRange": 1.65,
+      "splashMultiplier": 0.85,
+      "conversion": {
+        "kind": "stat_buff",
+        "stat": "spa",
+        "points_per_damage_per_ally": 0.065,
+        "duration_seconds": 6
+      }
+    },
+    "bone-cubone": {
+      "name": "Arremesso de Osso",
+      "effect": "bone-throw",
+      "baseDamage": 24,
+      "attackRatio": 0.8,
+      "specialRatio": 0,
+      "shredBase": 7,
+      "shredRatio": 0.12,
+      "shredDuration": 5
+    },
+    "bone-marowak": {
+      "name": "Bumerangue Ósseo",
+      "effect": "bone-throw",
+      "baseDamage": 32,
+      "attackRatio": 0.95,
+      "specialRatio": 0,
+      "shredBase": 9,
+      "shredRatio": 0.14,
+      "shredDuration": 5
+    },
+    "rise-onix": {
+      "name": "Investida Ascendente",
+      "effect": "single-knockup",
+      "baseDamage": 32,
+      "attackRatio": 1.15,
+      "specialRatio": 0,
+      "controlDuration": 0.75
+    },
+    "rise-steelix": {
+      "name": "Cauda de Ferro Ascendente",
+      "effect": "single-knockup",
+      "baseDamage": 42,
+      "attackRatio": 1.3,
+      "specialRatio": 0,
+      "controlDuration": 0.95
+    },
+    "rock-geodude": {
+      "name": "Golpe Rochoso",
+      "effect": "rock-strike",
+      "baseDamage": 28,
+      "specialRatio": 0,
+      "attackRatio": 1.2,
+      "skillRange": 3.2
+    },
+    "rock-graveler": {
+      "name": "Golpe Rochoso Pesado",
+      "effect": "rock-strike",
+      "baseDamage": 38,
+      "specialRatio": 0,
+      "attackRatio": 1.35,
+      "skillRange": 3.2
+    },
+    "golem-withdraw": {
+      "name": "Withdraw — Casca Fortificada",
+      "effect": "withdraw-guard",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "attackRatio": 0,
+      "skillRange": 3.2,
+      "guardDuration": 4.5,
+      "guardReduction": 0.6
+    },
+    "egg-chansey": {
+      "name": "Ovo Revigorante",
+      "effect": "healing-egg",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "attackRatio": 0,
+      "healBase": 24,
+      "healRatio": 0.75,
+      "splashRange": 1.65,
+      "skillRange": 3.2
+    },
+    "egg-blissey": {
+      "name": "Ovo Milagroso",
+      "effect": "healing-egg",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "attackRatio": 0,
+      "healBase": 36,
+      "healRatio": 0.9,
+      "splashRange": 1.65,
+      "skillRange": 3.2
+    }
   }
 }

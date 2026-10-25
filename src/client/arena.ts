@@ -14,7 +14,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier'] };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number };
 type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number; hitFrame?: number };
 type PmdEntry = Record<string, PmdSheet>;
 const PMD = pmdManifest as Record<string, PmdEntry>;
@@ -448,7 +448,7 @@ export class Arena {
     if (unit.flash > 0) {
       ctx.fillStyle = '#fff4d454'; ctx.beginPath(); ctx.arc(p.x, p.y - 2, radius * 1.7, 0, PI2); ctx.fill();
     }
-    const lift = (unit.jumpHeight || 0) + (unit.knockUpTime ? .55 * Math.sin(Math.PI * (1 - unit.knockUpTime / .35)) : 0);
+    const lift = (unit.jumpHeight || 0) + (unit.knockUpTime ? .55 * Math.sin(Math.PI * (1 - Math.min(1, unit.knockUpTime / (unit.knockUpDuration || .35)))) : 0);
     const spriteTop = this.drawPokemonSprite(p.x, p.y - lift * this.cellScale, unit, time);
     if (unit.bench) return;
     const barWidth = Math.max(35, radius * 2.35);
@@ -457,14 +457,24 @@ export class Arena {
     if (this.snapshot?.phase !== 'planning') {
       ctx.fillStyle = '#101f20d9'; ctx.fillRect(bx - 1, baseY - 1, barWidth + 2, 7);
       ctx.fillStyle = unit.own ? '#74e6a9' : '#ff947d'; ctx.fillRect(bx, baseY, barWidth * Math.max(0, unit.hp / unit.maxHp), 5);
-      if (unit.barrier && unit.barrier.hp > 0) {
-        ctx.fillStyle = '#d5b3ff'; ctx.fillRect(bx, baseY - 3, barWidth * Math.min(1, unit.barrier.hp / unit.barrier.maxHp), 2);
-      }
+      const shield = (unit.barrier?.hp || 0) + (unit.barriers || []).reduce((total,b) => total+b.hp,0);
+      if (shield > 0) { ctx.fillStyle = '#d5b3ff'; ctx.fillRect(bx, baseY - 3, barWidth * Math.min(1, shield/unit.maxHp), 2); }
       if (unit.poison) {
         ctx.fillStyle = '#b76de4'; ctx.beginPath(); ctx.arc(bx + barWidth + 4, baseY + 2, 3.1, 0, PI2); ctx.fill();
       }
       ctx.fillStyle = '#132a31c9'; ctx.fillRect(bx, baseY + 7, barWidth, 3);
       ctx.fillStyle = '#80ccfa'; ctx.fillRect(bx, baseY + 7, barWidth * Math.min(1, unit.energy / unit.required), 3);
+      const statuses = [
+        ...(unit.buffs || []).map(b => `${b.stat.toUpperCase()}↑ ${Math.ceil(b.until-(this.snapshot?.visibleBattle?.elapsed || 0))}s`),
+        ...(unit.defenseShreds || []).map(b => `DEF↓ ${Math.ceil(b.until-(this.snapshot?.visibleBattle?.elapsed || 0))}s`),
+        ...((unit.guardUntil || 0) > (this.snapshot?.visibleBattle?.elapsed || 0) ? [`GUARDA ${Math.ceil(unit.guardUntil!-(this.snapshot?.visibleBattle?.elapsed || 0))}s`] : []),
+        ...(unit.barriers?.length ? ['BARREIRA'] : [])
+      ];
+      if (statuses.length) {
+        const label = statuses.slice(0,2).join(' · ');
+        ctx.font = '800 9px Inter'; ctx.textAlign = 'center'; ctx.strokeStyle = '#062021'; ctx.lineWidth = 3;
+        ctx.strokeText(label,p.x,baseY-23); ctx.fillStyle = '#e5deba';ctx.fillText(label,p.x,baseY-23);
+      }
     }
     // O nível acompanha a cabeça do Pokémon e não a posição fixa da célula.
     ctx.fillStyle = '#f7e5ac'; ctx.font = `800 ${Math.max(9, this.cellScale * .155)}px 'Barlow Condensed'`;
@@ -502,6 +512,26 @@ export class Arena {
         const posY = p.y - this.cellScale * .4 - 24 - t * 54;
         ctx.strokeText(String(amount), p.x, posY); ctx.fillStyle = color; ctx.fillText(String(amount), p.x, posY);
         ctx.restore(); continue;
+      }
+      if (fx.kind === 'ball' || fx.kind === 'bone' || fx.kind === 'egg') {
+        const arrival = fx.kind === 'bone' ? .78 : .83;
+        const fly = Math.min(1,t/arrival);
+        const x = from.x+(to.x-from.x)*fly, y = from.y+(to.y-from.y)*fly - 25*Math.sin(fly*Math.PI)-12;
+        const color = fx.kind === 'egg' ? '#e8ffe6' : fx.kind === 'bone' ? '#edd9af' : SPECIES[fx.family].glow;
+        ctx.save();ctx.globalAlpha = fly < 1 ? 1 : Math.max(0,1-(t-arrival)/(1-arrival));
+        ctx.shadowColor=color;ctx.shadowBlur=13;ctx.fillStyle=color;ctx.strokeStyle='#fffbdc';ctx.lineWidth=2;
+        if (fx.kind === 'bone') {
+          ctx.translate(x,y);ctx.rotate(fly*14);ctx.fillRect(-12,-3,24,6);
+          for(const dx of [-12,12]) for(const dy of [-4,4]) { ctx.beginPath();ctx.arc(dx,dy,4,0,PI2);ctx.fill(); }
+        } else if (fx.kind === 'egg') {
+          ctx.beginPath();ctx.ellipse(x,y,8,11,fly*2,0,PI2);ctx.fill();ctx.stroke();
+        } else { ctx.beginPath();ctx.arc(x,y,10,0,PI2);ctx.fill();ctx.stroke(); }
+        ctx.restore();continue;
+      }
+      if (fx.kind === 'impact') {
+        ctx.save();ctx.globalAlpha=(1-t)*.75;ctx.strokeStyle=SPECIES[fx.family].glow;ctx.lineWidth=3;
+        ctx.beginPath();ctx.ellipse(to.x,to.y-9,(fx.value || 1.65)*this.cellScale*(.4+t*.6),
+          (fx.value || 1.65)*this.cellScale*(.18+t*.3),0,0,PI2);ctx.stroke();ctx.restore();continue;
       }
       ctx.save();
       if (fx.kind === 'pollen') {

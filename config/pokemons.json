@@ -69,6 +69,50 @@
     ],
     "celebi": [
       "./sprites/251.png"
+    ],
+    "cubone": [
+      "./sprites/104.png",
+      "./sprites/105.png"
+    ],
+    "onix": [
+      "./sprites/95.png",
+      "./sprites/208.png"
+    ],
+    "geodude": [
+      "./sprites/74.png",
+      "./sprites/75.png",
+      "./sprites/76.png"
+    ],
+    "chansey": [
+      "./sprites/113.png",
+      "./sprites/242.png"
+    ],
+    "eevee": [
+      "./sprites/133.png"
+    ],
+    "vaporeon": [
+      "./sprites/134.png"
+    ],
+    "flareon": [
+      "./sprites/136.png"
+    ],
+    "jolteon": [
+      "./sprites/135.png"
+    ],
+    "umbreon": [
+      "./sprites/197.png"
+    ],
+    "sylveon": [
+      "./sprites/700.png"
+    ],
+    "leafeon": [
+      "./sprites/470.png"
+    ],
+    "glaceon": [
+      "./sprites/471.png"
+    ],
+    "espeon": [
+      "./sprites/196.png"
     ]
   },
   "species": {
@@ -87,12 +131,12 @@
       "shop": true,
       "glow": "#8fc96c",
       "base": {
-        "hp": 225,
-        "speed": 55,
-        "atk": 40,
-        "def": 45,
-        "spa": 70,
-        "spd": 50
+        "hp": 220,
+        "atk": 30,
+        "def": 30,
+        "spa": 35,
+        "spd": 30,
+        "speed": 45
       },
       "range": 2.7,
       "energy": 45,
@@ -109,14 +153,20 @@
       "stages": [
         {
           "move": "toxic-thread",
-          "chargedType": "poison"
+          "chargedType": "poison",
+          "elements": [
+            "bug"
+          ]
         },
         {
           "move": "toxic-shell",
           "chargedType": "poison",
           "energy": 50,
           "range": 2.05,
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "SpAttack",
+          "elements": [
+            "bug"
+          ]
         },
         {
           "move": "healing-powder",
@@ -127,6 +177,32 @@
             "flying"
           ],
           "chargedAnimation": "FlapAround"
+        }
+      ],
+      "stageBases": [
+        {
+          "hp": 220,
+          "atk": 30,
+          "def": 30,
+          "spa": 35,
+          "spd": 30,
+          "speed": 45
+        },
+        {
+          "hp": 280,
+          "atk": 22,
+          "def": 93,
+          "spa": 28,
+          "spd": 70,
+          "speed": 17
+        },
+        {
+          "hp": 420,
+          "atk": 44,
+          "def": 66,
+          "spa": 110,
+          "spd": 91,
+          "speed": 88
         }
       ]
     },
@@ -145,12 +221,12 @@
       "shop": true,
       "glow": "#c39c72",
       "base": {
-        "hp": 225,
-        "speed": 78,
-        "atk": 62,
-        "def": 43,
-        "spa": 30,
-        "spd": 39
+        "hp": 210,
+        "atk": 47,
+        "def": 32,
+        "spa": 20,
+        "spd": 26,
+        "speed": 56
       },
       "range": 1.05,
       "energy": 40,
@@ -167,19 +243,57 @@
       "stages": [
         {
           "move": "stinger",
-          "chargedAnimation": "Strike"
+          "chargedAnimation": "Strike",
+          "elements": [
+            "bug",
+            "poison"
+          ]
         },
         {
           "move": "firm-cocoon",
           "energy": 50,
           "range": 1,
-          "chargedAnimation": "Twirl"
+          "chargedAnimation": "Twirl",
+          "elements": [
+            "bug",
+            "poison"
+          ]
         },
         {
           "move": "multi-jab",
           "energy": 65,
           "range": 1.25,
-          "chargedAnimation": "Jab"
+          "chargedAnimation": "Jab",
+          "elements": [
+            "bug",
+            "poison"
+          ]
+        }
+      ],
+      "stageBases": [
+        {
+          "hp": 210,
+          "atk": 47,
+          "def": 32,
+          "spa": 20,
+          "spd": 26,
+          "speed": 56
+        },
+        {
+          "hp": 270,
+          "atk": 26,
+          "def": 90,
+          "spa": 18,
+          "spd": 68,
+          "speed": 20
+        },
+        {
+          "hp": 430,
+          "atk": 115,
+          "def": 69,
+          "spa": 35,
+          "spd": 66,
+          "speed": 112
         }
       ]
     },
@@ -198,12 +312,12 @@
       "shop": true,
       "glow": "#38f0a5",
       "base": {
-        "hp": 240,
-        "speed": 51,
-        "atk": 48,
-        "def": 53,
-        "spa": 68,
-        "spd": 68
+        "hp": 260,
+        "atk": 42,
+        "def": 55,
+        "spa": 66,
+        "spd": 64,
+        "speed": 43
       },
       "range": 2.8,
       "energy": 50,
@@ -217,7 +331,53 @@
         "category": "special",
         "animation": "Shoot",
         "projectile": "seed"
-      }
+      },
+      "stageBases": [
+        {
+          "hp": 260,
+          "atk": 42,
+          "def": 55,
+          "spa": 66,
+          "spd": 64,
+          "speed": 43
+        },
+        {
+          "hp": 380,
+          "atk": 58,
+          "def": 78,
+          "spa": 90,
+          "spd": 86,
+          "speed": 55
+        },
+        {
+          "hp": 520,
+          "atk": 75,
+          "def": 105,
+          "spa": 115,
+          "spd": 111,
+          "speed": 66
+        }
+      ],
+      "stages": [
+        {
+          "elements": [
+            "grass",
+            "poison"
+          ]
+        },
+        {
+          "elements": [
+            "grass",
+            "poison"
+          ]
+        },
+        {
+          "elements": [
+            "grass",
+            "poison"
+          ]
+        }
+      ]
     },
     "charmander": {
       "names": [
@@ -234,12 +394,12 @@
       "shop": true,
       "glow": "#ff714c",
       "base": {
-        "hp": 230,
-        "speed": 75,
-        "atk": 58,
-        "def": 48,
-        "spa": 62,
-        "spd": 50
+        "hp": 250,
+        "atk": 62,
+        "def": 43,
+        "spa": 61,
+        "spd": 48,
+        "speed": 72
       },
       "range": 1.05,
       "energy": 40,
@@ -253,13 +413,47 @@
         "animation": "Attack"
       },
       "stages": [
-        {},
-        {},
+        {
+          "elements": [
+            "fire"
+          ]
+        },
+        {
+          "elements": [
+            "fire"
+          ]
+        },
         {
           "elements": [
             "fire",
             "flying"
           ]
+        }
+      ],
+      "stageBases": [
+        {
+          "hp": 250,
+          "atk": 62,
+          "def": 43,
+          "spa": 61,
+          "spd": 48,
+          "speed": 72
+        },
+        {
+          "hp": 360,
+          "atk": 82,
+          "def": 60,
+          "spa": 85,
+          "spd": 64,
+          "speed": 88
+        },
+        {
+          "hp": 490,
+          "atk": 103,
+          "def": 79,
+          "spa": 115,
+          "spd": 84,
+          "speed": 110
         }
       ]
     },
@@ -278,12 +472,12 @@
       "shop": true,
       "glow": "#5aa8ff",
       "base": {
-        "hp": 265,
-        "speed": 42,
-        "atk": 50,
-        "def": 77,
+        "hp": 280,
+        "atk": 48,
+        "def": 73,
         "spa": 52,
-        "spd": 75
+        "spd": 66,
+        "speed": 39
       },
       "range": 1,
       "energy": 50,
@@ -295,7 +489,50 @@
         "stat": "atk",
         "category": "physical",
         "animation": "Attack"
-      }
+      },
+      "stageBases": [
+        {
+          "hp": 280,
+          "atk": 48,
+          "def": 73,
+          "spa": 52,
+          "spd": 66,
+          "speed": 39
+        },
+        {
+          "hp": 390,
+          "atk": 65,
+          "def": 97,
+          "spa": 72,
+          "spd": 89,
+          "speed": 52
+        },
+        {
+          "hp": 510,
+          "atk": 86,
+          "def": 120,
+          "spa": 98,
+          "spd": 117,
+          "speed": 65
+        }
+      ],
+      "stages": [
+        {
+          "elements": [
+            "water"
+          ]
+        },
+        {
+          "elements": [
+            "water"
+          ]
+        },
+        {
+          "elements": [
+            "water"
+          ]
+        }
+      ]
     },
     "pikachu": {
       "names": [
@@ -310,12 +547,12 @@
       "shop": true,
       "glow": "#f8cb4d",
       "base": {
-        "hp": 200,
-        "speed": 100,
-        "atk": 56,
-        "def": 43,
-        "spa": 68,
-        "spd": 55
+        "hp": 215,
+        "atk": 52,
+        "def": 35,
+        "spa": 83,
+        "spd": 47,
+        "speed": 106
       },
       "range": 2.35,
       "energy": 50,
@@ -328,7 +565,37 @@
         "category": "special",
         "animation": "Shoot",
         "projectile": "lightning"
-      }
+      },
+      "stageBases": [
+        {
+          "hp": 215,
+          "atk": 52,
+          "def": 35,
+          "spa": 83,
+          "spd": 47,
+          "speed": 106
+        },
+        {
+          "hp": 300,
+          "atk": 75,
+          "def": 57,
+          "spa": 108,
+          "spd": 76,
+          "speed": 120
+        }
+      ],
+      "stages": [
+        {
+          "elements": [
+            "electric"
+          ]
+        },
+        {
+          "elements": [
+            "electric"
+          ]
+        }
+      ]
     },
     "koffing": {
       "names": [
@@ -343,12 +610,12 @@
       "shop": true,
       "glow": "#b47bce",
       "base": {
-        "hp": 350,
-        "speed": 30,
-        "atk": 82,
-        "def": 92,
-        "spa": 35,
-        "spd": 66
+        "hp": 340,
+        "atk": 60,
+        "def": 91,
+        "spa": 42,
+        "spd": 68,
+        "speed": 27
       },
       "range": 1.05,
       "energy": 60,
@@ -363,10 +630,34 @@
       },
       "stages": [
         {
-          "chargedAnimation": "Gas"
+          "chargedAnimation": "Gas",
+          "elements": [
+            "poison"
+          ]
         },
         {
-          "chargedAnimation": "Gas"
+          "chargedAnimation": "Gas",
+          "elements": [
+            "poison"
+          ]
+        }
+      ],
+      "stageBases": [
+        {
+          "hp": 340,
+          "atk": 60,
+          "def": 91,
+          "spa": 42,
+          "spd": 68,
+          "speed": 27
+        },
+        {
+          "hp": 505,
+          "atk": 88,
+          "def": 116,
+          "spa": 58,
+          "spd": 105,
+          "speed": 37
         }
       ]
     },
@@ -381,12 +672,12 @@
       "shop": true,
       "glow": "#d4b382",
       "base": {
-        "hp": 575,
-        "speed": 30,
-        "atk": 95,
-        "def": 85,
-        "spa": 40,
-        "spd": 115
+        "hp": 610,
+        "atk": 108,
+        "def": 112,
+        "spa": 38,
+        "spd": 120,
+        "speed": 25
       },
       "range": 1,
       "energy": 70,
@@ -401,7 +692,20 @@
       },
       "stages": [
         {
-          "chargedAnimation": "Hop"
+          "chargedAnimation": "Hop",
+          "elements": [
+            "normal"
+          ]
+        }
+      ],
+      "stageBases": [
+        {
+          "hp": 610,
+          "atk": 108,
+          "def": 112,
+          "spa": 38,
+          "spd": 120,
+          "speed": 25
         }
       ]
     },
@@ -416,12 +720,12 @@
       "shop": false,
       "glow": "#65d8fa",
       "base": {
-        "hp": 450,
-        "speed": 85,
-        "atk": 85,
-        "def": 100,
-        "spa": 95,
-        "spd": 125
+        "hp": 580,
+        "atk": 78,
+        "def": 108,
+        "spa": 113,
+        "spd": 120,
+        "speed": 88
       },
       "range": 3.2,
       "energy": 70,
@@ -429,6 +733,25 @@
       "elements": [
         "ice",
         "flying"
+      ],
+      "stageBases": [
+        {
+          "hp": 580,
+          "atk": 78,
+          "def": 108,
+          "spa": 113,
+          "spd": 120,
+          "speed": 88
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "ice",
+            "flying"
+          ]
+        }
       ]
     },
     "zapdos": {
@@ -442,12 +765,12 @@
       "shop": false,
       "glow": "#ffcd52",
       "base": {
-        "hp": 450,
-        "speed": 100,
+        "hp": 560,
         "atk": 90,
-        "def": 85,
-        "spa": 125,
-        "spd": 90
+        "def": 90,
+        "spa": 120,
+        "spd": 107,
+        "speed": 113
       },
       "range": 3.2,
       "energy": 70,
@@ -455,6 +778,25 @@
       "elements": [
         "electric",
         "flying"
+      ],
+      "stageBases": [
+        {
+          "hp": 560,
+          "atk": 90,
+          "def": 90,
+          "spa": 120,
+          "spd": 107,
+          "speed": 113
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "electric",
+            "flying"
+          ]
+        }
       ]
     },
     "moltres": {
@@ -468,12 +810,12 @@
       "shop": false,
       "glow": "#ff5a43",
       "base": {
-        "hp": 450,
-        "speed": 90,
-        "atk": 100,
-        "def": 90,
-        "spa": 125,
-        "spd": 85
+        "hp": 560,
+        "atk": 104,
+        "def": 87,
+        "spa": 120,
+        "spd": 99,
+        "speed": 101
       },
       "range": 3.1,
       "energy": 70,
@@ -481,6 +823,25 @@
       "elements": [
         "fire",
         "flying"
+      ],
+      "stageBases": [
+        {
+          "hp": 560,
+          "atk": 104,
+          "def": 87,
+          "spa": 120,
+          "spd": 99,
+          "speed": 101
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "fire",
+            "flying"
+          ]
+        }
       ]
     },
     "mewtwo": {
@@ -494,18 +855,36 @@
       "shop": false,
       "glow": "#9865e4",
       "base": {
-        "hp": 530,
-        "speed": 130,
-        "atk": 110,
-        "def": 90,
-        "spa": 154,
-        "spd": 90
+        "hp": 650,
+        "atk": 112,
+        "def": 94,
+        "spa": 120,
+        "spd": 108,
+        "speed": 120
       },
       "range": 3.3,
       "energy": 75,
       "attack": "legendary-psychic",
       "elements": [
         "psychic"
+      ],
+      "stageBases": [
+        {
+          "hp": 650,
+          "atk": 112,
+          "def": 94,
+          "spa": 120,
+          "spd": 108,
+          "speed": 120
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "psychic"
+          ]
+        }
       ]
     },
     "mew": {
@@ -519,18 +898,36 @@
       "shop": false,
       "glow": "#f09dca",
       "base": {
-        "hp": 500,
-        "speed": 100,
-        "atk": 100,
-        "def": 100,
-        "spa": 100,
-        "spd": 100
+        "hp": 600,
+        "atk": 106,
+        "def": 106,
+        "spa": 106,
+        "spd": 106,
+        "speed": 110
       },
       "range": 3,
       "energy": 65,
       "attack": "legendary-psychic",
       "elements": [
         "psychic"
+      ],
+      "stageBases": [
+        {
+          "hp": 600,
+          "atk": 106,
+          "def": 106,
+          "spa": 106,
+          "spd": 106,
+          "speed": 110
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "psychic"
+          ]
+        }
       ]
     },
     "raikou": {
@@ -544,18 +941,36 @@
       "shop": false,
       "glow": "#dbaa4e",
       "base": {
-        "hp": 450,
-        "speed": 115,
+        "hp": 560,
         "atk": 85,
-        "def": 75,
-        "spa": 115,
-        "spd": 100
+        "def": 80,
+        "spa": 120,
+        "spd": 108,
+        "speed": 120
       },
       "range": 3,
       "energy": 70,
       "attack": "legendary-electric",
       "elements": [
         "electric"
+      ],
+      "stageBases": [
+        {
+          "hp": 560,
+          "atk": 85,
+          "def": 80,
+          "spa": 120,
+          "spd": 108,
+          "speed": 120
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "electric"
+          ]
+        }
       ]
     },
     "entei": {
@@ -569,18 +984,36 @@
       "shop": false,
       "glow": "#ee714f",
       "base": {
-        "hp": 575,
-        "speed": 100,
-        "atk": 115,
-        "def": 85,
-        "spa": 90,
-        "spd": 75
+        "hp": 640,
+        "atk": 120,
+        "def": 94,
+        "spa": 93,
+        "spd": 85,
+        "speed": 108
       },
       "range": 2.2,
       "energy": 65,
       "attack": "legendary-fire",
       "elements": [
         "fire"
+      ],
+      "stageBases": [
+        {
+          "hp": 640,
+          "atk": 120,
+          "def": 94,
+          "spa": 93,
+          "spd": 85,
+          "speed": 108
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "fire"
+          ]
+        }
       ]
     },
     "suicune": {
@@ -594,18 +1027,36 @@
       "shop": false,
       "glow": "#6c9fe8",
       "base": {
-        "hp": 500,
-        "speed": 85,
-        "atk": 75,
-        "def": 115,
-        "spa": 90,
-        "spd": 115
+        "hp": 650,
+        "atk": 72,
+        "def": 120,
+        "spa": 105,
+        "spd": 120,
+        "speed": 91
       },
       "range": 2.8,
       "energy": 65,
       "attack": "legendary-water",
       "elements": [
         "water"
+      ],
+      "stageBases": [
+        {
+          "hp": 650,
+          "atk": 72,
+          "def": 120,
+          "spa": 105,
+          "spd": 120,
+          "speed": 91
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "water"
+          ]
+        }
       ]
     },
     "lugia": {
@@ -619,12 +1070,12 @@
       "shop": false,
       "glow": "#a7c7ef",
       "base": {
-        "hp": 530,
-        "speed": 110,
-        "atk": 90,
-        "def": 130,
-        "spa": 90,
-        "spd": 154
+        "hp": 670,
+        "atk": 95,
+        "def": 120,
+        "spa": 109,
+        "spd": 120,
+        "speed": 105
       },
       "range": 3.1,
       "energy": 75,
@@ -632,6 +1083,25 @@
       "elements": [
         "psychic",
         "flying"
+      ],
+      "stageBases": [
+        {
+          "hp": 670,
+          "atk": 95,
+          "def": 120,
+          "spa": 109,
+          "spd": 120,
+          "speed": 105
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "psychic",
+            "flying"
+          ]
+        }
       ]
     },
     "ho-oh": {
@@ -645,12 +1115,12 @@
       "shop": false,
       "glow": "#f2cb53",
       "base": {
-        "hp": 530,
-        "speed": 90,
-        "atk": 130,
-        "def": 90,
-        "spa": 110,
-        "spd": 154
+        "hp": 670,
+        "atk": 120,
+        "def": 96,
+        "spa": 114,
+        "spd": 120,
+        "speed": 98
       },
       "range": 3.1,
       "energy": 75,
@@ -658,6 +1128,25 @@
       "elements": [
         "fire",
         "flying"
+      ],
+      "stageBases": [
+        {
+          "hp": 670,
+          "atk": 120,
+          "def": 96,
+          "spa": 114,
+          "spd": 120,
+          "speed": 98
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "fire",
+            "flying"
+          ]
+        }
       ]
     },
     "celebi": {
@@ -671,19 +1160,841 @@
       "shop": false,
       "glow": "#8fe69e",
       "base": {
-        "hp": 500,
-        "speed": 100,
-        "atk": 100,
-        "def": 100,
-        "spa": 100,
-        "spd": 100
+        "hp": 600,
+        "atk": 90,
+        "def": 108,
+        "spa": 116,
+        "spd": 116,
+        "speed": 103
       },
       "range": 2.8,
       "energy": 65,
       "attack": "legendary-grass",
       "elements": [
-        "grass",
+        "psychic",
+        "grass"
+      ],
+      "stageBases": [
+        {
+          "hp": 600,
+          "atk": 90,
+          "def": 108,
+          "spa": 116,
+          "spd": 116,
+          "speed": 103
+        }
+      ],
+      "bossOnly": true,
+      "stages": [
+        {
+          "elements": [
+            "psychic",
+            "grass"
+          ]
+        }
+      ]
+    },
+    "cubone": {
+      "names": [
+        "Cubone",
+        "Marowak"
+      ],
+      "pokedexIds": [
+        104,
+        105
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#d9af72",
+      "base": {
+        "hp": 300,
+        "atk": 66,
+        "def": 58,
+        "spa": 64,
+        "spd": 57,
+        "speed": 56
+      },
+      "stageBases": [
+        {
+          "hp": 300,
+          "atk": 66,
+          "def": 58,
+          "spa": 64,
+          "spd": 57,
+          "speed": 56
+        },
+        {
+          "hp": 425,
+          "atk": 97,
+          "def": 85,
+          "spa": 82,
+          "spd": 74,
+          "speed": 75
+        }
+      ],
+      "range": 3,
+      "energy": 35,
+      "attack": "bone-cubone",
+      "elements": [
+        "ground"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "ground"
+          ],
+          "range": 3,
+          "move": "bone-cubone",
+          "energy": 35,
+          "chargedAnimation": "Shoot"
+        },
+        {
+          "elements": [
+            "ground"
+          ],
+          "range": 3.2,
+          "move": "bone-marowak",
+          "energy": 35,
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "onix": {
+      "names": [
+        "Onix",
+        "Steelix"
+      ],
+      "pokedexIds": [
+        95,
+        208
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#b5bdcc",
+      "base": {
+        "hp": 540,
+        "atk": 82,
+        "def": 120,
+        "spa": 30,
+        "spd": 60,
+        "speed": 31
+      },
+      "stageBases": [
+        {
+          "hp": 540,
+          "atk": 82,
+          "def": 120,
+          "spa": 30,
+          "spd": 60,
+          "speed": 31
+        },
+        {
+          "hp": 650,
+          "atk": 103,
+          "def": 120,
+          "spa": 43,
+          "spd": 96,
+          "speed": 38
+        }
+      ],
+      "range": 1,
+      "energy": 50,
+      "attack": "rise-onix",
+      "elements": [
+        "rock",
+        "ground"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "rock",
+            "ground"
+          ],
+          "range": 1,
+          "move": "rise-onix",
+          "energy": 50,
+          "chargedAnimation": "Strike",
+          "chargedType": "rock"
+        },
+        {
+          "elements": [
+            "steel",
+            "ground"
+          ],
+          "range": 1,
+          "move": "rise-steelix",
+          "energy": 50,
+          "chargedAnimation": "Strike",
+          "chargedType": "steel"
+        }
+      ]
+    },
+    "geodude": {
+      "names": [
+        "Geodude",
+        "Graveler",
+        "Golem"
+      ],
+      "pokedexIds": [
+        74,
+        75,
+        76
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#d2b38b",
+      "base": {
+        "hp": 330,
+        "atk": 70,
+        "def": 100,
+        "spa": 24,
+        "spd": 41,
+        "speed": 26
+      },
+      "stageBases": [
+        {
+          "hp": 330,
+          "atk": 70,
+          "def": 100,
+          "spa": 24,
+          "spd": 41,
+          "speed": 26
+        },
+        {
+          "hp": 480,
+          "atk": 97,
+          "def": 116,
+          "spa": 31,
+          "spd": 66,
+          "speed": 34
+        },
+        {
+          "hp": 610,
+          "atk": 110,
+          "def": 120,
+          "spa": 40,
+          "spd": 89,
+          "speed": 40
+        }
+      ],
+      "range": 1,
+      "energy": 55,
+      "attack": "rock-geodude",
+      "elements": [
+        "rock",
+        "ground"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "rock",
+            "ground"
+          ],
+          "range": 1,
+          "move": "rock-geodude",
+          "energy": 55,
+          "chargedAnimation": "Strike"
+        },
+        {
+          "elements": [
+            "rock",
+            "ground"
+          ],
+          "range": 1,
+          "move": "rock-graveler",
+          "energy": 55,
+          "chargedAnimation": "Strike"
+        },
+        {
+          "elements": [
+            "rock",
+            "ground"
+          ],
+          "range": 1,
+          "move": "golem-withdraw",
+          "energy": 60,
+          "chargedAnimation": "Withdraw"
+        }
+      ]
+    },
+    "chansey": {
+      "names": [
+        "Chansey",
+        "Blissey"
+      ],
+      "pokedexIds": [
+        113,
+        242
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#ffafc4",
+      "base": {
+        "hp": 670,
+        "atk": 22,
+        "def": 28,
+        "spa": 88,
+        "spd": 110,
+        "speed": 46
+      },
+      "stageBases": [
+        {
+          "hp": 670,
+          "atk": 22,
+          "def": 28,
+          "spa": 88,
+          "spd": 110,
+          "speed": 46
+        },
+        {
+          "hp": 700,
+          "atk": 30,
+          "def": 38,
+          "spa": 109,
+          "spd": 120,
+          "speed": 55
+        }
+      ],
+      "range": 1,
+      "energy": 55,
+      "attack": "egg-chansey",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal"
+          ],
+          "range": 1,
+          "move": "egg-chansey",
+          "energy": 55,
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "normal"
+          ],
+          "range": 1,
+          "move": "egg-blissey",
+          "energy": 60,
+          "chargedAnimation": "SpAttack"
+        }
+      ]
+    },
+    "eevee": {
+      "names": [
+        "Eevee"
+      ],
+      "pokedexIds": [
+        133
+      ],
+      "rarity": 2,
+      "shop": true,
+      "bossOnly": false,
+      "eeveeBranch": false,
+      "glow": "#d4c69f",
+      "base": {
+        "hp": 240,
+        "atk": 57,
+        "def": 49,
+        "spa": 52,
+        "spd": 50,
+        "speed": 61
+      },
+      "stageBases": [
+        {
+          "hp": 240,
+          "atk": 57,
+          "def": 49,
+          "spa": 52,
+          "spd": 50,
+          "speed": 61
+        }
+      ],
+      "range": 3,
+      "energy": 55,
+      "attack": "ball-eevee",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal"
+          ],
+          "range": 3,
+          "energy": 55,
+          "move": "ball-eevee",
+          "chargedType": "normal",
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "vaporeon": {
+      "names": [
+        "Vaporeon"
+      ],
+      "pokedexIds": [
+        134
+      ],
+      "rarity": 2,
+      "shop": false,
+      "bossOnly": false,
+      "eeveeBranch": true,
+      "glow": "#79caff",
+      "base": {
+        "hp": 380,
+        "atk": 59,
+        "def": 80,
+        "spa": 114,
+        "spd": 108,
+        "speed": 55
+      },
+      "stageBases": [
+        {
+          "hp": 380,
+          "atk": 59,
+          "def": 80,
+          "spa": 114,
+          "spd": 108,
+          "speed": 55
+        }
+      ],
+      "range": 3.5,
+      "energy": 60,
+      "attack": "ball-vaporeon",
+      "elements": [
+        "water"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "water"
+          ],
+          "range": 3.5,
+          "energy": 60,
+          "move": "ball-vaporeon",
+          "chargedType": "water",
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "flareon": {
+      "names": [
+        "Flareon"
+      ],
+      "pokedexIds": [
+        136
+      ],
+      "rarity": 2,
+      "shop": false,
+      "bossOnly": false,
+      "eeveeBranch": true,
+      "glow": "#ff985d",
+      "base": {
+        "hp": 340,
+        "atk": 120,
+        "def": 70,
+        "spa": 75,
+        "spd": 98,
+        "speed": 59
+      },
+      "stageBases": [
+        {
+          "hp": 340,
+          "atk": 120,
+          "def": 70,
+          "spa": 75,
+          "spd": 98,
+          "speed": 59
+        }
+      ],
+      "range": 3.1,
+      "energy": 60,
+      "attack": "ball-flareon",
+      "elements": [
+        "fire"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "fire"
+          ],
+          "range": 3.1,
+          "energy": 60,
+          "move": "ball-flareon",
+          "chargedType": "fire",
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "jolteon": {
+      "names": [
+        "Jolteon"
+      ],
+      "pokedexIds": [
+        135
+      ],
+      "rarity": 2,
+      "shop": false,
+      "bossOnly": false,
+      "eeveeBranch": true,
+      "glow": "#f4d85d",
+      "base": {
+        "hp": 325,
+        "atk": 60,
+        "def": 56,
+        "spa": 112,
+        "spd": 83,
+        "speed": 120
+      },
+      "stageBases": [
+        {
+          "hp": 325,
+          "atk": 60,
+          "def": 56,
+          "spa": 112,
+          "spd": 83,
+          "speed": 120
+        }
+      ],
+      "range": 3.5,
+      "energy": 60,
+      "attack": "ball-jolteon",
+      "elements": [
+        "electric"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "electric"
+          ],
+          "range": 3.5,
+          "energy": 60,
+          "move": "ball-jolteon",
+          "chargedType": "electric",
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "umbreon": {
+      "names": [
+        "Umbreon"
+      ],
+      "pokedexIds": [
+        197
+      ],
+      "rarity": 2,
+      "shop": false,
+      "bossOnly": false,
+      "eeveeBranch": true,
+      "glow": "#948ec5",
+      "base": {
+        "hp": 345,
+        "atk": 60,
+        "def": 120,
+        "spa": 52,
+        "spd": 120,
+        "speed": 55
+      },
+      "stageBases": [
+        {
+          "hp": 345,
+          "atk": 60,
+          "def": 120,
+          "spa": 52,
+          "spd": 120,
+          "speed": 55
+        }
+      ],
+      "range": 3.2,
+      "energy": 60,
+      "attack": "ball-umbreon",
+      "elements": [
+        "dark"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "dark"
+          ],
+          "range": 3.2,
+          "energy": 60,
+          "move": "ball-umbreon",
+          "chargedType": "dark",
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "sylveon": {
+      "names": [
+        "Sylveon"
+      ],
+      "pokedexIds": [
+        700
+      ],
+      "rarity": 2,
+      "shop": false,
+      "bossOnly": false,
+      "eeveeBranch": true,
+      "glow": "#f5badf",
+      "base": {
+        "hp": 350,
+        "atk": 58,
+        "def": 75,
+        "spa": 115,
+        "spd": 120,
+        "speed": 60
+      },
+      "stageBases": [
+        {
+          "hp": 350,
+          "atk": 58,
+          "def": 75,
+          "spa": 115,
+          "spd": 120,
+          "speed": 60
+        }
+      ],
+      "range": 3.6,
+      "energy": 60,
+      "attack": "ball-sylveon",
+      "elements": [
+        "fairy"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "fairy"
+          ],
+          "range": 3.6,
+          "energy": 60,
+          "move": "ball-sylveon",
+          "chargedType": "fairy",
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "leafeon": {
+      "names": [
+        "Leafeon"
+      ],
+      "pokedexIds": [
+        470
+      ],
+      "rarity": 2,
+      "shop": false,
+      "bossOnly": false,
+      "eeveeBranch": true,
+      "glow": "#a6d46d",
+      "base": {
+        "hp": 330,
+        "atk": 112,
+        "def": 100,
+        "spa": 45,
+        "spd": 65,
+        "speed": 92
+      },
+      "stageBases": [
+        {
+          "hp": 330,
+          "atk": 112,
+          "def": 100,
+          "spa": 45,
+          "spd": 65,
+          "speed": 92
+        }
+      ],
+      "range": 3.4,
+      "energy": 60,
+      "attack": "ball-leafeon",
+      "elements": [
+        "grass"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "grass"
+          ],
+          "range": 3.4,
+          "energy": 60,
+          "move": "ball-leafeon",
+          "chargedType": "grass",
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "glaceon": {
+      "names": [
+        "Glaceon"
+      ],
+      "pokedexIds": [
+        471
+      ],
+      "rarity": 2,
+      "shop": false,
+      "bossOnly": false,
+      "eeveeBranch": true,
+      "glow": "#9de4f5",
+      "base": {
+        "hp": 330,
+        "atk": 50,
+        "def": 105,
+        "spa": 120,
+        "spd": 105,
+        "speed": 45
+      },
+      "stageBases": [
+        {
+          "hp": 330,
+          "atk": 50,
+          "def": 105,
+          "spa": 120,
+          "spd": 105,
+          "speed": 45
+        }
+      ],
+      "range": 3.7,
+      "energy": 60,
+      "attack": "ball-glaceon",
+      "elements": [
+        "ice"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "ice"
+          ],
+          "range": 3.7,
+          "energy": 60,
+          "move": "ball-glaceon",
+          "chargedType": "ice",
+          "chargedAnimation": "Shoot"
+        }
+      ]
+    },
+    "espeon": {
+      "names": [
+        "Espeon"
+      ],
+      "pokedexIds": [
+        196
+      ],
+      "rarity": 2,
+      "shop": false,
+      "bossOnly": false,
+      "eeveeBranch": true,
+      "glow": "#dda3ef",
+      "base": {
+        "hp": 325,
+        "atk": 55,
+        "def": 55,
+        "spa": 120,
+        "spd": 90,
+        "speed": 116
+      },
+      "stageBases": [
+        {
+          "hp": 325,
+          "atk": 55,
+          "def": 55,
+          "spa": 120,
+          "spd": 90,
+          "speed": 116
+        }
+      ],
+      "range": 3.8,
+      "energy": 60,
+      "attack": "ball-espeon",
+      "elements": [
         "psychic"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Attack",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "psychic"
+          ],
+          "range": 3.8,
+          "energy": 60,
+          "move": "ball-espeon",
+          "chargedType": "psychic",
+          "chargedAnimation": "Shoot"
+        }
       ]
     }
   }

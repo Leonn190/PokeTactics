@@ -37,13 +37,14 @@ test('HP real, poder HP/5, IV/evolução e HP PvE migrado uma única vez', () =>
     const stats = calculateStats(family, 1, iv, 0);
     assert.equal(stats.hp, SPECIES[family].base.hp);
     assert.equal(stats.hp, fight(family).source.maxHp);
-    assert.equal(calculateStats(family, 1, iv, 1).hp, Math.round(stats.hp * 1.45));
+    const second = SPECIES[family].stageBases?.[1];
+    assert.equal(calculateStats(family, 1, iv, 1).hp, second?.hp ?? stats.hp);
   }
-  assert.equal(SHOP_FAMILIES.length, 8);
+  assert.equal(SHOP_FAMILIES.length, 13);
   assert.equal(LEGENDARY_FAMILIES.length, 11);
   assert.ok(LEGENDARY_FAMILIES.every(f => SPECIES[f].base.hp >= 400));
-  assert.equal(SPECIES.snorlax.base.hp, 575);
-  assert.equal(calculateStats('pikachu', 1, iv, 1).hp, 290);
+  assert.equal(SPECIES.snorlax.base.hp, 610);
+  assert.equal(calculateStats('pikachu', 1, iv, 1).hp, 300);
 });
 
 test('curva suave de APS e mitigação DEF/SpD calculadas sem atalhos', () => {
@@ -221,10 +222,10 @@ test('estados também funcionam em PvE e no campo quádruplo', () => {
   const bot = { ...game.players[1], id: 'bot:test', units: [make('koffing','gas',0)] };
   game.players[0].units = [make('snorlax','tank',0)];
   const pve = createBattle(game.players[0], bot, 'pve');
-  assert.equal(pve.units.find(u => u.playerId === 'bot:test')?.maxHp, 350);
+  assert.equal(pve.units.find(u => u.playerId === 'bot:test')?.maxHp, 340);
   const quad = createBattleGroup(game.players.slice(0,4), 'quad-effects', 'quad');
   assert.equal(quad.participants.length, 4);
-  assert.equal(quad.units[0].maxHp, 575);
+  assert.equal(quad.units[0].maxHp, 610);
   quad.introElapsed = 1.5;
   tick(quad, 2);
   assert.ok(quad.units.every(u => Number.isFinite(u.hp) && Number.isFinite(u.cooldown)));

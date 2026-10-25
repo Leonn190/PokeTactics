@@ -1,4 +1,4 @@
-# Poké Tactics — Astro v10 (combate e elenco expandidos)
+# PokéTactics — Astro v11.2 (49 formas, habilidades e evolução Eevee)
 
 ## IMPORTANTE: pacote de código SEM sprites PMD e portraits
 
@@ -20,7 +20,24 @@ espelhamento que excluam pastas ausentes do ZIP.
 Caso teste o ZIP isoladamente, os assets visuais ficarão ausentes até que ele
 seja combinado com a árvore `public/` original.
 
-## Atualização v10 — atributos, habilidades e oito famílias jogáveis
+## Atualização v11.2 — modificações implementadas
+
+- **49 formas no elenco**: 38 jogáveis e 11 chefes; todas recebem seis atributos-base individuais dentro de HP 0–700 e demais atributos 0–120. A ficha de Blissey tem exatamente **700 HP-base**. Nenhum multiplicador de evolução 1,45/2,10 é aplicado: cada forma evoluída usa seus próprios atributos.
+- **Eevee** é incomum, exige **4 cópias** e abre uma janela de escolha para as 8 evoluções. Ela mantém posição, maior nível/XP e os maiores IVs. A compra não escolhe um ramo aleatório para o jogador; as CPUs escolhem automaticamente.
+- As nove formas da linhagem Eevee são atiradoras: **básico de alvo único** com 50% do atributo ofensivo e 10 de energia; **apenas o carregado** lança a bola específica em área, preferindo o maior grupo de inimigos dentro do alcance. O dano e o bônus só ocorrem na colisão. Até dois aliados mais próximos recebem, conforme a forma: Umbreon DEF, Sylveon cura, Jolteon VEL, Flareon ATK, Espeon SpA, Glaceon barreira, Vaporeon SpD e Leafeon barreira. Eevee não concede bônus.
+- **Cubone → Marowak** (incomum, 3 cópias) lançam um osso carregado físico e reduzem DEF temporariamente com escala de SpA. Cada Cubone/Marowak aliado lança **um osso adicional gratuito para cada inimigo levantado** pelo Snorlax, Onix ou Steelix, mesmo fora do alcance básico. Os ossos chegam antes do dano/debuff, não fazem splash e não alteram a barra de energia no disparo reativo.
+- **Onix → Steelix** (épico, 3 cópias) são tanques melee e lançam **um único inimigo ao ar** com seu carregado, além de causar dano e stun. O Snorlax mantém o stun original de 1 s e elevação de 0,35 s, agora com evento individual por alvo levantado.
+- **Geodude → Graveler → Golem** (incomum, 3 cópias por etapa): os dois primeiros usam `Strike` para o Golpe Rochoso carregado; Golem substitui esse carregado por `Withdraw` e recebe **60% menos dano pós-mitigação por 4,5 segundos**. O ataque melee básico continua disponível.
+- **Chansey → Blissey** (épico, 3 cópias) têm básico melee e um **ovo carregado exclusivamente curativo**: mira o maior grupo de aliados com feridos, cura todos no raio ao impactar, não atinge inimigos nem desperdiça energia sem aliados machucados.
+- Efeitos temporários de buffs, barreiras e redução de DEF têm duração, limites de acúmulo e feedback visual. Defesas e barreiras absorvidas, bem como mitigação do Golem, são computadas pelo motor. Os tipos **Terrestre, Pedra, Aço, Sombrio e Fada** têm cálculo de eficácia e indicação na interface, sem ativar sinergias de combate.
+- Valores de raridade **Eevee/Geodude: 2, Chansey: 4**, atributos não travados e coeficientes das novas habilidades seguem as *propostas iniciais* do JSON fornecido; permanecem passíveis de ajustes após playtests.
+- `config/v11-spec.json` contém a especificação integral recebida. `scripts/apply-v11-spec.mjs` permite regenerar os parâmetros e catálogo. O gerador de PMD procura **todos os IDs do elenco** antes de `npm run build` e `npm run dev`, sem baixar arquivos e preservando o manifesto existente quando o ZIP está sem assets. Confirme no checkout completo se os arquivos PMD de todas as novas formas existem.
+
+**Verificação:** `npm run check`, `npm test` (**56 testes**) e `ASTRO_TELEMETRY_DISABLED=1 npm run build`.
+
+Os dados da auditoria e seções de versões antigas abaixo são registros históricos e não substituem o balanceamento v11.
+
+## Histórico v10 — atributos, habilidades e oito famílias jogáveis
 
 - **O HP final é o HP real do combate.** Não há `HP × 5,2 + 60` nem outro multiplicador exclusivo do combate. Atributos-base dos onze chefes lendários PvE foram migrados uma vez para a mesma escala. O poder exibido usa `HP/5 + ATK + DEF + SpA + SpD + VEL`.
 - Básicos usam **50% do ATK ou SpA**, configurado por família e independente da categoria física/especial, animação e tipo. Concedem 10 de energia por execução; o carregado substitui o próximo básico e não concede energia básica.

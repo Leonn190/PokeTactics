@@ -60,6 +60,10 @@ document.getElementById('shopCards')!.addEventListener('click', event => {
 });
 document.getElementById('rerollButton')!.addEventListener('click', () => send({ kind: 'reroll' }));
 document.getElementById('lockButton')!.addEventListener('click', () => send({ kind: 'lock' }));
+document.getElementById('eeveeBranches')!.addEventListener('click', event => {
+  const button = (event.target as HTMLElement).closest<HTMLElement>('[data-eevee-branch]');
+  if (button) send({ kind:'choose-eevee', branch:button.dataset.eeveeBranch as keyof typeof SPECIES });
+});
 
 document.getElementById('rankRows')!.addEventListener('click', event => {
   if (!state) return;

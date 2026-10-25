@@ -1,0 +1,1730 @@
+{
+  "document_type": "poketactics_implementation_spec",
+  "version": "v11.2-proposal-2026-10-25",
+  "language": "pt-BR",
+  "source_base": "PokeTactics-Astro-v10-Codigo-Sem-Assets.zip",
+  "status": "especificacao_para_revisao_e_implementacao_posterior; nao modifica o jogo",
+  "summary": {
+    "pokemon_total": 49,
+    "playable_forms": 38,
+    "boss_forms": 11,
+    "eevee_family_forms": 9,
+    "new_families": ["cubone", "onix", "geodude", "chansey"],
+    "hp_locked_by_user": 24,
+    "hp_proposed": 25
+  },
+  "authority": {
+    "user_locked": [
+      "Limites dos atributos-base: HP de 0 a 700; ATK/DEF/SpA/SpD/VEL de 0 a 120.",
+      "Os 23 HPs originais marcados user_locked, sem alteração; Blissey possui HP-base 700, definido explicitamente pelo usuário.",
+      "Eevee + 8 evoluções; Eevee requer 4 cópias.",
+      "Todas as 9 formas Eevee são atiradoras. Ataques REGULARES são ataques básicos de alvo único como no TFT, sem dano em área e sem benefícios. APENAS o ATAQUE CARREGADO lança a bola especial, mira no maior grupo dentro do alcance, causa dano em área e converte o dano total em benefícios aos dois aliados mais próximos; Eevee lança bola carregada mas não concede bônus.",
+      "Mapeamento das 8 conversões: Umbreon DEF, Sylveon cura, Jolteon VEL, Flareon ATK, Espeon SpA, Glaceon barreira, Vaporeon SpD, Leafeon barreira.",
+      "Cubone incomum (raridade 2) evolui para Marowak; Onix épico (raridade 4) evolui para Steelix.",
+      "Onix/Steelix são tanques melee: habilidade carregada causa dano e arremessa/atordoa um único inimigo. Cubone/Marowak lançam osso com redução de DEF baseada em SpA, e lançam automaticamente outro osso em CADA inimigo levantado por qualquer fonte aliada, como Snorlax e Steelix.",
+      "Geodude e Graveler usam um golpe rochoso de alvo único como habilidade carregada, animado com strike; Golem substitui o golpe por Withdraw, recebendo 60% menos dano durante um período.",
+      "Chansey e Blissey são melee; Blissey possui exatamente 700 HP-base, máximo permitido, e ambas arremessam ovo carregado que APENAS cura aliados em área, priorizando o grupo mais numeroso."
+    ],
+    "assistant_proposals": [
+      "Todos os atributos não-HP; os 6 HPs restantes dos jogáveis e os 11 HPs dos chefes.",
+      "Raridade 2 para Eevee; tipos, distâncias, fórmulas, custos de energia, efeitos visuais e regras anti-acúmulo.",
+      "Escolha manual do ramo de evolução do Eevee.",
+      "Atributos e coeficientes de dano, energia, redução de DEF e duração do controle das novas famílias; evolução com três cópias.",
+      "Raridade 2 de Geodude e 4 de Chansey, atributos das cinco novas formas, duração do Withdraw e coeficientes de dano e cura são propostas para balanceamento inicial."
+    ]
+  },
+  "implementation_contract": {
+    "goal": "Aplicar posteriormente esta especificação ao código V10, preservando assets e comportamentos não citados.",
+    "do_not_implement_now": true,
+    "stat_limits_base": {
+      "hp": [
+        0,
+        700
+      ],
+      "atk": [
+        0,
+        120
+      ],
+      "def": [
+        0,
+        120
+      ],
+      "spa": [
+        0,
+        120
+      ],
+      "spd": [
+        0,
+        120
+      ],
+      "speed": [
+        0,
+        120
+      ]
+    },
+    "stat_order": [
+      "hp",
+      "atk",
+      "def",
+      "spa",
+      "spd",
+      "speed"
+    ],
+    "remove_old_evolution_stat_multiplier": true,
+    "remove_old_hp_conversion": true,
+    "battle_max_hp": "usar HP final da ficha com nivel e IV, sem 5.2x+60 nem multiplicacao adicional de HP",
+    "power_estimate": "hp/5 + atk + def + spa + spd + speed",
+    "level_scale": "1 + max(0, level - 1) * 0.03; aplicado UMA vez à ficha de cada forma",
+    "iv_scale": "0.8 + clamp(iv, 0, 100)*0.004; IV=50 neutro; aplicado UMA vez",
+    "evolution_behavior": "buscar a ficha base da forma resultante; nao aplicar os fatores antigos 1.45 ou 2.10",
+    "base_cap_only": "limites 0..120 e HP 0..700 valem somente para base; nivel e IV podem resultar acima deles",
+    "evolution_roster": "Eevee é uma família com oito ramificações no estágio 1; cada forma evoluída possui stats, tipo e habilidade próprios. Cubone evolui para Marowak; Onix evolui para Steelix; Geodude evolui para Graveler e depois Golem; Chansey evolui para Blissey. Todas essas evoluções comuns usam 3 cópias por etapa.",
+    "eevee_evolution": {
+      "copies_required": 4,
+      "consume_copies": 4,
+      "selection": "player_choice_among_eight_before_merging",
+      "auto_random_choice": false,
+      "preserve": "maior nivel e XP das quatro copias; IV por atributo igual ao maior das quatro; manter a posição em arena da copia âncora",
+      "selection_status": "assistant_proposal",
+      "branch_ids": [
+        "vaporeon",
+        "flareon",
+        "jolteon",
+        "umbreon",
+        "sylveon",
+        "leafeon",
+        "glaceon",
+        "espeon"
+      ]
+    },
+    "extra_elements_to_support": [
+      "dark",
+      "fairy"
+    ],
+    "sprite_policy": "Usar os sprites PMD que já existem no repositório; se faltar algum, informar. Não baixar novamente nem duplicar a pasta de assets."
+  },
+  "families": {
+    "caterpie": {
+      "rarity": 1,
+      "shop": true,
+      "merge_copies": 3
+    },
+    "weedle": {
+      "rarity": 1,
+      "shop": true,
+      "merge_copies": 3
+    },
+    "bulbasaur": {
+      "rarity": 2,
+      "shop": true,
+      "merge_copies": 3
+    },
+    "charmander": {
+      "rarity": 2,
+      "shop": true,
+      "merge_copies": 3
+    },
+    "squirtle": {
+      "rarity": 2,
+      "shop": true,
+      "merge_copies": 3
+    },
+    "pikachu": {
+      "rarity": 2,
+      "shop": true,
+      "merge_copies": 3
+    },
+    "koffing": {
+      "rarity": 3,
+      "shop": true,
+      "merge_copies": 3
+    },
+    "cubone": {
+      "rarity": 2,
+      "shop": true,
+      "merge_copies": 3,
+      "evolves_to": "marowak"
+    },
+    "onix": {
+      "rarity": 4,
+      "shop": true,
+      "merge_copies": 3,
+      "evolves_to": "steelix"
+    },
+    "geodude": {
+      "rarity": 2,
+      "shop": true,
+      "merge_copies": 3,
+      "evolves_to": "graveler",
+      "evolution_chain": ["geodude", "graveler", "golem"],
+      "rarity_status": "assistant_proposal"
+    },
+    "chansey": {
+      "rarity": 4,
+      "shop": true,
+      "merge_copies": 3,
+      "evolves_to": "blissey",
+      "rarity_status": "assistant_proposal"
+    },
+    "snorlax": {
+      "rarity": 4,
+      "shop": true,
+      "merge_copies": null
+    },
+    "eevee": {
+      "rarity": 2,
+      "shop": true,
+      "merge_copies": 4,
+      "rarity_status": "assistant_proposal_not_confirmed"
+    },
+    "articuno": {
+      "rarity": 5,
+      "shop": false
+    },
+    "zapdos": {
+      "rarity": 5,
+      "shop": false
+    },
+    "moltres": {
+      "rarity": 5,
+      "shop": false
+    },
+    "mewtwo": {
+      "rarity": 5,
+      "shop": false
+    },
+    "mew": {
+      "rarity": 5,
+      "shop": false
+    },
+    "raikou": {
+      "rarity": 5,
+      "shop": false
+    },
+    "entei": {
+      "rarity": 5,
+      "shop": false
+    },
+    "suicune": {
+      "rarity": 5,
+      "shop": false
+    },
+    "lugia": {
+      "rarity": 5,
+      "shop": false
+    },
+    "ho-oh": {
+      "rarity": 5,
+      "shop": false
+    },
+    "celebi": {
+      "rarity": 5,
+      "shop": false
+    }
+  },
+  "pokemon": {
+    "caterpie": {
+      "name": "Caterpie",
+      "family": "caterpie",
+      "stage": 0,
+      "types": [
+        "bug"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 220,
+        "atk": 30,
+        "def": 30,
+        "spa": 35,
+        "spd": 30,
+        "speed": 45
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "metapod": {
+      "name": "Metapod",
+      "family": "caterpie",
+      "stage": 1,
+      "types": [
+        "bug"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 280,
+        "atk": 22,
+        "def": 93,
+        "spa": 28,
+        "spd": 70,
+        "speed": 17
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "butterfree": {
+      "name": "Butterfree",
+      "family": "caterpie",
+      "stage": 2,
+      "types": [
+        "bug",
+        "flying"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 420,
+        "atk": 44,
+        "def": 66,
+        "spa": 110,
+        "spd": 91,
+        "speed": 88
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "weedle": {
+      "name": "Weedle",
+      "family": "weedle",
+      "stage": 0,
+      "types": [
+        "bug",
+        "poison"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 210,
+        "atk": 47,
+        "def": 32,
+        "spa": 20,
+        "spd": 26,
+        "speed": 56
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "kakuna": {
+      "name": "Kakuna",
+      "family": "weedle",
+      "stage": 1,
+      "types": [
+        "bug",
+        "poison"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 270,
+        "atk": 26,
+        "def": 90,
+        "spa": 18,
+        "spd": 68,
+        "speed": 20
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "beedrill": {
+      "name": "Beedrill",
+      "family": "weedle",
+      "stage": 2,
+      "types": [
+        "bug",
+        "poison"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 430,
+        "atk": 115,
+        "def": 69,
+        "spa": 35,
+        "spd": 66,
+        "speed": 112
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "bulbasaur": {
+      "name": "Bulbasaur",
+      "family": "bulbasaur",
+      "stage": 0,
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 260,
+        "atk": 42,
+        "def": 55,
+        "spa": 66,
+        "spd": 64,
+        "speed": 43
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "ivysaur": {
+      "name": "Ivysaur",
+      "family": "bulbasaur",
+      "stage": 1,
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 380,
+        "atk": 58,
+        "def": 78,
+        "spa": 90,
+        "spd": 86,
+        "speed": 55
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "venusaur": {
+      "name": "Venusaur",
+      "family": "bulbasaur",
+      "stage": 2,
+      "types": [
+        "grass",
+        "poison"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 520,
+        "atk": 75,
+        "def": 105,
+        "spa": 115,
+        "spd": 111,
+        "speed": 66
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "charmander": {
+      "name": "Charmander",
+      "family": "charmander",
+      "stage": 0,
+      "types": [
+        "fire"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 250,
+        "atk": 62,
+        "def": 43,
+        "spa": 61,
+        "spd": 48,
+        "speed": 72
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "charmeleon": {
+      "name": "Charmeleon",
+      "family": "charmander",
+      "stage": 1,
+      "types": [
+        "fire"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 360,
+        "atk": 82,
+        "def": 60,
+        "spa": 85,
+        "spd": 64,
+        "speed": 88
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "charizard": {
+      "name": "Charizard",
+      "family": "charmander",
+      "stage": 2,
+      "types": [
+        "fire",
+        "flying"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 490,
+        "atk": 103,
+        "def": 79,
+        "spa": 115,
+        "spd": 84,
+        "speed": 110
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "squirtle": {
+      "name": "Squirtle",
+      "family": "squirtle",
+      "stage": 0,
+      "types": [
+        "water"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 280,
+        "atk": 48,
+        "def": 73,
+        "spa": 52,
+        "spd": 66,
+        "speed": 39
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "wartortle": {
+      "name": "Wartortle",
+      "family": "squirtle",
+      "stage": 1,
+      "types": [
+        "water"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 390,
+        "atk": 65,
+        "def": 97,
+        "spa": 72,
+        "spd": 89,
+        "speed": 52
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "blastoise": {
+      "name": "Blastoise",
+      "family": "squirtle",
+      "stage": 2,
+      "types": [
+        "water"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 510,
+        "atk": 86,
+        "def": 120,
+        "spa": 98,
+        "spd": 117,
+        "speed": 65
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "pikachu": {
+      "name": "Pikachu",
+      "family": "pikachu",
+      "stage": 0,
+      "types": [
+        "electric"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 215,
+        "atk": 52,
+        "def": 35,
+        "spa": 83,
+        "spd": 47,
+        "speed": 106
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "raichu": {
+      "name": "Raichu",
+      "family": "pikachu",
+      "stage": 1,
+      "types": [
+        "electric"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 300,
+        "atk": 75,
+        "def": 57,
+        "spa": 108,
+        "spd": 76,
+        "speed": 120
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "koffing": {
+      "name": "Koffing",
+      "family": "koffing",
+      "stage": 0,
+      "types": [
+        "poison"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 340,
+        "atk": 60,
+        "def": 91,
+        "spa": 42,
+        "spd": 68,
+        "speed": 27
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "weezing": {
+      "name": "Weezing",
+      "family": "koffing",
+      "stage": 1,
+      "types": [
+        "poison"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 505,
+        "atk": 88,
+        "def": 116,
+        "spa": 58,
+        "spd": 105,
+        "speed": 37
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "snorlax": {
+      "name": "Snorlax",
+      "family": "snorlax",
+      "stage": 0,
+      "types": [
+        "normal"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 610,
+        "atk": 108,
+        "def": 112,
+        "spa": 38,
+        "spd": 120,
+        "speed": 25
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "cubone": {
+      "name": "Cubone",
+      "family": "cubone",
+      "stage": 0,
+      "types": ["ground"],
+      "availability": "playable",
+      "combat_role": "ranged_debuffer",
+      "ability_id": "bone_throw",
+      "base_stats": {"hp": 300, "atk": 66, "def": 58, "spa": 64, "spd": 57, "speed": 56},
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "marowak": {
+      "name": "Marowak",
+      "family": "cubone",
+      "stage": 1,
+      "types": ["ground"],
+      "availability": "playable",
+      "combat_role": "ranged_debuffer",
+      "ability_id": "bone_throw",
+      "base_stats": {"hp": 425, "atk": 97, "def": 85, "spa": 82, "spd": 74, "speed": 75},
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "onix": {
+      "name": "Onix",
+      "family": "onix",
+      "stage": 0,
+      "types": ["rock", "ground"],
+      "availability": "playable",
+      "combat_role": "melee_tank_disruptor",
+      "ability_id": "single_target_knockup",
+      "base_stats": {"hp": 540, "atk": 82, "def": 120, "spa": 30, "spd": 60, "speed": 31},
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "steelix": {
+      "name": "Steelix",
+      "family": "onix",
+      "stage": 1,
+      "types": ["steel", "ground"],
+      "availability": "playable",
+      "combat_role": "melee_tank_disruptor",
+      "ability_id": "single_target_knockup",
+      "base_stats": {"hp": 650, "atk": 103, "def": 120, "spa": 43, "spd": 96, "speed": 38},
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "geodude": {
+      "name": "Geodude",
+      "family": "geodude",
+      "stage": 0,
+      "types": ["rock", "ground"],
+      "availability": "playable",
+      "combat_role": "melee_rock_bruiser",
+      "ability_id": "rock_strike",
+      "base_stats": {"hp": 330, "atk": 70, "def": 100, "spa": 24, "spd": 41, "speed": 26},
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "graveler": {
+      "name": "Graveler",
+      "family": "geodude",
+      "stage": 1,
+      "types": ["rock", "ground"],
+      "availability": "playable",
+      "combat_role": "melee_rock_bruiser",
+      "ability_id": "rock_strike",
+      "base_stats": {"hp": 480, "atk": 97, "def": 116, "spa": 31, "spd": 66, "speed": 34},
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "golem": {
+      "name": "Golem",
+      "family": "geodude",
+      "stage": 2,
+      "types": ["rock", "ground"],
+      "availability": "playable",
+      "combat_role": "melee_defensive_tank",
+      "ability_id": "withdraw_guard",
+      "base_stats": {"hp": 610, "atk": 110, "def": 120, "spa": 40, "spd": 89, "speed": 40},
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "chansey": {
+      "name": "Chansey",
+      "family": "chansey",
+      "stage": 0,
+      "types": ["normal"],
+      "availability": "playable",
+      "combat_role": "melee_aoe_healer",
+      "ability_id": "healing_egg",
+      "base_stats": {"hp": 670, "atk": 22, "def": 28, "spa": 88, "spd": 110, "speed": 46},
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "blissey": {
+      "name": "Blissey",
+      "family": "chansey",
+      "stage": 1,
+      "types": ["normal"],
+      "availability": "playable",
+      "combat_role": "melee_aoe_healer",
+      "ability_id": "healing_egg",
+      "base_stats": {"hp": 700, "atk": 30, "def": 38, "spa": 109, "spd": 120, "speed": 55},
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "eevee": {
+      "name": "Eevee",
+      "family": "eevee",
+      "stage": 0,
+      "types": [
+        "normal"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 240,
+        "atk": 57,
+        "def": 49,
+        "spa": 52,
+        "spd": 50,
+        "speed": 61
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "vaporeon": {
+      "name": "Vaporeon",
+      "family": "eevee",
+      "stage": 1,
+      "types": [
+        "water"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 380,
+        "atk": 59,
+        "def": 80,
+        "spa": 114,
+        "spd": 108,
+        "speed": 55
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "flareon": {
+      "name": "Flareon",
+      "family": "eevee",
+      "stage": 1,
+      "types": [
+        "fire"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 340,
+        "atk": 120,
+        "def": 70,
+        "spa": 75,
+        "spd": 98,
+        "speed": 59
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "jolteon": {
+      "name": "Jolteon",
+      "family": "eevee",
+      "stage": 1,
+      "types": [
+        "electric"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 325,
+        "atk": 60,
+        "def": 56,
+        "spa": 112,
+        "spd": 83,
+        "speed": 120
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "umbreon": {
+      "name": "Umbreon",
+      "family": "eevee",
+      "stage": 1,
+      "types": [
+        "dark"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 345,
+        "atk": 60,
+        "def": 120,
+        "spa": 52,
+        "spd": 120,
+        "speed": 55
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "sylveon": {
+      "name": "Sylveon",
+      "family": "eevee",
+      "stage": 1,
+      "types": [
+        "fairy"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 350,
+        "atk": 58,
+        "def": 75,
+        "spa": 115,
+        "spd": 120,
+        "speed": 60
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "leafeon": {
+      "name": "Leafeon",
+      "family": "eevee",
+      "stage": 1,
+      "types": [
+        "grass"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 330,
+        "atk": 112,
+        "def": 100,
+        "spa": 45,
+        "spd": 65,
+        "speed": 92
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "glaceon": {
+      "name": "Glaceon",
+      "family": "eevee",
+      "stage": 1,
+      "types": [
+        "ice"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 330,
+        "atk": 50,
+        "def": 105,
+        "spa": 120,
+        "spd": 105,
+        "speed": 45
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "espeon": {
+      "name": "Espeon",
+      "family": "eevee",
+      "stage": 1,
+      "types": [
+        "psychic"
+      ],
+      "availability": "playable",
+      "base_stats": {
+        "hp": 325,
+        "atk": 55,
+        "def": 55,
+        "spa": 120,
+        "spd": 90,
+        "speed": 116
+      },
+      "hp_source": "user_locked",
+      "other_stats_source": "assistant_proposal"
+    },
+    "articuno": {
+      "name": "Articuno",
+      "family": "articuno",
+      "stage": 0,
+      "types": [
+        "ice",
+        "flying"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 580,
+        "atk": 78,
+        "def": 108,
+        "spa": 113,
+        "spd": 120,
+        "speed": 88
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "zapdos": {
+      "name": "Zapdos",
+      "family": "zapdos",
+      "stage": 0,
+      "types": [
+        "electric",
+        "flying"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 560,
+        "atk": 90,
+        "def": 90,
+        "spa": 120,
+        "spd": 107,
+        "speed": 113
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "moltres": {
+      "name": "Moltres",
+      "family": "moltres",
+      "stage": 0,
+      "types": [
+        "fire",
+        "flying"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 560,
+        "atk": 104,
+        "def": 87,
+        "spa": 120,
+        "spd": 99,
+        "speed": 101
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "mewtwo": {
+      "name": "Mewtwo",
+      "family": "mewtwo",
+      "stage": 0,
+      "types": [
+        "psychic"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 650,
+        "atk": 112,
+        "def": 94,
+        "spa": 120,
+        "spd": 108,
+        "speed": 120
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "mew": {
+      "name": "Mew",
+      "family": "mew",
+      "stage": 0,
+      "types": [
+        "psychic"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 600,
+        "atk": 106,
+        "def": 106,
+        "spa": 106,
+        "spd": 106,
+        "speed": 110
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "raikou": {
+      "name": "Raikou",
+      "family": "raikou",
+      "stage": 0,
+      "types": [
+        "electric"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 560,
+        "atk": 85,
+        "def": 80,
+        "spa": 120,
+        "spd": 108,
+        "speed": 120
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "entei": {
+      "name": "Entei",
+      "family": "entei",
+      "stage": 0,
+      "types": [
+        "fire"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 640,
+        "atk": 120,
+        "def": 94,
+        "spa": 93,
+        "spd": 85,
+        "speed": 108
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "suicune": {
+      "name": "Suicune",
+      "family": "suicune",
+      "stage": 0,
+      "types": [
+        "water"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 650,
+        "atk": 72,
+        "def": 120,
+        "spa": 105,
+        "spd": 120,
+        "speed": 91
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "lugia": {
+      "name": "Lugia",
+      "family": "lugia",
+      "stage": 0,
+      "types": [
+        "psychic",
+        "flying"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 670,
+        "atk": 95,
+        "def": 120,
+        "spa": 109,
+        "spd": 120,
+        "speed": 105
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "ho-oh": {
+      "name": "Ho-Oh",
+      "family": "ho-oh",
+      "stage": 0,
+      "types": [
+        "fire",
+        "flying"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 670,
+        "atk": 120,
+        "def": 96,
+        "spa": 114,
+        "spd": 120,
+        "speed": 98
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    },
+    "celebi": {
+      "name": "Celebi",
+      "family": "celebi",
+      "stage": 0,
+      "types": [
+        "psychic",
+        "grass"
+      ],
+      "availability": "boss_only",
+      "base_stats": {
+        "hp": 600,
+        "atk": 90,
+        "def": 108,
+        "spa": 116,
+        "spd": 116,
+        "speed": 103
+      },
+      "hp_source": "assistant_proposal",
+      "other_stats_source": "assistant_proposal"
+    }
+  },
+  "new_family_ability_system": {
+    "scope": "Especificação para implementação posterior; o V10 ainda precisa da implementação destas habilidades e eventos.",
+    "basic_attack": {
+      "behavior": "Ataque REGULAR TFT de alvo único, sem efeito especial, dano físico usando ATK, não é o arremesso de osso nem o golpe que levanta.",
+      "raw_formula": "0.5 * ATK_efetivo",
+      "energy_gain_on_hit": 10
+    },
+    "damage_and_control_rules": {
+      "bone_damage": "raw = base_damage + ATK_efetivo * atk_ratio; físico Ground; mitigado pela DEF efetiva do alvo",
+      "knockup_damage": "raw = base_damage + ATK_efetivo * atk_ratio; físico do elemento da forma; mitigado normalmente",
+      "impact_timing": "Resolver dano, número flutuante e efeitos somente no impacto visual, nunca no começo do disparo; cada projétil acerta no máximo uma vez.",
+      "bone_order": "Calcular dano do osso com a DEF vigente ANTES do acerto; depois aplicar ou renovar o debuff de DEF. O osso não potencializa seu próprio dano.",
+      "single_target": "Osso e golpe ascendente atingem exatamente um inimigo por projétil/golpe; não causam splash.",
+      "knockup_is_stun": "Durante o levantamento, o alvo fica incapacitado (stun). A mesma duração de controle não deve ser somada duas vezes.",
+      "control_immunity": "Se o alvo for imune ao lançamento, poderá receber dano, mas não entrará em airborne nem disparará o gatilho do osso."
+    },
+    "range_and_targeting": {
+      "cubone_range_tiles": 3.0,
+      "marowak_range_tiles": 3.2,
+      "onix_range_tiles": 1.0,
+      "steelix_range_tiles": 1.0,
+      "normal_charged": "Escolher um inimigo vivo dentro do alcance da forma seguindo o targeting padrão do combate.",
+      "reactive_bone": "Atirar em CADA inimigo levantado na MESMA batalha, mesmo se estiver fora do alcance normal do lançador. Nunca atravessar batalhas separadas ou mirar aliados/banco."
+    },
+    "knockup_event": {
+      "name": "combat:knockup_applied",
+      "required_fields": ["battle_id", "target_unit_id", "source_unit_id", "knockup_instance_id", "start_time"],
+      "emit": "UMA vez quando começar um novo levantamento efetivo de cada alvo; não por frame nem por renovação da duração do mesmo arremesso.",
+      "snorlax_integration": "O arremesso em área do Snorlax emite uma instância distinta por CADA inimigo realmente levantado; manter todos os demais números e regras do Snorlax.",
+      "onix_steelix_integration": "O carregado de Onix/Steelix emite o mesmo evento para seu ÚNICO alvo caso o knockup seja aplicado.",
+      "not_knockup": "Stun isolado, empurrão sem airborne, tentativa em alvo imune ou morto e evento duplicado não devem disparar os ossos."
+    },
+    "reactive_bone_throw": {
+      "owners": ["cubone", "marowak"],
+      "trigger": "Para CADA evento combat:knockup_applied sobre inimigo, CADA Cubone ou Marowak aliado vivo lança automaticamente UM osso naquele alvo. Ex.: Snorlax levanta 3 inimigos = 3 ossos por Cubone/Marowak aliado vivo.",
+      "use_same_charged_skill": true,
+      "same_full_damage_and_def_shred": true,
+      "energy_cost": 0,
+      "energy_gain": 0,
+      "reaction_cooldown_seconds": 0,
+      "unlimited_distinct_knockup_targets": true,
+      "does_not_reset_regular_attack_timer": true,
+      "does_not_consume_manual_charged_energy": true,
+      "cast_mechanic": "Disparo reativo independente da ação regular/carregada e da barra de energia; não cancelar ataques em andamento. Se lançador morrer antes de disparar, não lançar. Se já lançou, projétil permanece.",
+      "dedup_key": ["battle_id", "caster_unit_id", "target_unit_id", "knockup_instance_id"],
+      "dead_target_at_impact": "Se alvo morreu antes do impacto, cancelar projétil sem redirecionamento ou debuff.",
+      "non_recursive": "Osso não levanta inimigos e nunca emite combat:knockup_applied; um mesmo evento só pode provocar um disparo por lançador e alvo."
+    },
+    "defense_shred": {
+      "scaling_stat": "SPA_efetiva do próprio Cubone/Marowak após nível, IV e buffs válidos no impacto",
+      "raw_formula": "floor(shred_base + max(0, SPA_efetiva) * shred_spa_ratio)",
+      "final_formula": "min(raw_shred, floor(0.30 * DEF_base_ajustada_por_nivel_e_IV_do_alvo), DEF_efetiva_atual_do_alvo)",
+      "affects": "def somente; não reduz spd",
+      "duration_seconds": 5,
+      "same_caster_reapply": "Manter maior debuff da mesma origem e renovar duração; tiros manuais e reativos não somam stacks.",
+      "different_casters": "Somar por origem até teto global de 30% da DEF-base ajustada do alvo, evitando redução ilimitada.",
+      "min_effective_def": 0,
+      "expiry": "Remover ao acabar os 5s, morrer ou terminar combate; nunca alterar stats permanentes.",
+      "ui": "Mostrar ícone de DEF reduzida com valor efetivo e duração restante."
+    },
+    "forms": {
+      "cubone": {
+        "ability_name": "Arremesso de Osso",
+        "projectile_key": "cubone_bone",
+        "element": "ground",
+        "damage_category": "physical",
+        "charged_attack": {"base_damage": 24, "atk_ratio": 0.8, "energy_cost": 35, "target_count": 1},
+        "defense_shred": {"shred_base": 7, "shred_spa_ratio": 0.12, "duration_seconds": 5},
+        "reacts_to_knockup": true
+      },
+      "marowak": {
+        "ability_name": "Bumerangue Ósseo",
+        "projectile_key": "marowak_bone",
+        "element": "ground",
+        "damage_category": "physical",
+        "charged_attack": {"base_damage": 32, "atk_ratio": 0.95, "energy_cost": 35, "target_count": 1},
+        "defense_shred": {"shred_base": 9, "shred_spa_ratio": 0.14, "duration_seconds": 5},
+        "reacts_to_knockup": true
+      },
+      "onix": {
+        "ability_name": "Investida Ascendente",
+        "element": "rock",
+        "damage_category": "physical",
+        "charged_attack": {"base_damage": 32, "atk_ratio": 1.15, "energy_cost": 50, "target_count": 1},
+        "control": {"kind": "knockup_and_stun", "duration_seconds": 0.75, "target_count": 1}
+      },
+      "steelix": {
+        "ability_name": "Cauda de Ferro Ascendente",
+        "element": "steel",
+        "damage_category": "physical",
+        "charged_attack": {"base_damage": 42, "atk_ratio": 1.3, "energy_cost": 50, "target_count": 1},
+        "control": {"kind": "knockup_and_stun", "duration_seconds": 0.95, "target_count": 1}
+      }
+    },
+    "animation_policy": "Usar PMD e assets já presentes: Onix/Steelix erguem somente o alvo, Cubone/Marowak lançam um projétil de osso por alvo (incluindo os simultâneos), dano sincronizado com impacto. Não baixar assets novamente."
+  },
+  "geodude_chansey_ability_system": {
+    "scope": "Especificação de combate, efeitos e animação a implementar depois no motor do jogo; não representa código executável atual.",
+    "standard_melee_basics": {
+      "applies_to": ["geodude", "graveler", "golem", "chansey", "blissey"],
+      "range_tiles": 1,
+      "targeting": "Ataque REGULAR TFT: um inimigo adjacente, sem área, cura, bônus ou efeito secundário.",
+      "raw_damage": "0.5 * ATK_efetivo; dano físico mitigado normalmente",
+      "energy_gain_per_hit": 10,
+      "charged_skills_only": "Rock Strike, Withdraw e Healing Egg são os ataques CARREGADOS e não substituem o básico melee."
+    },
+    "geodude_lineage": {
+      "forms": ["geodude", "graveler", "golem"],
+      "roles": "Geodude e Graveler: melee de golpes rochosos fortes em alvo único. Golem: tanque melee que sacrifica o golpe especial ofensivo por mitigação pessoal temporária.",
+      "rock_strike": {
+        "applies_to": ["geodude", "graveler"],
+        "damage_category": "physical",
+        "element": "rock",
+        "targeting": "Um único inimigo vivo adjacente; sem área, projétil, knockup, stun ou empurrão.",
+        "raw_formula": "base_damage + ATK_efetivo * atk_ratio",
+        "timing": "Dano e número flutuante apenas no frame de impacto de strike, não na ativação.",
+        "animation_key": "strike",
+        "does_not_emit_knockup": true
+      },
+      "withdraw_guard": {
+        "applies_to": ["golem"],
+        "replaces_rock_strike_completely": true,
+        "effect_kind": "self_incoming_damage_reduction",
+        "damage_reduction_fraction": 0.60,
+        "damage_received_multiplier": 0.40,
+        "duration_seconds": 4.5,
+        "energy_cost": 60,
+        "target": "self",
+        "raw_formula": "damage_after_normal_mitigation * 0.40; absorver 60% antes de consumir barreira/HP",
+        "damage_categories": "Mitigar dano físico, especial, de habilidades, DOT e dano sem categoria igualmente; não bloquear cura, efeitos de controle ou redução de DEF/SpD.",
+        "recast": "Não empilhar múltiplos Withdraw de um mesmo Golem; reativação só renova os 4.5s.",
+        "energy_during_guard": "Ataques regulares continuam podendo gerar energia pelo padrão TFT; Withdraw não concede energia extra nem dano.",
+        "behavior_during_guard": "Pode continuar movimentação e ataques melee normais; redução de dano é um buff temporário, não imunidade a stun.",
+        "animation_key": "withdraw",
+        "animation_behavior": "Executar animação PMD withdraw ao ativar e sinalizar a postura protegida pelo tempo do buff; evitar repetição que crie ghost frames ou suprima outros sprites.",
+        "visual_effect": "Pequeno indicador de casca endurecida e duração restante sobre a unidade; nenhum efeito ofensivo.",
+        "mitigation_panel": "Registrar como dano mitigado pela habilidade Golem Withdraw, na seção Mitigação; nunca registrar como cura.",
+        "expiry": "Remover redução ao fim do tempo, na morte, ao sair da arena ou no fim do combate. Nunca alterar DEF/SpD ou HP base."
+      }
+    },
+    "chansey_lineage": {
+      "forms": ["chansey", "blissey"],
+      "roles": "Healers melee de HP extremo: golpe básico corpo a corpo com ATK baixo; habilidade é o ÚNICO disparo de ovo, somente para cura.",
+      "blissey_hp_locked": 700,
+      "healing_egg": {
+        "damage_category": "healing_only",
+        "element": "normal",
+        "targets_enemies": false,
+        "damage": 0,
+        "applies_buffs_or_shields": false,
+        "skill_range_from_caster_tiles": 3.2,
+        "aoe_radius_tiles": 1.65,
+        "eligible_center": "Qualquer aliado vivo da mesma equipe dentro de skill_range_from_caster_tiles; o próprio lançador pode ser centro se ferido.",
+        "eligible_heal_targets": "TODOS os aliados vivos da mesma equipe dentro do raio da explosão, incluindo a própria Chansey/Blissey se estiver no raio; excluir mortos, banco e inimigos.",
+        "target_group_algorithm": "Para cada centro candidato, contar os aliados vivos no raio. Considerar centros cujo raio contenha ao menos um aliado ferido. Selecionar centro que contenha o MAIOR NÚMERO de aliados; não dividir nem limitar artificialmente a quantidade de atingidos.",
+        "tie_breaks": ["maior número de aliados vivos no raio", "maior número de aliados com HP abaixo do máximo", "maior soma de HP faltante", "menor distância do lançador ao centro", "menor id estável do centro"],
+        "no_injured_allies": "Preservar a energia e aguardar um alvo para curar, sem desperdiçar ovo em vida cheia.",
+        "heal_formula_per_target": "base_heal + SPA_efetiva_do_lancador * spa_ratio; cada aliado no raio recebe sua cura própria, limitada pelo HP faltante",
+        "heal_overflow": "Descartar excesso acima do HP máximo; não converter cura em dano, buffs ou barreira.",
+        "impact_timing": "Lançar o projétil visual de ovo e só aplicar a cura quando o ovo alcançar o centro aliado escolhido; disparo não cura instantaneamente.",
+        "impact_center": "Posição atual do aliado central no impacto; se morrer no trajeto, usar sua última posição conhecida e curar apenas aliados vivos naquela área.",
+        "friendly_only": true,
+        "healing_panel": "Registrar o HP efetivamente restaurado como cura verde no painel de Mitigação; não contabilizar overheal.",
+        "animation": "Usar animação PMD apropriada de lançamento da forma para o ataque carregado; efeito leve de ovo e pulso circular de cura; não baixar nem duplicar sprites.",
+        "no_enemies_in_area": "A cura do ovo não depende de inimigos no raio do impacto; nenhum dano a inimigos mesmo sobrepostos à área."
+      }
+    },
+    "forms": {
+      "geodude": {
+        "ability_name": "Golpe Rochoso",
+        "ability_id": "rock_strike",
+        "charged_attack": {"base_damage": 28, "atk_ratio": 1.20, "energy_cost": 55, "target_count": 1},
+        "animation_key": "strike"
+      },
+      "graveler": {
+        "ability_name": "Golpe Rochoso Pesado",
+        "ability_id": "rock_strike",
+        "charged_attack": {"base_damage": 38, "atk_ratio": 1.35, "energy_cost": 55, "target_count": 1},
+        "animation_key": "strike"
+      },
+      "golem": {
+        "ability_name": "Withdraw — Casca Fortificada",
+        "ability_id": "withdraw_guard",
+        "charged_attack": {"damage": 0, "energy_cost": 60, "self_only": true},
+        "damage_reduction_fraction": 0.60,
+        "duration_seconds": 4.5,
+        "animation_key": "withdraw"
+      },
+      "chansey": {
+        "ability_name": "Ovo Revigorante",
+        "ability_id": "healing_egg",
+        "charged_attack": {"base_heal": 24, "spa_ratio": 0.75, "energy_cost": 55, "aoe_radius_tiles": 1.65, "damage": 0},
+        "animation_key": "special_or_attack"
+      },
+      "blissey": {
+        "ability_name": "Ovo Milagroso",
+        "ability_id": "healing_egg",
+        "charged_attack": {"base_heal": 36, "spa_ratio": 0.90, "energy_cost": 60, "aoe_radius_tiles": 1.65, "damage": 0},
+        "animation_key": "special_or_attack"
+      }
+    }
+  },
+  "eevee_ball_system": {
+    "applies_to": [
+      "eevee",
+      "vaporeon",
+      "flareon",
+      "jolteon",
+      "umbreon",
+      "sylveon",
+      "leafeon",
+      "glaceon",
+      "espeon"
+    ],
+    "all_forms_are_ranged": true,
+    "both_regular_and_charged_are_balls": false,
+    "only_charged_attack_is_ball": true,
+    "balls_are_aoe": true,
+    "regular_attack_behavior": "Ataque básico padrão do TFT: escolher um inimigo único em alcance, causar somente dano de alvo único com ATK ou SpA, ganhar energia normalmente; sem bola especial, sem explosão em área e sem conversão em benefício aos aliados.",
+    "effect_trigger": "APENAS no impacto efetivo de cada BOLA CARREGADA, nunca no ataque regular. Eevee apenas causa dano em área com sua bola carregada, sem conceder bônus.",
+    "targeting": {
+      "applies_only_to": "charged_ball",
+      "regular_targeting": "Manter o targeting normal do ataque básico TFT (alvo único em alcance); não usar heurística de agrupamento.",
+      "algorithm": "Somente ao carregar a bola: para cada inimigo vivo cujo centro esteja dentro do alcance do atirador, contar quantos inimigos vivos ficam dentro do raio de explosão se a bola atingir seu centro; selecionar a candidatura com maior contagem.",
+      "tie_breaks": [
+        "maior quantidade de inimigos no raio",
+        "menor distancia do atirador ao centro candidato",
+        "menor id estável do inimigo"
+      ],
+      "attacker_range_rule": "O inimigo central precisa estar dentro de range_tiles do atacante no instante do disparo; inimigos secundários podem estar até o raio de explosão além desse alcance.",
+      "no_target": "andar/aguardar até haver alvo legal, sem atirar fora de alcance",
+      "impact_center": "posição atual do alvo central no instante da chegada; se morreu durante o voo, usar sua última posição conhecida",
+      "damage_time": "calcular impacto, aplicação de dano, números flutuantes e bônus no mesmo evento de colisão",
+      "friendly_fire": false
+    },
+    "damage": {
+      "regular_formula": "Ataque básico TFT de alvo único: raw = attack_stat * 0.5 (ATK se physical, SpA se special), sem splash, sem bola especial e sem conversão.",
+      "charged_formula": "Somente bola carregada: raw_primary = base_damage + attack_stat * stat_ratio; raw_splash = raw_primary * secondary_target_damage_multiplier; dano em área.",
+      "mitigation": "Cada inimigo aplica sua própria DEF ou SpD. Dano por tipo e resistência continua válido para a bola carregada.",
+      "counted_damage_for_conversion": "D = soma dos danos efetivamente absorvidos por HP e barreiras dos inimigos atingidos pela MESMA BOLA CARREGADA após mitigação e sem exceder HP+barreira restante; NUNCA contar ataques regulares, overkill, dano bruto, DOT ou outra habilidade.",
+      "never_double_count_targets": true,
+      "no_double_hit_from_same_ball": true,
+      "projectiles_do_not_damage_before_arrival": true
+    },
+    "allied_recipients": {
+      "count": 2,
+      "eligible": "Até dois aliados diferentes do atirador, vivos, na arena, pertencentes à mesma equipe; excluir o lançador, unidades no banco, mortos e inimigos.",
+      "distance_from": "posição do lançador no instante do impacto da bola",
+      "sorting": [
+        "distancia euclidiana crescente",
+        "id estável crescente"
+      ],
+      "fewer_than_two": "Aplicar nos aliados elegíveis existentes; se não houver, perder o benefício. Para cura/barreira, dividir o pool igualmente entre o número efetivo de destinatários; para buffs de atributo, cada destinatário recebe sua própria parcela D*coeficiente.",
+      "no_self_target": true
+    },
+    "stat_buff_rules": {
+      "formula": "bonus_per_target = floor(D * points_per_damage_per_ally)",
+      "duration": "usar duration_seconds da forma, medido a partir do impacto",
+      "same_caster_repeat": "para o mesmo alvo e atributo, manter maior valor entre buff anterior e novo; atualizar duração; não somar stacks infinitos",
+      "different_casters": "somar os bônus válidos até um máximo combinado de 30% do atributo atual do alvo ANTES de buffs temporários",
+      "absolute_points_cap_per_caster": 50,
+      "target_stat_cap_ratio": 0.3,
+      "buffs_affect_combat": "alterar de fato DEF/SpD/ATK/SpA/VEL efetivos durante duração, recalcular velocidade de ataque quando VEL mudar",
+      "avoid_permanent_changes": "não alterar ficha base, IV ou nível; remover bônus ao expirar, ao morrer ou ao terminar a batalha"
+    },
+    "healing_rules": {
+      "formula": "healing_pool = D * healing_pool_per_damage; repartir igualmente entre destinatários elegíveis",
+      "max_hp": "não ultrapassar HP máximo; descartar excesso",
+      "counts_as_mitigation_panel": "cura verde",
+      "only_from_charged_ball_damage": true
+    },
+    "barrier_rules": {
+      "formula": "shield_pool = D * shield_pool_per_damage; repartir igualmente entre destinatários elegíveis",
+      "barrier_lifetime": "duração específica da forma, expira sem causar cura",
+      "existing_shields": "compatível com barreiras de outros Pokémon; rastrear por origem para não apagar as existentes",
+      "same_caster_repeat": "renovar e manter o maior saldo da barreira desse lançador, sem empilhar infinitamente",
+      "combined_eevee_barrier_cap_fraction_of_target_max_hp": 0.35,
+      "mitigation_panel": "registrar absorção por barreira no painel de mitigação, sem contabilizá-la como cura"
+    },
+    "animation_and_ui": {
+      "ball_names": "exibir o nome específico na ficha e no painel do Pokémon",
+      "ball_colors": "seguir o tipo elemental da forma",
+      "projectile_sprite": "efeito visual leve e gerado pelo jogo, com animação PMD de disparo se disponível",
+      "area_feedback": "círculo de impacto curto, compatível com o visual da arena",
+      "buff_feedback": "ícone no aliado mostrando DEF, SpD, ATK, SpA, VEL, cura ou barreira e duração restante",
+      "no_ghost_damage": "número de dano e efeito no aliado aparecem apenas quando o projétil atinge",
+      "no_assets_download": "não baixar sprites Pokémon existentes nem duplicar assets"
+    },
+    "forms": {
+      "eevee": {
+        "name": "Bola Neutra",
+        "element": "normal",
+        "damage_category": "physical",
+        "range_tiles": 3,
+        "conversion": {
+          "kind": "none"
+        },
+        "id": "eevee",
+        "projectile_key": "eevee_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 22,
+          "stat_ratio": 1,
+          "energy_cost": 55,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      },
+      "vaporeon": {
+        "name": "Bola d'Água",
+        "element": "water",
+        "damage_category": "special",
+        "range_tiles": 3.5,
+        "conversion": {
+          "kind": "stat_buff",
+          "stat": "spd",
+          "points_per_damage_per_ally": 0.07,
+          "duration_seconds": 6
+        },
+        "id": "vaporeon",
+        "projectile_key": "vaporeon_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 25,
+          "stat_ratio": 1.05,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      },
+      "flareon": {
+        "name": "Bola de Fogo",
+        "element": "fire",
+        "damage_category": "physical",
+        "range_tiles": 3.1,
+        "conversion": {
+          "kind": "stat_buff",
+          "stat": "atk",
+          "points_per_damage_per_ally": 0.065,
+          "duration_seconds": 6
+        },
+        "id": "flareon",
+        "projectile_key": "flareon_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 30,
+          "stat_ratio": 1.2,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      },
+      "jolteon": {
+        "name": "Bola Elétrica",
+        "element": "electric",
+        "damage_category": "special",
+        "range_tiles": 3.5,
+        "conversion": {
+          "kind": "stat_buff",
+          "stat": "speed",
+          "points_per_damage_per_ally": 0.045,
+          "duration_seconds": 4.5
+        },
+        "id": "jolteon",
+        "projectile_key": "jolteon_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 24,
+          "stat_ratio": 1.1,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      },
+      "umbreon": {
+        "name": "Bola Sombria",
+        "element": "dark",
+        "damage_category": "special",
+        "range_tiles": 3.2,
+        "conversion": {
+          "kind": "stat_buff",
+          "stat": "def",
+          "points_per_damage_per_ally": 0.07,
+          "duration_seconds": 6
+        },
+        "id": "umbreon",
+        "projectile_key": "umbreon_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 24,
+          "stat_ratio": 0.9,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      },
+      "sylveon": {
+        "name": "Bola Feérica",
+        "element": "fairy",
+        "damage_category": "special",
+        "range_tiles": 3.6,
+        "conversion": {
+          "kind": "heal",
+          "healing_pool_per_damage": 0.4,
+          "distribution": "equal_split_among_actual_recipients",
+          "overheal": "discard"
+        },
+        "id": "sylveon",
+        "projectile_key": "sylveon_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 24,
+          "stat_ratio": 1.05,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      },
+      "leafeon": {
+        "name": "Bola de Folhas",
+        "element": "grass",
+        "damage_category": "physical",
+        "range_tiles": 3.4,
+        "conversion": {
+          "kind": "barrier",
+          "shield_pool_per_damage": 0.34,
+          "duration_seconds": 7,
+          "distribution": "equal_split_among_actual_recipients",
+          "max_barrier_fraction_of_target_max_hp": 0.25
+        },
+        "id": "leafeon",
+        "projectile_key": "leafeon_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 26,
+          "stat_ratio": 1.08,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      },
+      "glaceon": {
+        "name": "Bola Glacial",
+        "element": "ice",
+        "damage_category": "special",
+        "range_tiles": 3.7,
+        "conversion": {
+          "kind": "barrier",
+          "shield_pool_per_damage": 0.42,
+          "duration_seconds": 5,
+          "distribution": "equal_split_among_actual_recipients",
+          "max_barrier_fraction_of_target_max_hp": 0.3
+        },
+        "id": "glaceon",
+        "projectile_key": "glaceon_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 29,
+          "stat_ratio": 1.15,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      },
+      "espeon": {
+        "name": "Bola Psíquica",
+        "element": "psychic",
+        "damage_category": "special",
+        "range_tiles": 3.8,
+        "conversion": {
+          "kind": "stat_buff",
+          "stat": "spa",
+          "points_per_damage_per_ally": 0.065,
+          "duration_seconds": 6
+        },
+        "id": "espeon",
+        "projectile_key": "espeon_ball",
+        "regular_attack": {
+          "base_damage": 0,
+          "stat_ratio": 0.5,
+          "energy_gain": 10,
+          "targeting": "single_target_tft",
+          "area_of_effect": false,
+          "triggers_conversion": false,
+          "visual": "normal_ranged_basic_no_special_ball"
+        },
+        "charged_attack": {
+          "base_damage": 34,
+          "stat_ratio": 1.25,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "secondary_target_damage_multiplier": 0.85
+        }
+      }
+    }
+  },
+  "acceptance_tests": [
+    "JSON válido; exatamente 49 formas: 38 jogáveis e 11 chefes, sem nomes duplicados.",
+    "Todos os 23 HPs definidos originalmente pelo usuário permanecem idênticos e Blissey passa a ter 700 HP-base user_locked; 14 HPs jogáveis propostos e 11 HPs de chefes propostos claramente identificados.",
+    "Todos os status-base de HP estão entre 0 e 700 e os cinco demais entre 0 e 120.",
+    "Cada evolução usa seus próprios seis atributos-base; nenhum multiplicador de evolução 1.45/2.10 permanece.",
+    "As nove formas Eevee são ranged: ataque regular TFT de alvo único, sem área e sem bônus; APENAS o ataque carregado lança bola em área; Eevee causa dano em área no carregado mas zero bônus.",
+    "Alvo da bola maximiza número de inimigos atingíveis dentro do raio, com desempate determinístico.",
+    "Somente o impacto da bola causa dano; D soma danos efetivos em HP+barreira, sem overkill nem contagem dupla.",
+    "Umbreon dá DEF; Sylveon cura; Jolteon VEL; Flareon ATK; Espeon SpA; Glaceon barreira; Vaporeon SpD; Leafeon barreira.",
+    "Cada impacto de BOLA CARREGADA (não ataque regular) beneficia até dois aliados diferentes do atirador, próximos dele, excluindo mortos, banco, inimigos e o próprio atirador.",
+    "Buffs expiram e respeitam limite de acúmulo; cura não excede HP; barreiras não sobrescrevem escudos de outras habilidades.",
+    "Eevee consome quatro cópias para evoluir; UI permite escolher entre oito formas e atributos refletem a forma selecionada.",
+    "Cubone é raridade incomum 2 e evolui para Marowak em 3 cópias; Onix é épico 4 e evolui para Steelix em 3 cópias; suas formas e seis atributos estão presentes.",
+    "Onix/Steelix são tanques melee, golpe carregado causa dano elevado e levanta/atordoa exclusivamente um inimigo por 0.75s/0.95s; emitem evento combat:knockup_applied no impacto.",
+    "Cubone/Marowak atacam normalmente com ataque básico de alvo único; habilidade carregada de custo 35 joga osso, dano físico ATK e redução de DEF calculada pela SpA, duração 5s, sem redução de SpD.",
+    "Knockup de Snorlax em área dispara automaticamente um osso por inimigo levantado e por Cubone/Marowak aliado vivo; knockup individual de Onix/Steelix também dispara osso, mesmo fora do alcance normal, mas jamais atravessa batalhas.",
+    "Ossos reativos são a mesma habilidade completa, sem custo de energia nem limite de alvos, sem interromper ataque normal ou duplicar eventos; uma única reação por par lançador/alvo/instância de knockup.",
+    "Dano dos ossos aparece na chegada e não recebe benefício da própria redução de DEF do mesmo acerto; debuffs não empilham sem limite e expiram corretamente.",
+    "Geodude -> Graveler -> Golem evoluem com 3 cópias por etapa; Geodude e Graveler usam strike para Golpe Rochoso físico carregado, de alvo único, sem knockup ou splash.",
+    "Golem troca COMPLETAMENTE Golpe Rochoso por Withdraw: durante 4.5s recebe 40% do dano que receberia normalmente (60% de redução), energia custa 60 e animação PMD withdraw; efeito expira e nunca contabiliza cura.",
+    "Chansey e Blissey são melee no ataque regular; Chansey tem 670 HP-base e Blissey 700, as duas maiores vidas entre os jogáveis; usam ovo CARREGADO somente para curar em área.",
+    "O ovo busca o maior grupo de aliados dentro do alcance, aplica cura individual por alvo no impacto com escala de SpA, permite auto-cura no raio e não causa dano, buffs ou cura além do HP máximo.",
+    "Raridades ainda não confirmadas: Geodude incomum 2; Chansey épico 4; coeficientes das habilidades novos são parâmetros iniciais para testes.",
+    "Tipos dark/fairy funcionam no cálculo de dano, tooltip e ícones; sem efeitos de sinergia não aprovados.",
+    "Sprites preexistentes e manifestações de dano no impacto são preservados.",
+    "Testes TypeScript, build e testes de simulação de combate passam, com novo teste para cada conversão."
+  ],
+  "open_decisions": [
+    {
+      "topic": "eevee_rarity",
+      "recommended": 2,
+      "status": "assistant_proposal",
+      "note": "Raridade da família Eevee não foi explicitamente confirmada."
+    },
+    {
+      "topic": "eevee_evolution_branch_selection",
+      "recommended": "Escolha manual ao reunir quatro cópias",
+      "status": "assistant_proposal"
+    },
+    {
+      "topic": "ability_coefficients",
+      "status": "assistant_proposal",
+      "note": "Coeficientes de buff, cura, barreiras, alcance, energia, dano base, duração e limites são parâmetros iniciais sujeitos a teste e aprovação."
+    },
+    {
+      "topic": "new_family_ability_coefficients",
+      "status": "assistant_proposal",
+      "note": "Dano, energia, duração do knockup, stats, redução de DEF e teto de 30% foram propostos para balanceamento inicial, sem alterar a mecânica aprovada de um osso completo para cada inimigo levantado."
+    },
+    {
+      "topic": "geodude_and_chansey_rarity",
+      "recommended": {"geodude": 2, "chansey": 4},
+      "status": "assistant_proposal",
+      "note": "O usuário não especificou essas raridades. Propostas: Geodude incomum e Chansey épico."
+    },
+    {
+      "topic": "geodude_chansey_coefficients",
+      "status": "assistant_proposal",
+      "note": "Stats além dos 700 HP travados de Blissey, dano do strike, energia, 4.5s de Withdraw e cura por ovo são balanceamento inicial sujeito a simulações."
+    }
+  ]
+}
