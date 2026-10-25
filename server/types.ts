@@ -71,13 +71,6 @@ export interface CombatUnit {
   stats: Stats;
   cooldown: number;
   attackClock: number;
-  moving: boolean;
-  facingX: number;
-  facingY: number;
-  animation: { name: 'Rotate' | 'Attack' | 'Shoot' | 'Charge' | 'Withdraw' | 'Strike' | 'Hurt'; elapsed: number; duration: number; next?: 'Shoot' | 'Withdraw' } | null;
-  spinTime: number;
-  spinReduction: number;
-  waterFxClock: number;
   flash: number;
   effects: { kind: string; time: number }[];
   damageOverTime: { amount: number; time: number; sourceId: string } | null;
@@ -92,7 +85,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning';
+  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage';
   damageType?: 'physical' | 'special' | 'true';
   family: Family;
   time: number;

@@ -42,9 +42,6 @@
 .pokemon-art{position:absolute;width:180%;height:180%;max-width:none;object-fit:contain;left:-40%;top:-40%;image-rendering:pixelated;filter:drop-shadow(0 4px 4px #07180e88)}
 .shape{position:relative;overflow:visible}
 .shape.triangle:has(.pokemon-art),.shape.crystal:has(.pokemon-art){clip-path:none;border-radius:50%;border:1px solid #d7e7d274}
-.pokemon-token{display:inline-grid;place-items:center;vertical-align:middle;position:relative;flex:none;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
-.pokemon-icon{display:block;image-rendering:pixelated;object-fit:contain;width:125%;height:125%;max-width:none;filter:drop-shadow(0 3px 4px #06140a9c)}
-.pokemon-drag-icon{width:48px;height:48px;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 4px 6px #000a)}
 @media(max-width:1200px){.timeline-panel{width:min(760px,67vw)}.top-bar .brand{transform:scale(.85);transform-origin:top left}}
 @media(max-width:980px){.top-bar{top:7px;height:144px}.timeline-panel{top:52px;width:min(95vw,740px);height:75px}.timeline-wrap{top:auto;max-width:none}.traits-panel,.right-panel{top:157px}.arena-status{top:145px}.timeline-heading{padding-bottom:7px}.round-clock{height:51px}}
 @media(max-height:740px){.top-bar{height:78px}.timeline-panel{height:69px}.traits-panel,.right-panel{top:87px}.arena-status{top:85px}}

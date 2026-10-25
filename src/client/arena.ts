@@ -1,6 +1,5 @@
 import { displayName, gridXY, SPECIES } from '../../server/data';
 import type { CombatEffect, CombatUnit, Family, GameSnapshot, Pokemon, UnitPosition } from '../../server/types';
-import pmdManifest from './pmd-manifest.json';
 
 export interface ClientView {
   scoutId: string;
@@ -12,10 +11,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation'] };
-type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number };
-type PmdEntry = Record<string, PmdSheet>;
-const PMD = pmdManifest as Record<string, PmdEntry>;
+type Marker = { id: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean };
 const PI2 = Math.PI * 2;
 const BENCH_Y = 4.49;
 const benchXY = (index: number, enemy = false) => ({ x: -5.17 + index * 1.15, y: enemy ? -BENCH_Y : BENCH_Y });
@@ -121,60 +117,36 @@ export class Arena {
     return null;
   }
 
-  private image(url: string): HTMLImageElement {
+  private shape(x: number, y: number, family: Family, radius: number, stage: number, enemy = false): void {
+    const ctx = this.context;
+    const data = SPECIES[family];
+    ctx.save(); ctx.translate(x, y);
+    ctx.shadowBlur = radius * .7; ctx.shadowColor = enemy ? '#f36c7b' : data.glow;
+    ctx.fillStyle = data.color; ctx.strokeStyle = enemy ? '#fc9686' : '#edffea'; ctx.lineWidth = Math.max(1.2, radius / 11);
+    ctx.beginPath();
+    if (data.shape === 'circle') ctx.arc(0, 0, radius, 0, PI2);
+    else if (data.shape === 'square') ctx.roundRect(-radius * .84, -radius * .84, radius * 1.68, radius * 1.68, radius * .16);
+    else if (data.shape === 'triangle') { ctx.moveTo(0, -radius * 1.12); ctx.lineTo(radius * 1.06, radius * .88); ctx.lineTo(-radius * 1.06, radius * .88); ctx.closePath(); }
+    else { ctx.moveTo(0, -radius * 1.12); ctx.lineTo(radius, -radius * .15); ctx.lineTo(radius * .72, radius * .8); ctx.lineTo(0, radius * 1.17); ctx.lineTo(-radius * .72, radius * .8); ctx.lineTo(-radius, -radius * .15); ctx.closePath(); }
+    ctx.fill(); ctx.shadowBlur = 0; ctx.stroke();
+    ctx.globalAlpha = .35; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(-radius * .25, -radius * .3, radius * .26, radius * .14, -.7, 0, PI2); ctx.fill(); ctx.globalAlpha = 1;
+    if (stage) {
+      ctx.strokeStyle = stage === 1 ? '#ebd4a3' : '#f7cd7c'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, radius + 7, 0, PI2); ctx.stroke();
+      if (stage >= 2) { ctx.beginPath(); ctx.arc(0, 0, radius + 11, -Math.PI * .8, Math.PI * .2); ctx.stroke(); }
+    }
+    const url = data.sprites[Math.min(stage, data.sprites.length - 1)];
     let sprite = this.spriteCache.get(url);
     if (!sprite) {
       sprite = new Image(); sprite.src = url; this.spriteCache.set(url, sprite);
     }
-    return sprite;
-  }
-
-  private direction(x: number, y: number): number {
-    // PMD: 0 frente, 2 direita, 4 costas, 6 esquerda; diagonais intermediárias.
-    return (Math.round(Math.atan2(x, y) / (Math.PI / 4)) + 8) % 8;
-  }
-
-  private drawPokemonSprite(x: number, y: number, unit: Marker, time: number): void {
-    const ctx = this.context;
-    const id = SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
-    const anims = PMD[String(id)];
-    if (anims) {
-      const action = unit.bench ? 'Sleep' : this.snapshot?.phase === 'planning' ? 'Idle'
-        : unit.animation?.name || (unit.moving ? 'Walk' : 'Idle');
-      const animation = anims[action] || anims.Idle;
-      const url = `${import.meta.env.BASE_URL}pmd/${String(id).padStart(4, '0')}/${animation.file}`;
-      const sprite = this.image(url);
-      if (sprite.complete && sprite.naturalWidth) {
-        const durations = animation.durations;
-        const totalTicks = durations.reduce((sum, n) => sum + n, 0);
-        const active = unit.animation && !unit.bench && this.snapshot?.phase !== 'planning' && action === unit.animation.name;
-        const elapsedTicks = active && action !== 'Withdraw'
-          ? Math.min(totalTicks - .001, (unit.animation!.elapsed / unit.animation!.duration) * totalTicks)
-          : (time * 60 + ((unit.id.charCodeAt(unit.id.length - 1) || 0) % 13) * 2) % totalTicks;
-        let tick = elapsedTicks, frame = 0;
-        while (frame < durations.length - 1 && tick >= durations[frame]) tick -= durations[frame++];
-        const flipped = this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle?.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId;
-        const dir = action === 'Rotate' || this.snapshot?.phase === 'planning' || unit.bench ? 0
-          : this.direction(unit.facingX || 0, flipped ? -(unit.facingY || 0) : (unit.facingY || 0));
-        const row = animation.directions === 1 ? 0 : dir % animation.directions;
-        // Tamanho baseado em pixels dos próprios sprites; sem formas geométricas.
-        const sizeScale = this.cellScale / 48 * (unit.bench ? .83 : 1.13);
-        const w = animation.width * sizeScale, h = animation.height * sizeScale;
-        ctx.save(); ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(sprite, frame * animation.width, row * animation.height,
-          animation.width, animation.height, Math.round(x - w / 2), Math.round(y - h * .72), w, h);
-        ctx.restore();
-        return;
-      }
+    if (sprite.complete && sprite.naturalWidth) {
+      ctx.shadowBlur = 0;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(sprite, -radius * 1.75, -radius * 1.8, radius * 3.5, radius * 3.5);
+      ctx.imageSmoothingEnabled = true;
     }
-    // Lendários ainda não receberam sheets PMD; continuam como PNGs, sem figuras coloridas.
-    const path = SPECIES[unit.family].sprites[Math.min(unit.stage, SPECIES[unit.family].sprites.length - 1)];
-    const staticSprite = this.image(`${import.meta.env.BASE_URL}${path.replace(/^\.\//, '')}`);
-    if (staticSprite.complete && staticSprite.naturalWidth) {
-      const size = this.cellScale * (unit.bench ? .67 : 1.03);
-      ctx.save(); ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(staticSprite, x - size / 2, y - size * .85, size, size); ctx.restore();
-    }
+    ctx.restore();
   }
 
   private background(time: number): void {
@@ -358,6 +330,7 @@ export class Arena {
     const ctx = this.context;
     const p = this.toScreen(unit.x, unit.y);
     const radius = this.cellScale * (unit.bench ? .205 : .265) * (1 + unit.stage * .1);
+    const float = Math.sin(time * 2.6 + unit.x * 2) * 2;
     // Projected contact shadow.
     ctx.fillStyle = '#0008'; ctx.beginPath(); ctx.ellipse(p.x, p.y + radius + 5, radius * 1.17, 7, 0, 0, PI2); ctx.fill();
     if (this.view.selectedId === unit.id && this.snapshot?.phase === 'planning') {
@@ -367,7 +340,7 @@ export class Arena {
     if (unit.flash > 0) {
       ctx.fillStyle = '#fff4d454'; ctx.beginPath(); ctx.arc(p.x, p.y - 2, radius * 1.7, 0, PI2); ctx.fill();
     }
-    this.drawPokemonSprite(p.x, p.y, unit, time);
+    this.shape(p.x, p.y - 2 + float, unit.family, radius, unit.stage, !unit.own);
     if (unit.bench) {
       ctx.font = `700 ${Math.max(9, this.cellScale * .14)}px 'Barlow Condensed'`;
       ctx.textAlign = 'center'; ctx.strokeStyle = '#081923'; ctx.lineWidth = 2.5;
@@ -395,11 +368,9 @@ export class Arena {
     const ctx = this.context;
     for (const fx of effects) {
       const t = Math.max(0, Math.min(1, fx.time / fx.duration));
-      const from = this.toScreen(fx.x, flipY ? -fx.y : fx.y);
-      const to = this.toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
       if (fx.kind === 'damage') {
         // Flutua apenas sobre o Pokémon atingido. O projétil é desenhado separadamente.
-        const p = to;
+        const p = this.toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
         const amount = Math.max(1, Math.round(fx.value));
         const size = Math.min(35, 13 + Math.sqrt(amount) * 1.8);
         const color = fx.damageType === 'physical' ? '#ffd1a0' : fx.damageType === 'special' ? '#97d0ff' : '#eab1ff';
@@ -409,93 +380,13 @@ export class Arena {
         ctx.strokeText(String(amount), p.x, posY); ctx.fillStyle = color; ctx.fillText(String(amount), p.x, posY);
         ctx.restore(); continue;
       }
-      ctx.save();
-      if (fx.kind === 'pollen') {
-        const fly = Math.min(1, t / .65);
-        const x = from.x + (to.x - from.x) * fly;
-        const y = from.y + (to.y - from.y) * fly - Math.sin(fly * Math.PI) * this.cellScale * .85;
-        if (fly < 1) {
-          const r = 8 + 4 * Math.sin(fly * Math.PI);
-          ctx.fillStyle = '#efffa5'; ctx.shadowColor = '#baff71'; ctx.shadowBlur = 15;
-          ctx.beginPath(); ctx.arc(x, y - 12, r, 0, PI2); ctx.fill();
-          for (let i = 0; i < 5; i++) {
-            const a = i * PI2 / 5 + fly * 3;
-            ctx.fillStyle = i % 2 ? '#fff1a0' : '#a9f596';
-            ctx.beginPath(); ctx.ellipse(x + Math.cos(a) * 12, y - 12 + Math.sin(a) * 10, 3.5, 2.2, a, 0, PI2); ctx.fill();
-          }
-        } else {
-          const q = (t - .65) / .35;
-          const radius = (fx.value || 1.65) * this.cellScale * q;
-          ctx.globalAlpha = (1 - q) * .62;
-          ctx.fillStyle = '#b9f5a37b'; ctx.strokeStyle = '#e7ffd0'; ctx.lineWidth = 4 * (1 - q);
-          ctx.beginPath(); ctx.arc(to.x, to.y - 12, radius, 0, PI2); ctx.fill(); ctx.stroke();
-          for (let i = 0; i < 16; i++) {
-            const a = i * 2.39996;
-            const r = radius * (.3 + (i % 7) / 10);
-            ctx.fillStyle = i % 3 ? '#f2fa9a' : '#99eeb8';
-            ctx.beginPath(); ctx.arc(to.x + Math.cos(a) * r, to.y - 12 + Math.sin(a) * r, 2 + i % 3, 0, PI2); ctx.fill();
-          }
-        }
-      } else if (fx.kind === 'water') {
-        const radius = (fx.value || 1.7) * this.cellScale;
-        ctx.strokeStyle = '#a8edff'; ctx.lineWidth = 3.5; ctx.globalAlpha = .7 * (1 - t);
-        for (let ring = 0; ring < 2; ring++) {
-          ctx.beginPath(); ctx.ellipse(from.x, from.y - 9, radius * (.48 + t * .55 + ring * .14), radius * (.23 + t * .22 + ring * .08),
-            0, ring * Math.PI / 2 + t * 5, ring * Math.PI / 2 + t * 5 + Math.PI * 1.45); ctx.stroke();
-        }
-        for (let i = 0; i < 12; i++) {
-          const a = i * PI2 / 12 + this.frame * 7;
-          const r = radius * (.43 + .29 * Math.sin(i * 3 + t * 6));
-          ctx.fillStyle = i % 2 ? '#d2ffff' : '#66c8fa';
-          ctx.beginPath(); ctx.arc(from.x + Math.cos(a) * r, from.y - 10 + Math.sin(a) * r * .47,
-            2.8 + 2 * Math.sin(t * Math.PI), 0, PI2); ctx.fill();
-        }
-      } else if (fx.kind === 'lightning') {
-        const endX = from.x + (to.x - from.x) * Math.min(1, t * 3);
-        const endY = from.y + (to.y - from.y) * Math.min(1, t * 3);
-        ctx.strokeStyle = '#fff7af'; ctx.lineWidth = 4; ctx.shadowColor = '#f8d53c'; ctx.shadowBlur = 18;
-        ctx.globalAlpha = 1 - Math.max(0, t - .5) * 2;
-        const dx = endX - from.x, dy = endY - from.y, len = Math.hypot(dx, dy) || 1;
-        ctx.beginPath(); ctx.moveTo(from.x, from.y - 13);
-        for (let i = 1; i < 9; i++) {
-          const f = i / 9, spread = ((i * 17 + fx.id.length * 7) % 7 - 3) * 3;
-          ctx.lineTo(from.x + dx * f + (-dy / len) * spread, from.y + dy * f - 13 + (dx / len) * spread);
-        }
-        ctx.lineTo(endX, endY - 13); ctx.stroke();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
-      } else if (fx.kind === 'flame') {
-        const x = from.x + (to.x - from.x) * Math.min(1, t * 2.7);
-        const y = from.y + (to.y - from.y) * Math.min(1, t * 2.7);
-        ctx.globalAlpha = 1 - t; ctx.shadowColor = '#ff681e'; ctx.shadowBlur = 14;
-        for (let i = 0; i < 9; i++) {
-          const a = i * 2.4 + fx.id.length;
-          const r = (7 + 25 * t) * (.4 + i / 11);
-          ctx.fillStyle = i % 3 ? '#ff8e33' : '#fff3a8';
-          ctx.beginPath(); ctx.arc(x + Math.cos(a) * r, y - 11 + Math.sin(a) * r - t * 16, 3 + (i % 3) * 2, 0, PI2); ctx.fill();
-        }
-      } else if (fx.kind === 'seed') {
-        const x = from.x + (to.x - from.x) * t;
-        const y = from.y + (to.y - from.y) * t - 12 - 19 * Math.sin(t * Math.PI);
-        ctx.fillStyle = '#d6e790'; ctx.shadowColor = '#74bc5d'; ctx.shadowBlur = 10;
-        ctx.beginPath(); ctx.ellipse(x, y, 8, 5, Math.atan2(to.y - from.y, to.x - from.x), 0, PI2); ctx.fill();
-        ctx.strokeStyle = '#529c58'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y); ctx.stroke();
-      } else if (fx.kind === 'heal') {
-        ctx.globalAlpha = 1 - t; ctx.strokeStyle = '#8af5b1'; ctx.lineWidth = 2.8;
-        ctx.beginPath(); ctx.ellipse(to.x, to.y - 16, 10 + t * 26, 5 + t * 15, 0, 0, PI2); ctx.stroke();
-        for (let i = 0; i < 6; i++) {
-          const a = i * PI2 / 6 + t * 1.8;
-          ctx.fillStyle = '#c5ffd6'; ctx.fillRect(to.x + Math.cos(a) * (8 + t * 26) - 2, to.y - 20 + Math.sin(a) * (6 + t * 16) - 2, 4, 4);
-        }
-      } else if (fx.kind === 'physical') {
-        ctx.globalAlpha = 1 - t; ctx.strokeStyle = '#fff6d5'; ctx.lineWidth = 4.5; ctx.shadowColor = '#ffc078'; ctx.shadowBlur = 10;
-        ctx.beginPath(); ctx.arc(to.x, to.y - 16, 8 + t * 18, -.95, .9); ctx.stroke();
-      } else {
-        const x = from.x + (to.x - from.x) * t, y = from.y + (to.y - from.y) * t;
-        ctx.globalAlpha = 1 - t; ctx.shadowBlur = 20; ctx.shadowColor = SPECIES[fx.family].glow;
-        ctx.fillStyle = fx.kind === 'ko' ? '#f1d3a9' : SPECIES[fx.family].glow;
-        ctx.beginPath(); ctx.arc(x, y - 11, (fx.kind === 'spell' ? 12 : 6) * (1 + t * .8), 0, PI2); ctx.fill();
-      }
+      const fxY = fx.y + (fx.targetY - fx.y) * t;
+      const p = this.toScreen(fx.x + (fx.targetX - fx.x) * t, flipY ? -fxY : fxY);
+      const radius = fx.kind === 'spell' ? 12 : 6;
+      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - t);
+      ctx.shadowBlur = 24; ctx.shadowColor = SPECIES[fx.family].glow;
+      ctx.fillStyle = fx.kind === 'heal' ? '#97f3be' : fx.kind === 'ko' ? '#f1d3a9' : SPECIES[fx.family].glow;
+      ctx.beginPath(); ctx.arc(p.x, p.y - 11, radius * (1 + t * .8), 0, PI2); ctx.fill();
       ctx.restore();
     }
   }

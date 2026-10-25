@@ -7,9 +7,9 @@ const element = <T extends HTMLElement>(id: string): T => document.getElementByI
 const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk: 'ATK', def: 'DEF', spa: 'SPA', spd: 'SPD' };
 
-function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
+function shape(family: keyof typeof SPECIES, size: number, stage = 0): string {
   const s = SPECIES[family];
-  return `<span class="pokemon-token" style="height:${size}px;width:${size}px"><img class="pokemon-icon" src="${s.sprites[Math.min(stage, s.sprites.length - 1)]}" alt="" loading="lazy" /></span>`;
+  return `<span class="shape ${s.shape} ${stage ? 'evolved' : ''}" style="height:${size}px;width:${size}px;--shape-color:${s.color};--shape-glow:${s.glow}"><img class="pokemon-art" src="${s.sprites[Math.min(stage, s.sprites.length - 1)]}" alt="" loading="lazy" /></span>`;
 }
 
 export class Hud {
@@ -97,7 +97,7 @@ export class Hud {
       const data = SPECIES[offer.family];
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
       return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, typeInfluence(player).shares)).toFixed(1)}%">
-          <div class="shop-portrait">${portrait(offer.family, 38)}</div><div class="shop-name">${data.names[0]}</div>
+          <div class="shop-portrait">${shape(offer.family, 38)}</div><div class="shop-name">${data.names[0]}</div>
           <div class="shop-type">${data.elements.map(type => ELEMENTS[type].name).join(' / ')}</div>
           <div class="shop-cost"><i>◈</i> ${offer.price}</div></button>`;
     }).join('');
@@ -150,7 +150,7 @@ export class Hud {
         ? `<div class="damage-split"><div class="physical" style="width:${phys / max * 100}%"></div><div class="special" style="width:${special / max * 100}%"></div></div>`
         : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round((isStatus ? hp / maxHp : value / max) * 100)}%;background:${isStatus ? '#83d49f' : SPECIES[unit.family].glow}"></div></div>`;
       return `<div class="combat-entry"><div class="combat-line">
-        <span class="combat-mini-shape">${portrait(unit.family, 14, unit.stage)}</span>
+        <span class="combat-mini-shape">${shape(unit.family, 14, unit.stage)}</span>
         <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${valueText}</span></div>${bar}</div>`;
     }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : '')
       : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
@@ -182,7 +182,7 @@ export class Hud {
   private inspector(pokemon: Pokemon): string {
     const data = SPECIES[pokemon.family];
     const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
-    return `<div class="inspector-top">${portrait(pokemon.family, 35, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${data.range}</div></div></div>
+    return `<div class="inspector-top">${shape(pokemon.family, 35, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${data.range}</div></div></div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
       <div class="inspector-footer">${safe(data.ability)} · ${data.energy} energia<br />${data.elements.map(t => ELEMENTS[t].name).join(' / ')} · <span style="color:#d9bc8f">E para vender</span></div>`;
   }
