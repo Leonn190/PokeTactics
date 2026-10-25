@@ -1,37 +1,690 @@
 {
   "spriteBaseUrl": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon",
   "sprites": {
-    "bulbasaur": ["./sprites/1.png", "./sprites/2.png", "./sprites/3.png"],
-    "charmander": ["./sprites/4.png", "./sprites/5.png", "./sprites/6.png"],
-    "squirtle": ["./sprites/7.png", "./sprites/8.png", "./sprites/9.png"],
-    "pikachu": ["./sprites/25.png", "./sprites/26.png"],
-    "articuno": ["./sprites/144.png"],
-    "zapdos": ["./sprites/145.png"],
-    "moltres": ["./sprites/146.png"],
-    "mewtwo": ["./sprites/150.png"],
-    "mew": ["./sprites/151.png"],
-    "raikou": ["./sprites/243.png"],
-    "entei": ["./sprites/244.png"],
-    "suicune": ["./sprites/245.png"],
-    "lugia": ["./sprites/249.png"],
-    "ho-oh": ["./sprites/250.png"],
-    "celebi": ["./sprites/251.png"]
+    "caterpie": [
+      "./sprites/10.png",
+      "./sprites/11.png",
+      "./sprites/12.png"
+    ],
+    "weedle": [
+      "./sprites/13.png",
+      "./sprites/14.png",
+      "./sprites/15.png"
+    ],
+    "bulbasaur": [
+      "./sprites/1.png",
+      "./sprites/2.png",
+      "./sprites/3.png"
+    ],
+    "charmander": [
+      "./sprites/4.png",
+      "./sprites/5.png",
+      "./sprites/6.png"
+    ],
+    "squirtle": [
+      "./sprites/7.png",
+      "./sprites/8.png",
+      "./sprites/9.png"
+    ],
+    "pikachu": [
+      "./sprites/25.png",
+      "./sprites/26.png"
+    ],
+    "koffing": [
+      "./sprites/109.png",
+      "./sprites/110.png"
+    ],
+    "snorlax": [
+      "./sprites/143.png"
+    ],
+    "articuno": [
+      "./sprites/144.png"
+    ],
+    "zapdos": [
+      "./sprites/145.png"
+    ],
+    "moltres": [
+      "./sprites/146.png"
+    ],
+    "mewtwo": [
+      "./sprites/150.png"
+    ],
+    "mew": [
+      "./sprites/151.png"
+    ],
+    "raikou": [
+      "./sprites/243.png"
+    ],
+    "entei": [
+      "./sprites/244.png"
+    ],
+    "suicune": [
+      "./sprites/245.png"
+    ],
+    "lugia": [
+      "./sprites/249.png"
+    ],
+    "ho-oh": [
+      "./sprites/250.png"
+    ],
+    "celebi": [
+      "./sprites/251.png"
+    ]
   },
   "species": {
-    "bulbasaur": { "names": ["Bulbasaur","Ivysaur","Venusaur"], "pokedexIds": [1,2,3], "rarity": 1, "shop": true, "glow": "#38f0a5", "base": { "hp": 45, "speed": 45, "atk": 49, "def": 49, "spa": 65, "spd": 65 }, "range": 3.0, "energy": 40, "attack": "pollen-mortar", "elements": ["grass","poison"] },
-    "charmander": { "names": ["Charmander","Charmeleon","Charizard"], "pokedexIds": [4,5,6], "rarity": 1, "shop": true, "glow": "#ff714c", "base": { "hp": 39, "speed": 65, "atk": 52, "def": 43, "spa": 60, "spd": 50 }, "range": 0.94, "energy": 35, "attack": "flaming-strike", "elements": ["fire"] },
-    "squirtle": { "names": ["Squirtle","Wartortle","Blastoise"], "pokedexIds": [7,8,9], "rarity": 2, "shop": true, "glow": "#5aa8ff", "base": { "hp": 44, "speed": 43, "atk": 48, "def": 65, "spa": 50, "spd": 64 }, "range": 0.94, "energy": 50, "attack": "aqua-spin", "elements": ["water"] },
-    "pikachu": { "names": ["Pikachu","Raichu"], "pokedexIds": [25,26], "rarity": 3, "shop": true, "glow": "#f8cb4d", "base": { "hp": 35, "speed": 90, "atk": 55, "def": 40, "spa": 50, "spd": 50 }, "range": 0.94, "energy": 45, "attack": "thunder-shock", "elements": ["electric"] },
-    "articuno": { "names": ["Articuno"], "pokedexIds": [144], "rarity": 5, "shop": false, "glow": "#65d8fa", "base": { "hp": 90, "speed": 85, "atk": 85, "def": 100, "spa": 95, "spd": 125 }, "range": 3.2, "energy": 70, "attack": "legendary-ice", "elements": ["ice","flying"] },
-    "zapdos": { "names": ["Zapdos"], "pokedexIds": [145], "rarity": 5, "shop": false, "glow": "#ffcd52", "base": { "hp": 90, "speed": 100, "atk": 90, "def": 85, "spa": 125, "spd": 90 }, "range": 3.2, "energy": 70, "attack": "legendary-electric", "elements": ["electric","flying"] },
-    "moltres": { "names": ["Moltres"], "pokedexIds": [146], "rarity": 5, "shop": false, "glow": "#ff5a43", "base": { "hp": 90, "speed": 90, "atk": 100, "def": 90, "spa": 125, "spd": 85 }, "range": 3.1, "energy": 70, "attack": "legendary-fire", "elements": ["fire","flying"] },
-    "mewtwo": { "names": ["Mewtwo"], "pokedexIds": [150], "rarity": 5, "shop": false, "glow": "#9865e4", "base": { "hp": 106, "speed": 130, "atk": 110, "def": 90, "spa": 154, "spd": 90 }, "range": 3.3, "energy": 75, "attack": "legendary-psychic", "elements": ["psychic"] },
-    "mew": { "names": ["Mew"], "pokedexIds": [151], "rarity": 5, "shop": false, "glow": "#f09dca", "base": { "hp": 100, "speed": 100, "atk": 100, "def": 100, "spa": 100, "spd": 100 }, "range": 3, "energy": 65, "attack": "legendary-psychic", "elements": ["psychic"] },
-    "raikou": { "names": ["Raikou"], "pokedexIds": [243], "rarity": 5, "shop": false, "glow": "#dbaa4e", "base": { "hp": 90, "speed": 115, "atk": 85, "def": 75, "spa": 115, "spd": 100 }, "range": 3, "energy": 70, "attack": "legendary-electric", "elements": ["electric"] },
-    "entei": { "names": ["Entei"], "pokedexIds": [244], "rarity": 5, "shop": false, "glow": "#ee714f", "base": { "hp": 115, "speed": 100, "atk": 115, "def": 85, "spa": 90, "spd": 75 }, "range": 2.2, "energy": 65, "attack": "legendary-fire", "elements": ["fire"] },
-    "suicune": { "names": ["Suicune"], "pokedexIds": [245], "rarity": 5, "shop": false, "glow": "#6c9fe8", "base": { "hp": 100, "speed": 85, "atk": 75, "def": 115, "spa": 90, "spd": 115 }, "range": 2.8, "energy": 65, "attack": "legendary-water", "elements": ["water"] },
-    "lugia": { "names": ["Lugia"], "pokedexIds": [249], "rarity": 5, "shop": false, "glow": "#a7c7ef", "base": { "hp": 106, "speed": 110, "atk": 90, "def": 130, "spa": 90, "spd": 154 }, "range": 3.1, "energy": 75, "attack": "legendary-flying", "elements": ["psychic","flying"] },
-    "ho-oh": { "names": ["Ho-Oh"], "pokedexIds": [250], "rarity": 5, "shop": false, "glow": "#f2cb53", "base": { "hp": 106, "speed": 90, "atk": 130, "def": 90, "spa": 110, "spd": 154 }, "range": 3.1, "energy": 75, "attack": "legendary-fire", "elements": ["fire","flying"] },
-    "celebi": { "names": ["Celebi"], "pokedexIds": [251], "rarity": 5, "shop": false, "glow": "#8fe69e", "base": { "hp": 100, "speed": 100, "atk": 100, "def": 100, "spa": 100, "spd": 100 }, "range": 2.8, "energy": 65, "attack": "legendary-grass", "elements": ["grass","psychic"] }
+    "caterpie": {
+      "names": [
+        "Caterpie",
+        "Metapod",
+        "Butterfree"
+      ],
+      "pokedexIds": [
+        10,
+        11,
+        12
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#8fc96c",
+      "base": {
+        "hp": 225,
+        "speed": 55,
+        "atk": 40,
+        "def": 45,
+        "spa": 70,
+        "spd": 50
+      },
+      "range": 2.7,
+      "energy": 45,
+      "attack": "toxic-thread",
+      "elements": [
+        "bug"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Shoot",
+        "projectile": "seed"
+      },
+      "stages": [
+        {
+          "move": "toxic-thread",
+          "chargedType": "poison"
+        },
+        {
+          "move": "toxic-shell",
+          "chargedType": "poison",
+          "energy": 50,
+          "range": 2.05,
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "move": "healing-powder",
+          "energy": 60,
+          "range": 3.15,
+          "elements": [
+            "bug",
+            "flying"
+          ],
+          "chargedAnimation": "FlapAround"
+        }
+      ]
+    },
+    "weedle": {
+      "names": [
+        "Weedle",
+        "Kakuna",
+        "Beedrill"
+      ],
+      "pokedexIds": [
+        13,
+        14,
+        15
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#c39c72",
+      "base": {
+        "hp": 225,
+        "speed": 78,
+        "atk": 62,
+        "def": 43,
+        "spa": 30,
+        "spd": 39
+      },
+      "range": 1.05,
+      "energy": 40,
+      "attack": "stinger",
+      "elements": [
+        "bug",
+        "poison"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "move": "stinger",
+          "chargedAnimation": "Strike"
+        },
+        {
+          "move": "firm-cocoon",
+          "energy": 50,
+          "range": 1,
+          "chargedAnimation": "Twirl"
+        },
+        {
+          "move": "multi-jab",
+          "energy": 65,
+          "range": 1.25,
+          "chargedAnimation": "Jab"
+        }
+      ]
+    },
+    "bulbasaur": {
+      "names": [
+        "Bulbasaur",
+        "Ivysaur",
+        "Venusaur"
+      ],
+      "pokedexIds": [
+        1,
+        2,
+        3
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#38f0a5",
+      "base": {
+        "hp": 240,
+        "speed": 51,
+        "atk": 48,
+        "def": 53,
+        "spa": 68,
+        "spd": 68
+      },
+      "range": 2.8,
+      "energy": 50,
+      "attack": "pollen-mortar",
+      "elements": [
+        "grass",
+        "poison"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Shoot",
+        "projectile": "seed"
+      }
+    },
+    "charmander": {
+      "names": [
+        "Charmander",
+        "Charmeleon",
+        "Charizard"
+      ],
+      "pokedexIds": [
+        4,
+        5,
+        6
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#ff714c",
+      "base": {
+        "hp": 230,
+        "speed": 75,
+        "atk": 58,
+        "def": 48,
+        "spa": 62,
+        "spd": 50
+      },
+      "range": 1.05,
+      "energy": 40,
+      "attack": "flaming-strike",
+      "elements": [
+        "fire"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {},
+        {},
+        {
+          "elements": [
+            "fire",
+            "flying"
+          ]
+        }
+      ]
+    },
+    "squirtle": {
+      "names": [
+        "Squirtle",
+        "Wartortle",
+        "Blastoise"
+      ],
+      "pokedexIds": [
+        7,
+        8,
+        9
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#5aa8ff",
+      "base": {
+        "hp": 265,
+        "speed": 42,
+        "atk": 50,
+        "def": 77,
+        "spa": 52,
+        "spd": 75
+      },
+      "range": 1,
+      "energy": 50,
+      "attack": "aqua-spin",
+      "elements": [
+        "water"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      }
+    },
+    "pikachu": {
+      "names": [
+        "Pikachu",
+        "Raichu"
+      ],
+      "pokedexIds": [
+        25,
+        26
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#f8cb4d",
+      "base": {
+        "hp": 200,
+        "speed": 100,
+        "atk": 56,
+        "def": 43,
+        "spa": 68,
+        "spd": 55
+      },
+      "range": 2.35,
+      "energy": 50,
+      "attack": "thunder-shock",
+      "elements": [
+        "electric"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Shoot",
+        "projectile": "lightning"
+      }
+    },
+    "koffing": {
+      "names": [
+        "Koffing",
+        "Weezing"
+      ],
+      "pokedexIds": [
+        109,
+        110
+      ],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#b47bce",
+      "base": {
+        "hp": 350,
+        "speed": 30,
+        "atk": 82,
+        "def": 92,
+        "spa": 35,
+        "spd": 66
+      },
+      "range": 1.05,
+      "energy": 60,
+      "attack": "gas-cloud",
+      "elements": [
+        "poison"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "chargedAnimation": "Gas"
+        },
+        {
+          "chargedAnimation": "Gas"
+        }
+      ]
+    },
+    "snorlax": {
+      "names": [
+        "Snorlax"
+      ],
+      "pokedexIds": [
+        143
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#d4b382",
+      "base": {
+        "hp": 575,
+        "speed": 30,
+        "atk": 95,
+        "def": 85,
+        "spa": 40,
+        "spd": 115
+      },
+      "range": 1,
+      "energy": 70,
+      "attack": "heavy-stomp",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "chargedAnimation": "Hop"
+        }
+      ]
+    },
+    "articuno": {
+      "names": [
+        "Articuno"
+      ],
+      "pokedexIds": [
+        144
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#65d8fa",
+      "base": {
+        "hp": 450,
+        "speed": 85,
+        "atk": 85,
+        "def": 100,
+        "spa": 95,
+        "spd": 125
+      },
+      "range": 3.2,
+      "energy": 70,
+      "attack": "legendary-ice",
+      "elements": [
+        "ice",
+        "flying"
+      ]
+    },
+    "zapdos": {
+      "names": [
+        "Zapdos"
+      ],
+      "pokedexIds": [
+        145
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#ffcd52",
+      "base": {
+        "hp": 450,
+        "speed": 100,
+        "atk": 90,
+        "def": 85,
+        "spa": 125,
+        "spd": 90
+      },
+      "range": 3.2,
+      "energy": 70,
+      "attack": "legendary-electric",
+      "elements": [
+        "electric",
+        "flying"
+      ]
+    },
+    "moltres": {
+      "names": [
+        "Moltres"
+      ],
+      "pokedexIds": [
+        146
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#ff5a43",
+      "base": {
+        "hp": 450,
+        "speed": 90,
+        "atk": 100,
+        "def": 90,
+        "spa": 125,
+        "spd": 85
+      },
+      "range": 3.1,
+      "energy": 70,
+      "attack": "legendary-fire",
+      "elements": [
+        "fire",
+        "flying"
+      ]
+    },
+    "mewtwo": {
+      "names": [
+        "Mewtwo"
+      ],
+      "pokedexIds": [
+        150
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#9865e4",
+      "base": {
+        "hp": 530,
+        "speed": 130,
+        "atk": 110,
+        "def": 90,
+        "spa": 154,
+        "spd": 90
+      },
+      "range": 3.3,
+      "energy": 75,
+      "attack": "legendary-psychic",
+      "elements": [
+        "psychic"
+      ]
+    },
+    "mew": {
+      "names": [
+        "Mew"
+      ],
+      "pokedexIds": [
+        151
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#f09dca",
+      "base": {
+        "hp": 500,
+        "speed": 100,
+        "atk": 100,
+        "def": 100,
+        "spa": 100,
+        "spd": 100
+      },
+      "range": 3,
+      "energy": 65,
+      "attack": "legendary-psychic",
+      "elements": [
+        "psychic"
+      ]
+    },
+    "raikou": {
+      "names": [
+        "Raikou"
+      ],
+      "pokedexIds": [
+        243
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#dbaa4e",
+      "base": {
+        "hp": 450,
+        "speed": 115,
+        "atk": 85,
+        "def": 75,
+        "spa": 115,
+        "spd": 100
+      },
+      "range": 3,
+      "energy": 70,
+      "attack": "legendary-electric",
+      "elements": [
+        "electric"
+      ]
+    },
+    "entei": {
+      "names": [
+        "Entei"
+      ],
+      "pokedexIds": [
+        244
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#ee714f",
+      "base": {
+        "hp": 575,
+        "speed": 100,
+        "atk": 115,
+        "def": 85,
+        "spa": 90,
+        "spd": 75
+      },
+      "range": 2.2,
+      "energy": 65,
+      "attack": "legendary-fire",
+      "elements": [
+        "fire"
+      ]
+    },
+    "suicune": {
+      "names": [
+        "Suicune"
+      ],
+      "pokedexIds": [
+        245
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#6c9fe8",
+      "base": {
+        "hp": 500,
+        "speed": 85,
+        "atk": 75,
+        "def": 115,
+        "spa": 90,
+        "spd": 115
+      },
+      "range": 2.8,
+      "energy": 65,
+      "attack": "legendary-water",
+      "elements": [
+        "water"
+      ]
+    },
+    "lugia": {
+      "names": [
+        "Lugia"
+      ],
+      "pokedexIds": [
+        249
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#a7c7ef",
+      "base": {
+        "hp": 530,
+        "speed": 110,
+        "atk": 90,
+        "def": 130,
+        "spa": 90,
+        "spd": 154
+      },
+      "range": 3.1,
+      "energy": 75,
+      "attack": "legendary-flying",
+      "elements": [
+        "psychic",
+        "flying"
+      ]
+    },
+    "ho-oh": {
+      "names": [
+        "Ho-Oh"
+      ],
+      "pokedexIds": [
+        250
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#f2cb53",
+      "base": {
+        "hp": 530,
+        "speed": 90,
+        "atk": 130,
+        "def": 90,
+        "spa": 110,
+        "spd": 154
+      },
+      "range": 3.1,
+      "energy": 75,
+      "attack": "legendary-fire",
+      "elements": [
+        "fire",
+        "flying"
+      ]
+    },
+    "celebi": {
+      "names": [
+        "Celebi"
+      ],
+      "pokedexIds": [
+        251
+      ],
+      "rarity": 5,
+      "shop": false,
+      "glow": "#8fe69e",
+      "base": {
+        "hp": 500,
+        "speed": 100,
+        "atk": 100,
+        "def": 100,
+        "spa": 100,
+        "spd": 100
+      },
+      "range": 2.8,
+      "energy": 65,
+      "attack": "legendary-grass",
+      "elements": [
+        "grass",
+        "psychic"
+      ]
+    }
   }
 }

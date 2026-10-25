@@ -2,7 +2,7 @@ import pokemonConfig from '../config/pokemons.json';
 export type Family = keyof typeof pokemonConfig.species;
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
-export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic';
+export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal';
 export type Rarity = 1 | 2 | 3 | 4 | 5;
 export type StageType = 'battle' | 'gold' | 'quad' | 'bot' | 'double' | 'boss';
 export type StageResult = 'win' | 'loss' | 'second' | 'third' | 'fourth' | null;
@@ -44,6 +44,8 @@ export interface Player {
 }
 
 export interface CombatMetrics {
+  casts: number;
+  controlSeconds: number;
   dealt: number;
   physicalDealt: number;
   specialDealt: number;
@@ -52,6 +54,7 @@ export interface CombatMetrics {
   blocked: number;
   blockedPhysical: number;
   blockedSpecial: number;
+  barrierAbsorbed: number;
 }
 
 export interface CombatUnit {
@@ -77,7 +80,7 @@ export interface CombatUnit {
   moving: boolean;
   facingX: number;
   facingY: number;
-  animation: { name: 'Rotate' | 'Attack' | 'Shoot' | 'Charge' | 'Withdraw' | 'Strike' | 'Hurt'; elapsed: number; duration: number; next?: 'Shoot' | 'Withdraw' } | null;
+  animation: { name: string; elapsed: number; duration: number; next?: string } | null;
   spinTime: number;
   spinDuration: number;
   spinReduction: number;
@@ -86,6 +89,17 @@ export interface CombatUnit {
   flash: number;
   effects: { kind: string; time: number }[];
   damageOverTime: { amount: number; time: number; sourceId: string } | null;
+  poison: { amount: number; time: number; sourceId: string; accumulator: number } | null;
+  barrier: { hp: number; time: number; maxHp: number } | null;
+  combo: { targetId: string; hits: number; time: number; interval: number } | null;
+  gasTime: number;
+  support: { time: number; moveId: string } | null;
+  leap: { fromX: number; fromY: number; toX: number; toY: number; time: number; duration: number } | null;
+  jumpHeight: number;
+  stunTime: number;
+  knockUpTime: number;
+  stunUntil: number;
+  knockUpUntil: number;
   slow: number;
   metrics: CombatMetrics;
 }
@@ -97,7 +111,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit';
+  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp';
   damageType?: 'physical' | 'special' | 'true';
   family: Family;
   time: number;
@@ -109,8 +123,11 @@ export interface CombatEffect {
     raw: number;
     magical: boolean;
     charged: boolean;
+    moveId?: string;
+    attackType?: Element;
     arrival: number;
-    onHit?: 'drain' | 'burn' | 'slow';
+    onHit?: 'drain' | 'burn' | 'slow' | 'poison';
+    chain?: { remaining: number; visited: string[]; ratio: number; range: number };
   };
 }
 

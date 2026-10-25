@@ -1,6 +1,7 @@
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
 import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
+import { totalPower } from './formulas';
 import type { Battle, Family, GameCommand, GameSnapshot, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
 
 class Rng {
@@ -267,7 +268,7 @@ export class GameEngine {
     const favorites = [...player.units].sort((a, b) => {
       const score = (u: Pokemon) => {
         const stats = calculateStats(u.family, u.level, u.iv, u.stage);
-        return u.stage * 500 + stats.hp + stats.atk + stats.spa + SPECIES[u.family].rarity * 15;
+        return u.stage * 500 + totalPower(stats) + SPECIES[u.family].rarity * 15;
       };
       return score(b) - score(a);
     });

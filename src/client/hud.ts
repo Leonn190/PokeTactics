@@ -1,4 +1,5 @@
-import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES } from '../../server/data';
+import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, getStageData, ATTACKS } from '../../server/data';
+import { totalPower } from '../../server/formulas';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
 import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
 import type { ClientView } from './arena';
@@ -130,7 +131,7 @@ export class Hud {
       const key = `${u.family}:${u.stage}`;
       if (unique.has(key)) return;
       unique.add(key);
-      SPECIES[u.family].elements.forEach(type => counts[type] = (counts[type] || 0) + 1);
+      getStageData(u.family, u.stage).elements.forEach(type => counts[type] = (counts[type] || 0) + 1);
     });
     const traitsHtml = (Object.keys(ELEMENTS) as Element[]).filter(type => !!counts[type]).map(type => {
       const trait = ELEMENTS[type], count = counts[type] || 0;
@@ -159,20 +160,21 @@ export class Hud {
       return roster.map(unit => {
         const metrics = metricsByUnit[unit.id];
         const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === id);
-        const maxHp = combatant?.maxHp || Math.round(calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp * RULES.combatHealthMultiplier + RULES.combatHealthFlat);
+        const maxHp = combatant?.maxHp || calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp;
         const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
         const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
         const physicalMitigated = metrics?.blockedPhysical || 0;
         const specialMitigated = metrics?.blockedSpecial || 0;
         const healed = metrics?.healed || 0;
+        const barrierAbsorbed = metrics?.barrierAbsorbed || 0;
         const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : physicalMitigated + specialMitigated + healed;
-        return { unit, value, hp, maxHp, phys, special, physicalMitigated, specialMitigated, healed };
+        return { unit, value, hp, maxHp, phys, special, physicalMitigated, specialMitigated, healed, barrierAbsorbed };
       }).sort((a, b) => b.value - a.value);
     };
     const ownEntries = entriesFor(view.scoutId);
     const enemyEntries = opponentId ? entriesFor(opponentId) : [];
     const max = Math.max(1, ...ownEntries.map(e => e.value), ...enemyEntries.map(e => e.value));
-    const combatHtml = (entries: ReturnType<typeof entriesFor>) => entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special, physicalMitigated, specialMitigated, healed }) => {
+    const combatHtml = (entries: ReturnType<typeof entriesFor>) => entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special, physicalMitigated, specialMitigated, healed, barrierAbsorbed }) => {
       const isDamage = this.metric === 'damage', isStatus = this.metric === 'status';
       const valueText = isStatus ? `${Math.ceil(hp)}/${maxHp}` : String(Math.round(value));
       const bar = isDamage
@@ -182,7 +184,7 @@ export class Hud {
         : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round((isStatus ? hp / maxHp : value / max) * 100)}%;background:${isStatus ? '#83d49f' : SPECIES[unit.family].glow}"></div></div>`;
       return `<div class="combat-entry"><div class="combat-line">
         <span class="combat-mini-shape">${portrait(unit.family, 31, unit.stage)}</span>
-        <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${valueText}</span></div>${bar}</div>`;
+        <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${valueText}</span></div>${bar}${this.metric === 'mitigation' && barrierAbsorbed > 0 ? `<span class="barrier-absorbed" title="Dano absorvido por barreira, não incluído na mitigação de DEF/SpD">◇ Barreira absorvida: ${Math.round(barrierAbsorbed)}</span>` : ''}</div>`;
     }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : this.metric === 'mitigation' ? '<div class="metric-legend"><span><i class="def"></i>DEF</span><span><i class="spd"></i>SPD</span><span><i class="heal"></i>CURA</span></div>' : '')
       : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
     const ownHtml = combatHtml(ownEntries), enemyHtml = combatHtml(enemyEntries);
@@ -233,12 +235,13 @@ export class Hud {
 
   private inspector(pokemon: Pokemon, owner: string, combatant?: CombatUnit): string {
     const data = SPECIES[pokemon.family];
+    const stage = getStageData(pokemon.family, pokemon.stage);
     const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
     const ivAverage = Object.values(pokemon.iv).reduce((a, b) => a + b, 0) / Object.keys(pokemon.iv).length;
-    const power = Object.values(stats).reduce((a, b) => a + b, 0);
-    return `<div class="inspector-top">${portrait(pokemon.family, 42, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">${safe(owner)} · NÍVEL ${pokemon.level} · ALCANCE ${data.range}</div></div></div>
+    const power = totalPower(stats);
+    return `<div class="inspector-top">${portrait(pokemon.family, 42, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">${safe(owner)} · NÍVEL ${pokemon.level} · ALCANCE ${stage.range}</div></div></div>
       <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span></div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
-      <div class="inspector-footer">${safe(data.ability)} · ${data.energy} energia${combatant ? ` · HP ${Math.ceil(combatant.hp)}/${combatant.maxHp}` : ''}<div class="inspector-types">${data.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
+      <div class="inspector-footer">${safe(ATTACKS.moves[stage.move].name)} · ${stage.energy} energia${combatant ? ` · HP ${Math.ceil(combatant.hp)}/${combatant.maxHp}` : ''}<div class="inspector-types">${stage.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }
 }

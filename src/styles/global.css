@@ -183,3 +183,4 @@
 .metric-legend{gap:7px;white-space:nowrap}
 .pokemon-drag-idle{width:100%;height:100%;image-rendering:pixelated}
 @media(max-width:980px){.combat-side-tab.active{left:calc(-100% - 32px)}.shop-card-footer{padding:3px 2px}.shop-card .shop-name{font-size:11px}.shop-card .shop-type .type-icon{width:13px;height:13px}}
+.barrier-absorbed { display:block; margin-top:2px; color:#d7b6f5; font-size:10px; letter-spacing:.02em; }

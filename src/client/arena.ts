@@ -1,4 +1,4 @@
-import { gridXY, SPECIES } from '../../server/data';
+import { getStageData, gridXY, SPECIES } from '../../server/data';
 import type { CombatEffect, CombatUnit, Family, GameSnapshot, Pokemon, UnitPosition } from '../../server/types';
 import { trainerSpot } from '../../server/systems/combat';
 import pmdManifest from './pmd-manifest.json';
@@ -14,8 +14,8 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number };
-type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier'] };
+type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number; hitFrame?: number };
 type PmdEntry = Record<string, PmdSheet>;
 const PMD = pmdManifest as Record<string, PmdEntry>;
 const PI2 = Math.PI * 2;
@@ -163,7 +163,7 @@ export class Arena {
   private warmAnimationSheets(dex: number, anims: PmdEntry): void {
     if (this.warmedSpecies.has(dex)) return;
     this.warmedSpecies.add(dex);
-    for (const action of ['Idle', 'Walk', 'Rotate', 'Attack', 'Shoot', 'Hurt', 'Charge', 'Strike', 'Withdraw', 'Sleep']) {
+    for (const action of ['Idle', 'Walk', 'Rotate', 'Attack', 'Shoot', 'Hurt', 'Charge', 'Strike', 'Withdraw', 'Sleep', 'SpAttack', 'Twirl', 'Jab', 'FlapAround', 'Gas', 'Hop', 'Stomp', 'Hover']) {
       if (anims[action]) this.image(`${import.meta.env.BASE_URL}sprite/${String(dex).padStart(4, '0')}/${anims[action].file}`);
     }
   }
@@ -205,7 +205,7 @@ export class Arena {
     if (anims) {
       this.warmAnimationSheets(id, anims);
       const action = unit.bench ? 'Sleep' : this.snapshot?.phase === 'planning' ? 'Idle'
-        : unit.animation?.name || (unit.moving ? 'Walk' : 'Idle');
+        : unit.animation?.name || (unit.moving ? (anims.Hover ? 'Hover' : 'Walk') : 'Idle');
       let selectedAction = anims[action] ? action : 'Idle';
       let animation = anims[selectedAction];
       let url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
@@ -367,7 +367,7 @@ export class Arena {
     const benchUnits = (units: Pokemon[], ownerId: string, own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
       const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index, enemy, offset);
       return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
-        own, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0, bench: true } as Marker;
+        own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0, bench: true } as Marker;
     });
     const bench = benchUnits(watched.units, watched.id, true, false, 0);
     const foeId = snapshot.visibleBattle?.participants.find(id => id !== this.view.scoutId) || null;
@@ -404,7 +404,7 @@ export class Arena {
       const row = own ? 4 + pos.row : 3 - pos.row;
       const p = gridXY(pos.col, row);
       return { id: u.id, sourceId: u.id, ownerId: friendly.id, x: p.x, y: p.y, family: u.family, stage: u.stage,
-        level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: SPECIES[u.family].energy, flash: 0 };
+        level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
     return [...convert(friendly.units, true), ...bench];
@@ -448,7 +448,8 @@ export class Arena {
     if (unit.flash > 0) {
       ctx.fillStyle = '#fff4d454'; ctx.beginPath(); ctx.arc(p.x, p.y - 2, radius * 1.7, 0, PI2); ctx.fill();
     }
-    const spriteTop = this.drawPokemonSprite(p.x, p.y, unit, time);
+    const lift = (unit.jumpHeight || 0) + (unit.knockUpTime ? .55 * Math.sin(Math.PI * (1 - unit.knockUpTime / .35)) : 0);
+    const spriteTop = this.drawPokemonSprite(p.x, p.y - lift * this.cellScale, unit, time);
     if (unit.bench) return;
     const barWidth = Math.max(35, radius * 2.35);
     const bx = p.x - barWidth / 2;
@@ -456,6 +457,12 @@ export class Arena {
     if (this.snapshot?.phase !== 'planning') {
       ctx.fillStyle = '#101f20d9'; ctx.fillRect(bx - 1, baseY - 1, barWidth + 2, 7);
       ctx.fillStyle = unit.own ? '#74e6a9' : '#ff947d'; ctx.fillRect(bx, baseY, barWidth * Math.max(0, unit.hp / unit.maxHp), 5);
+      if (unit.barrier && unit.barrier.hp > 0) {
+        ctx.fillStyle = '#d5b3ff'; ctx.fillRect(bx, baseY - 3, barWidth * Math.min(1, unit.barrier.hp / unit.barrier.maxHp), 2);
+      }
+      if (unit.poison) {
+        ctx.fillStyle = '#b76de4'; ctx.beginPath(); ctx.arc(bx + barWidth + 4, baseY + 2, 3.1, 0, PI2); ctx.fill();
+      }
       ctx.fillStyle = '#132a31c9'; ctx.fillRect(bx, baseY + 7, barWidth, 3);
       ctx.fillStyle = '#80ccfa'; ctx.fillRect(bx, baseY + 7, barWidth * Math.min(1, unit.energy / unit.required), 3);
     }
@@ -524,6 +531,37 @@ export class Arena {
             ctx.beginPath(); ctx.arc(to.x + Math.cos(a) * r, to.y - 12 + Math.sin(a) * r, 2 + i % 3, 0, PI2); ctx.fill();
           }
         }
+      } else if (fx.kind === 'poison') {
+        // Fio Venenoso chega ao alvo na mesma fração .75 do relógio do impacto.
+        const flight = Math.min(1, t / .75);
+        const x = from.x + (to.x - from.x) * flight;
+        const y = from.y + (to.y - from.y) * flight - Math.sin(flight * Math.PI) * 16;
+        ctx.shadowColor = '#ad65e5'; ctx.shadowBlur = 12;
+        ctx.fillStyle = '#bc86da'; ctx.globalAlpha = .9 * (1 - t);
+        for (let i = 0; i < 6; i++) {
+          const angle = i * 2.4 + t * 3;
+          ctx.beginPath(); ctx.arc(x + Math.cos(angle) * (4 + t * 10), y - 10 + Math.sin(angle) * (4 + t * 9), 2.5 + i % 2, 0, PI2); ctx.fill();
+        }
+      } else if (fx.kind === 'shield') {
+        ctx.strokeStyle = '#d3b4ff'; ctx.shadowColor = '#ae8afa'; ctx.shadowBlur = 14;
+        ctx.lineWidth = 3.3; ctx.globalAlpha = 1 - t;
+        ctx.beginPath(); ctx.ellipse(to.x, to.y - this.cellScale * .44, this.cellScale * (.28 + t * .17), this.cellScale * (.43 + t * .1), 0, 0, PI2); ctx.stroke();
+      } else if (fx.kind === 'gas') {
+        // A frente da nuvem atinge o raio máximo após .32 s: mesmo instante do dano.
+        const expansion = Math.min(1, t / (.32 / fx.duration));
+        const radius = (fx.value || 1.85) * this.cellScale * expansion;
+        ctx.globalAlpha = .58 * (1 - t);
+        ctx.strokeStyle = '#d6a9e9'; ctx.fillStyle = '#a267b27d'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(from.x, from.y - 12, radius, 0, PI2); ctx.fill(); ctx.stroke();
+        for (let i = 0; i < 9; i++) {
+          const a = i * 2.4 + t, r = radius * (.4 + (i % 5) / 8);
+          ctx.beginPath(); ctx.arc(from.x + Math.cos(a) * r, from.y - 12 + Math.sin(a) * r * .55, 5 + i % 3, 0, PI2); ctx.fill();
+        }
+      } else if (fx.kind === 'stomp') {
+        const radius = (fx.value || 1.75) * this.cellScale * Math.min(1, t * 2.6);
+        ctx.globalAlpha = 1 - t; ctx.lineWidth = 5 * (1 - t) + 1;
+        ctx.strokeStyle = '#e1d5bd'; ctx.shadowColor = '#dfc29c'; ctx.shadowBlur = 15;
+        ctx.beginPath(); ctx.ellipse(from.x, from.y, radius, radius * .4, 0, 0, PI2); ctx.stroke();
       } else if (fx.kind === 'water') {
         const radius = (fx.value || 1.7) * this.cellScale;
         ctx.strokeStyle = '#a8edff'; ctx.lineWidth = 3.5; ctx.globalAlpha = .7 * (1 - t);

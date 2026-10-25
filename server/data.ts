@@ -4,6 +4,8 @@ import phaseConfig from '../config/fases.json';
 import rulesConfig from '../config/regras_gerais.json';
 import type { Element, Family, Rarity, StageType, Stats } from './types';
 
+export type BasicAttackData = { stat: 'atk' | 'spa'; category: 'physical' | 'special'; animation: string; projectile?: 'seed' | 'lightning' | 'spell' };
+export type StageData = { elements: Element[]; range: number; energy: number; move: string; chargedType: Element; chargedAnimation: string; basic: BasicAttackData };
 export interface SpeciesData {
   names: string[];
   pokedexIds: number[];
@@ -17,10 +19,12 @@ export interface SpeciesData {
   ability: string;
   elements: Element[];
   sprites: string[];
+  basic?: BasicAttackData;
+  stages?: Partial<Omit<StageData, 'basic'>>[];
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -29,10 +33,13 @@ export type MoveData = {
   splashRange?: number; shieldByStage?: number[]; seconds?: number;
   secondsPerSpA?: number; durationSpaStep?: number;
   secondaryRatioByStage?: number[]; secondaryTargetsByStage?: number[];
+  healRange?: number; healTargets?: number; shieldBase?: number; shieldDefenseRatio?: number;
+  shieldDuration?: number; hits?: number; attackRatioByStage?: number[]; radiusByStage?: number[];
+  jumpRange?: number; stunDuration?: number;
 };
 
 export const ATTACKS = movesConfig as unknown as {
-  basic: { name: string; damageBase: number; physicalAttackRatio: number; energyGain: number };
+  basic: { name: string; offensiveRatio: number; energyGain: number };
   moves: Record<string, MoveData>;
 };
 export const RULES = rulesConfig;
@@ -51,6 +58,21 @@ export const SPECIES = Object.fromEntries(Object.entries(pokemonConfig.species).
   }
 ])) as Record<Family, SpeciesData>;
 
+/** Configuração do estágio; ao contrário da configuração anterior não assume um carregado para toda a família. */
+export function getStageData(family: Family, stage: number): StageData {
+  const species = SPECIES[family];
+  const override = species.stages?.[Math.min(Math.max(0, stage), species.names.length - 1)] || {};
+  return {
+    elements: override.elements || species.elements,
+    range: override.range ?? species.range,
+    energy: override.energy ?? species.energy,
+    move: override.move || species.attack,
+    chargedType: override.chargedType || species.elements[0],
+    chargedAnimation: override.chargedAnimation || 'Attack',
+    basic: species.basic || { stat: 'atk', category: 'physical', animation: 'Attack' }
+  };
+}
+
 export const SHOP_FAMILIES = (Object.keys(SPECIES) as Family[]).filter(f => SPECIES[f].shop);
 export const LEGENDARY_FAMILIES = (Object.keys(SPECIES) as Family[]).filter(f => !SPECIES[f].shop);
 
@@ -63,6 +85,8 @@ export const ELEMENTS: Record<Element, { name: string; color: string; descriptio
   ice: { name: 'Gelo', color: '#a7edff', description: 'Tipo de chefe lendário' },
   flying: { name: 'Voador', color: '#a9d1fa', description: 'Tipo de chefe lendário' },
   psychic: { name: 'Psíquico', color: '#f2b4e5', description: 'Tipo de chefe lendário' }
+  ,bug: { name: 'Inseto', color: '#a8c75b', description: 'Sem bônus de sinergia por enquanto' }
+  ,normal: { name: 'Normal', color: '#b4bab5', description: 'Sem bônus de sinergia por enquanto' }
 };
 
 export const RARITY_COLORS = ['#76848c', '#8cd0a5', '#76b4ec', '#ce91f4', '#f0bd67'];

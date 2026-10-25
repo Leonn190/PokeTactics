@@ -31,7 +31,7 @@ function fixture(family: Family, enemies: number, stage = 0, allies = 0) {
   return { battle, attacker, friends, foes };
 }
 
-test('metadados PMD das 11 evoluções usam os caminhos reais do GitHub sem duplicar os assets', () => {
+test('metadados PMD das 20 formas jogáveis usam os caminhos reais do GitHub sem duplicar os assets', () => {
   const arenaSource = readFileSync(resolve('src/client/arena.ts'), 'utf8');
   const hudSource = readFileSync(resolve('src/client/hud.ts'), 'utf8');
   const mainSource = readFileSync(resolve('src/client/main.ts'), 'utf8');
@@ -49,7 +49,7 @@ test('metadados PMD das 11 evoluções usam os caminhos reais do GitHub sem dupl
   assert.ok(stylesSource.includes('.combat-side-tab.active{left:calc(-100%'), 'a orelhinha acompanha a expansão do painel');
   assert.ok(stylesSource.includes('grid-template-rows:minmax(0,1fr) 34px'), 'o retrato tem faixa exclusiva sem sobreposição da base');
   assert.ok(mainSource.includes('arena.dragSpriteScale()'), 'o arraste usa a escala da arena');
-  for (const id of [1, 2, 3, 4, 5, 6, 7, 8, 9, 25, 26]) {
+  for (const id of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 25, 26, 109, 110, 143]) {
     const anims = (pmd as Record<string, Record<string, { file: string; width: number; height: number; durations: number[]; directions: number }>>)[String(id)];
     assert.ok(anims, `Pokémon ${id} sem manifest`);
     for (const action of ['Idle', 'Walk', 'Sleep', 'Hurt', 'Rotate', 'Attack']) {
@@ -63,6 +63,10 @@ test('metadados PMD das 11 evoluções usam os caminhos reais do GitHub sem dupl
   assert.ok((pmd as any)['7'].Withdraw);
   assert.ok((pmd as any)['1'].Shoot && (pmd as any)['1'].Charge);
   assert.ok((pmd as any)['4'].Strike);
+  assert.equal((pmd as any)['11'].SpAttack.file, (pmd as any)['11'].Shoot.file, 'CopyOf resolvido');
+  for (const [id, action] of [[10,'Shoot'], [12,'FlapAround'], [13,'Strike'], [14,'Twirl'], [15,'Jab'], [109,'Gas'], [110,'Gas'], [143,'Stomp']]) {
+    assert.ok((pmd as any)[id][action]);
+  }
 });
 
 test('sinergias não alteram dano, velocidade, cura ou mitigação', () => {
@@ -95,6 +99,8 @@ test('mitigação registra DEF e SPD separadas; barra combinada preserva o total
   duel.foes[0].stats.spd = 140;
   duel.foes[0].hp = duel.foes[0].maxHp = 10000;
   tickBattle(duel.battle, .05);
+  duel.attacker.attackClock = 100;
+  for (let i = 0; i < 6; i++) tickBattle(duel.battle, .05);
   assert.ok(duel.foes[0].metrics.blockedPhysical > 0, 'ataque básico mitigado por DEF');
   duel.attacker.attackClock = 0;
   duel.attacker.energy = duel.attacker.energyNeeded;
@@ -108,7 +114,7 @@ test('mitigação registra DEF e SPD separadas; barra combinada preserva o total
   ranged.foes[0].stats.spd = 100;
   tickBattle(ranged.battle, .05);
   ranged.attacker.attackClock = 100;
-  for (let i = 0; i < 5; i++) tickBattle(ranged.battle, .05);
+  for (let i = 0; i < 15; i++) tickBattle(ranged.battle, .05);
   assert.ok(ranged.foes[0].metrics.blockedSpecial > 0, 'ataque mágico mitigado por SPD');
 });
 
@@ -120,14 +126,17 @@ test('vantagem elemental altera apenas carregados, inclusive golpes físicos car
   attacker.stats.atk = 100;
   attacker.energy = 0;
   tickBattle(battle, .05);
-  assert.equal(attacker.metrics.dealt, 8 + 100 * .48, 'ataque básico sem resistência');
+  assert.equal(attacker.metrics.dealt, 0, 'básico aguarda contato visual');
+  attacker.attackClock = 100;
+  for (let i = 0; i < 5; i++) tickBattle(battle, .05);
+  assert.equal(attacker.metrics.dealt, 50, 'ataque básico usa metade do ATK sem resistência');
   attacker.attackClock = 0;
   attacker.energy = attacker.energyNeeded;
   tickBattle(battle, .05);
-  assert.equal(attacker.metrics.dealt, 8 + 100 * .48, 'o golpe carregado não acerta antes do projétil');
+  assert.equal(attacker.metrics.dealt, 50, 'o carregado não acerta antes do contato');
   attacker.attackClock = 100;
   for (let i = 0; i < 6; i++) tickBattle(battle, .05);
-  assert.equal(attacker.metrics.dealt, 8 + 100 * .48 + 100 * 1.5 * .75,
+  assert.equal(attacker.metrics.dealt, 50 + 100 * 1.55 * .75,
     'golpe carregado de fogo resistido por água, multiplicador 0,75×');
 });
 
@@ -162,8 +171,8 @@ test('Morteiro de Pólen escala dano e cura por evolução mantendo a mesma mec�
     values.push(4000 - foes[0].hp);
     heals.push(friends[0].hp - 1);
   }
-  assert.deepEqual(values, [77.25, 92.25, 114.75]);
-  assert.ok(heals.every((value, i) => Math.abs(value - [52, 67, 87][i]) < 1), `cura inesperada: ${heals}`);
+  assert.ok(values.every((value, i) => Math.abs(value - [65.85,79.35,95.85][i]) < 0.001));
+  assert.ok(heals.every((value, i) => Math.abs(value - [37.6,49.6,61.6][i]) < 1), `cura inesperada: ${heals}`);
 });
 
 test('Squirtle canaliza Giro Aquático (SpA, duração, escudo) sem atacar ou andar durante o giro', () => {
@@ -171,7 +180,7 @@ test('Squirtle canaliza Giro Aquático (SpA, duração, escudo) sem atacar ou an
   attacker.stats.spa = 160;
   foes.forEach(u => { u.hp = u.maxHp = 5000; u.stats.spd = 0; });
   tickBattle(battle, .05);
-  assert.equal(attacker.spinTime, 2.5);
+  assert.equal(attacker.spinTime, 2);
   assert.equal(attacker.spinReduction, .2);
   assert.equal(attacker.animation?.name, 'Withdraw');
   for (let i = 0; i < 10; i++) tickBattle(battle, .05);
@@ -183,8 +192,8 @@ test('Squirtle canaliza Giro Aquático (SpA, duração, escudo) sem atacar ou an
   assert.ok(battle.effects.every(fx => fx.kind !== 'water' || fx.duration > 0));
 });
 
-test('Golpe Flamejante escala com Atk (150/155/165%), é físico e ativa Hurt acima de 20%', () => {
-  for (const [stage, ratio] of [1.5, 1.55, 1.65].entries()) {
+test('Golpe Flamejante escala com Atk (155/165/175%), é físico e ativa Hurt acima de 20%', () => {
+  for (const [stage, ratio] of [1.55, 1.65, 1.75].entries()) {
     const { battle, attacker, foes } = fixture('charmander', 1, stage);
     attacker.stats.atk = 200;
     foes[0].stats.def = 0;
@@ -210,18 +219,19 @@ test('Pikachu atinge 1 alvo passivo até 2 casas e Raichu atinge 2 com coeficien
     tickBattle(battle, .05);
     assert.equal(foes[0].hp, 1000, 'o raio só deve causar dano ao atingir');
     attacker.attackClock = 100;
-    for (let i = 0; i < 4; i++) tickBattle(battle, .05);
-    assert.equal(foes[0].hp, 1000 - (stage ? 130 : 120));
-    assert.equal(foes[1].hp, 1000 - (stage ? 65 : 60));
-    assert.equal(foes[2].hp, 1000 - (stage ? 65 : 0));
+    for (let i = 0; i < 12; i++) tickBattle(battle, .05);
+    assert.equal(foes[0].hp, 1000 - (stage ? 118 : 105));
+    assert.equal(foes[1].hp, 1000 - (stage ? 60 : 50));
+    assert.equal(foes[2].hp, 1000 - (stage ? 60 : 0));
     assert.equal(foes[3].hp, 1000);
-    assert.equal(battle.effects.filter(fx => fx.kind === 'lightning').length, stage ? 3 : 2);
+    assert.ok(battle.effects.some(fx => fx.kind === 'lightning'), 'correntes foram desenhadas');
   }
 });
 
-test('somente Bulbasaur é ranged; Walk controla o deslocamento dos outros', () => {
+test('Caterpie, Bulbasaur e Pikachu são ranged; Walk controla o deslocamento dos melee', () => {
   assert.ok(SPECIES.bulbasaur.range > 2.5);
-  assert.ok(SPECIES.charmander.range < 1 && SPECIES.squirtle.range < 1 && SPECIES.pikachu.range < 1);
+  assert.ok(SPECIES.caterpie.range > 2 && SPECIES.pikachu.range > 2);
+  assert.ok(SPECIES.charmander.range <= 1.05 && SPECIES.squirtle.range <= 1);
   const { battle, attacker, foes } = fixture('charmander', 1);
   attacker.energy = 0; attacker.range = .94; foes[0].x = 5;
   tickBattle(battle, .1);

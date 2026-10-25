@@ -1,4 +1,4 @@
-import { ELEMENTS, RULES, SHOP_FAMILIES, SPECIES } from './data';
+import { ELEMENTS, RULES, SHOP_FAMILIES, SPECIES, getStageData } from './data';
 import type { Element, Family, Player, Rarity } from './types';
 
 /** Pontos são contados por Pokémon e por tipo, inclusive tipos duplos. */
@@ -6,7 +6,7 @@ export function typeInfluence(player: Pick<Player, 'units'>): { points: Partial<
   const points: Partial<Record<Element, number>> = {};
   for (const unit of player.units) {
     const weight = unit.position.area === 'board' ? RULES.typeShopBias.activePoints : RULES.typeShopBias.benchPoints;
-    for (const type of SPECIES[unit.family].elements) points[type] = (points[type] || 0) + weight;
+    for (const type of getStageData(unit.family, unit.stage).elements) points[type] = (points[type] || 0) + weight;
   }
   const total = Object.values(points).reduce((a, b) => a + b, 0);
   const shares: Partial<Record<Element, number>> = {};
@@ -16,7 +16,7 @@ export function typeInfluence(player: Pick<Player, 'units'>): { points: Partial<
 
 /** Tipos duplos: maior bônus + 50% de cada bônus secundário. Ex.: 25% + 15%/2 = 32,5%. */
 export function typeBonus(family: Family, shares: Partial<Record<Element, number>>): number {
-  const bonuses = SPECIES[family].elements.map(type => (shares[type] || 0) * RULES.typeShopBias.shareBonusMultiplier)
+  const bonuses = getStageData(family, 0).elements.map(type => (shares[type] || 0) * RULES.typeShopBias.shareBonusMultiplier)
     .sort((a, b) => b - a);
   return (bonuses[0] || 0) + bonuses.slice(1).reduce((sum, bonus) => sum + bonus * RULES.typeShopBias.secondaryTypeMultiplier, 0);
 }

@@ -10,7 +10,9 @@ const matchup: Record<Element, { strong: Element[]; resisted: Element[] }> = {
   electric: { strong: ['water', 'flying'], resisted: ['electric', 'grass'] },
   ice: { strong: ['grass', 'flying'], resisted: ['fire', 'water', 'ice'] },
   flying: { strong: ['grass'], resisted: ['electric'] },
-  psychic: { strong: ['poison'], resisted: ['psychic'] }
+  psychic: { strong: ['poison'], resisted: ['psychic'] },
+  bug: { strong: ['grass', 'psychic'], resisted: ['fire', 'flying', 'poison'] },
+  normal: { strong: [], resisted: [] }
 };
 
 export function chargedEffectiveness(attackType: Element, defenseTypes: readonly Element[]): number {

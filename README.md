@@ -1,4 +1,4 @@
-# Poké Tactics — Astro v9 (integração com assets existentes)
+# Poké Tactics — Astro v10 (combate e elenco expandidos)
 
 ## IMPORTANTE: pacote de código SEM sprites PMD e portraits
 
@@ -20,6 +20,19 @@ espelhamento que excluam pastas ausentes do ZIP.
 Caso teste o ZIP isoladamente, os assets visuais ficarão ausentes até que ele
 seja combinado com a árvore `public/` original.
 
+## Atualização v10 — atributos, habilidades e oito famílias jogáveis
+
+- **O HP final é o HP real do combate.** Não há `HP × 5,2 + 60` nem outro multiplicador exclusivo do combate. Atributos-base dos onze chefes lendários PvE foram migrados uma vez para a mesma escala. O poder exibido usa `HP/5 + ATK + DEF + SpA + SpD + VEL`.
+- Básicos usam **50% do ATK ou SpA**, configurado por família e independente da categoria física/especial, animação e tipo. Concedem 10 de energia por execução; o carregado substitui o próximo básico e não concede energia básica.
+- Defesa física/especial: `bruto × 100/(100+DEF ou SpD)`. Velocidade final: `APS = 0,3 + 3,2 × (1 − 0,625^(VEL/100))`. Fórmulas compartilhadas em `server/formulas.ts`.
+- **Oito famílias / 20 formas**: Caterpie e Weedle (comuns), Bulbasaur, Charmander, Squirtle, Pikachu (incomuns), Koffing (raro), Snorlax (épico). Lendários continuam exclusivamente PvE.
+- `getStageData(família, estágio)` concentra tipagem, energia, alcance, básico, carregado e animação distintos por forma evolutiva. Butterfree cura; Metapod envenena e cria barreira; Kakuna se protege; Beedrill dá quatro golpes; Koffing expande uma nuvem física; Snorlax salta e aplica 1 segundo de incapacitação. Tipos Inseto e Normal são suportados.
+- Projéteis só causam dano no impacto; o motor acompanha alvos móveis. Área, veneno, barreira, cura, giro aquático e controle de movimento têm eventos e métricas reais. Absorção por barreira é exibida separadamente de DEF, SpD e cura.
+- O manifesto das nove novas formas PMD foi gerado dos `AnimData.xml` originais do repositório (incluindo aliases `CopyOf`) **sem baixar spritesheets**. O gerador reutilizável é `scripts/generate-pmd-manifest.mjs`.
+- Verificação: `npm run check`, `npm test`, `ASTRO_TELEMETRY_DISABLED=1 npm run build`. Benchmark repetível: `node --import tsx scripts/simulate-balance.ts`.
+
+**Instalação:** combine esta atualização com o `public/` existente no GitHub. Este pacote de código não contém spritesheets/portraits, portanto a validação visual no navegador depende da árvore de assets original.
+
 ## Ajustes V9
 
 - A loja reserva uma área independente para o portrait: a tarja de nome, tipo e custo não cobre mais a imagem do Pokémon.
@@ -32,7 +45,7 @@ seja combinado com a árvore `public/` original.
 
 - Pokémon das famílias Bulbasaur, Charmander, Squirtle e Pikachu (11 espécies) usam `Idle`, `Rotate`, `Walk`, `Sleep`, `Hurt`, `Attack`, `Shoot`, `Charge`, `Strike` ou `Withdraw` conforme ação e disponibilidade no XML do PMD; os frames, durações e direções são lidos do manifesto.
 - O **Giro Aquático** do Squirtle, Wartortle e Blastoise usa `Withdraw` enquanto gira entre as oito direções, aplica dano por segundo e uma mitigação temporária fixa; não ataca nem se desloca durante a canalização.
-- Bulbasaur é ranged, com **Morteiro de Pólen** em área e cura para aliados. Charmander é melee, com **Golpe Flamejante** físico em alvo único. Pikachu é melee, com **Choque do Trovão** e encadeamento por evolução. As fórmulas estão em `config/ataques.json`.
+- Bulbasaur é ranged, com **Morteiro de Pólen** em área e cura para até dois aliados. Charmander é melee, com **Golpe Flamejante** físico em alvo único. Pikachu é ranged, com **Choque do Trovão** e encadeamento por evolução. As fórmulas estão em `config/ataques.json`.
 - **Nenhuma sinergia de combate está ativa**: tipos não concedem regeneração, bônus de ataque, resistência, velocidade ou veneno. Contagem dos tipos é apenas informativa. A influência intencional na probabilidade da loja permanece.
 - Os sprites ficam ancorados no **último pixel opaco inferior**, com sombra no chão e nível/vida/energia posicionados em relação ao topo visível; sem nomes embaixo das unidades.
 - Banco gramado integrado, com **mesma largura do tabuleiro**. Combate de 3–4 jogadores vira dois tabuleiros `7×8` unidos lateralmente, formando `14×8`.
@@ -51,7 +64,7 @@ Os **quatro JSONs na raiz `config/` são importados pelo motor no build** (não 
 | Arquivo | Responsabilidade |
 | --- | --- |
 | `config/pokemons.json` | Pokémon presentes no jogo, nomes por evolução, Pokédex/sprites, status, elementos, alcance, energia, habilidade, raridade e disponibilidade na loja. |
-| `config/ataques.json` | Ataque físico básico; fórmulas e efeitos de habilidades (drenar, queimar, reduzir velocidade, atingir segundo alvo, dano direto). |
+| `config/ataques.json` | Ataque básico físico ou especial; fórmulas e efeitos de habilidades (drenar, queimar, reduzir velocidade, veneno, barreira, salto, múltiplos golpes, dano em área). |
 | `config/fases.json` | Sequência das dez etapas de cada capítulo, escalonamento dos bot PvE e IV/nível dos chefes lendários. |
 | `config/regras_gerais.json` | Ouro, juros, streak, dano, bônus, temporizadores, limites, chances da loja, progressão de nível e fórmula de status. |
 
@@ -62,11 +75,11 @@ Os **quatro JSONs na raiz `config/` são importados pelo motor no build** (não 
 - O jogador inicia no nível 1 e sobe automaticamente para **2 na etapa 1-3**, **3 na 1-7**, **4 na 2-2**, **5 na 2-6** e **6 na 3-1**. Para capítulos posteriores permanece no 6 até serem definidos novos marcos. As rodadas absolutas são `[1,3,7,12,16,21]` em `levelMilestones`.
 - Todos os Pokémon começam no nível 1: quem estava em campo ao término do combate recebe **+2 níveis**, quem estava no banco recebe **+1 nível** (respeitando `maxPokemonLevel`). Cada nível *acima do primeiro* acrescenta **3%** aos status, preservando os fatores independentes de IV e evolução.
 - Probabilidades da loja por nível (comum / incomum / raro / épico / lendário): `38/33/29/0/0`, `36/33/30/1/0`, `32/34/31/3/0`, `29/31/32/7/1`, `26/29/34/10/2`, `25/27/31/15/3`. Os valores fornecidos nos níveis 5 e 6 totalizam **101** devido a arredondamento; os percentuais exibidos reproduzem a configuração, e o sorteio usa esses números como pesos **normalizados**. O nível 6 vale para níveis posteriores até existir outra tabela.
-- A raridade é sorteada primeiro e o tipo altera os **pesos relativos das espécies dentro da raridade**, sem alterar o preço/raridade. Como ainda não há espécies épicas na loja e os 11 lendários são chefes PvE, pesos de raridades indisponíveis são redistribuídos proporcionalmente entre as raridades com espécies lançadas. Quando você cadastrar um novo Pokémon com `shop:true`, a raridade começa a funcionar automaticamente.
+- A raridade é sorteada primeiro e o tipo altera os **pesos relativos das espécies dentro da raridade**, sem alterar o preço/raridade. Agora existe um épico na loja (Snorlax), e os 11 lendários são chefes PvE. Pesos de raridades indisponíveis são redistribuídos proporcionalmente entre as raridades com espécies lançadas. Quando você cadastrar um novo Pokémon com `shop:true`, a raridade começa a funcionar automaticamente.
 - Influência de tipagem: cada tipo de um Pokémon **ativo vale 2 pontos** e cada tipo do **banco vale 1**. A barra apresenta as cinco maiores participações. O bônus individual do tipo é `participação × 0,5`; Pokémon de dois tipos usam **maior bônus + metade do bônus menor**. Assim, uma influência de 50% Água (+25%) e 30% Planta (+15%) rende **+32,5%** de peso relativo para um Pokémon Água/Planta. Esses multiplicadores estão em `typeShopBias`.
 - Confrontos PvP: o motor prepara **três calendários completos**, penalizando duelos repetidos, e sorteia um deles com **1/3 de chance** quando começa a luta. A classificação mostra as três possibilidades; sua arena não apresenta antecipadamente nenhuma formação inimiga. Quando só restam dois jogadores, os três calendários necessariamente representam o mesmo adversário; em batalhas a três/quatro, cada opção contém um *grupo* de possíveis adversários. PvE não usa sorteio de adversário.
 
-As imagens PNG e as spritesheets estão no repositório original e **não são redistribuídas neste ZIP**. As quatro famílias da loja usam animações PMD no campo e portraits PMD nos painéis. Os lendários mantêm imagens estáticas até receberem animações próprias. Apenas as quatro famílias originais aparecem na loja; Articuno, Zapdos, Moltres, Mewtwo, Mew, Raikou, Entei, Suicune, Lugia, Ho-Oh e Celebi são os onze chefes possíveis.
+As imagens PNG e as spritesheets estão no repositório original e **não são redistribuídas neste ZIP**. As oito famílias da loja usam animações PMD no campo e portraits PMD nos painéis. Os lendários mantêm imagens estáticas até receberem animações próprias. Articuno, Zapdos, Moltres, Mewtwo, Mew, Raikou, Entei, Suicune, Lugia, Ho-Oh e Celebi são os onze chefes possíveis.
 
 ## Rodadas
 

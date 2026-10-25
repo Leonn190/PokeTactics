@@ -24,7 +24,8 @@ test('as quatro configurações são reais, chefes são Gen 1/2 e lendários fic
   assert.equal(PHASES.stagesPerChapter, 10);
   assert.deepEqual(PHASES.stages.map(s => s.type), ['battle','gold','battle','quad','bot','battle','gold','battle','double','boss']);
   assert.equal(LEGENDARY_FAMILIES.length, 11);
-  assert.equal(SHOP_FAMILIES.length, 4);
+  assert.equal(SHOP_FAMILIES.length, 8);
+  assert.deepEqual(SHOP_FAMILIES.map(f => SPECIES[f].rarity).sort(), [1,1,2,2,2,2,3,4]);
   assert.ok(LEGENDARY_FAMILIES.every(f => !SPECIES[f].shop && SPECIES[f].sprites[0].includes('.png')));
   for (const species of Object.values(SPECIES)) {
     assert.equal(species.names.length, species.sprites.length);
@@ -143,7 +144,7 @@ test('seis tabelas da loja reproduzem os pesos pedidos; níveis 5/6 normalizam 1
   const game = new GameEngine(33);
   game.players[0].level = 6;
   const rolled = Array.from({length:100}, () => rollFamily(game.players[0], Math.random));
-  assert.ok(rolled.every(offer => SPECIES[offer.family].shop && offer.rarity <= 3));
+  assert.ok(rolled.every(offer => SPECIES[offer.family].shop && offer.rarity <= 4));
 });
 
 test('influência dos tipos inclui ativos e banco; tipos duplos recebem bônus secundário pela metade', () => {
