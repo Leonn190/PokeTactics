@@ -33,7 +33,6 @@ export class Arena {
   private zoom = 1;
   private cameraOffset = { x: 0, y: 0 };
   private trainer = { x: -4.75, y: 3.57 };
-  private trainerTarget = { x: -4.75, y: 3.57 };
   private visualPositions = new Map<string, { x: number; y: number }>();
   private spriteCache = new Map<string, HTMLImageElement>();
   private pixelBounds = new Map<string, { left: number; right: number; top: number; bottom: number }>();
@@ -100,9 +99,9 @@ export class Arena {
     this.cameraOffset.x += pointerX - projected.x;
     this.cameraOffset.y += pointerY - projected.y;
   }
-  moveTrainer(clientX: number, clientY: number): void {
+  trainerDestination(clientX: number, clientY: number): { x: number; y: number } {
     const dest = this.pointerWorld(clientX, clientY);
-    this.trainerTarget = { x: Math.max(-6.2, Math.min(6.2, dest.x)), y: Math.max(-4.4, Math.min(4.65, dest.y)) };
+    return { x: Math.max(-10, Math.min(10, dest.x)), y: Math.max(-4.5, Math.min(4.65, dest.y)) };
   }
   pickHex(clientX: number, clientY: number): { col: number; row: number } | null {
     const world = this.pointerWorld(clientX, clientY);
@@ -415,21 +414,18 @@ export class Arena {
     return [...convert(friendly.units, true), ...bench];
   }
 
-  pickCoin(clientX: number, clientY: number): string | null {
-    const battle = this.snapshot?.visibleBattle;
-    if (!battle || (this.snapshot?.phase !== 'combat' && this.snapshot?.phase !== 'result') || this.view.scoutId !== 'p0') return null;
+  pickCoin(clientX: number, clientY: number): { x: number; y: number } | null {
+    if (!this.snapshot || this.view.scoutId !== 'p0') return null;
     const world = this.pointerWorld(clientX, clientY);
-    const flip = battle.participants.length === 2 && battle.playerB === 'p0';
-    return battle.goldDrops.find(d => d.ownerId === 'p0' && !d.claimed && Math.hypot(world.x - d.x, world.y - (flip ? -d.y : d.y)) < .38)?.id || null;
+    const drop = this.snapshot.collectibleGold.find(d => !d.claimed && Math.hypot(world.x - d.x, world.y - d.y) < .38);
+    return drop ? { x: drop.x, y: drop.y } : null;
   }
 
   private drawCoins(): void {
-    const battle = this.snapshot?.visibleBattle;
-    if (!battle || this.snapshot?.phase === 'planning') return;
-    const flip = battle.participants.length === 2 && battle.playerB === this.view.scoutId;
-    for (const coin of battle.goldDrops) {
+    if (!this.snapshot || this.view.scoutId !== 'p0') return;
+    for (const coin of this.snapshot.collectibleGold) {
       if (coin.claimed) continue;
-      const p = this.toScreen(coin.x, flip ? -coin.y : coin.y);
+      const p = this.toScreen(coin.x, coin.y);
       const ctx = this.context;
       ctx.save(); ctx.shadowBlur = 16; ctx.shadowColor = '#ffd77d';
       ctx.fillStyle = '#e6b74a'; ctx.strokeStyle = '#fff0a2'; ctx.lineWidth = 2;
@@ -709,13 +705,7 @@ export class Arena {
   }
 
   private drawTrainers(dt: number, time: number): void {
-    const dx = this.trainerTarget.x - this.trainer.x, dy = this.trainerTarget.y - this.trainer.y;
-    const length = Math.hypot(dx, dy);
-    if (length > .015) {
-      const distance = Math.min(length, dt * 2.8);
-      this.trainer.x += dx / length * distance;
-      this.trainer.y += dy / length * distance;
-    }
+    this.updateTrainer(dt);
     if (!this.snapshot) return;
     const watched = this.view.scoutId;
     const battle = this.snapshot.visibleBattle;
@@ -732,6 +722,14 @@ export class Arena {
       this.drawTrainerAvatar('p0', this.trainer.x + 1.5, this.trainer.y, time, 'VOCÊ · VISITA');
     }
     if (foe !== watched && !foe.startsWith('bot:')) this.drawTrainerAvatar(foe, 4.86 + b.x, -3.44 + b.y, time, name(foe));
+  }
+
+  private updateTrainer(dt: number): void {
+    if (!this.snapshot) return;
+    const { x, y } = this.snapshot.trainer;
+    const lerp = Math.min(1, dt * 19);
+    this.trainer.x += (x - this.trainer.x) * lerp;
+    this.trainer.y += (y - this.trainer.y) * lerp;
   }
 
   private renderPokeball(x: number, y: number, radius: number): void {
@@ -825,13 +823,16 @@ export class Arena {
     }
   }
 
-  private drawBattleTrainers(time: number, battle: NonNullable<GameSnapshot['visibleBattle']>): void {
+  private drawBattleTrainers(dt: number, time: number, battle: NonNullable<GameSnapshot['visibleBattle']>): void {
+    this.updateTrainer(dt);
     const flip = battle.participants.length === 2 && battle.playerB === this.view.scoutId;
     battle.participants.forEach((id, slot) => {
       const pos = trainerSpot(slot, battle.participants.length > 2);
       const label = this.snapshot?.players.find(p => p.id === id)?.name || id.replace('bot:', 'BOT ');
-      this.drawTrainerAvatar(id, pos.x, flip ? -pos.y : pos.y, time, label);
+      const walking = id === 'p0' && this.view.scoutId === 'p0';
+      this.drawTrainerAvatar(id, walking ? this.trainer.x : pos.x, walking ? this.trainer.y : (flip ? -pos.y : pos.y), time, label);
     });
+    if (this.view.scoutId !== 'p0') this.drawTrainerAvatar('p0', this.trainer.x, this.trainer.y, time, 'VOCÊ · VISITA');
   }
 
   private draw(timestamp: number): void {
@@ -871,7 +872,7 @@ export class Arena {
     if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
       this.effects(this.snapshot.visibleBattle.effects, this.snapshot.visibleBattle.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId);
     }
-    if (battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(this.frame, battle);
+    if (battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(dt, this.frame, battle);
     else this.drawTrainers(dt, this.frame);
     requestAnimationFrame(time => this.draw(time));
   }

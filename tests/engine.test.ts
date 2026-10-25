@@ -9,15 +9,15 @@ import type { Stats } from '../server/types';
 
 const all = (value: number): Stats => ({ hp: value, speed: value, atk: value, def: value, spa: value, spd: value });
 
-test('IV 0 / 50 / 100 e +3% por nível após o nível 1, inclusive chefes', () => {
+test('IV 0 / 50 / 100 e +2% por nível após o nível 1, inclusive chefes', () => {
   const base = SPECIES.bulbasaur.base;
   assert.equal(calculateStats('bulbasaur', 0, all(0), 0).hp, Math.round(base.hp * .8));
   assert.equal(calculateStats('bulbasaur', 0, all(50), 0).atk, base.atk);
   assert.equal(calculateStats('bulbasaur', 0, all(100), 0).spa, Math.round(base.spa * 1.2));
   assert.equal(calculateStats('bulbasaur', 1, all(50), 0).hp, base.hp);
-  assert.equal(calculateStats('bulbasaur', 2, all(50), 0).hp, Math.round(base.hp * 1.03));
-  assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, Math.round(base.hp * 3.97));
-  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 8.47));
+  assert.equal(calculateStats('bulbasaur', 2, all(50), 0).hp, Math.round(base.hp * 1.02));
+  assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, Math.round(base.hp * 2.98));
+  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 5.98));
 });
 
 test('as quatro configurações são reais, chefes são Gen 1/2 e lendários ficam fora da loja', () => {
@@ -25,7 +25,7 @@ test('as quatro configurações são reais, chefes são Gen 1/2 e lendários fic
   assert.deepEqual(PHASES.stages.map(s => s.type), ['battle','gold','battle','quad','bot','battle','gold','battle','double','boss']);
   assert.equal(LEGENDARY_FAMILIES.length, 11);
   assert.equal(SHOP_FAMILIES.length, 15);
-  assert.deepEqual(SHOP_FAMILIES.map(f => SPECIES[f].rarity).sort(), [1,1,2,2,2,2,2,2,2,3,3,3,4,4,4]);
+  assert.deepEqual(SHOP_FAMILIES.map(f => SPECIES[f].rarity).sort(), [1,1,2,2,2,2,2,2,2,2,3,3,4,4,4]);
   assert.ok(LEGENDARY_FAMILIES.every(f => !SPECIES[f].shop && SPECIES[f].sprites[0].includes('.png')));
   for (const species of Object.values(SPECIES)) {
     assert.equal(species.names.length, species.sprites.length);
@@ -101,9 +101,12 @@ test('moedas surgem em KO na etapa 2, só o dono coleta e prêmio +4 para venced
   assert.equal(battle.goldDrops.length, 1);
   const coin = battle.goldDrops[0];
   anyGame.battles = [battle];
-  assert.equal(game.command({ kind: 'collect', dropId: coin.id }), null);
-  assert.equal(game.command({ kind: 'collect', dropId: coin.id }), 'Moeda indisponível');
-  assert.equal(game.players[0].gold, 10);
+  const startGold = game.players[0].gold;
+  assert.equal(game.command({ kind: 'move-trainer', x:coin.x, y:coin.y }), null);
+  assert.equal(game.players[0].gold, startGold, 'clicar na moeda não entrega ouro instantaneamente');
+  for (let i=0;i<50 && !coin.claimed;i++) anyGame.tickTrainer(.1);
+  assert.equal(coin.claimed, true, 'colisão física coleta ouro');
+  assert.equal(game.players[0].gold, startGold+1);
   anyGame.finishCombat();
   assert.equal(game.players[0].gold, 14);
 });

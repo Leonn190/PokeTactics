@@ -30,11 +30,11 @@ function advance(battle: Battle, duration: number, dt=.025) {
 }
 const passive = (unit: CombatUnit) => { unit.attackClock=1000; };
 
-test('as cinco novas formas têm o BST exato e são duas famílias raras na loja', () => {
+test('as cinco novas formas têm o BST exato; Rhyhorn raro e Vulpix incomum', () => {
   const expected: Record<string,number[]> = { rhyhorn:[320,430,540], vulpix:[235,400] };
   for (const [family,values] of Object.entries(expected)) {
     const spec = SPECIES[family as Family];
-    assert.equal(spec.rarity,3); assert.equal(spec.shop,true);
+    assert.equal(spec.rarity,family==='vulpix'?2:3); assert.equal(spec.shop,true);
     assert.ok(SHOP_FAMILIES.includes(family as Family));
     for (const [i,stats] of spec.stageBases!.entries()) {
       const bst = stats.hp/5+stats.atk+stats.def+stats.spa+stats.spd+stats.speed;

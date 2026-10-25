@@ -2,7 +2,7 @@ import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, 
 import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
-import type { Battle, Family, GameCommand, GameSnapshot, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
+import type { Battle, Family, GameCommand, GameSnapshot, GoldDrop, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
 
 class Rng {
   constructor(private seed: number) { this.seed ||= 1; }
@@ -54,6 +54,8 @@ export class GameEngine {
   private log = '';
   private winnerId: string | null = null;
   private lastCombatStats: GameSnapshot['combatStats'] = {};
+  private trainer = { x: -4.75, y: 3.57, targetX: -4.75, targetY: 3.57 };
+  private savedCoins: GoldDrop[] = [];
   readonly players: Player[];
 
   constructor(seed = Date.now()) {
@@ -226,15 +228,58 @@ export class GameEngine {
     return null;
   }
 
+  /** Coordinates visible to the player; duels are mirrored when they spawn above. */
+  private collectibleGold(): GoldDrop[] {
+    const battle = this.battles.find(b => b.participants.includes('p0'));
+    const flipped = !!battle && battle.participants.length === 2 && battle.playerB === 'p0';
+    const live = this.phase === 'planning' || !battle ? [] : battle.goldDrops
+      .filter(coin => coin.ownerId === 'p0' && !coin.claimed)
+      .map(coin => ({ ...coin, y: flipped ? -coin.y : coin.y }));
+    return [...this.savedCoins.filter(coin => !coin.claimed), ...live];
+  }
+
+  private tickTrainer(dt: number): void {
+    const dx = this.trainer.targetX - this.trainer.x, dy = this.trainer.targetY - this.trainer.y;
+    const length = Math.hypot(dx, dy);
+    if (length > 0.001) {
+      const distance = Math.min(length, 3.8 * dt);
+      this.trainer.x += dx / length * distance;
+      this.trainer.y += dy / length * distance;
+    }
+    for (const coin of this.collectibleGold()) {
+      if (Math.hypot(this.trainer.x - coin.x, this.trainer.y - coin.y) > 0.36) continue;
+      const original = this.savedCoins.find(saved => saved.id === coin.id)
+        || this.battles.flatMap(b => b.goldDrops).find(drop => drop.id === coin.id);
+      if (original && !original.claimed) {
+        original.claimed = true;
+        this.players[0].gold += RULES.goldDropPerKnockout;
+      }
+    }
+  }
+
+  private fuseFinalForms(player: Player, source: Pokemon, target: Pokemon): boolean {
+    if (source.id === target.id || source.family !== target.family || source.stage !== target.stage) return false;
+    if (source.family === 'eevee' || source.stage < SPECIES[source.family].names.length - 1) return false;
+    const stronger = source.level > target.level ? source : target;
+    const consumed = stronger.id === source.id ? target : source;
+    const where = { ...target.position };
+    const sources = [source, target].map(unit => ({ family: unit.family, stage: unit.stage, position: { ...unit.position } }));
+    player.units = player.units.filter(unit => unit.id !== consumed.id);
+    stronger.position = where;
+    stronger.level = Math.min(RULES.maxPokemonLevel, stronger.level + 5);
+    stronger.xp = Math.max(stronger.xp, stronger.level - 1);
+    this.visualEvents.push({ id: this.id(), unitId: stronger.id, ownerId: player.id, kind: 'evolve', age: 0, sources });
+    if (player.id === 'p0') this.log = `${SPECIES[stronger.family].names[Math.min(stronger.stage, SPECIES[stronger.family].names.length - 1)]} • +5 níveis pela fusão!`;
+    return true;
+  }
+
   command(command: GameCommand): string | null {
     const human = this.players[0];
     if (human.eliminated || this.phase === 'finished') return 'A partida já terminou para você';
-    if (command.kind === 'collect') {
-      const battle = this.battles.find(b => b.participants.includes(human.id));
-      const coin = battle?.goldDrops.find(d => d.id === command.dropId && d.ownerId === human.id && !d.claimed);
-      if (!coin || (this.phase !== 'combat' && this.phase !== 'result')) return 'Moeda indisponível';
-      coin.claimed = true;
-      human.gold += RULES.goldDropPerKnockout;
+    if (command.kind === 'move-trainer') {
+      if (!Number.isFinite(command.x) || !Number.isFinite(command.y)) return 'Destino inválido';
+      this.trainer.targetX = Math.max(-10, Math.min(10, command.x));
+      this.trainer.targetY = Math.max(-4.5, Math.min(4.65, command.y));
       return null;
     }
     if (command.kind === 'choose-eevee') {
@@ -274,6 +319,7 @@ export class GameEngine {
         if (unit.position.area !== 'board' && deployed >= human.level && !human.units.some(u => u.position.area === 'board' && u.position.col === target.col && u.position.row === target.row)) return `Limite de equipe: ${human.level}`;
       } else if (!Number.isInteger(target.index) || target.index < 0 || target.index >= BENCH_SIZE) return 'Banco inválido';
       const displaced = human.units.find(u => u.id !== unit.id && samePosition(u.position, target));
+      if (displaced && this.fuseFinalForms(human, unit, displaced)) return null;
       const old = unit.position;
       unit.position = { ...target };
       if (displaced) displaced.position = { ...old };
@@ -414,7 +460,7 @@ export class GameEngine {
         if (player.id === 'p0') this.log = `${stage.name} • ${quad ? `${place}º lugar` : 'Derrota'} • -${damage} de vida`;
       });
       if (winnerId === 'p0') this.log = stage.type === 'gold' ? `Vitória • +${RULES.goldRoundWinnerBonus} ouro bônus` : `Vitória • ${stage.name}`;
-      // CPUs collect their eligible fallen-enemy coins. Human coins are clicked on the field.
+      // CPUs collect automatically; the human trainer must physically reach their coins.
       for (const coin of battle.goldDrops) {
         const cpu = this.players.find(p => p.id === coin.ownerId && p.id !== 'p0');
         if (cpu && !coin.claimed) { cpu.gold += RULES.goldDropPerKnockout; coin.claimed = true; }
@@ -445,6 +491,13 @@ export class GameEngine {
   }
 
   private nextRound(): void {
+    const recent = this.battles.find(b => b.participants.includes('p0'));
+    if (recent) {
+      const flipped = recent.participants.length === 2 && recent.playerB === 'p0';
+      this.savedCoins.push(...recent.goldDrops.filter(c => c.ownerId === 'p0' && !c.claimed)
+        .map(c => ({ ...c, y: flipped ? -c.y : c.y })));
+    }
+    this.savedCoins = this.savedCoins.filter(c => !c.claimed);
     this.round++;
     this.phase = 'planning'; this.clock = 0; this.duration = RULES.preparationSeconds;
     for (const p of this.players) {
@@ -462,6 +515,7 @@ export class GameEngine {
   tick(dt: number): void {
     if (this.phase === 'finished') return;
     const step = Math.max(0, Math.min(0.1, dt));
+    this.tickTrainer(step);
     for (const animation of this.visualEvents) animation.age += step;
     this.visualEvents = this.visualEvents.filter(animation => animation.age < 1.7);
     this.clock += step;
@@ -498,7 +552,8 @@ export class GameEngine {
       possibleOpponents: this.phase === 'planning' ? this.matchupOptions() : {},
       // postMessage performs the one structured clone at the worker boundary.
       visibleBattle: battle,
-      combatStats: stats, log: this.log, winnerId: this.winnerId
+      combatStats: stats, log: this.log, winnerId: this.winnerId,
+      trainer: { ...this.trainer }, collectibleGold: this.collectibleGold()
     };
   }
 }

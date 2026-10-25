@@ -2032,7 +2032,7 @@
     "vulpix": {
       "names": ["Vulpix", "Ninetales"],
       "pokedexIds": [37, 38],
-      "rarity": 3,
+      "rarity": 2,
       "shop": true,
       "glow": "#f6a45e",
       "base": { "hp": 225, "atk": 24, "def": 31, "spa": 63, "spd": 26, "speed": 46 },

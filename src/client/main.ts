@@ -1,5 +1,6 @@
 import { Arena, type ClientView } from './arena';
 import { Hud } from './hud';
+import { Menus } from './menus';
 import { SPECIES } from '../../server/data';
 import pmdManifest from './pmd-manifest.json';
 import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
@@ -8,7 +9,7 @@ const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, draggi
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
-const worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
+let worker: Worker | null = null;
 const ghost = document.getElementById('dragGhost')!;
 const ghostCanvas = document.createElement('canvas');
 ghostCanvas.width = 96; ghostCanvas.height = 96;
@@ -30,29 +31,45 @@ let lastHudPhase = '';
 let lastHudGold = -1;
 
 function send(command: GameCommand): void {
-  if (!state || state.phase === 'finished' || state.players[0].eliminated) return;
+  if (!state || !worker || state.phase === 'finished' || state.players[0].eliminated) return;
   worker.postMessage({ type: 'command', command } satisfies ClientToServer);
 }
 function watch(playerId: string): void {
   view.scoutId = playerId;
-  worker.postMessage({ type: 'watch', playerId } satisfies ClientToServer);
+  worker?.postMessage({ type: 'watch', playerId } satisfies ClientToServer);
 }
 
-worker.addEventListener('message', (event: MessageEvent<ServerToClient>) => {
-  if (event.data.type === 'rejected') return hud.toast(event.data.reason);
-  state = event.data.snapshot;
-  arena.snapshot = state;
-  arena.snapshotReceivedAt = performance.now();
-  if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
-    && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
-  const now = performance.now();
-  if (now - lastHudRender > 95 || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold) {
-    hud.render(state, view);
-    lastHudRender = now; lastHudPhase = state.phase; lastHudGold = state.players[0].gold;
-  }
+function launchMatch(): void {
+  worker?.terminate();
+  view.scoutId = 'p0'; view.selectedId = null;
+  state = null; arena.snapshot = null;
+  lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0;
+  worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
+  const currentWorker = worker;
+  currentWorker.addEventListener('message', (event: MessageEvent<ServerToClient>) => {
+    if (worker !== currentWorker) return;
+    if (event.data.type === 'rejected') return hud.toast(event.data.reason);
+    state = event.data.snapshot;
+    arena.snapshot = state;
+    arena.snapshotReceivedAt = performance.now();
+    if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
+      && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
+    const now = performance.now();
+    if (now - lastHudRender > 95 || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold) {
+      hud.render(state, view);
+      lastHudRender = now; lastHudPhase = state.phase; lastHudGold = state.players[0].gold;
+    }
+  });
+  currentWorker.addEventListener('error', () => hud.toast('Erro ao iniciar a simulação'));
+  currentWorker.postMessage({ type: 'connect' } satisfies ClientToServer);
+}
+const menus = new Menus(launchMatch);
+document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
+  worker?.terminate(); worker = null; state = null; arena.snapshot = null;
+  view.selectedId = null; clearDrag();
+  document.getElementById('finalBanner')!.classList.add('hidden');
+  menus.showHome();
 });
-worker.addEventListener('error', () => hud.toast('Erro ao iniciar a simulação'));
-worker.postMessage({ type: 'connect' } satisfies ClientToServer);
 
 document.getElementById('shopCards')!.addEventListener('click', event => {
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-shop]');
@@ -183,12 +200,13 @@ function finishDrag(event: PointerEvent): void {
 canvas.addEventListener('pointerdown', event => {
   if (event.button !== 0) return;
   const coin = arena.pickCoin(event.clientX, event.clientY);
-  if (coin) { send({ kind: 'collect', dropId: coin }); return; }
+  if (coin) { send({ kind: 'move-trainer', ...coin }); return; }
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
   if (id) startDrag(id, event);
   else if (state) {
     const target = arena.pickUnit(event.clientX, event.clientY);
     view.selectedId = target ? target.ownerId === 'p0' ? target.sourceId : target.id : null;
+    if (!target && view.scoutId === 'p0') send({ kind: 'move-trainer', ...arena.trainerDestination(event.clientX, event.clientY) });
     hud.render(state, view);
   }
 });
@@ -219,7 +237,7 @@ canvas.addEventListener('dblclick', event => {
 
 canvas.addEventListener('contextmenu', event => {
   event.preventDefault();
-  arena.moveTrainer(event.clientX, event.clientY);
+  if (view.scoutId === 'p0') send({ kind: 'move-trainer', ...arena.trainerDestination(event.clientX, event.clientY) });
 });
 canvas.addEventListener('wheel', event => {
   event.preventDefault();

@@ -212,6 +212,8 @@ export interface GameSnapshot {
   combatStats: Record<string, Record<string, CombatMetrics>>;
   log: string;
   winnerId: string | null;
+  trainer: { x: number; y: number; targetX: number; targetY: number };
+  collectibleGold: GoldDrop[];
 }
 
 export type GameCommand =
@@ -221,7 +223,7 @@ export type GameCommand =
   | { kind: 'move'; unitId: string; position: UnitPosition }
   | { kind: 'sell'; unitId: string }
   | { kind: 'choose-eevee'; branch: Family }
-  | { kind: 'collect'; dropId: string };
+  | { kind: 'move-trainer'; x: number; y: number };
 
 export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' } | { type: 'watch'; playerId: string };
 export type ServerToClient = { type: 'snapshot'; snapshot: GameSnapshot } | { type: 'rejected'; reason: string };
