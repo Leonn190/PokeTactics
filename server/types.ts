@@ -104,6 +104,8 @@ export interface CombatUnit {
   gasTime: number;
   support: { time: number; moveId: string } | null;
   leap: { fromX: number; fromY: number; toX: number; toY: number; time: number; duration: number } | null;
+  charge: { fromX: number; fromY: number; toX: number; toY: number; time: number; duration: number;
+    directionX: number; directionY: number; hitIds: string[]; moveId: string } | null;
   jumpHeight: number;
   stunTime: number;
   knockUpTime: number;
@@ -122,12 +124,13 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact';
+  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame';
   damageType?: 'physical' | 'special' | 'true';
   family: Family;
   time: number;
   duration: number;
   value: number;
+  piercing?: { sourceId: string; raw: number; attackType: Element; hitIds: string[] };
   pendingHit?: {
     sourceId: string;
     targetId: string;

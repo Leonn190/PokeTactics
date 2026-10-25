@@ -113,6 +113,15 @@
     ],
     "espeon": [
       "./sprites/196.png"
+    ],
+    "rhyhorn": [
+      "./sprites/111.png",
+      "./sprites/112.png",
+      "./sprites/464.png"
+    ],
+    "vulpix": [
+      "./sprites/37.png",
+      "./sprites/38.png"
     ]
   },
   "species": {
@@ -1995,6 +2004,50 @@
           "chargedType": "psychic",
           "chargedAnimation": "Shoot"
         }
+      ]
+    },
+    "rhyhorn": {
+      "names": ["Rhyhorn", "Rhydon", "Rhyperior"],
+      "pokedexIds": [111, 112, 464],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#ceae80",
+      "base": { "hp": 400, "atk": 81, "def": 90, "spa": 20, "spd": 28, "speed": 21 },
+      "stageBases": [
+        { "hp": 400, "atk": 81, "def": 90, "spa": 20, "spd": 28, "speed": 21 },
+        { "hp": 500, "atk": 110, "def": 108, "spa": 30, "spd": 48, "speed": 34 },
+        { "hp": 580, "atk": 119, "def": 118, "spa": 65, "spd": 87, "speed": 35 }
+      ],
+      "range": 1,
+      "energy": 70,
+      "attack": "charge-rhyhorn",
+      "elements": ["ground", "rock"],
+      "basic": { "stat": "atk", "category": "physical", "animation": "Attack" },
+      "stages": [
+        { "elements": ["ground", "rock"], "range": 1, "energy": 70, "move": "charge-rhyhorn", "chargedType": "rock", "chargedAnimation": "Walk" },
+        { "elements": ["ground", "rock"], "range": 1, "energy": 70, "move": "charge-rhydon", "chargedType": "rock", "chargedAnimation": "Walk" },
+        { "elements": ["ground", "rock"], "range": 1, "energy": 70, "move": "charge-rhyperior", "chargedType": "rock", "chargedAnimation": "Walk" }
+      ]
+    },
+    "vulpix": {
+      "names": ["Vulpix", "Ninetales"],
+      "pokedexIds": [37, 38],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#f6a45e",
+      "base": { "hp": 225, "atk": 24, "def": 31, "spa": 63, "spd": 26, "speed": 46 },
+      "stageBases": [
+        { "hp": 225, "atk": 24, "def": 31, "spa": 63, "spd": 26, "speed": 46 },
+        { "hp": 360, "atk": 35, "def": 52, "spa": 106, "spd": 57, "speed": 78 }
+      ],
+      "range": 3,
+      "energy": 65,
+      "attack": "pierce-vulpix",
+      "elements": ["fire"],
+      "basic": { "stat": "spa", "category": "special", "animation": "Shoot", "projectile": "spell" },
+      "stages": [
+        { "elements": ["fire"], "range": 3, "energy": 65, "move": "pierce-vulpix", "chargedType": "fire", "chargedAnimation": "SpAttack" },
+        { "elements": ["fire"], "range": 4, "energy": 70, "move": "pierce-ninetales", "chargedType": "fire", "chargedAnimation": "SpAttack" }
       ]
     }
   }

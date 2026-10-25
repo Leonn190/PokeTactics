@@ -426,6 +426,44 @@
       "healRatio": 0.9,
       "splashRange": 1.65,
       "skillRange": 3.2
+    },
+    "charge-rhyhorn": {
+      "name": "Investida Rochosa",
+      "effect": "rock-charge",
+      "baseDamage": 28,
+      "attackRatio": 0.8,
+      "specialRatio": 0,
+      "controlDuration": 0.4
+    },
+    "charge-rhydon": {
+      "name": "Investida Rochosa",
+      "effect": "rock-charge",
+      "baseDamage": 36,
+      "attackRatio": 0.9,
+      "specialRatio": 0,
+      "controlDuration": 0.5
+    },
+    "charge-rhyperior": {
+      "name": "Investida Rochosa",
+      "effect": "rock-charge",
+      "baseDamage": 44,
+      "attackRatio": 1,
+      "specialRatio": 0,
+      "controlDuration": 0.6
+    },
+    "pierce-vulpix": {
+      "name": "Chama Perfurante",
+      "effect": "piercing-fire",
+      "baseDamage": 14,
+      "attackRatio": 0,
+      "specialRatio": 0.65
+    },
+    "pierce-ninetales": {
+      "name": "Chama Perfurante",
+      "effect": "piercing-fire",
+      "baseDamage": 22,
+      "attackRatio": 0,
+      "specialRatio": 0.75
     }
   }
 }

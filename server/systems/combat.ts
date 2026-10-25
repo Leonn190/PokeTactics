@@ -77,7 +77,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
-    gasTime: 0, support: null, leap: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
+    gasTime: 0, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
 }
@@ -132,6 +132,69 @@ function projectile(battle: Battle, caster: CombatUnit, target: CombatUnit,
   battle.effects[battle.effects.length - 1].pendingHit = {
     sourceId: caster.id, targetId: target.id, raw, magical, charged, arrival, onHit, moveId, attackType, special
   };
+}
+
+// Segment sweep: a hit cannot be skipped by accelerated combat or a large dt.
+function segmentDistanceSq(ax: number, ay: number, bx: number, by: number, px: number, py: number): number {
+  const vx = bx - ax, vy = by - ay, lengthSq = vx * vx + vy * vy;
+  const t = lengthSq ? Math.max(0, Math.min(1, ((px - ax) * vx + (py - ay) * vy) / lengthSq)) : 0;
+  return (px - ax - t * vx) ** 2 + (py - ay - t * vy) ** 2;
+}
+
+function arenaBoundary(battle: Battle): { minX: number; maxX: number; minY: number; maxY: number } {
+  const quad = battle.participants.length > 2;
+  return { minX: quad ? -8.25 : -3.95, maxX: quad ? 8.25 : 3.95, minY: -3.62, maxY: 3.62 };
+}
+
+/** Maximal unobstructed resting location; enemies may be crossed but never occupied at the end. */
+function chargeEndpoint(battle: Battle, source: CombatUnit, dx: number, dy: number): number {
+  const bounds = arenaBoundary(battle);
+  const limit = Math.min(3,
+    dx > 0 ? (bounds.maxX - source.x) / dx : dx < 0 ? (bounds.minX - source.x) / dx : 3,
+    dy > 0 ? (bounds.maxY - source.y) / dy : dy < 0 ? (bounds.minY - source.y) / dy : 3);
+  for (let step = Math.floor(Math.max(0, limit) * 20); step >= 6; step--) {
+    const travel = step / 20;
+    const x = source.x + dx * travel, y = source.y + dy * travel;
+    if (!battle.units.some(u => u !== source && u.hp > 0 && Math.hypot(u.x - x, u.y - y) < .58)) return travel;
+  }
+  return 0;
+}
+
+function bestCharge(battle: Battle, source: CombatUnit, primary: CombatUnit | null) {
+  const enemies = battle.units.filter(u => u.hp > 0 && u.playerId !== source.playerId);
+  if (!enemies.length) return null;
+  const vectors = [
+    ...Array.from({ length: 8 }, (_, i) => ({ x: Math.cos(i * Math.PI / 4), y: Math.sin(i * Math.PI / 4) })),
+    ...enemies.map(enemy => { const d = distance(source, enemy) || 1;
+      return { x: (enemy.x - source.x) / d, y: (enemy.y - source.y) / d }; })
+  ];
+  return vectors.map(dir => {
+    const travel = chargeEndpoint(battle, source, dir.x, dir.y);
+    const length = Math.min(2.15, travel);
+    const hit = enemies.filter(enemy => length > 0 &&
+      segmentDistanceSq(source.x, source.y, source.x + dir.x * length, source.y + dir.y * length, enemy.x, enemy.y) <= .52 ** 2);
+    return { ...dir, travel, hit, primaryHit: primary ? hit.includes(primary) : false };
+  }).filter(path => path.travel > 0).sort((a, b) =>
+    b.hit.length - a.hit.length || Number(b.primaryHit) - Number(a.primaryHit) || b.travel - a.travel)[0] || null;
+}
+
+function piercingFire(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, moveId: string, type: Element): void {
+  const d = Math.max(.001, distance(source, target));
+  const dx = (target.x - source.x) / d, dy = (target.y - source.y) / d;
+  const startX = source.x + dx * .34, startY = source.y + dy * .34;
+  const bounds = arenaBoundary(battle);
+  const travel = Math.min(
+    dx > 0 ? (bounds.maxX - startX) / dx : dx < 0 ? (bounds.minX - startX) / dx : Infinity,
+    dy > 0 ? (bounds.maxY - startY) / dy : dy < 0 ? (bounds.minY - startY) / dy : Infinity);
+  // At the same rate as the displayed projectile. Keep a fixed ray after launch.
+  const fx: CombatEffect = {
+    id: `${battle.id}:pierce:${battle.elapsed}:${battle.effects.length}`,
+    kind: 'piercing-flame', family: source.family, value: 0, time: 0,
+    duration: Math.max(.05, travel / 8.5), x: startX, y: startY,
+    targetX: startX + dx * travel, targetY: startY + dy * travel,
+    piercing: { sourceId: source.id, raw, attackType: type, hitIds: [] }
+  };
+  battle.effects.push(fx);
 }
 
 function applyKnockup(battle: Battle, source: CombatUnit, target: CombatUnit, seconds: number, airborneSeconds=seconds): void {
@@ -203,7 +266,24 @@ function landProjectiles(battle: Battle, dt: number): void {
       const movingTarget = battle.units.find(u => u.id === fx.pendingHit!.targetId && u.hp > 0);
       if (movingTarget) { fx.targetX = movingTarget.x; fx.targetY = movingTarget.y; }
     }
+    const oldTime = fx.time;
     fx.time += dt;
+    if (fx.piercing) {
+      const hit = fx.piercing;
+      const caster = battle.units.find(u => u.id === hit.sourceId);
+      if (!caster) continue;
+      const a = Math.min(1, oldTime / fx.duration), b = Math.min(1, fx.time / fx.duration);
+      if (a >= 1) continue;
+      const ax = fx.x + (fx.targetX - fx.x) * a, ay = fx.y + (fx.targetY - fx.y) * a;
+      const bx = fx.x + (fx.targetX - fx.x) * b, by = fx.y + (fx.targetY - fx.y) * b;
+      for (const target of battle.units) {
+        if (target.playerId === caster.playerId || target.hp <= 0 || hit.hitIds.includes(target.id)) continue;
+        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > .43 ** 2) continue;
+        hit.hitIds.push(target.id);
+        deal(battle, caster, target, hit.raw, true, true, hit.attackType);
+      }
+      continue;
+    }
     const hit = fx.pendingHit;
     if (!hit || fx.time < fx.duration * hit.arrival) continue;
     fx.pendingHit = undefined; // impacto único, inclusive em simulações aceleradas
@@ -373,6 +453,32 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   const shot = (victim: CombatUnit, kind: CombatEffect['kind'], raw: number, magical: boolean,
     arrival: number, onHit?: 'drain' | 'burn' | 'slow' | 'poison') =>
     projectile(battle, source, victim, kind, raw, magical, true, arrival, onHit, source, moveId, stage.chargedType);
+
+  if (move.effect === 'rock-charge') {
+    const path = bestCharge(battle, source, target);
+    if (path) {
+      source.facingX = path.x; source.facingY = path.y;
+      source.charge = {
+        fromX: source.x, fromY: source.y,
+        toX: source.x + path.x * path.travel, toY: source.y + path.y * path.travel,
+        directionX: path.x, directionY: path.y, time: 0,
+        duration: Math.max(.15, path.travel / 6.4), hitIds: [], moveId
+      };
+      animate(source, stage.chargedAnimation, source.charge.duration);
+    } else if (target) {
+      // Surrounded at an edge: still deliver a physical blow rather than freezing the unit.
+      animate(source, 'Attack', .4);
+      projectile(battle,source,target,'physical',move.baseDamage+a*(move.attackRatio||0),false,true,.32,
+        undefined,source,moveId,stage.chargedType,'single-knockup');
+    }
+    return;
+  }
+  if (move.effect === 'piercing-fire' && target) {
+    source.facingX = target.x-source.x; source.facingY = target.y-source.y;
+    animate(source, stage.chargedAnimation, .42);
+    piercingFire(battle,source,target,move.baseDamage+s*move.specialRatio,moveId,stage.chargedType);
+    return;
+  }
 
   if (move.effect === 'eevee-ball') {
     const center = bestEnemyCluster(battle,source,move.splashRange || 1.65);
@@ -602,8 +708,44 @@ function leapTick(battle: Battle, source: CombatUnit, dt: number): void {
   }
 }
 
+/** Real, time-based movement. Hits are checked along each swept segment, not at the end of the charge. */
+function chargeTick(battle: Battle, source: CombatUnit, dt: number): void {
+  const charge = source.charge;
+  if (!charge) return;
+  const oldX = source.x, oldY = source.y;
+  charge.time = Math.min(charge.duration, charge.time + dt);
+  const ratio = charge.time / charge.duration;
+  source.x = charge.fromX + (charge.toX - charge.fromX) * ratio;
+  source.y = charge.fromY + (charge.toY - charge.fromY) * ratio;
+  source.moving = true;
+  source.facingX = charge.directionX; source.facingY = charge.directionY;
+  const maxImpact = 2.15;
+  const formerTravel = Math.hypot(oldX - charge.fromX, oldY - charge.fromY);
+  const currentTravel = Math.hypot(source.x - charge.fromX, source.y - charge.fromY);
+  if (formerTravel < maxImpact) {
+    const segmentEnd = Math.min(maxImpact, currentTravel);
+    const hitX = charge.fromX + charge.directionX * segmentEnd;
+    const hitY = charge.fromY + charge.directionY * segmentEnd;
+    const move = ATTACKS.moves[charge.moveId];
+    for (const target of battle.units) {
+      if (target.playerId === source.playerId || target.hp <= 0 || charge.hitIds.includes(target.id)) continue;
+      if (segmentDistanceSq(oldX, oldY, hitX, hitY, target.x, target.y) > .52 ** 2) continue;
+      charge.hitIds.push(target.id);
+      deal(battle,source,target,move.baseDamage+stat(source,'atk')*(move.attackRatio||0),false,true,'rock');
+      if (target.hp > 0) applyKnockup(battle,source,target,move.controlDuration||.4);
+      effect(battle,source,target,'impact',.4);
+    }
+  }
+  if (charge.time < charge.duration) return;
+  source.charge = null;
+  source.moving = false;
+  // Preserve ground contact, then show the physical finishing animation.
+  animate(source, 'Strike', .25);
+}
+
 function resolve(battle: Battle): void {
-  if (battle.effects.some(fx => fx.pendingHit) && battle.elapsed < 120) return;
+  if ((battle.effects.some(fx => fx.pendingHit || (fx.piercing && fx.time < fx.duration)) ||
+    battle.units.some(u => u.charge)) && battle.elapsed < 120) return;
   const living = battle.participants.filter(id => battle.units.some(u => u.playerId === id && u.hp > 0));
   if (living.length > 1 && battle.elapsed < 120) return;
   const score = (id: string) => battle.units.filter(u => u.playerId === id).reduce((sum, u) => sum + Math.max(0, u.hp) / u.maxHp, 0);
@@ -625,6 +767,7 @@ function resolve(battle: Battle): void {
     unit.buffs = []; unit.defenseShreds = []; unit.barriers = []; unit.guardUntil = 0;
     unit.combo = null;
     unit.leap = null;
+    unit.charge = null;
     unit.support = null;
     unit.gasTime = 0;
     unit.jumpHeight = 0;
@@ -717,6 +860,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.hp <= 0) continue;
     unit.stunTime = Math.max(0, unit.stunUntil - battle.elapsed);
     unit.knockUpTime = Math.max(0, unit.knockUpUntil - battle.elapsed);
+    if (unit.charge) { chargeTick(battle,unit,dt); continue; }
     if (unit.stunTime > 0) {
       continue;
     }

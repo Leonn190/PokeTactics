@@ -206,7 +206,11 @@ export class Arena {
       this.warmAnimationSheets(id, anims);
       const action = unit.bench ? 'Sleep' : this.snapshot?.phase === 'planning' ? 'Idle'
         : unit.animation?.name || (unit.moving ? (anims.Hover ? 'Hover' : 'Walk') : 'Idle');
-      let selectedAction = anims[action] ? action : 'Idle';
+      // PMD species can omit special sheets. Fallback only to names in this real manifest.
+      const fallbacks = action === 'SpAttack' ? ['Shoot', 'Attack', 'Idle']
+        : action === 'Walk' ? ['Walk', 'Attack', 'Idle']
+        : action === 'Strike' ? ['Attack', 'Idle'] : ['Idle'];
+      let selectedAction = anims[action] ? action : fallbacks.find(name=>anims[name]) || 'Idle';
       let animation = anims[selectedAction];
       let url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
       let sprite = this.image(url);
@@ -381,8 +385,9 @@ export class Arena {
       const observedOnTop = snapshot.visibleBattle.participants.length === 2 && snapshot.visibleBattle.playerB === this.view.scoutId;
       const battleMarkers = snapshot.visibleBattle.units.filter(u => u.hp > 0).map(u => {
         const smooth = this.visualPositions.get(u.id) || { x: u.x, y: u.y };
-        smooth.x += (u.x - smooth.x) * .27;
-        smooth.y += (u.y - smooth.y) * .27;
+        const follow = u.charge ? .78 : .27;
+        smooth.x += (u.x - smooth.x) * follow;
+        smooth.y += (u.y - smooth.y) * follow;
         this.visualPositions.set(u.id, smooth);
         return { ...u, ownerId: u.playerId, x: smooth.x, y: observedOnTop ? -smooth.y : smooth.y,
           own: u.playerId === this.view.scoutId, required: u.energyNeeded };
@@ -489,6 +494,24 @@ export class Arena {
       const t = Math.max(0, Math.min(1, fx.time / fx.duration));
       const from = this.toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = this.toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
+      if (fx.kind === 'piercing-flame') {
+        const x = from.x + (to.x - from.x) * t;
+        const y = from.y + (to.y - from.y) * t - this.cellScale * .23;
+        const dx = to.x - from.x, dy = to.y - from.y;
+        const length = Math.hypot(dx, dy) || 1;
+        ctx.save();
+        ctx.shadowBlur = 17; ctx.shadowColor = '#ff5516';
+        for (let i = 3; i >= 0; i--) {
+          const behind = i * (this.cellScale * .095);
+          const px = x - dx / length * behind, py = y - dy / length * behind;
+          const radius = 5.5 + (3-i) * 1.35;
+          ctx.globalAlpha = (4-i)/4 * .88;
+          ctx.fillStyle = i % 2 ? '#ff8e31' : '#fff0a1';
+          ctx.beginPath(); ctx.arc(px, py, radius, 0, PI2); ctx.fill();
+        }
+        ctx.restore();
+        continue;
+      }
       if (fx.kind === 'trainer-hit') {
         const flight = Math.min(1, t / .78);
         // Projétil guiado; descreve um arco que converge para o avatar.

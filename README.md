@@ -1,4 +1,4 @@
-# PokéTactics — Astro v11.2 (49 formas, habilidades e evolução Eevee)
+# PokéTactics — Astro v11.3 (54 formas, Rhyhorn e Vulpix)
 
 ## IMPORTANTE: pacote de código SEM sprites PMD e portraits
 
@@ -19,6 +19,15 @@ do checkout do GitHub**, mesclando os arquivos de código, sem usar opções de
 espelhamento que excluam pastas ausentes do ZIP.
 Caso teste o ZIP isoladamente, os assets visuais ficarão ausentes até que ele
 seja combinado com a árvore `public/` original.
+
+## Atualização v11.3 — Rhyhorn e Vulpix
+
+- **Rhyhorn → Rhydon → Rhyperior** (raro; Terra/Pedra, físico melee, 3 cópias por estágio) têm BSTs **320/430/540** e carregado de **70 de energia**. A Investida Rochosa é um avanço real de até três casas, causando dano físico nos inimigos das primeiras duas casas do corredor e levantando-os por **0,4/0,5/0,6 s**. Dano bruto: **28 + 0,8×ATK**, **36 + 0,9×ATK**, **44 + 1,0×ATK**. A IA busca a linha com mais vítimas, priorizando o alvo atual nos empates. O ponto final respeita bordas e ocupação e permite avanço mais curto. Cada levantamento aplicado usa o evento existente, ativando uma reação gratuita por Cubone/Marowak aliado e por vítima.
+- **Vulpix → Ninetales** (raro; Fogo, ranged especial, 3 cópias) têm BSTs **235/400**, alcance **3/4** e energia **65/70**. Chama Perfurante segue uma linha fixa da boca à borda da arena, causando dano especial integral a cada inimigo atravessado: **14 + 0,65×SpA** / **22 + 0,75×SpA**. Usa varredura de colisão entre frames, evita impactos duplicados e aplica dano apenas quando o projétil desenhado entra em contato. Não há explosão, burn, stun ou splash. O ataque regular continua sendo 50% do SpA contra um único alvo, gerando 10 de energia.
+- A loja inclui os **dois Pokémon-base no tier raro**, sem alterar as tabelas de probabilidades, o sistema de evolução, os golpes existentes ou ativar efeitos de sinergia. O elenco total é de **54 formas**, sendo **43 jogáveis e 11 chefes**.
+- O código de animações seleciona `Walk` durante a investida e `Strike` no impacto; Vulpix usa `Shoot` no básico e `SpAttack` no carregado. O renderer aceita somente animações de fato presentes no manifesto PMD, com fallback `Attack`/`Shoot`/`Idle` quando necessário. O visual da carga move o sprite, a sombra e as barras em conjunto, e a chama tem um projétil próprio com ponto de impacto sincronizado.
+- **Sem assets no ZIP:** o manifesto incluído foi fornecido pela v11.2 e ainda não contém metadados PMD dos IDs **0037, 0038, 0111, 0112 e 0464**. Na cópia completa do repositório, `npm run dev` e `npm run build` executam `scripts/generate-pmd-manifest.mjs` para ler `AnimData.xml` e conferir as sheets realmente disponíveis, sem baixar ou inventar PNGs. A confirmação visual das cinco animações exige esse checkout completo.
+- Regressão: `tests/new-pokemon.test.ts` cobre BST, evolução, loja, investida, imunidade, bordas, reação dos ossos, dano por estágio e colisão perfurante. Consulte o resultado real de `npm test`, `npm run check` e `npm run build` no relatório de entrega.
 
 ## Atualização v11.2 — modificações implementadas
 
