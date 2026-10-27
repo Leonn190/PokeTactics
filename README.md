@@ -1,4 +1,12 @@
-# PokéTactics — Astro v12.0 (tela inicial, elenco e treinador interativo)
+# PokéTactics — Astro v12.1 (interface de combate e ficha aprimoradas)
+
+## Ajustes da v12.1
+
+- **Treinador:** só caminha com o botão direito do mouse; clique esquerdo seleciona/arrasta Pokémon e não movimenta o treinador. Clique direito em moedas direciona o treinador até elas, e a coleta continua dependendo da colisão.
+- **Ficha:** ampliada e reposicionada na lateral direita, abaixo de um painel de classificação mais compacto quando um Pokémon está selecionado. Status em maior destaque; Poder Total e IV Médio estão em formato discreto.
+- **Habilidade:** aparece apenas o nome do ataque no botão; ao passar o mouse ou focar pelo teclado, surge um tooltip com custo de energia, alcance e descrição. Vida em combate atualiza sem destruir o hover.
+- **Animação:** batalha inicia com Idle contínuo e combatentes orientados para o adversário, sem executar Rotate em todos. No encerramento, apenas sobreviventes vencedores fazem uma virada curta, pelo menor caminho, para olhar à câmera; ataques e animações próprias das habilidades permanecem.
+- **Assets:** continua sendo uma distribuição de código sem sprites, retratos ou ícones.
 
 ## Novidades da v12
 
@@ -150,7 +158,7 @@ Cada nova rodada (a partir da segunda) concede:
 
 O streak conta tanto vitórias quanto derrotas consecutivas: 2→+1 ouro, 3→+2, 4→+3, 5 ou mais→+4. Renda é calculada com o ouro **antes** de receber a renda da rodada; os bônus de 4 ouro e moedas da rodada de ouro chegam após a batalha. Ouro inicial: 9. Reroll da loja: 2 ouro.
 
-Na rodada de ouro, cada nocaute cria uma moeda **na posição onde o Pokémon caiu**. O lado que causou o KO pode recolhê-la. Na **v12**, clicar na moeda apenas move o treinador em sua direção: ela só é coletada por **colisão física**. As moedas de CPUs são coletadas automaticamente, e as moedas humanas não coletadas permanecem nas próximas etapas.
+Na rodada de ouro, cada nocaute cria uma moeda **na posição onde o Pokémon caiu**. O lado que causou o KO pode recolhê-la. Na **v12.1**, clicar com o botão direito na moeda move o treinador em sua direção: ela só é coletada por **colisão física**. As moedas de CPUs são coletadas automaticamente, e as moedas humanas não coletadas permanecem nas próximas etapas.
 
 ## Interface e controles
 

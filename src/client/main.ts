@@ -199,14 +199,11 @@ function finishDrag(event: PointerEvent): void {
 
 canvas.addEventListener('pointerdown', event => {
   if (event.button !== 0) return;
-  const coin = arena.pickCoin(event.clientX, event.clientY);
-  if (coin) { send({ kind: 'move-trainer', ...coin }); return; }
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
   if (id) startDrag(id, event);
   else if (state) {
     const target = arena.pickUnit(event.clientX, event.clientY);
     view.selectedId = target ? target.ownerId === 'p0' ? target.sourceId : target.id : null;
-    if (!target && view.scoutId === 'p0') send({ kind: 'move-trainer', ...arena.trainerDestination(event.clientX, event.clientY) });
     hud.render(state, view);
   }
 });
@@ -237,7 +234,10 @@ canvas.addEventListener('dblclick', event => {
 
 canvas.addEventListener('contextmenu', event => {
   event.preventDefault();
-  if (view.scoutId === 'p0') send({ kind: 'move-trainer', ...arena.trainerDestination(event.clientX, event.clientY) });
+  if (view.scoutId !== 'p0') return;
+  // A moeda continua sendo coletada por colisão: o botão direito só define o destino.
+  const coin = arena.pickCoin(event.clientX, event.clientY);
+  send({ kind: 'move-trainer', ...(coin || arena.trainerDestination(event.clientX, event.clientY)) });
 });
 canvas.addEventListener('wheel', event => {
   event.preventDefault();

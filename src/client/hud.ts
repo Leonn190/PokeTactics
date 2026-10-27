@@ -1,6 +1,7 @@
 import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, getStageData, ATTACKS } from '../../server/data';
 import { totalPower } from '../../server/formulas';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
+import { moveDescription } from './menus';
 import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
 import type { ClientView } from './arena';
 
@@ -226,6 +227,8 @@ export class Hud {
     const inspector = inspectedPokemon ? this.inspector(inspectedPokemon, inspectOwner, battleInspected) : '';
     element('unitInspector').classList.toggle('hidden', !inspectedPokemon);
     if (inspector !== this.lastInspector) { element('unitInspector').innerHTML = inspector; this.lastInspector = inspector; }
+    const liveHp = document.getElementById('inspectorCombatHp');
+    if (liveHp && battleInspected) liveHp.textContent = `VIDA NO COMBATE ${Math.ceil(battleInspected.hp)} / ${Math.ceil(battleInspected.maxHp)}`;
 
     const final = snapshot.phase === 'finished';
     element('finalBanner').classList.toggle('hidden', !final);
@@ -248,9 +251,12 @@ export class Hud {
     const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
     const ivAverage = Object.values(pokemon.iv).reduce((a, b) => a + b, 0) / Object.keys(pokemon.iv).length;
     const power = totalPower(stats);
-    return `<div class="inspector-top">${portrait(pokemon.family, 42, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">${safe(owner)} · NÍVEL ${pokemon.level} · ALCANCE ${stage.range}</div></div></div>
-      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span></div>
+    const move = ATTACKS.moves[stage.move];
+    const description = moveDescription(move);
+    return `<div class="inspector-top">${portrait(pokemon.family, 56, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">${safe(owner)} · NÍVEL ${pokemon.level} · ALCANCE ${stage.range}</div></div></div>
+      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span></div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
-      <div class="inspector-footer">${safe(ATTACKS.moves[stage.move].name)} · ${stage.energy} energia${combatant ? ` · HP ${Math.ceil(combatant.hp)}/${combatant.maxHp}` : ''}<div class="inspector-types">${stage.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
+      <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${stage.range}</div><p>${safe(description)}</p></div></div>
+      <div class="inspector-footer">${combatant ? '<span id="inspectorCombatHp" class="inspector-live-hp"></span>' : ''}<div class="inspector-types">${stage.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }
 }

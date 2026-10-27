@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { calculateStats, SPECIES } from '../server/data';
 import { GameEngine } from '../server/engine';
+import { forceResolveBattle, tickBattle } from '../server/systems/combat';
 import type { Family, Pokemon, Stats } from '../server/types';
 
 const iv: Stats = { hp:50, atk:50, def:50, spa:50, spd:50, speed:50 };
@@ -84,4 +85,28 @@ test('v12: treinador deve caminhar e tocar a moeda, que persiste na preparação
   for(let i=0;i<10;i++) e.tickTrainer(.1);
   assert.equal(game.players[0].gold,afterIncome+1,'a mesma moeda não pode ser coletada duas vezes');
   assert.equal(game.command({kind:'move-trainer',x:Infinity,y:0}),'Destino inválido');
+});
+
+test('v12.1: entrada no combate usa Idle, sem Rotate congelado ou giro coletivo', () => {
+  const game = new GameEngine(121);
+  const first = game.players[0];
+  const second = game.players[1];
+  first.units = [unit('bulbasaur','ally',0,1,{area:'board',col:2,row:1})];
+  second.units = [unit('charmander','foe',0,1,{area:'board',col:2,row:1})];
+  const e = game as any;
+  e.round = 2;
+  e.startCombat();
+  const battle = e.battles.find((b:any) => b.participants.includes('p0') && b.units.length);
+  assert.ok(battle);
+  for (const fighter of battle.units) {
+    assert.equal(fighter.animation,null);
+    assert.equal(fighter.facingY,fighter.row < 4 ? 1 : -1);
+  }
+  tickBattle(battle,.3);
+  assert.equal(battle.introElapsed,.3);
+  assert.ok(battle.units.every((fighter:any) => fighter.animation === null), 'idle não fica preso em Rotate durante entrada');
+  // O resultado conserva a direção: a virada curta de quem ganhou é feita no cliente.
+  const before = battle.units.map((fighter:any) => ({ id:fighter.id, facingY:fighter.facingY }));
+  forceResolveBattle(battle);
+  assert.deepEqual(battle.units.map((fighter:any) => ({ id:fighter.id,facingY:fighter.facingY })),before);
 });

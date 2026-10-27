@@ -17,7 +17,7 @@ function portrait(dex: number, name: string, className: string): string {
   return `<img class="${className}" src="${baseUrl}portrait/${String(dex).padStart(4,'0')}/Normal.png" alt="${escapeHTML(name)}" loading="lazy" draggable="false" />`;
 }
 
-function moveDescription(move: MoveData): string {
+export function moveDescription(move: MoveData): string {
   const effects: Record<MoveData['effect'], string> = {
     drain:'Drena vida do inimigo e restaura a própria vida.',
     burn:'Causa dano e aplica queimadura no alvo.',

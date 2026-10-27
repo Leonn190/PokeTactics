@@ -229,11 +229,19 @@ export class Arena {
         let tick = elapsedTicks, frame = 0;
         while (frame < durations.length - 1 && tick >= durations[frame]) tick -= durations[frame++];
         const flipped = this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle?.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId;
-        // Withdraw encolhe na concha; alternar as oito direções faz o giro aquático de verdade.
+        // Withdraw é uma habilidade de giro; a entrada no combate não deve girar.
         const spinning = selectedAction === 'Withdraw' && !!unit.spinTime;
-        const dir = spinning ? Math.floor(((unit.spinDuration || 2) - (unit.spinTime || 0)) / .095) % 8
-          : selectedAction === 'Rotate' || this.snapshot?.visibleBattle?.resolved || this.snapshot?.phase === 'planning' || unit.bench ? 0
-          : this.direction(unit.facingX || 0, flipped ? -(unit.facingY || 0) : (unit.facingY || 0));
+        const battle = this.snapshot?.visibleBattle;
+        const facing = this.direction(unit.facingX || 0, flipped ? -(unit.facingY || 0) : (unit.facingY || 0));
+        let dir = spinning ? Math.floor(((unit.spinDuration || 2) - (unit.spinTime || 0)) / .095) % 8
+          : this.snapshot?.phase === 'planning' || unit.bench ? 0 : facing;
+        if (!spinning && battle?.resolved && battle.winner === unit.ownerId && !unit.bench) {
+          // Menor arco entre a última orientação e a frente (0), em até 0,3 s.
+          // Não usamos a sheet Rotate: seus frames fazem a volta completa.
+          const delta = ((-facing + 12) % 8) - 4;
+          const fraction = Math.min(1, battle.outcomeElapsed / .3);
+          dir = (Math.round(facing + delta * fraction) + 8) % 8;
+        }
         const row = animation.directions === 1 ? 0 : dir % animation.directions;
         // Tamanho baseado em pixels dos próprios sprites; sem formas geométricas.
         const sizeScale = this.cellScale / 48 * (unit.bench ? .95 : 1.13);

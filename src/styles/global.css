@@ -201,6 +201,36 @@
 @media(max-width:980px){.right-panel{width:220px;max-height:calc(100% - 346px);min-height:275px}.bottom-hud{height:204px;left:8px;right:8px}.shop-actions{width:85px}.bottom-header{padding-left:92px}.shop-ledger{padding:3px 5px}.shop-card-footer{padding:3px}.shop-name{font-size:12px}.shop-cost{font-size:14px}.shop-type .type-icon{width:15px;height:15px}.unit-inspector{bottom:219px}}
 @media(max-height:740px){.right-panel{min-height:300px;max-height:calc(100% - 255px)}.bottom-hud{height:185px}.shop-ledger{min-height:70px}.unit-inspector{bottom:196px}.rank-row{height:36px}.combat-entry{margin-bottom:3px}}
 
+/* V12.1 — ficha de Pokémon ao lado direito da arena, habilidade com tooltip. */
+.unit-inspector{left:auto;right:14px;top:clamp(295px,42vh,420px);bottom:clamp(175px,22vh,224px);width:318px;padding:15px 17px 16px;border-color:#739b84a8;border-radius:11px;overflow:visible;background:linear-gradient(150deg,#1b3430f5,#102126f7);box-shadow:0 17px 44px #041910b8,inset 0 1px #a1d9ae27}
+#app:has(#unitInspector:not(.hidden)) .right-panel{height:clamp(170px,calc(42vh - 124px),295px);max-height:none;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:#638977 #142d2d}
+.inspector-top{gap:13px;margin-bottom:12px;min-height:59px}
+.inspector-top .pokemon-portrait{width:56px;height:56px;object-fit:contain;image-rendering:pixelated;flex:none}
+.inspector-name{font-size:30px;line-height:1.05;color:#f0ead4}
+.inspector-sub{font-size:10px;line-height:1.5;color:#abcac4}
+.inspector-totals{margin-bottom:13px;gap:9px}
+.inspector-totals span{display:flex;align-items:baseline;justify-content:space-between;gap:5px;text-align:left;padding:6px 8px;font:700 9px 'Barlow Condensed';background:#192e2d;border-color:#46665b;color:#9aada8;letter-spacing:.4px}
+.inspector-totals b{display:inline;margin:0;color:#d6c8a6;font:800 15px 'Barlow Condensed'}
+.inspector-stats{gap:8px 13px;font-size:16px}
+.inspector-stat{align-items:baseline;padding-bottom:5px;gap:5px}
+.inspector-stat small{font-size:11px}
+.inspector-stat b{font-size:16px;white-space:nowrap}
+.inspector-stat b small{font-size:9px;font-weight:500}
+.inspector-ability-wrap{position:relative;margin-top:17px}
+.inspector-ability-label{display:block;font:800 9px Inter;letter-spacing:1.4px;color:#91b9a6;margin-bottom:7px}
+.inspector-ability{display:block;width:100%;min-height:50px;padding:10px 13px;text-align:center;background:linear-gradient(135deg,#3d5840,#263d37);border:1px solid #a8bd80;border-radius:7px;box-shadow:inset 0 1px #d8e7a928;color:#f9e8b9;font:800 21px 'Barlow Condensed';letter-spacing:.25px;cursor:help}
+.inspector-ability:hover,.inspector-ability:focus-visible{border-color:#eed89e;background:#496849;outline:2px solid #d8cc8c6b;outline-offset:2px}
+.inspector-ability-tooltip{display:none;position:absolute;z-index:12;bottom:calc(100% + 11px);right:0;width:100%;padding:13px 15px;border:1px solid #e2c687;border-radius:8px;background:#112329;box-shadow:0 13px 34px #000d;color:#c7ddda;pointer-events:none}
+.inspector-ability:hover + .inspector-ability-tooltip,.inspector-ability:focus + .inspector-ability-tooltip{display:block}
+.inspector-ability-tooltip strong{display:block;font:800 22px 'Barlow Condensed';color:#f0dca6;margin-bottom:7px}
+.inspector-ability-meta{font:800 10px Inter;color:#c3e5b2;letter-spacing:.2px}.inspector-ability-meta span{color:#bcaa73;margin:0 5px}
+.inspector-ability-tooltip p{font:500 12px/1.55 Inter;margin:9px 0 0;color:#e2e8e2}
+.inspector-footer{margin-top:9px}.inspector-types{margin-top:6px}
+.inspector-live-hp{display:block;margin-bottom:5px;font-size:10px;color:#a8e3b5}
+@media(max-width:1200px){.unit-inspector{right:9px;width:284px;padding:12px 14px}.inspector-name{font-size:27px}.inspector-ability{font-size:19px}}
+@media(max-width:980px){.unit-inspector{right:9px;width:220px;padding:10px 11px}.inspector-name{font-size:23px}.inspector-sub{font-size:9px}.inspector-top .pokemon-portrait{width:44px;height:44px}.inspector-stats{gap:5px;font-size:13px}.inspector-stat b{font-size:14px}.inspector-stat b small{font-size:8px}.inspector-totals span{font-size:8px;padding:4px}.inspector-totals b{font-size:13px}.inspector-ability{min-height:42px;font-size:18px}.inspector-ability-tooltip p{font-size:11px}}
+@media(max-height:800px){.unit-inspector{top:clamp(275px,42vh,335px);bottom:clamp(170px,22vh,194px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#668e74 transparent}.inspector-ability-tooltip{position:static;margin-top:8px}.inspector-ability-wrap:focus-within .inspector-ability-tooltip{display:block}.inspector-top{margin-bottom:7px}.inspector-stats{gap:5px}.inspector-ability-wrap{margin-top:9px}}
+
 /* V8 · visual da loja e painéis comparativos lado a lado. */
 .right-panel{overflow:visible;z-index:6}
 .right-panel-tabs{border-radius:8px 8px 0 0;overflow:hidden}

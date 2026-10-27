@@ -72,8 +72,10 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     energyNeeded: stage.energy, range: stage.range,
     stats, cooldown: attackCooldown(stats.speed),
     attackClock: 0.5 + (col % 4) * 0.13,
-    moving: false, facingX: 0, facingY: 1,
-    animation: { name: 'Rotate', elapsed: 0, duration: .38 },
+    // Entra já voltado ao lado adversário, sem tocar a animação Rotate de 360°.
+    // O Idle permanece animado inclusive durante a entrada das Pokébolas.
+    moving: false, facingX: 0, facingY: upper ? 1 : -1,
+    animation: null,
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
@@ -772,7 +774,8 @@ function resolve(battle: Battle): void {
     unit.gasTime = 0;
     unit.jumpHeight = 0;
     unit.animation = null;
-    unit.facingX = 0; unit.facingY = 1;
+    // Preserva a direção final para o cliente fazer apenas o menor giro até
+    // a câmera no encerramento. Somente os vencedores realizam essa virada.
   }
 }
 
@@ -903,8 +906,6 @@ export function tickBattle(battle: Battle, dt: number): void {
     const d = Math.sqrt(distanceSq);
     unit.facingX = target.x - unit.x;
     unit.facingY = target.y - unit.y;
-    // Os combatentes entram olhando para a tela e completam a rotação antes de agir.
-    if (unit.animation?.name === 'Rotate') continue;
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded && move.effect === 'stomp' && d <= (move.jumpRange || 3)) {
       unit.energy = 0;
       spell(battle, unit, target);
