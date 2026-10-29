@@ -35,7 +35,9 @@ test('49 fichas herdadas da v11.2, mais dez novas formas nas versões seguintes'
   for (const [id, form] of Object.entries(spec.pokemon)) {
     const family = form.family as Family;
     const index = family==='eevee' ? 0 : form.stage;
-    const actual = EEVEE_BRANCHES.includes(id as Family) ? SPECIES[id as Family].base
+    // Mew agora possui ficha de loja própria na V16, mas o chefe mantém os atributos históricos.
+    const actual = id === 'mew' ? SPECIES.mew.bossBase!
+      : EEVEE_BRANCHES.includes(id as Family) ? SPECIES[id as Family].base
       : SPECIES[family].stageBases![index];
     assert.deepEqual(actual,form.base_stats,id);
     assert.ok(actual.hp>=0 && actual.hp<=700,id);
