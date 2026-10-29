@@ -122,6 +122,15 @@
     "vulpix": [
       "./sprites/37.png",
       "./sprites/38.png"
+    ],
+    "dratini": [
+      "./sprites/147.png",
+      "./sprites/148.png",
+      "./sprites/149.png"
+    ],
+    "diglett": [
+      "./sprites/50.png",
+      "./sprites/51.png"
     ]
   },
   "species": {
@@ -904,30 +913,30 @@
         151
       ],
       "rarity": 5,
-      "shop": false,
+      "shop": true,
       "glow": "#f09dca",
       "base": {
-        "hp": 600,
-        "atk": 106,
-        "def": 106,
-        "spa": 106,
-        "spd": 106,
-        "speed": 110
+        "hp": 445,
+        "atk": 52,
+        "def": 64,
+        "spa": 113,
+        "spd": 101,
+        "speed": 109
       },
-      "range": 3,
-      "energy": 65,
-      "attack": "legendary-psychic",
+      "range": 5,
+      "energy": 80,
+      "attack": "mew-blessing",
       "elements": [
         "psychic"
       ],
       "stageBases": [
         {
-          "hp": 600,
-          "atk": 106,
-          "def": 106,
-          "spa": 106,
-          "spd": 106,
-          "speed": 110
+          "hp": 445,
+          "atk": 52,
+          "def": 64,
+          "spa": 113,
+          "spd": 101,
+          "speed": 109
         }
       ],
       "bossOnly": true,
@@ -935,9 +944,29 @@
         {
           "elements": [
             "psychic"
-          ]
+          ],
+          "range": 5,
+          "energy": 80,
+          "move": "mew-blessing",
+          "chargedAnimation": "Charge"
         }
-      ]
+      ],
+      "bossBase": {
+        "hp": 600,
+        "atk": 106,
+        "def": 106,
+        "spa": 106,
+        "spd": 106,
+        "speed": 110
+      },
+      "bossMove": "legendary-psychic",
+      "bossRange": 3,
+      "bossEnergy": 65,
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Shoot"
+      }
     },
     "raikou": {
       "names": [
@@ -2007,47 +2036,347 @@
       ]
     },
     "rhyhorn": {
-      "names": ["Rhyhorn", "Rhydon", "Rhyperior"],
-      "pokedexIds": [111, 112, 464],
+      "names": [
+        "Rhyhorn",
+        "Rhydon",
+        "Rhyperior"
+      ],
+      "pokedexIds": [
+        111,
+        112,
+        464
+      ],
       "rarity": 3,
       "shop": true,
       "glow": "#ceae80",
-      "base": { "hp": 400, "atk": 81, "def": 90, "spa": 20, "spd": 28, "speed": 21 },
+      "base": {
+        "hp": 400,
+        "atk": 81,
+        "def": 90,
+        "spa": 20,
+        "spd": 28,
+        "speed": 21
+      },
       "stageBases": [
-        { "hp": 400, "atk": 81, "def": 90, "spa": 20, "spd": 28, "speed": 21 },
-        { "hp": 500, "atk": 110, "def": 108, "spa": 30, "spd": 48, "speed": 34 },
-        { "hp": 580, "atk": 119, "def": 118, "spa": 65, "spd": 87, "speed": 35 }
+        {
+          "hp": 400,
+          "atk": 81,
+          "def": 90,
+          "spa": 20,
+          "spd": 28,
+          "speed": 21
+        },
+        {
+          "hp": 500,
+          "atk": 110,
+          "def": 108,
+          "spa": 30,
+          "spd": 48,
+          "speed": 34
+        },
+        {
+          "hp": 580,
+          "atk": 119,
+          "def": 118,
+          "spa": 65,
+          "spd": 87,
+          "speed": 35
+        }
       ],
       "range": 1,
       "energy": 70,
       "attack": "charge-rhyhorn",
-      "elements": ["ground", "rock"],
-      "basic": { "stat": "atk", "category": "physical", "animation": "Attack" },
+      "elements": [
+        "ground",
+        "rock"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
       "stages": [
-        { "elements": ["ground", "rock"], "range": 1, "energy": 70, "move": "charge-rhyhorn", "chargedType": "rock", "chargedAnimation": "Walk" },
-        { "elements": ["ground", "rock"], "range": 1, "energy": 70, "move": "charge-rhydon", "chargedType": "rock", "chargedAnimation": "Walk" },
-        { "elements": ["ground", "rock"], "range": 1, "energy": 70, "move": "charge-rhyperior", "chargedType": "rock", "chargedAnimation": "Walk" }
+        {
+          "elements": [
+            "ground",
+            "rock"
+          ],
+          "range": 1,
+          "energy": 70,
+          "move": "charge-rhyhorn",
+          "chargedType": "rock",
+          "chargedAnimation": "Walk"
+        },
+        {
+          "elements": [
+            "ground",
+            "rock"
+          ],
+          "range": 1,
+          "energy": 70,
+          "move": "charge-rhydon",
+          "chargedType": "rock",
+          "chargedAnimation": "Walk"
+        },
+        {
+          "elements": [
+            "ground",
+            "rock"
+          ],
+          "range": 1,
+          "energy": 70,
+          "move": "charge-rhyperior",
+          "chargedType": "rock",
+          "chargedAnimation": "Walk"
+        }
       ]
     },
     "vulpix": {
-      "names": ["Vulpix", "Ninetales"],
-      "pokedexIds": [37, 38],
+      "names": [
+        "Vulpix",
+        "Ninetales"
+      ],
+      "pokedexIds": [
+        37,
+        38
+      ],
       "rarity": 2,
       "shop": true,
       "glow": "#f6a45e",
-      "base": { "hp": 225, "atk": 24, "def": 31, "spa": 63, "spd": 26, "speed": 46 },
+      "base": {
+        "hp": 225,
+        "atk": 24,
+        "def": 31,
+        "spa": 63,
+        "spd": 26,
+        "speed": 46
+      },
       "stageBases": [
-        { "hp": 225, "atk": 24, "def": 31, "spa": 63, "spd": 26, "speed": 46 },
-        { "hp": 360, "atk": 35, "def": 52, "spa": 106, "spd": 57, "speed": 78 }
+        {
+          "hp": 225,
+          "atk": 24,
+          "def": 31,
+          "spa": 63,
+          "spd": 26,
+          "speed": 46
+        },
+        {
+          "hp": 360,
+          "atk": 35,
+          "def": 52,
+          "spa": 106,
+          "spd": 57,
+          "speed": 78
+        }
       ],
       "range": 3,
       "energy": 65,
       "attack": "pierce-vulpix",
-      "elements": ["fire"],
-      "basic": { "stat": "spa", "category": "special", "animation": "Shoot", "projectile": "spell" },
+      "elements": [
+        "fire"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Shoot",
+        "projectile": "spell"
+      },
       "stages": [
-        { "elements": ["fire"], "range": 3, "energy": 65, "move": "pierce-vulpix", "chargedType": "fire", "chargedAnimation": "SpAttack" },
-        { "elements": ["fire"], "range": 4, "energy": 70, "move": "pierce-ninetales", "chargedType": "fire", "chargedAnimation": "SpAttack" }
+        {
+          "elements": [
+            "fire"
+          ],
+          "range": 3,
+          "energy": 65,
+          "move": "pierce-vulpix",
+          "chargedType": "fire",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "fire"
+          ],
+          "range": 4,
+          "energy": 70,
+          "move": "pierce-ninetales",
+          "chargedType": "fire",
+          "chargedAnimation": "SpAttack"
+        }
+      ]
+    },
+    "dratini": {
+      "names": [
+        "Dratini",
+        "Dragonair",
+        "Dragonite"
+      ],
+      "pokedexIds": [
+        147,
+        148,
+        149
+      ],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#9297fc",
+      "base": {
+        "hp": 280,
+        "atk": 37,
+        "def": 43,
+        "spa": 80,
+        "spd": 63,
+        "speed": 56
+      },
+      "range": 4,
+      "energy": 60,
+      "attack": "dragon-breath",
+      "elements": [
+        "dragon"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Shoot"
+      },
+      "stageBases": [
+        {
+          "hp": 280,
+          "atk": 37,
+          "def": 43,
+          "spa": 80,
+          "spd": 63,
+          "speed": 56
+        },
+        {
+          "hp": 405,
+          "atk": 57,
+          "def": 65,
+          "spa": 107,
+          "spd": 87,
+          "speed": 72
+        },
+        {
+          "hp": 610,
+          "atk": 113,
+          "def": 99,
+          "spa": 119,
+          "spd": 104,
+          "speed": 88
+        }
+      ],
+      "stages": [
+        {
+          "elements": [
+            "dragon"
+          ],
+          "range": 4,
+          "energy": 60,
+          "move": "dragon-breath",
+          "chargedAnimation": "Shoot",
+          "basic": {
+            "stat": "spa",
+            "category": "special",
+            "animation": "Shoot"
+          }
+        },
+        {
+          "elements": [
+            "dragon"
+          ],
+          "range": 2,
+          "energy": 75,
+          "move": "dragon-cyclone",
+          "chargedAnimation": "Shoot",
+          "basic": {
+            "stat": "spa",
+            "category": "special",
+            "animation": "Shoot"
+          }
+        },
+        {
+          "elements": [
+            "dragon",
+            "flying"
+          ],
+          "range": 1,
+          "energy": 90,
+          "move": "dragon-storm",
+          "chargedAnimation": "Hop",
+          "basic": {
+            "stat": "atk",
+            "category": "physical",
+            "animation": "Attack"
+          }
+        }
+      ]
+    },
+    "diglett": {
+      "names": [
+        "Diglett",
+        "Dugtrio"
+      ],
+      "pokedexIds": [
+        50,
+        51
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#bd9164",
+      "base": {
+        "hp": 225,
+        "atk": 52,
+        "def": 42,
+        "spa": 59,
+        "spd": 46,
+        "speed": 78
+      },
+      "range": 1,
+      "energy": 60,
+      "attack": "diglett-burrow",
+      "elements": [
+        "ground"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stageBases": [
+        {
+          "hp": 225,
+          "atk": 52,
+          "def": 42,
+          "spa": 59,
+          "spd": 46,
+          "speed": 78
+        },
+        {
+          "hp": 355,
+          "atk": 87,
+          "def": 65,
+          "spa": 90,
+          "spd": 68,
+          "speed": 110
+        }
+      ],
+      "stages": [
+        {
+          "elements": [
+            "ground"
+          ],
+          "range": 1,
+          "energy": 60,
+          "move": "diglett-burrow",
+          "chargedAnimation": "Attack"
+        },
+        {
+          "elements": [
+            "ground"
+          ],
+          "range": 1,
+          "energy": 65,
+          "move": "dugtrio-burrow",
+          "chargedAnimation": "Attack"
+        }
       ]
     }
   }

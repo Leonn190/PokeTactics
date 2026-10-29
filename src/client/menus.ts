@@ -44,7 +44,12 @@ export function moveDescription(move: MoveData): string {
     'withdraw-guard':'Recolhe-se na carapaça e reduz o dano recebido em 60% por um período.',
     'healing-egg':'Joga um ovo curativo no maior grupo de aliados próximos.',
     'rock-charge':'Investe por até duas casas, parando na terceira e levantando inimigos em linha.',
-    'piercing-fire':'Dispara fogo em linha reta, atravessando o alvo e os inimigos atrás dele.'
+    'piercing-fire':'Dispara fogo em linha reta, atravessando o alvo e os inimigos atrás dele.',
+    'dragon-breath':'Projétil dracônico que diminui a velocidade de ataque do alvo em 15% por 2 segundos.',
+    'dragon-cyclone':'Tornado dracônico que atinge o alvo e inimigos próximos, reduzindo a velocidade de ataque.',
+    'dragon-storm':'Invoca três ondas dracônicas e levanta inimigos na primeira.',
+    burrow:'Escava até o inimigo mais distante, emergindo junto dele para causar dano especial.',
+    'mew-blessing':'Cura e protege o aliado com menor porcentagem de vida; seus ataques básicos causam dano especial extra por 3 segundos.'
   };
   const conversion = move.conversion;
   const buffs: Record<string,string> = { atk:'ATAQUE', def:'DEFESA', spa:'ATAQUE ESPECIAL', spd:'DEFESA ESPECIAL', speed:'VELOCIDADE' };

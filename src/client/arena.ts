@@ -15,6 +15,7 @@ import { renderFloatingNumber } from './vfx/floating-numbers';
 import { renderCombatEffects } from './render/effects';
 import { SpriteBoundsCache } from './render/sprite-bounds';
 import { drawContactShadow } from './render/shadows';
+import { drawBurrowMound } from './render/burrow';
 import type { CombatUnit, Family, GameSnapshot, Pokemon, UnitPosition } from '../../server/types';
 import { trainerSpot } from '../../server/combat/trainer-position';
 import pmdManifest from './pmd-manifest.json';
@@ -30,7 +31,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; psychicImbuement?: CombatUnit['psychicImbuement']; attackSpeedDebuffUntil?: number };
 type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number; hitFrame?: number };
 type PmdEntry = Record<string, PmdSheet>;
 const PMD = pmdManifest as Record<string, PmdEntry>;
@@ -329,7 +330,12 @@ export class Arena {
     }
     // Lendários ainda não receberam sheets PMD; continuam como PNGs, sem figuras coloridas.
     const path = SPECIES[unit.family].sprites[Math.min(unit.stage, SPECIES[unit.family].sprites.length - 1)];
-    const staticSprite = this.image(`${import.meta.env.BASE_URL}${path.replace(/^\.\//, '')}`);
+    // Missing PMD sheets remain ordinary sprite PNGs; try the canonical PokeAPI image if a local asset is absent.
+    const localUrl = /^https?:\/\//.test(path) ? path : `${import.meta.env.BASE_URL}${path.replace(/^\.\//, '')}`;
+    const primary = this.image(localUrl);
+    const staticSprite = primary.complete && !primary.naturalWidth && /^\.\/sprites\/\d+\.png$/.test(path)
+      ? this.image(`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`)
+      : primary;
     if (staticSprite.complete && staticSprite.naturalWidth) {
       const size = this.cellScale * (unit.bench ? .67 : 1.03);
       ctx.save(); ctx.imageSmoothingEnabled = false;
@@ -474,6 +480,18 @@ export class Arena {
     const ctx = this.context;
     const p = this.toScreen(unit.x, unit.y);
     const radius = this.cellScale * (unit.bench ? .19 : .29) * (1 + unit.stage * .18);
+    const dig = unit.dig;
+    // The dirt mound follows the actual simulated x/y. An underground unit never reveals its sprite or bars.
+    if (dig?.phase === 'travel') { drawBurrowMound(ctx,p.x,p.y,radius,unit.stage,time); return; }
+    if (dig?.phase === 'rise' || dig?.phase === 'sink') {
+      const exposed = dig.phase === 'sink' ? 1 - dig.time/dig.duration : dig.time/dig.duration;
+      drawBurrowMound(ctx,p.x,p.y,radius,unit.stage,time);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(p.x-radius*3,p.y-radius*5,radius*6,radius*5+2); ctx.clip();
+      this.drawPokemonSprite(p.x,p.y+Math.max(0,1-exposed)*this.cellScale*1.25,unit,time);
+      ctx.restore();
+      return;
+    }
     // Sombra encostada nos pés; nenhum bob/flutuação artificial.
     drawContactShadow(ctx, p.x, p.y, radius);
     if ((this.view.selectedId === unit.id || this.view.selectedId === unit.sourceId)) {
@@ -494,6 +512,13 @@ export class Arena {
       ctx.fillStyle = unit.own ? '#74e6a9' : '#ff947d'; ctx.fillRect(bx, baseY, barWidth * Math.max(0, unit.hp / unit.maxHp), 5);
       const shield = (unit.barrier?.hp || 0) + (unit.barriers || []).reduce((total,b) => total+b.hp,0);
       if (shield > 0) { ctx.fillStyle = '#d5b3ff'; ctx.fillRect(bx, baseY - 3, barWidth * Math.min(1, shield/unit.maxHp), 2); }
+      if (unit.psychicImbuement && unit.psychicImbuement.until > (this.snapshot?.visibleBattle?.elapsed || 0)) {
+        const life = unit.psychicImbuement.until - (this.snapshot?.visibleBattle?.elapsed || 0);
+        ctx.save();ctx.globalAlpha=.28+.12*Math.sin(time*7);ctx.strokeStyle='#e99fe8';ctx.lineWidth=2;
+        ctx.beginPath();ctx.ellipse(p.x,p.y-this.cellScale*.28,radius*1.33,radius*1.8,0,0,PI2);ctx.stroke();
+        for(let i=0;i<4;i++) {const angle=i*PI2/4+time*1.7;ctx.fillStyle='#eea7ed';ctx.beginPath();ctx.arc(p.x+Math.cos(angle)*radius*1.3,p.y-this.cellScale*.35+Math.sin(angle)*radius*.9,2.2,0,PI2);ctx.fill();}
+        ctx.restore();
+      }
       if (unit.poison) {
         ctx.fillStyle = '#b76de4'; ctx.beginPath(); ctx.arc(bx + barWidth + 4, baseY + 2, 3.1, 0, PI2); ctx.fill();
       }
@@ -503,7 +528,9 @@ export class Arena {
         ...(unit.buffs || []).map(b => `${b.stat.toUpperCase()}↑ ${Math.ceil(b.until-(this.snapshot?.visibleBattle?.elapsed || 0))}s`),
         ...(unit.defenseShreds || []).map(b => `DEF↓ ${Math.ceil(b.until-(this.snapshot?.visibleBattle?.elapsed || 0))}s`),
         ...((unit.guardUntil || 0) > (this.snapshot?.visibleBattle?.elapsed || 0) ? [`GUARDA ${Math.ceil(unit.guardUntil!-(this.snapshot?.visibleBattle?.elapsed || 0))}s`] : []),
-        ...(unit.barriers?.length ? ['BARREIRA'] : [])
+        ...(unit.barriers?.length ? ['BARREIRA'] : []),
+        ...(unit.psychicImbuement ? ['PSÍQUICO'] : []),
+        ...((unit.attackSpeedDebuffUntil || 0) > (this.snapshot?.visibleBattle?.elapsed || 0) ? ['LENTIDÃO -15%'] : [])
       ];
       if (statuses.length) {
         const label = statuses.slice(0,2).join(' · ');

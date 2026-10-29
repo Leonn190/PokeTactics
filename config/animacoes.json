@@ -96,6 +96,12 @@
       "trail": "#b47bbd",
       "shape": "spark",
       "arrival": 0.83
+    },
+    "dragon": {
+      "color": "#b9a0fc",
+      "trail": "#605bd4",
+      "shape": "orb",
+      "arrival": 0.83
     }
   }
 }

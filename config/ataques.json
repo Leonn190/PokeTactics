@@ -464,6 +464,66 @@
       "baseDamage": 22,
       "attackRatio": 0,
       "specialRatio": 0.75
+    },
+    "dragon-breath": {
+      "name": "Sopro Dracônico",
+      "effect": "dragon-breath",
+      "baseDamage": 24,
+      "specialRatio": 0.65,
+      "attackRatio": 0,
+      "slowDuration": 2,
+      "speedReduction": 0.15
+    },
+    "dragon-cyclone": {
+      "name": "Ciclone Dracônico",
+      "effect": "dragon-cyclone",
+      "baseDamage": 32,
+      "specialRatio": 0.75,
+      "attackRatio": 0,
+      "slowDuration": 2,
+      "speedReduction": 0.15,
+      "splashRange": 1,
+      "splashMultiplier": 0.5
+    },
+    "dragon-storm": {
+      "name": "Tempestade Dracônica",
+      "effect": "dragon-storm",
+      "baseDamage": 18,
+      "specialRatio": 0.35,
+      "attackRatio": 0,
+      "splashRange": 1.5,
+      "hits": 3,
+      "seconds": 0.35,
+      "controlDuration": 0.5
+    },
+    "diglett-burrow": {
+      "name": "Escavação Surpresa",
+      "effect": "burrow",
+      "baseDamage": 22,
+      "specialRatio": 0.6,
+      "attackRatio": 0
+    },
+    "dugtrio-burrow": {
+      "name": "Escavação Surpresa",
+      "effect": "burrow",
+      "baseDamage": 34,
+      "specialRatio": 0.85,
+      "attackRatio": 0
+    },
+    "mew-blessing": {
+      "name": "Bênção Primordial",
+      "effect": "mew-blessing",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "attackRatio": 0,
+      "healBase": 35,
+      "healRatio": 0.5,
+      "shieldBase": 30,
+      "shieldSpaRatio": 0.4,
+      "shieldDuration": 3,
+      "bonusBase": 8,
+      "bonusSpaRatio": 0.2,
+      "buffDuration": 3
     }
   }
 }

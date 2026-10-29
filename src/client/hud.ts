@@ -12,7 +12,7 @@ const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').r
 const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk: 'ATK', def: 'DEF', spa: 'SPA', spd: 'SPD' };
 
 const base = import.meta.env.BASE_URL;
-const typeIcon = (type: Element, size = 18): string => ['ground','rock','steel','dark','fairy'].includes(type)
+const typeIcon = (type: Element, size = 18): string => ['ground','rock','steel','dark','fairy','dragon'].includes(type)
   ? `<span class="type-fallback" title="${safe(ELEMENTS[type].name)}" style="width:${size}px;height:${size}px;background:${ELEMENTS[type].color}">${ELEMENTS[type].name.slice(0,2).toUpperCase()}</span>`
   : `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
 function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
@@ -168,11 +168,38 @@ export class Hud {
     const possibilities = snapshot.possibleOpponents.p0 || [];
     const pve = snapshot.stageType === 'bot' || snapshot.stageType === 'boss';
     const likely = new Set(snapshot.phase === 'planning' && !pve ? possibilities.flat() : []);
-    const ranks = ranked.map((p, i) => {
-      return `<button class="rank-row ${p.id === 'p0' ? 'you' : ''} ${view.scoutId === p.id && p.id !== 'p0' ? 'scouting' : ''} ${p.eliminated ? 'out' : ''}" data-scout="${p.id}" title="${p.id === 'p0' ? 'Sua arena' : `Inspecionar arena de ${p.name}`}">
-      <span class="rank-position">${p.placement || i + 1}</span><span class="rank-token"></span><span class="rank-name">${p.name}</span>${likely.has(p.id) ? '<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>' : ''}<span class="rank-hp ${p.health === 0 ? 'dead' : p.health < 30 ? 'low' : ''}">${p.health}</span></button>`;
-    }).join('');
-    if (this.lastRank !== ranks) { element('rankRows').innerHTML = ranks; this.lastRank = ranks; }
+    // Preserve the DOM for unchanged ranking order: CSS dot animations do not restart on each snapshot.
+    const rankOrder = ranked.map((p,i)=>`${p.id}:${p.name}:${p.placement||i+1}:${p.eliminated}`).join('|')
+      + `|scout:${view.scoutId}|likely:${[...likely].sort().join(',')}`;
+    const rankStatus = (id: string): string => snapshot.battleStatuses[id] === 'battling'
+      ? 'Batalhando<span class="rank-dots"><i>.</i><i>.</i><i>.</i></span>'
+      : snapshot.battleStatuses[id] === 'victorious' ? 'Vitorioso'
+      : snapshot.battleStatuses[id] === 'defeated' ? 'Derrotado' : '';
+    const rowHpClass = (health: number): string => health === 0 ? 'dead' : health < 30 ? 'low' : '';
+    if (this.lastRank !== rankOrder) {
+      const ranks = ranked.map((p,i)=>`<button class="rank-row ${p.id==='p0'?'you':''} ${view.scoutId===p.id&&p.id!=='p0'?'scouting':''} ${p.eliminated?'out':''}" data-scout="${p.id}" title="${p.id==='p0'?'Sua arena':`Inspecionar arena de ${safe(p.name)}`}" >
+        <span class="rank-position">${p.placement||i+1}</span><span class="rank-token"></span><span class="rank-name">${safe(p.name)}</span><span class="rank-combat-status ${snapshot.battleStatuses[p.id]||''}">${rankStatus(p.id)}</span>${likely.has(p.id)?'<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>':''}<span class="rank-hp ${rowHpClass(p.health)}">${p.health}</span></button>`).join('');
+      element('rankRows').innerHTML = ranks;
+      this.lastRank = rankOrder;
+    } else {
+      const nodes = element('rankRows').children;
+      ranked.forEach((p,i)=>{
+        const row = nodes[i] as HTMLElement;
+        const hp = row.querySelector<HTMLElement>('.rank-hp');
+        const status = row.querySelector<HTMLElement>('.rank-combat-status');
+        if (hp) {
+          if (hp.textContent !== String(p.health)) hp.textContent = String(p.health);
+          const color = rowHpClass(p.health);
+          if (hp.className !== `rank-hp ${color}`) hp.className = `rank-hp ${color}`;
+        }
+        if (status) {
+          const next = rankStatus(p.id);
+          if (status.innerHTML !== next) status.innerHTML = next;
+          const state = snapshot.battleStatuses[p.id] || '';
+          if (status.className !== `rank-combat-status ${state}`) status.className = `rank-combat-status ${state}`;
+        }
+      });
+    }
 
     const battle = snapshot.observedId === view.scoutId ? snapshot.visibleBattle : null;
     const opponentId = battle?.participants.find(id => id !== view.scoutId)

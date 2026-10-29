@@ -2,7 +2,7 @@ import pokemonConfig from '../config/pokemons.json';
 export type Family = keyof typeof pokemonConfig.species;
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
-export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy';
+export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'dragon' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy';
 export type Rarity = 1 | 2 | 3 | 4 | 5;
 export type StageType = 'battle' | 'gold' | 'quad' | 'bot' | 'double' | 'boss';
 export type StageResult = 'win' | 'loss' | 'second' | 'third' | 'fourth' | null;
@@ -59,8 +59,11 @@ export interface CombatMetrics {
   abilityMitigated: number;
 }
 
+export interface PsychicImbuement { sourceId: string; extraDamage: number; until: number }
+export interface DigState { phase: 'sink' | 'travel' | 'rise'; time: number; duration: number; fromX: number; fromY: number; toX: number; toY: number; targetId: string; trailClock: number }
+export interface StormState { x: number; y: number; nextWave: number; waves: number; targetIds: string[]; elapsed: number }
 export interface TimedStatEffect { sourceId: string; stat: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; amount: number; until: number }
-export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' }
+export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' }
 
 export interface CombatUnit {
   id: string;
@@ -100,6 +103,11 @@ export interface CombatUnit {
   buffs: TimedStatEffect[];
   defenseShreds: TimedStatEffect[];
   guardUntil: number;
+  bossMove?: string;
+  attackSpeedDebuffUntil: number;
+  dig: DigState | null;
+  storm: StormState | null;
+  psychicImbuement: PsychicImbuement | null;
   combo: { targetId: string; hits: number; time: number; interval: number } | null;
   gasTime: number;
   support: { time: number; moveId: string } | null;
@@ -124,7 +132,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark';
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;
@@ -143,7 +151,8 @@ export interface CombatEffect {
     arrival: number;
     onHit?: 'drain' | 'burn' | 'slow' | 'poison';
     chain?: { remaining: number; visited: string[]; ratio: number; range: number };
-    special?: 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg';
+    special?: 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg' | 'dragon-breath' | 'dragon-cyclone' | 'mew-blessing';
+    psychicBonus?: number;
   };
 }
 
@@ -216,6 +225,7 @@ export interface GameSnapshot {
   possibleOpponents: Record<string, string[][]>;
   visibleBattle: Battle | null;
   combatStats: Record<string, Record<string, CombatMetrics>>;
+  battleStatuses: Record<string, 'battling' | 'victorious' | 'defeated' | null>;
   log: string;
   winnerId: string | null;
   trainer: { x: number; y: number; targetX: number; targetY: number };

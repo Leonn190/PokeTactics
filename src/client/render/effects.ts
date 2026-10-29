@@ -4,6 +4,7 @@ import type { CombatEffect } from '../../../server/types';
 import { renderTravelEffects } from '../vfx/travel-effects';
 import { renderImpactEffects } from '../vfx/impact-effects';
 import { renderFloatingNumber } from '../vfx/floating-numbers';
+import { renderV16Effect } from '../vfx/v16-effects';
 const PI2 = Math.PI * 2;
 
 export function renderCombatEffects(context: CanvasRenderingContext2D, effects: CombatEffect[], flipY: boolean, toScreen: (x:number,y:number)=>{x:number;y:number}, cellScale: number, time: number, resolveTime?: (effect: CombatEffect) => number): void {
@@ -12,6 +13,7 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       const t = Math.max(0, Math.min(1, (resolveTime ? resolveTime(fx) : fx.time) / fx.duration));
       const from = toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
+      if (renderV16Effect(ctx, fx, from, to, t, cellScale, time)) continue;
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
       if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();

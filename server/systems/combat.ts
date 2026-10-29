@@ -8,6 +8,10 @@ import { heal } from '../combat/healing';
 import { trainerSpot } from '../combat/trainer-position';
 export { trainerSpot } from '../combat/trainer-position';
 
+const moveIdOf = (unit: CombatUnit): string => unit.bossMove || getStageData(unit.family, unit.stage).move;
+const combatCooldown = (unit: CombatUnit, now: number): number =>
+  attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
+const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !unit.dig;
 const metrics = (): CombatMetrics => ({ casts: 0, controlSeconds: 0, dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0, blockedPhysical: 0, blockedSpecial: 0, barrierAbsorbed: 0, abilityMitigated: 0 });
 function stat(unit: CombatUnit, key: StatKey): number {
   const base = unit.stats[key];
@@ -32,7 +36,7 @@ function advanceAnimation(unit: CombatUnit, dt: number): void {
   else unit.animation = null;
 }
 
-function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: boolean): CombatUnit {
+function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: boolean, boss = false): CombatUnit {
   if (pokemon.position.area !== 'board') throw new Error('Only deployed Pokémon may battle');
   const { col, row: localRow } = pokemon.position;
   // Quádrupla: dois tabuleiros 7x8 completos unidos lado a lado (14x8).
@@ -41,14 +45,16 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
   const row = upper ? 3 - localRow : localRow + 4;
   const point = gridXY(col, row);
   const { x, y } = multi ? { x: point.x + (slot < 2 ? -4.35 : 4.35), y: point.y } : point;
-  const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
+  const bossMew = boss && pokemon.family === 'mew';
+  const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage, bossMew);
   const stage = getStageData(pokemon.family, pokemon.stage);
   const maxHp = stats.hp;
   return {
     id: `${owner.id}:${pokemon.id}`, sourceId: pokemon.id, playerId: owner.id,
     family: pokemon.family, stage: pokemon.stage, level: pokemon.level, iv: { ...pokemon.iv },
     col, row, x, y, hp: maxHp, maxHp, energy: 0,
-    energyNeeded: stage.energy, range: stage.range,
+    energyNeeded: bossMew ? SPECIES.mew.bossEnergy! : stage.energy, range: bossMew ? SPECIES.mew.bossRange! : stage.range,
+    ...(bossMew ? { bossMove: SPECIES.mew.bossMove } : {}),
     stats, cooldown: attackCooldown(stats.speed),
     attackClock: 0.5 + (col % 4) * 0.13,
     // Entra já voltado ao lado adversário, sem tocar a animação Rotate de 360°.
@@ -58,6 +64,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
+    dig: null, storm: null, psychicImbuement: null, attackSpeedDebuffUntil: 0,
     gasTime: 0, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
@@ -83,7 +90,7 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     id, kind, goldRound: kind === 'gold',
     playerA: players[0].id, playerB: players[1].id,
     participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
-    units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi))),
+    units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi, kind === 'boss' && p.id.startsWith('bot:')))),
     effects: [], knockupEvents: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
     benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
     traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)]))
@@ -170,7 +177,7 @@ function piercingFire(battle: Battle, source: CombatUnit, target: CombatUnit, ra
 }
 
 function applyKnockup(battle: Battle, source: CombatUnit, target: CombatUnit, seconds: number, airborneSeconds=seconds): void {
-  if (target.hp <= 0 || target.controlImmune || target.knockUpUntil > battle.elapsed) return;
+  if (target.hp <= 0 || target.dig || target.controlImmune || target.knockUpUntil > battle.elapsed) return;
   const until = battle.elapsed + seconds;
   source.metrics.controlSeconds += Math.max(0, until-Math.max(battle.elapsed,target.stunUntil));
   target.stunUntil = Math.max(target.stunUntil, until);
@@ -248,7 +255,7 @@ function landProjectiles(battle: Battle, dt: number): void {
       const ax = fx.x + (fx.targetX - fx.x) * a, ay = fx.y + (fx.targetY - fx.y) * a;
       const bx = fx.x + (fx.targetX - fx.x) * b, by = fx.y + (fx.targetY - fx.y) * b;
       for (const target of battle.units) {
-        if (target.playerId === caster.playerId || target.hp <= 0 || hit.hitIds.includes(target.id)) continue;
+        if (target.playerId === caster.playerId || !isTargetable(target) || hit.hitIds.includes(target.id)) continue;
         if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > .43 ** 2) continue;
         hit.hitIds.push(target.id);
         deal(battle, caster, target, hit.raw, true, true, hit.attackType);
@@ -261,7 +268,33 @@ function landProjectiles(battle: Battle, dt: number): void {
     const caster = battle.units.find(u => u.id === hit.sourceId);
     const target = battle.units.find(u => u.id === hit.targetId);
     if (!caster || !target) continue;
-    const move = ATTACKS.moves[hit.moveId || getStageData(caster.family, caster.stage).move];
+    const move = ATTACKS.moves[hit.moveId || moveIdOf(caster)];
+    if (hit.special === 'mew-blessing') {
+      // A projectile aimed at a defeated/buried ally dissipates safely instead of healing a different unit off-screen.
+      const ally = isTargetable(target) ? target : null;
+      if (ally) {
+        heal(battle,ally,(move.healBase || 0)+stat(caster,'spa')*(move.healRatio || 0),caster);
+        const value = (move.shieldBase || 0)+stat(caster,'spa')*(move.shieldSpaRatio || 0);
+        const old = ally.barriers.find(b => b.kind === 'mew' && b.sourceId === caster.id);
+        if (old) { old.hp = value; old.until = battle.elapsed + (move.shieldDuration || 3); }
+        else ally.barriers.push({kind:'mew',sourceId:caster.id,hp:value,until:battle.elapsed+(move.shieldDuration || 3)});
+        effect(battle,caster,ally,'shield',value);
+        ally.psychicImbuement = {sourceId:caster.id,extraDamage:(move.bonusBase || 0)+stat(caster,'spa')*(move.bonusSpaRatio || 0),until:battle.elapsed+(move.buffDuration || 3)};
+        effect(battle,caster,ally,'psychic-spark',0);
+      }
+      continue;
+    }
+    if (hit.special === 'dragon-cyclone') {
+      const center = {x:fx.targetX,y:fx.targetY};
+      const radius = move.splashRange || 1;
+      const enemies = battle.units.filter(u => isTargetable(u) && u.playerId !== caster.playerId && distance(u,center) <= radius);
+      for (const enemy of enemies) {
+        deal(battle,caster,enemy,hit.raw*(enemy.id===target.id?1:move.splashMultiplier || .5),true,true,'dragon');
+        applyAttackSlow(battle,enemy,move.slowDuration || 2);
+      }
+      effect(battle,caster,center,'dragon-tornado',radius);
+      continue;
+    }
     if (hit.special === 'eevee-ball') {
       const center = { x:fx.targetX, y:fx.targetY };
       const radius = move.splashRange || 1.65;
@@ -282,8 +315,15 @@ function landProjectiles(battle: Battle, dt: number): void {
       effect(battle,caster,center,'impact',move.splashRange || 1.65);
       continue;
     }
-    if (target.hp <= 0) continue;
+    if (!isTargetable(target)) continue;
     deal(battle, caster, target, hit.raw, hit.magical, hit.charged, hit.attackType);
+    if (hit.special === 'dragon-breath') applyAttackSlow(battle,target,move.slowDuration || 2);
+    // Additional psychic component is strictly tied to landing a regular basic.
+    if (!hit.charged && target.hp > 0 && caster.psychicImbuement && caster.psychicImbuement.until > battle.elapsed) {
+      const buff = caster.psychicImbuement;
+      const mew = battle.units.find(u => u.id === buff.sourceId);
+      if (mew) { deal(battle,mew,target,buff.extraDamage,true,false,'psychic'); effect(battle,mew,target,'psychic-spark',0); }
+    }
     if (hit.special === 'bone-throw') { if (target.hp > 0) applyShred(battle,caster,target); continue; }
     if (hit.special === 'single-knockup') { applyKnockup(battle,caster,target,move.controlDuration || .75); continue; }
     if (hit.special === 'rock-strike') continue;
@@ -325,7 +365,7 @@ function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage
 }
 
 function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, magical: boolean, charged = false, attackType?: Element): number {
-  if (target.hp <= 0) return 0;
+  if (target.hp <= 0 || target.dig) return 0;
   const defense = magical ? stat(target,'spd') : stat(target,'def');
   const element = attackType || getStageData(source.family, source.stage).chargedType;
   const typeFactor = charged ? chargedEffectiveness(element, getStageData(target.family, target.stage).elements) : 1;
@@ -394,13 +434,53 @@ function supportTick(battle: Battle, source: CombatUnit, dt: number): void {
 
 function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): void {
   const stage = getStageData(source.family, source.stage);
-  const moveId = stage.move, move = ATTACKS.moves[moveId];
+  const moveId = moveIdOf(source), move = ATTACKS.moves[moveId];
   source.metrics.casts++;
   const a = stat(source,'atk'), s = stat(source,'spa');
   const shot = (victim: CombatUnit, kind: CombatEffect['kind'], raw: number, magical: boolean,
     arrival: number, onHit?: 'drain' | 'burn' | 'slow' | 'poison') =>
     projectile(battle, source, victim, kind, raw, magical, true, arrival, onHit, source, moveId, stage.chargedType);
 
+  if (move.effect === 'mew-blessing') {
+    const ally = battle.units.filter(u => u.playerId === source.playerId && isTargetable(u) && u !== source)
+      .sort((a,b) => a.hp/a.maxHp - b.hp/b.maxHp || a.id.localeCompare(b.id))[0]
+      || (isTargetable(source) ? source : null);
+    if (ally) {
+      animate(source,'Charge',.55);
+      projectile(battle,source,ally,'psychic-blessing',0,true,true,.83,undefined,source,moveId,'psychic','mew-blessing');
+    }
+    return;
+  }
+  if (move.effect === 'burrow') {
+    startDig(battle,source);
+    return;
+  }
+  if (move.effect === 'dragon-storm') {
+    const enemies = battle.units.filter(u => u.playerId !== source.playerId && isTargetable(u));
+    const centers = [source,...enemies.filter(u => distance(source,u) <= 1)].map(u => ({ x:u.x,y:u.y }));
+    const radius = move.splashRange || 1.5;
+    const primary = target?.id;
+    const best = centers.map(c => ({ ...c, members: enemies.filter(e => distance(e,c) <= radius) }))
+      .sort((a,b) => b.members.length-a.members.length || Number(b.members.some(e=>e.id===primary))-Number(a.members.some(e=>e.id===primary))
+        || distance(source,a)-distance(source,b))[0];
+    if (best && best.members.length) {
+      source.storm = {x:best.x,y:best.y,nextWave:0,waves:3,targetIds:[],elapsed:0};
+      animate(source,'Hop',1.35,'Idle');
+    }
+    return;
+  }
+  if (move.effect === 'dragon-breath' && target) {
+    animate(source,'Shoot',.42);
+    projectile(battle,source,target,'dragon-orb',move.baseDamage+s*move.specialRatio,true,true,.83,
+      undefined,source,moveId,'dragon','dragon-breath');
+    return;
+  }
+  if (move.effect === 'dragon-cyclone' && target) {
+    animate(source,'Shoot',.48);
+    projectile(battle,source,target,'dragon-orb',move.baseDamage+s*move.specialRatio,true,true,.83,
+      undefined,source,moveId,'dragon','dragon-cyclone');
+    return;
+  }
   if (move.effect === 'rock-charge') {
     const path = bestCharge(battle, source, target);
     if (path) {
@@ -689,9 +769,105 @@ function chargeTick(battle: Battle, source: CombatUnit, dt: number): void {
   animate(source, 'Strike', .25);
 }
 
+function applyAttackSlow(battle: Battle, target: CombatUnit, duration: number): void {
+  if (target.hp <= 0) return;
+  target.attackSpeedDebuffUntil = Math.max(target.attackSpeedDebuffUntil,battle.elapsed+duration);
+  const old = target.cooldown;
+  target.cooldown = combatCooldown(target,battle.elapsed);
+  if (old > 0) target.attackClock *= target.cooldown/old;
+}
+
+/** Choose a free resting point, without assuming the board uses integer tile coordinates. */
+function digDestination(battle: Battle, source: CombatUnit, target: CombatUnit): {x:number;y:number} | null {
+  const boundary = arenaBoundary(battle);
+  const options: Array<{x:number;y:number;d:number}> = [];
+  for (const radius of [.72,1.04,1.38,1.7,2.08,2.4]) {
+    for (let i=0;i<16;i++) {
+      const angle = Math.PI*2*i/16;
+      const x=target.x+Math.cos(angle)*radius, y=target.y+Math.sin(angle)*radius;
+      if (x < boundary.minX || x > boundary.maxX || y < boundary.minY || y > boundary.maxY) continue;
+      if (battle.units.some(u=>u !== source && u.hp>0 && Math.hypot(u.x-x,u.y-y)<.62)) continue;
+      options.push({x,y,d:radius+Math.hypot(source.x-x,source.y-y)*.005});
+    }
+    if (options.length) break;
+  }
+  // If all adjacent spots are occupied, scan the rest of the arena for the nearest safe landing.
+  if (!options.length) {
+    for (let x=boundary.minX+.3;x<=boundary.maxX-.3;x+=.45) for (let y=boundary.minY+.3;y<=boundary.maxY-.3;y+=.45) {
+      if (battle.units.some(u=>u!==source && u.hp>0 && Math.hypot(u.x-x,u.y-y)<.62)) continue;
+      options.push({x,y,d:Math.hypot(target.x-x,target.y-y)});
+    }
+  }
+  return options.sort((a,b)=>a.d-b.d||a.x-b.x||a.y-b.y)[0] || null;
+}
+function startDig(battle: Battle, source: CombatUnit): void {
+  const victim = battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u))
+    .sort((a,b)=>distance(source,b)-distance(source,a)||a.id.localeCompare(b.id))[0];
+  if (!victim) return;
+  const point=digDestination(battle,source,victim);
+  if (!point) return;
+  source.dig={phase:'sink',time:0,duration:.23,fromX:source.x,fromY:source.y,toX:point.x,toY:point.y,targetId:victim.id,trailClock:0};
+  animate(source,'Attack',.23);
+}
+function digTick(battle: Battle, source: CombatUnit, dt: number): void {
+  const dig=source.dig;
+  if (!dig) return;
+  dig.time = Math.min(dig.duration,dig.time+dt);
+  if (dig.phase === 'sink' && dig.time>=dig.duration) {
+    dig.phase='travel';dig.time=0;dig.duration=Math.max(.32,Math.hypot(dig.fromX-dig.toX,dig.fromY-dig.toY)/5);
+    source.animation=null;
+  } else if (dig.phase === 'travel') {
+    const t=dig.time/dig.duration;
+    source.x=dig.fromX+(dig.toX-dig.fromX)*t;
+    source.y=dig.fromY+(dig.toY-dig.fromY)*t;
+    dig.trailClock+=dt;
+    if (dig.trailClock >= .11) {
+      dig.trailClock %= .11;
+      effect(battle,source,source,'earth-trail',source.stage ? .58 : .38);
+    }
+    if (dig.time>=dig.duration) {
+      dig.phase='rise';dig.time=0;dig.duration=.27;
+      effect(battle,source,source,'earth-burst',source.stage ? .85 : .55);
+    }
+  } else if (dig.phase === 'rise' && dig.time>=dig.duration) {
+    source.dig=null;source.moving=false;
+    const victim=battle.units.find(u=>u.id===dig.targetId && isTargetable(u))
+      || battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u)).sort((a,b)=>distance(source,a)-distance(source,b)||a.id.localeCompare(b.id))[0];
+    const move=ATTACKS.moves[moveIdOf(source)];
+    if (victim && distance(source,victim)<=2.5) deal(battle,source,victim,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,'ground');
+    animate(source,'Attack',.2);
+  }
+}
+function stormTick(battle: Battle,source: CombatUnit,dt: number): void {
+  const storm=source.storm;
+  if (!storm) return;
+  storm.elapsed+=dt;
+  source.jumpHeight = .65 * Math.sin(Math.PI * Math.min(1, storm.elapsed/1.15));
+  if (storm.waves<=0) {
+    if (storm.elapsed>=1.15) { source.jumpHeight=0;source.storm=null;animate(source,'Idle',.2); }
+    return;
+  }
+  storm.nextWave-=dt;
+  const move=ATTACKS.moves[moveIdOf(source)];
+  if (storm.nextWave>0) return;
+  const wave=4-storm.waves;
+  const center={x:storm.x,y:storm.y};
+  effect(battle,source,center,wave===1?'dragon-tornado':'dragon-wave',move.splashRange||1.5);
+  for (const victim of battle.units) {
+    if (victim.playerId===source.playerId || !isTargetable(victim) || distance(victim,center)>(move.splashRange||1.5)) continue;
+    deal(battle,source,victim,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,'dragon');
+    if (wave===1 && victim.hp>0 && !storm.targetIds.includes(victim.id)) {
+      storm.targetIds.push(victim.id);
+      applyKnockup(battle,source,victim,move.controlDuration||.5);
+    }
+  }
+  storm.waves--;
+  if (storm.waves>0) storm.nextWave+=move.seconds||.35;
+}
+
 function resolve(battle: Battle): void {
   if ((battle.effects.some(fx => fx.pendingHit || (fx.piercing && fx.time < fx.duration)) ||
-    battle.units.some(u => u.charge)) && battle.elapsed < 120) return;
+    battle.units.some(u => u.charge || u.dig || u.storm)) && battle.elapsed < 120) return;
   const living = battle.participants.filter(id => battle.units.some(u => u.playerId === id && u.hp > 0));
   if (living.length > 1 && battle.elapsed < 120) return;
   const score = (id: string) => battle.units.filter(u => u.playerId === id).reduce((sum, u) => sum + Math.max(0, u.hp) / u.maxHp, 0);
@@ -714,6 +890,7 @@ function resolve(battle: Battle): void {
     unit.combo = null;
     unit.leap = null;
     unit.charge = null;
+    unit.dig = null; unit.storm = null; unit.psychicImbuement = null;
     unit.support = null;
     unit.gasTime = 0;
     unit.jumpHeight = 0;
@@ -758,7 +935,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.buffs = unit.buffs.filter(b => unit.hp > 0 && b.until > battle.elapsed);
     unit.defenseShreds = unit.defenseShreds.filter(b => unit.hp > 0 && b.until > battle.elapsed);
     unit.barriers = unit.barriers.filter(b => unit.hp > 0 && b.until > battle.elapsed && b.hp > 0);
-    unit.cooldown = attackCooldown(stat(unit,'speed'));
+    unit.cooldown = combatCooldown(unit,battle.elapsed);
     if (previousCooldown > 0 && unit.cooldown !== previousCooldown) unit.attackClock *= unit.cooldown/previousCooldown;
   }
   landProjectiles(battle, dt);
@@ -767,6 +944,7 @@ export function tickBattle(battle: Battle, dt: number): void {
   }
   for (const unit of battle.units) {
     if (unit.hp <= 0) {
+      unit.dig = null; unit.storm = null; unit.psychicImbuement = null;
       unit.buffs = []; unit.defenseShreds = []; unit.barriers = []; unit.guardUntil = 0;
       continue;
     }
@@ -777,6 +955,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.buffs = unit.buffs.filter(b => b.until > battle.elapsed);
     unit.defenseShreds = unit.defenseShreds.filter(b => b.until > battle.elapsed);
     unit.barriers = unit.barriers.filter(b => b.until > battle.elapsed && b.hp > 0);
+    if (unit.psychicImbuement && unit.psychicImbuement.until <= battle.elapsed) unit.psychicImbuement = null;
     if (unit.barrier) {
       unit.barrier.time -= dt;
       if (unit.barrier.time <= 0) unit.barrier = null;
@@ -798,6 +977,8 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.hp <= 0) continue;
     unit.stunTime = Math.max(0, unit.stunUntil - battle.elapsed);
     unit.knockUpTime = Math.max(0, unit.knockUpUntil - battle.elapsed);
+    if (unit.dig) { digTick(battle,unit,dt); continue; }
+    if (unit.storm) { stormTick(battle,unit,dt); continue; }
     if (unit.charge) { chargeTick(battle,unit,dt); continue; }
     if (unit.stunTime > 0) {
       continue;
@@ -809,11 +990,11 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.pendingPollen) { pollenTick(battle, unit, dt); continue; }
     if (unit.spinTime > 0) { spinTick(battle, unit, dt); continue; }
     unit.attackClock -= dt;
-    unit.cooldown = attackCooldown(stat(unit,'speed'));
+    unit.cooldown = combatCooldown(unit,battle.elapsed);
     const stage = getStageData(unit.family, unit.stage);
-    const move = ATTACKS.moves[stage.move];
+    const move = ATTACKS.moves[moveIdOf(unit)];
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded &&
-      (move.effect === 'healing-egg' || move.effect === 'withdraw-guard')) {
+      (move.effect === 'healing-egg' || move.effect === 'withdraw-guard' || move.effect === 'mew-blessing' || move.effect === 'burrow')) {
       const center = move.effect === 'healing-egg'
         ? bestEggCenter(battle,unit,move.splashRange || 1.65,move.skillRange || 3.2) : unit;
       if (center) {
@@ -833,7 +1014,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     let target: CombatUnit | null = null;
     let distanceSq = Infinity;
     for (const enemy of battle.units) {
-      if (enemy.playerId === unit.playerId || enemy.hp <= 0) continue;
+      if (enemy.playerId === unit.playerId || !isTargetable(enemy)) continue;
       const squared = (enemy.x - unit.x) ** 2 + (enemy.y - unit.y) ** 2;
       if (squared < distanceSq) { target = enemy; distanceSq = squared; }
     }
@@ -863,10 +1044,10 @@ export function tickBattle(battle: Battle, dt: number): void {
     } else {
       animate(unit, stage.basic.animation, Math.min(.4, unit.cooldown * .82));
       const basic = ATTACKS.basic;
-      const raw = rawBasicDamage(stat(unit,stage.basic.stat), basic.offensiveRatio);
+      const raw = rawBasicDamage(stat(unit,unit.bossMove ? 'atk' : stage.basic.stat), basic.offensiveRatio);
       const ranged = !!stage.basic.projectile;
       const projectileKind = ranged ? 'basic-projectile' : 'physical';
-      projectile(battle, unit, target, projectileKind, raw, stage.basic.category === 'special', false,
+      projectile(battle, unit, target, projectileKind, raw, !unit.bossMove && stage.basic.category === 'special', false,
         ranged ? ANIMATIONS.projectilesByType[stage.elements[0]].arrival : .35);
       if (ranged) battle.effects[battle.effects.length - 1].basicType = stage.elements[0];
       unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain);

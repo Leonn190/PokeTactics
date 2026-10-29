@@ -21,6 +21,11 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
   const physical = (label: string, value: number) => entry(label, value, 'physical');
   const special = (label: string, value: number) => entry(label, value, 'special');
   switch (move.effect) {
+    case 'mew-blessing': return [entry('CURA', (move.healBase || 0) + s*(move.healRatio || 0), 'heal'),
+      special('DANO EXTRA POR BÁSICO', (move.bonusBase || 0) + s*(move.bonusSpaRatio || 0))];
+    case 'dragon-storm': return [special('DANO POR ONDA ×3', move.baseDamage + s*move.specialRatio)];
+    case 'dragon-cyclone': return [special('DANO CENTRAL', move.baseDamage + s*move.specialRatio), special('DANO ADJACENTE', (move.baseDamage + s*move.specialRatio)*(move.splashMultiplier || .5))];
+    case 'burrow': case 'dragon-breath': return [special('DANO', move.baseDamage + s*move.specialRatio)];
     case 'withdraw-guard': case 'shield': return [];
     case 'healing-egg': return [entry('CURA POR ALIADO', (move.healBase || 0) + s*(move.healRatio || 0), 'heal')];
     case 'heal-powder': return [entry('CURA POR ALIADO', stageValue(move.healByStage,stage)+(move.healRatio || 0)*s, 'heal')];

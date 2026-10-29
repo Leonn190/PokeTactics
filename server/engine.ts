@@ -569,7 +569,17 @@ export class GameEngine {
       possibleOpponents: this.phase === 'planning' ? this.matchupOptions() : {},
       // postMessage performs the one structured clone at the worker boundary.
       visibleBattle: battle,
-      combatStats: stats, log: this.log, winnerId: this.winnerId,
+      combatStats: stats,
+      battleStatuses: this.phase === 'combat' || this.phase === 'result'
+        ? Object.fromEntries(this.players.map(p => {
+          const game = this.battles.find(b => b.participants.includes(p.id));
+          if (!game) return [p.id,null];
+          if (!game.resolved) return [p.id,'battling'];
+          // An all-knockout tie never fabricates a victory in the sidebar.
+          const actualWinner = game.units.some(u => u.playerId === game.winner && u.hp > 0) ? game.winner : null;
+          return [p.id, actualWinner ? (p.id === actualWinner ? 'victorious' : 'defeated') : null];
+        })) : {},
+      log: this.log, winnerId: this.winnerId,
       trainer: { ...this.trainer }, collectibleGold: this.collectibleGold()
     };
   }

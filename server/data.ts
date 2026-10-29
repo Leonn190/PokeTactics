@@ -25,13 +25,14 @@ export interface SpeciesData {
   sprites: string[];
   stageBases?: Stats[];
   bossOnly?: boolean;
+  bossBase?: Stats; bossMove?: string; bossRange?: number; bossEnergy?: number;
   eeveeBranch?: boolean;
   basic?: BasicAttackData;
   stages?: Partial<StageData>[];
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'burrow' | 'mew-blessing';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -47,6 +48,7 @@ export type MoveData = {
   conversion?: { kind: 'none' | 'stat_buff' | 'heal' | 'barrier'; stat?: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; points_per_damage_per_ally?: number; duration_seconds?: number; healing_pool_per_damage?: number; shield_pool_per_damage?: number; max_barrier_fraction_of_target_max_hp?: number };
   shredBase?: number; shredRatio?: number; shredDuration?: number; controlDuration?: number;
   skillRange?: number; guardDuration?: number; guardReduction?: number;
+  speedReduction?: number; shieldSpaRatio?: number; bonusBase?: number; bonusSpaRatio?: number; buffDuration?: number;
 };
 
 export const ATTACKS = movesConfig as unknown as {
@@ -106,6 +108,7 @@ export const LEGENDARY_FAMILIES = (Object.keys(SPECIES) as Family[]).filter(f =>
 export const EEVEE_BRANCHES = ['vaporeon','flareon','jolteon','umbreon','sylveon','leafeon','glaceon','espeon'] as Family[];
 
 export const ELEMENTS: Record<Element, { name: string; color: string; description: string }> = {
+  dragon: { name: 'Dragão', color: '#afa1ff', description: 'Sem bônus de sinergia por enquanto' },
   grass: { name: 'Planta', color: '#81d9a2', description: 'Sem bônus de sinergia por enquanto' },
   poison: { name: 'Venenoso', color: '#c38aff', description: 'Sem bônus de sinergia por enquanto' },
   fire: { name: 'Fogo', color: '#ff8a5f', description: 'Sem bônus de sinergia por enquanto' },
@@ -130,9 +133,9 @@ export const BOARD_COLUMNS = RULES.boardColumns;
 export const BOARD_ROWS = RULES.boardRows;
 
 /** Níveis além de 100 são intencionais: chefes PvE continuam escalando a cada capítulo. */
-export function calculateStats(family: Family, level: number, iv: Stats, stage: number): Stats {
+export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false): Stats {
   const species = SPECIES[family];
-  const base = species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
+  const base = (boss && species.bossBase) || species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
   const formula = RULES.statFormula;
   const levelScale = 1 + Math.max(0, level - 1) * formula.levelPerPoint;
   return Object.fromEntries((Object.keys(base) as Array<keyof Stats>).map(key => [
