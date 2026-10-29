@@ -41,7 +41,7 @@ function watch(playerId: string): void {
 
 function launchMatch(): void {
   worker?.terminate();
-  view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;
+  view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
   lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0;
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
@@ -72,7 +72,10 @@ document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
 });
 
 document.getElementById('inventoryContents')!.addEventListener('click',event=>{
+  if(suppressTrayClick){suppressTrayClick=false;return;}
   if (!state || view.scoutId!=='p0') return;
+  const page=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-page]');
+  if(page){hud.changeInventoryPage(page.dataset.inventoryPage==='next'?1:-1);hud.render(state,view);return;}
   const item=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-item]');
   const ball=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-ball]');
   if(item) { view.inventoryItemId=item.dataset.inventoryItem||null;view.selectedBall=null; }
@@ -89,20 +92,63 @@ document.getElementById('unitInspector')!.addEventListener('click',event=>{
     view.inventoryItemId=null;
   } else send({kind:'unequip-item',unitId,slot:Number(slot.dataset.gearSlot)});
 });
-// Pointer dragging from the compact item tray to a field/bench unit.
+// The board rack offers the same point-and-drag behavior as the Pokémon themselves.
 let trayDragId:string|null=null;
+let trayPointer=-1;
+let trayStart={x:0,y:0};
+let trayDragging=false;
+let suppressTrayClick=false;
+const itemGhost=document.getElementById('itemDragGhost')!;
+function clearItemDrag():void{
+  trayDragId=null;trayPointer=-1;trayDragging=false;
+  itemGhost.classList.add('hidden');itemGhost.classList.remove('valid-target');itemGhost.innerHTML='';
+}
 document.getElementById('inventoryContents')!.addEventListener('pointerdown',event=>{
+  if(event.button!==0 || view.scoutId!=='p0'||!state)return;
   const item=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-item]');
-  if(item && view.scoutId==='p0') trayDragId=item.dataset.inventoryItem||null;
+  if(!item)return;
+  trayDragId=item.dataset.inventoryItem||null;
+  trayPointer=event.pointerId;
+  trayStart={x:event.clientX,y:event.clientY};
+  trayDragging=false;
 });
-document.addEventListener('pointerup',event=>{
-  if(!trayDragId || !state) return;
-  const id=trayDragId;trayDragId=null;
-  if(event.target===canvas && view.scoutId==='p0') {
-    const unitId=arena.pickOwnUnit(event.clientX,event.clientY);
-    if(unitId) { send({kind:'equip-item',itemId:id,unitId});view.inventoryItemId=null; }
+document.addEventListener('pointermove',event=>{
+  if(!trayDragId||event.pointerId!==trayPointer)return;
+  if(!trayDragging&&Math.hypot(event.clientX-trayStart.x,event.clientY-trayStart.y)>6){
+    const item=state?.players[0].itemInventory?.find(i=>i.id===trayDragId);
+    if(!item){clearItemDrag();return;}
+    const source=document.querySelector<HTMLElement>(`[data-inventory-item="${trayDragId}"] .gear-icon`);
+    itemGhost.innerHTML=source?.outerHTML||'';
+    itemGhost.classList.remove('hidden');trayDragging=true;
+  }
+  if(trayDragging){
+    itemGhost.style.left=`${event.clientX}px`;itemGhost.style.top=`${event.clientY}px`;
+    itemGhost.classList.toggle('valid-target',!!arena.pickOwnUnit(event.clientX,event.clientY));
   }
 });
+document.addEventListener('pointerup',event=>{
+  if(!trayDragId||event.pointerId!==trayPointer)return;
+  const id=trayDragId;
+  if(trayDragging){
+    // Suppress only the synthesized click generated at the rack after a drag.
+    // Canvas drops must not suppress the user's *next* independent rack click.
+    suppressTrayClick=!!(document.elementFromPoint(event.clientX,event.clientY) as HTMLElement|null)
+      ?.closest('#inventoryContents');
+    // Browsers may omit the post-drag click; prevent stale suppression.
+    window.setTimeout(()=>{suppressTrayClick=false;},0);
+    if(view.scoutId==='p0'&&state){
+      const target=document.elementFromPoint(event.clientX,event.clientY);
+      const unitId=(target===canvas)?arena.pickOwnUnit(event.clientX,event.clientY):null;
+      const slot=target?.closest<HTMLElement>('[data-gear-slot]');
+      if(unitId)send({kind:'equip-item',itemId:id,unitId});
+      else if(slot)send({kind:'equip-item',itemId:id,unitId:slot.dataset.gearUnit!,ontoSlot:Number(slot.dataset.gearSlot)});
+      view.inventoryItemId=null;
+      hud.render(state,view);
+    }
+  }
+  clearItemDrag();
+});
+document.addEventListener('pointercancel',clearItemDrag);
 
 document.getElementById('shopCards')!.addEventListener('click', event => {
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-shop]');

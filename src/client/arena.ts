@@ -34,7 +34,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; psychicImbuement?: CombatUnit['psychicImbuement']; attackSpeedDebuffUntil?: number };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; attackSpeedDebuffUntil?: number };
 type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number; hitFrame?: number };
 type PmdEntry = Record<string, PmdSheet>;
 const PMD = pmdManifest as Record<string, PmdEntry>;
@@ -482,16 +482,42 @@ export class Arena {
   private drawLoot(time: number): void {
     if (!this.snapshot || this.view.scoutId !== 'p0') return;
     const ctx=this.context;
-    const colors={gray:'#c5ced5',blue:'#64b5ff',yellow:'#ffda73'};
-    for (const loot of this.snapshot.collectibleLoot) {
-      if (loot.claimed) continue;
+    const palettes={
+      gray:{body:'#9daeba',bright:'#f7ffff',glow:'#ccedff',dark:'#596c7a'},
+      blue:{body:'#318ade',bright:'#d5f5ff',glow:'#52c5ff',dark:'#153876'},
+      yellow:{body:'#f9b72f',bright:'#fff8c2',glow:'#ffdd58',dark:'#b7711a'}
+    };
+    for(const loot of this.snapshot.collectibleLoot){
+      if(loot.claimed)continue;
       const p=this.toScreen(loot.x,loot.y);
-      const r=7+Math.sin(time*3+loot.x)*1.3;
-      ctx.save();ctx.shadowColor=colors[loot.color];ctx.shadowBlur=13;
-      ctx.globalAlpha=.85;
-      ctx.fillStyle=colors[loot.color];ctx.beginPath();ctx.arc(p.x,p.y-4,r,0,PI2);ctx.fill();
-      ctx.lineWidth=1.6;ctx.strokeStyle='#fff9df';ctx.stroke();
-      ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(p.x,p.y-4,r+4,0,PI2);ctx.stroke();ctx.restore();
+      const pal=palettes[loot.color];
+      const beat=time*2.5+loot.x*3+loot.y;
+      const hover=Math.sin(beat)*2.1;
+      const y=p.y-12+hover;
+      const radius=11.8+Math.sin(beat)*.55;
+      ctx.save();
+      ctx.globalAlpha=.27;
+      const halo=ctx.createRadialGradient(p.x,y,1,p.x,y,30);
+      halo.addColorStop(0,pal.glow);halo.addColorStop(1,'#00000000');
+      ctx.fillStyle=halo;ctx.beginPath();ctx.arc(p.x,y,30,0,PI2);ctx.fill();
+      ctx.globalAlpha=.18;ctx.fillStyle='#142428';ctx.beginPath();ctx.ellipse(p.x,p.y+7,14,4,0,0,PI2);ctx.fill();
+      ctx.globalAlpha=1;ctx.shadowColor=pal.glow;ctx.shadowBlur=18+Math.sin(beat)*4;
+      const fill=ctx.createRadialGradient(p.x-4,y-5,1,p.x+3,y+4,radius*1.3);
+      fill.addColorStop(0,pal.bright);fill.addColorStop(.4,pal.body);fill.addColorStop(1,pal.dark);
+      ctx.fillStyle=fill;ctx.beginPath();ctx.arc(p.x,y,radius,0,PI2);ctx.fill();
+      ctx.lineWidth=1.6;ctx.strokeStyle=pal.bright;ctx.stroke();
+      ctx.shadowBlur=0;ctx.font='900 15px Inter, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.lineWidth=3;ctx.strokeStyle='#203042b8';ctx.strokeText('?',p.x,y+1.4);
+      ctx.fillStyle='#fffef4';ctx.fillText('?',p.x,y+1.4);
+      for(let i=0;i<3;i++){
+        const a=time*(i%2?-1:1)*1.5+i*PI2/3+loot.x;
+        const r=radius+5+(i%2)*4;
+        const x=p.x+Math.cos(a)*r, sy=y+Math.sin(a)*r*.76;
+        ctx.globalAlpha=.42+.42*Math.sin(time*4+i)**2;
+        ctx.fillStyle=pal.bright;
+        ctx.beginPath();ctx.moveTo(x,sy-3.2);ctx.lineTo(x+1.4,sy);ctx.lineTo(x,sy+3.2);ctx.lineTo(x-1.4,sy);ctx.closePath();ctx.fill();
+      }
+      ctx.restore();
     }
   }
 
@@ -499,6 +525,13 @@ export class Arena {
     const ctx = this.context;
     const p = this.toScreen(unit.x, unit.y);
     const radius = this.cellScale * (unit.bench ? .19 : .29) * (1 + unit.stage * .18);
+    const ghost=unit.ghost;
+    if(ghost && ghost.phase!=='appear') {
+      const fade=ghost.phase==='fade'?1-.58*ghost.time/ghost.duration:.37;
+      ctx.save();ctx.globalAlpha=fade;ctx.shadowColor='#a46eff';ctx.shadowBlur=18;
+      this.drawPokemonSprite(p.x,p.y-3-Math.sin(time*8)*2,unit,time);
+      ctx.restore();return;
+    }
     const dig = unit.dig;
     // The dirt mound follows the actual simulated x/y. An underground unit never reveals its sprite or bars.
     if (dig?.phase === 'travel') { drawBurrowMound(ctx,p.x,p.y,radius,unit.stage,time); return; }
@@ -521,7 +554,9 @@ export class Arena {
       ctx.fillStyle = '#fff4d454'; ctx.beginPath(); ctx.arc(p.x, p.y - 2, radius * 1.7, 0, PI2); ctx.fill();
     }
     const lift = (unit.jumpHeight || 0) + (unit.knockUpTime ? .55 * Math.sin(Math.PI * (1 - Math.min(1, unit.knockUpTime / (unit.knockUpDuration || .35)))) : 0);
+    if(ghost?.phase==='appear'){ctx.save();ctx.globalAlpha=.38+.62*ghost.time/ghost.duration;ctx.shadowColor='#c99dff';ctx.shadowBlur=16;}
     const spriteTop = this.drawPokemonSprite(p.x, p.y - lift * this.cellScale, unit, time);
+    if(ghost?.phase==='appear')ctx.restore();
     if (unit.bench) return;
     const barWidth = Math.max(35, radius * 2.35);
     const bx = p.x - barWidth / 2;

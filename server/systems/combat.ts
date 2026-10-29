@@ -12,7 +12,7 @@ export { trainerSpot } from '../combat/trainer-position';
 const moveIdOf = (unit: CombatUnit): string => unit.bossMove || getStageData(unit.family, unit.stage).move;
 const combatCooldown = (unit: CombatUnit, now: number): number =>
   attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
-const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !unit.dig;
+const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !unit.dig && !unit.ghost;
 const metrics = (): CombatMetrics => ({ casts: 0, controlSeconds: 0, dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0, blockedPhysical: 0, blockedSpecial: 0, barrierAbsorbed: 0, abilityMitigated: 0 });
 function stat(unit: CombatUnit, key: StatKey): number {
   const base = unit.stats[key];
@@ -67,7 +67,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
-    dig: null, storm: null, psychicImbuement: null, attackSpeedDebuffUntil: 0,
+    dig: null, ghost: null, ghostCasts: 0, fear: null, storm: null, psychicImbuement: null, attackSpeedDebuffUntil: 0,
     gasTime: 0, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
@@ -537,6 +537,10 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
     return;
   }
+  if (move.effect === 'ghost-ambush') {
+    startGhost(battle, source, moveId);
+    return;
+  }
   if (move.effect === 'burrow') {
     startDig(battle,source);
     return;
@@ -942,10 +946,126 @@ function digTick(battle: Battle, source: CombatUnit, dt: number): void {
     const victim=battle.units.find(u=>u.id===dig.targetId && isTargetable(u))
       || battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u)).sort((a,b)=>distance(source,a)-distance(source,b)||a.id.localeCompare(b.id))[0];
     const move=ATTACKS.moves[moveIdOf(source)];
-    if (victim && distance(source,victim)<=2.5) deal(battle,source,victim,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,'ground');
+    const power=move.baseDamage+stat(source,'spa')*move.specialRatio;
+    if (source.stage===0) {
+      if(victim && distance(source,victim)<=2.5) deal(battle,source,victim,power,true,true,'ground');
+    } else {
+      for (const enemy of battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u) && distance(source,u)<=(move.splashRange||1.5)))
+        deal(battle,source,enemy,power,true,true,'ground');
+    }
     animate(source,'Attack',.2);
   }
 }
+/** Deterministic ghost traversal: the whole path ignores occupied hexes, but the final spot does not. */
+function ghostLanding(battle: Battle, caster: CombatUnit, target: CombatUnit): {x:number;y:number} | null {
+  const d=Math.max(.001,distance(caster,target));
+  const dx=(target.x-caster.x)/d,dy=(target.y-caster.y)/d;
+  const bounds=arenaBoundary(battle);
+  const options=[
+    {x:target.x+dx*.9,y:target.y+dy*.9},
+    {x:target.x+dx*.75-dy*.58,y:target.y+dy*.75+dx*.58},
+    {x:target.x+dx*.75+dy*.58,y:target.y+dy*.75-dx*.58},
+    {x:target.x-dy*.85,y:target.y+dx*.85},
+    {x:target.x+dy*.85,y:target.y-dx*.85}
+  ];
+  // Packed teams can occupy every preferred square. Scan the one-tile ring
+  // around the target so the ghost still finds a legal emergence location.
+  for(const radius of [.85,1.0,1.08]) for(let index=0;index<16;index++) {
+    const angle=Math.atan2(dy,dx)+(index%2===0 ? 1 : -1)*Math.ceil(index/2)*Math.PI/8;
+    options.push({x:target.x+radius*Math.cos(angle),y:target.y+radius*Math.sin(angle)});
+  }
+  return options.find(p=>p.x>=bounds.minX&&p.x<=bounds.maxX&&p.y>=bounds.minY&&p.y<=bounds.maxY
+    && !battle.units.some(u=>u!==caster&&u.hp>0&&Math.hypot(u.x-p.x,u.y-p.y)<.6)) || null;
+}
+function startGhost(battle: Battle, caster: CombatUnit, moveId: string): void {
+  const move=ATTACKS.moves[moveId];
+  const target=battle.units.filter(u=>u.playerId!==caster.playerId && isTargetable(u) && distance(u,caster)<=(move.skillRange||2))
+    .sort((a,b)=>a.hp-b.hp||a.id.localeCompare(b.id))[0];
+  if (!target) return;
+  const destination=ghostLanding(battle,caster,target);
+  if (!destination) return;
+  caster.ghostCasts++;
+  const scare=caster.family==='gastly' && caster.stage===2 && caster.ghostCasts%2===0;
+  caster.ghost={phase:'fade',time:0,duration:.17,fromX:caster.x,fromY:caster.y,
+    toX:destination.x,toY:destination.y,targetId:target.id,moveId,trailClock:0,scare};
+  animate(caster,'SpAttack',.2);
+}
+/** Push a frightened enemy up to one tile away, without overlapping another combatant. */
+function scareTarget(battle: Battle,caster: CombatUnit,victim: CombatUnit, duration:number): void {
+  if (victim.controlImmune || (effectCount(victim,'opening_immunity')
+    && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) return;
+  const dist=Math.max(.001,distance(caster,victim));
+  const dx=(victim.x-caster.x)/dist,dy=(victim.y-caster.y)/dist;
+  const bounds=arenaBoundary(battle);
+  let endpoint={x:victim.x,y:victim.y};
+  for(let amount=1;amount>=.1;amount-=.1) {
+    const x=victim.x+dx*amount,y=victim.y+dy*amount;
+    if (x<bounds.minX||x>bounds.maxX||y<bounds.minY||y>bounds.maxY) continue;
+    if(battle.units.some(u=>u!==victim&&u.hp>0&&Math.hypot(u.x-x,u.y-y)<.64)) continue;
+    endpoint={x,y};break;
+  }
+  if (Math.hypot(endpoint.x-victim.x,endpoint.y-victim.y)<.08) return;
+  victim.fear={fromX:victim.x,fromY:victim.y,toX:endpoint.x,toY:endpoint.y,time:0,duration:.28};
+  victim.stunUntil=Math.max(victim.stunUntil,battle.elapsed+Math.max(duration,.35));
+  caster.metrics.controlSeconds+=Math.max(duration,.35);
+}
+function ghostTick(battle: Battle,caster: CombatUnit,dt: number): void {
+  const ghost=caster.ghost;
+  if(!ghost) return;
+  ghost.time=Math.min(ghost.duration,ghost.time+dt);
+  if(ghost.phase==='fade' && ghost.time>=ghost.duration) {
+    ghost.phase='travel';ghost.time=0;
+    ghost.duration=Math.max(.28,distance({x:ghost.fromX,y:ghost.fromY},{x:ghost.toX,y:ghost.toY})/6.4);
+    caster.animation=null;
+  } else if(ghost.phase==='travel') {
+    const t=ghost.time/ghost.duration;
+    caster.x=ghost.fromX+(ghost.toX-ghost.fromX)*t;
+    caster.y=ghost.fromY+(ghost.toY-ghost.fromY)*t;
+    caster.facingX=ghost.toX-ghost.fromX;caster.facingY=ghost.toY-ghost.fromY;
+    ghost.trailClock+=dt;
+    if(ghost.trailClock>=.09) {ghost.trailClock%=.09;effect(battle,caster,caster,'ghost-trail',0);}
+    if(ghost.time>=ghost.duration) {
+      const target=battle.units.find(u=>u.id===ghost.targetId && isTargetable(u));
+      const free=(target && ghostLanding(battle,caster,target)) || null;
+      if(battle.units.some(u=>u!==caster&&u.hp>0&&distance(u,caster)<.6)) {
+        if(free){caster.x=free.x;caster.y=free.y;}
+        else {caster.x=ghost.fromX;caster.y=ghost.fromY;}
+      }
+      ghost.phase='appear';ghost.time=0;ghost.duration=.3;
+      const move=ATTACKS.moves[ghost.moveId];
+      const radius=move.splashRange||1.12;
+      if(ghost.scare) {
+        effect(battle,caster,caster,'ghost-scare',1.55);
+        for(const victim of battle.units.filter(u=>u.playerId!==caster.playerId && isTargetable(u) && distance(u,caster)<=1.55))
+          scareTarget(battle,caster,victim,move.controlDuration||.65);
+      } else {
+        effect(battle,caster,caster,'ghost-slash',caster.stage===0?.7:radius);
+        // The chosen low-HP target must be hit even if three other enemies stand closer.
+        const primary=target&&distance(target,caster)<=radius?[target]:[];
+        const victims=caster.stage===0
+          ? (target&&distance(target,caster)<=2.1?[target]:[])
+          : [...primary,...battle.units.filter(u=>u.playerId!==caster.playerId && isTargetable(u)
+              && u.id!==target?.id && distance(u,caster)<=radius)
+            .sort((a,b)=>distance(a,caster)-distance(b,caster)||a.id.localeCompare(b.id))
+            .slice(0,3-primary.length)];
+        for(const victim of victims) deal(battle,caster,victim,move.baseDamage+stat(caster,'spa')*move.specialRatio,true,true,'ghost');
+      }
+      animate(caster,'Attack',.3);
+    }
+  } else if(ghost.phase==='appear'&&ghost.time>=ghost.duration){caster.ghost=null;}
+}
+function fearTick(unit: CombatUnit,dt: number): void {
+  const fear=unit.fear;
+  if(!fear)return;
+  fear.time=Math.min(fear.duration,fear.time+dt);
+  const t=fear.time/fear.duration;
+  unit.x=fear.fromX+(fear.toX-fear.fromX)*t;
+  unit.y=fear.fromY+(fear.toY-fear.fromY)*t;
+  unit.facingX=fear.toX-fear.fromX;unit.facingY=fear.toY-fear.fromY;
+  unit.moving=true;
+  if(fear.time>=fear.duration)unit.fear=null;
+}
+
 function stormTick(battle: Battle,source: CombatUnit,dt: number): void {
   const storm=source.storm;
   if (!storm) return;
@@ -975,7 +1095,7 @@ function stormTick(battle: Battle,source: CombatUnit,dt: number): void {
 
 function resolve(battle: Battle): void {
   if ((battle.effects.some(fx => fx.pendingHit || (fx.piercing && fx.time < fx.duration)) ||
-    battle.units.some(u => u.charge || u.dig || u.storm)) && battle.elapsed < 120) return;
+    battle.units.some(u => u.charge || u.dig || u.ghost || u.storm)) && battle.elapsed < 120) return;
   const living = battle.participants.filter(id => battle.units.some(u => u.playerId === id && u.hp > 0));
   if (living.length > 1 && battle.elapsed < 120) return;
   const score = (id: string) => battle.units.filter(u => u.playerId === id).reduce((sum, u) => sum + Math.max(0, u.hp) / u.maxHp, 0);
@@ -998,7 +1118,7 @@ function resolve(battle: Battle): void {
     unit.combo = null;
     unit.leap = null;
     unit.charge = null;
-    unit.dig = null; unit.storm = null; unit.psychicImbuement = null;
+    unit.dig = null; unit.ghost = null; unit.fear = null; unit.storm = null; unit.psychicImbuement = null;
     unit.support = null;
     unit.gasTime = 0;
     unit.jumpHeight = 0;
@@ -1090,7 +1210,7 @@ export function tickBattle(battle: Battle, dt: number): void {
   }
   for (const unit of battle.units) {
     if (unit.hp <= 0) {
-      unit.dig = null; unit.storm = null; unit.psychicImbuement = null;
+      unit.dig = null; unit.ghost = null; unit.fear = null; unit.storm = null; unit.psychicImbuement = null;
       unit.buffs = []; unit.defenseShreds = []; unit.barriers = []; unit.guardUntil = 0;
       continue;
     }
@@ -1123,6 +1243,8 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.hp <= 0) continue;
     unit.stunTime = Math.max(0, unit.stunUntil - battle.elapsed);
     unit.knockUpTime = Math.max(0, unit.knockUpUntil - battle.elapsed);
+    if (unit.fear) { fearTick(unit,dt); continue; }
+    if (unit.ghost) { ghostTick(battle,unit,dt); continue; }
     if (unit.dig) { digTick(battle,unit,dt); continue; }
     if (unit.storm) { stormTick(battle,unit,dt); continue; }
     if (unit.charge) { chargeTick(battle,unit,dt); continue; }
@@ -1140,9 +1262,12 @@ export function tickBattle(battle: Battle, dt: number): void {
     const stage = getStageData(unit.family, unit.stage);
     const move = ATTACKS.moves[moveIdOf(unit)];
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded &&
-      (move.effect === 'healing-egg' || move.effect === 'withdraw-guard' || move.effect === 'mew-blessing' || move.effect === 'burrow')) {
+      (move.effect === 'healing-egg' || move.effect === 'withdraw-guard' || move.effect === 'mew-blessing' || move.effect === 'burrow' || move.effect === 'ghost-ambush')) {
       const center = move.effect === 'healing-egg'
-        ? bestEggCenter(battle,unit,move.splashRange || 1.65,move.skillRange || 3.2) : unit;
+        ? bestEggCenter(battle,unit,move.splashRange || 1.65,move.skillRange || 3.2)
+        : move.effect === 'ghost-ambush'
+        ? battle.units.some(e=>e.playerId!==unit.playerId && isTargetable(e)&&distance(e,unit)<=(move.skillRange||2)) ? unit : null
+        : unit;
       if (center) {
         unit.energy = 0;
         spell(battle,unit,center);

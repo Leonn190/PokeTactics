@@ -91,5 +91,10 @@
     "greatball": "Great Ball",
     "ultraball": "Ultra Ball",
     "masterball": "Master Ball"
+  },
+  "componentFairness": {
+    "enabled": true,
+    "sharedRoundChance": 0.55,
+    "maxGrantPerRound": 1
   }
 }

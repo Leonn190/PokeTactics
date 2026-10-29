@@ -9,7 +9,7 @@ export interface LootReward { kind: 'gold'|'pokemon'|'component'; amount?: numbe
 export interface LootDrop { id: string; ownerId: string; x: number; y: number; color: LootColor; claimed: boolean; reward: LootReward; pending?: boolean }
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
-export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'dragon' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy';
+export type Element = 'ghost' | 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'dragon' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy';
 export type Rarity = 1 | 2 | 3 | 4 | 5;
 export type StageType = 'battle' | 'gold' | 'quad' | 'bot' | 'double' | 'boss';
 export type StageResult = 'win' | 'loss' | 'second' | 'third' | 'fourth' | null;
@@ -70,6 +70,8 @@ export interface CombatMetrics {
 }
 
 export interface PsychicImbuement { sourceId: string; extraDamage: number; until: number }
+export interface GhostState { phase: 'fade' | 'travel' | 'appear'; time: number; duration: number; fromX: number; fromY: number; toX: number; toY: number; targetId: string; moveId: string; trailClock: number; scare: boolean }
+export interface FearState { fromX: number; fromY: number; toX: number; toY: number; time: number; duration: number }
 export interface DigState { phase: 'sink' | 'travel' | 'rise'; time: number; duration: number; fromX: number; fromY: number; toX: number; toY: number; targetId: string; trailClock: number }
 export interface StormState { x: number; y: number; nextWave: number; waves: number; targetIds: string[]; elapsed: number }
 export interface TimedStatEffect { sourceId: string; stat: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; amount: number; until: number }
@@ -123,6 +125,9 @@ export interface CombatUnit {
   bossMove?: string;
   attackSpeedDebuffUntil: number;
   dig: DigState | null;
+  ghost: GhostState | null;
+  ghostCasts: number;
+  fear: FearState | null;
   storm: StormState | null;
   psychicImbuement: PsychicImbuement | null;
   combo: { targetId: string; hits: number; time: number; interval: number } | null;
@@ -149,7 +154,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare';
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;

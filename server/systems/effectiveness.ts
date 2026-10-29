@@ -3,6 +3,7 @@ import type { Element } from '../types';
 // Matriz ofensiva dos tipos presentes no elenco, baseada nos confrontos dos jogos.
 // Modificador final: metade da distância para 1×, sem imunidades.
 const matchup: Record<Element, { strong: Element[]; resisted: Element[] }> = {
+  ghost: { strong:['ghost','psychic'], resisted:['dark','normal'] },
   dragon: { strong: ['dragon'], resisted: ['steel','fairy'] },
   grass: { strong: ['water'], resisted: ['fire', 'grass', 'poison', 'flying'] },
   poison: { strong: ['grass'], resisted: ['poison'] },

@@ -262,6 +262,7 @@ export class GameEngine {
       this.lootMessage = `Espólio: +${reward.amount} ouro`;
     } else {
       player.itemInventory ||= [];
+      if(player.itemInventory.length>=ITEMS.inventorySlots){drop.pending=true;return false;}
       player.itemInventory.push(makeComponent(this.id(),reward.color || ITEM_COLORS[0]));
       this.lootMessage = `Espólio: componente ${(ITEMS.components[reward.color || ITEM_COLORS[0]]).name}`;
     }
@@ -275,15 +276,73 @@ export class GameEngine {
     return true;
   }
 
-  private spawnLoot(): void {
-    if (!eligibleForLoot(currentStage(this.round).type) || this.rng.next() >= LOOT.chancePerRound) return;
-    const chapter = chapterForRound(this.round);
-    const amount = LOOT.count.min + this.rng.int(LOOT.count.max - LOOT.count.min + 1);
-    for (let i=0;i<amount;i++) {
-      const color=rollColor(()=>this.rng.next(),chapter);
-      this.savedLoot.push({ id:this.id(),ownerId:'p0',x:-2.65 + this.rng.next()*5.3,
-        y:0.8 + this.rng.next()*2.1,color,claimed:false,reward:rollReward(color,()=>this.rng.next()) });
+  /** Count components in both crafted gear and unequipped gear, plus owned but unopened orbs.
+   * An orb already awaiting the human player is an earned allocation, not a new deficit. */
+  private componentCount(player: Player): number {
+    return (player.itemInventory || []).reduce((sum,item)=>sum+item.components.length,0)
+      + player.units.reduce((sum,unit)=>(sum+(unit.equipment || []).reduce((n,item)=>n+item.components.length,0)),0)
+      + this.savedLoot.filter(drop=>!drop.claimed && drop.ownerId===player.id && drop.reward.kind==='component').length;
+  }
+
+  /** The CPUs actually equip their share, instead of receiving invisible artificial stats. */
+  private equipCPU(player: Player): void {
+    if(player.id==='p0') return;
+    const pending=player.itemInventory || [];
+    const targets=[...player.units].sort((a,b)=>{
+      const pa=a.position.area==='board'?1:0,pb=b.position.area==='board'?1:0;
+      return pb-pa || b.stage-a.stage || a.id.localeCompare(b.id);
+    });
+    for(const item of [...pending]){
+      for(const pokemon of targets){
+        const held=pokemon.equipment ||= [];
+        const component=item.kind==='component' ? held.find(i=>i.kind==='component') : undefined;
+        if(component){
+          const combined=craft(this.id(),component,item);
+          if(combined){held[held.indexOf(component)]=combined;pending.splice(pending.indexOf(item),1);break;}
+        }else if(held.length<ITEMS.maxSlots){held.push(item);pending.splice(pending.indexOf(item),1);break;}
+      }
     }
+  }
+
+  /** Grant only lagging players until everyone has the same component allotment.
+   * When tied, one seeded shared drop round advances all 8 players together. */
+  private balanceComponents(): void {
+    if(!LOOT.componentFairness.enabled)return;
+    const active=this.players.filter(player=>!player.eliminated);
+    if(!active.length)return;
+    const counts=active.map(p=>this.componentCount(p));
+    const highest=Math.max(...counts),lowest=Math.min(...counts);
+    if(highest===lowest && this.rng.next()>=LOOT.componentFairness.sharedRoundChance)return;
+    const target=highest===lowest ? highest+1 : highest;
+    for(const player of active){
+      const grants=Math.min(LOOT.componentFairness.maxGrantPerRound,Math.max(0,target-this.componentCount(player)));
+      for(let i=0;i<grants;i++){
+        const color=this.rng.pick(ITEM_COLORS);
+        if(player.id==='p0'){
+          this.savedLoot.push({id:this.id(),ownerId:player.id,
+            x:-2.65+this.rng.next()*5.3,y:.8+this.rng.next()*2.1,
+            color:'blue',claimed:false,reward:{kind:'component',color}});
+        }else{
+          player.itemInventory ||= [];
+          player.itemInventory.push(makeComponent(this.id(),color));
+          this.equipCPU(player);
+        }
+      }
+    }
+  }
+
+  private spawnLoot(): void {
+    if (!eligibleForLoot(currentStage(this.round).type)) return;
+    const chapter = chapterForRound(this.round);
+    if(this.rng.next()<LOOT.chancePerRound){
+      const amount = LOOT.count.min + this.rng.int(LOOT.count.max - LOOT.count.min + 1);
+      for (let i=0;i<amount;i++) {
+        const color=rollColor(()=>this.rng.next(),chapter);
+        this.savedLoot.push({id:this.id(),ownerId:'p0',x:-2.65+this.rng.next()*5.3,
+          y:.8+this.rng.next()*2.1,color,claimed:false,reward:rollReward(color,()=>this.rng.next())});
+      }
+    }
+    this.balanceComponents();
   }
 
   private buy(player: Player, slot: number): string | null {
@@ -397,6 +456,7 @@ export class GameEngine {
       if (!unit || !Number.isInteger(command.slot) || command.slot<0 || command.slot>=(unit.equipment?.length||0)) return 'Equipamento inválido';
       if (this.phase !== 'planning' && unit.position.area==='board') return 'Equipamentos travados durante combate';
       human.itemInventory ||= [];
+      if(human.itemInventory.length>=ITEMS.inventorySlots)return `Mochila cheia (${ITEMS.inventorySlots} itens)`;
       human.itemInventory.push(unit.equipment!.splice(command.slot,1)[0]);
       return null;
     }
@@ -431,6 +491,7 @@ export class GameEngine {
     if (!unit) return 'Pokémon não encontrado';
     if (this.phase !== 'planning' && unit.position.area === 'board') return 'Pokémon em campo não pode ser movido durante o combate';
     if (command.kind === 'sell') {
+      if((human.itemInventory?.length||0)+(unit.equipment?.length||0)>ITEMS.inventorySlots)return `Mochila cheia: libere espaço para recuperar equipamentos`;
       human.gold += SPECIES[unit.family].rarity * (SPECIES[unit.family].eeveeBranch ? 4 : 3 ** unit.stage);
       human.units = human.units.filter(u => u.id !== unit.id);
       human.itemInventory ||= []; human.itemInventory.push(...(unit.equipment || []));
@@ -486,6 +547,7 @@ export class GameEngine {
       u.position = { area: 'board', col: [3, 2, 4, 1, 5, 0, 6][i], row: front ? 0 : Math.min(3, 2 + Math.floor(i / 4)) };
     });
     remaining.slice(0, BENCH_SIZE).forEach((u, index) => { u.position = { area: 'bench', index }; });
+    this.equipCPU(player);
     // AI does not have access to extra bench capacity.
     if (remaining.length > BENCH_SIZE) {
       const extra = new Set(remaining.slice(BENCH_SIZE).map(u => u.id));

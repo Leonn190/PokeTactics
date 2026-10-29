@@ -102,6 +102,12 @@
       "trail": "#605bd4",
       "shape": "orb",
       "arrival": 0.83
+    },
+    "ghost": {
+      "color": "#d5a9ff",
+      "trail": "#8754be",
+      "shape": "orb",
+      "arrival": 0.83
     }
   }
 }

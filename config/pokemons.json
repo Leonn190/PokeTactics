@@ -131,6 +131,11 @@
     "diglett": [
       "./sprites/50.png",
       "./sprites/51.png"
+    ],
+    "gastly": [
+      "portrait/0092/Normal.png",
+      "portrait/0093/Normal.png",
+      "portrait/0094/Normal.png"
     ]
   },
   "species": {
@@ -2441,6 +2446,99 @@
           "energy": 70,
           "move": "electrode-explosion",
           "chargedType": "electric",
+          "chargedAnimation": "Attack"
+        }
+      ]
+    },
+    "gastly": {
+      "names": [
+        "Gastly",
+        "Haunter",
+        "Gengar"
+      ],
+      "pokedexIds": [
+        92,
+        93,
+        94
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#ab83ea",
+      "base": {
+        "hp": 235,
+        "atk": 40,
+        "def": 36,
+        "spa": 77,
+        "spd": 52,
+        "speed": 83
+      },
+      "range": 2,
+      "energy": 65,
+      "attack": "gastly-phantom",
+      "elements": [
+        "ghost",
+        "poison"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Shoot"
+      },
+      "stageBases": [
+        {
+          "hp": 235,
+          "atk": 40,
+          "def": 36,
+          "spa": 77,
+          "spd": 52,
+          "speed": 83
+        },
+        {
+          "hp": 340,
+          "atk": 58,
+          "def": 56,
+          "spa": 109,
+          "spd": 72,
+          "speed": 94
+        },
+        {
+          "hp": 490,
+          "atk": 80,
+          "def": 79,
+          "spa": 152,
+          "spd": 103,
+          "speed": 113
+        }
+      ],
+      "stages": [
+        {
+          "elements": [
+            "ghost",
+            "poison"
+          ],
+          "range": 2,
+          "energy": 65,
+          "move": "gastly-phantom",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "ghost",
+            "poison"
+          ],
+          "range": 1,
+          "energy": 70,
+          "move": "haunter-phantom",
+          "chargedAnimation": "Attack"
+        },
+        {
+          "elements": [
+            "ghost",
+            "poison"
+          ],
+          "range": 1,
+          "energy": 80,
+          "move": "gengar-phantom",
           "chargedAnimation": "Attack"
         }
       ]

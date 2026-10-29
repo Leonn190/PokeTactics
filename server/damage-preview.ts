@@ -26,7 +26,9 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
       special('DANO EXTRA POR BÁSICO', (move.bonusBase || 0) + s*(move.bonusSpaRatio || 0))];
     case 'dragon-storm': return [special('DANO POR ONDA ×3', move.baseDamage + s*move.specialRatio)];
     case 'dragon-cyclone': return [special('DANO CENTRAL', move.baseDamage + s*move.specialRatio), special('DANO ADJACENTE', (move.baseDamage + s*move.specialRatio)*(move.splashMultiplier || .5))];
-    case 'burrow': case 'dragon-breath': return [special('DANO', move.baseDamage + s*move.specialRatio)];
+    case 'ghost-ambush': return stage===2 ? [special('DANO DA ARRANHADA',move.baseDamage+s*move.specialRatio)] : [special(stage===1?'DANO ATÉ 3 ALVOS':'DANO NO ALVO',move.baseDamage+s*move.specialRatio)];
+    case 'burrow': return [special(stage>0?'DANO EM ÁREA':'DANO NO ALVO',move.baseDamage+s*move.specialRatio)];
+    case 'dragon-breath': return [special('DANO', move.baseDamage + s*move.specialRatio)];
     case 'withdraw-guard': case 'shield': return [];
     case 'healing-egg': return [entry('CURA POR ALIADO', (move.healBase || 0) + s*(move.healRatio || 0), 'heal')];
     case 'heal-powder': return [entry('CURA POR ALIADO', stageValue(move.healByStage,stage)+(move.healRatio || 0)*s, 'heal')];

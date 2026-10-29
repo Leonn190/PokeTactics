@@ -187,5 +187,6 @@
       "speedPercent": 0.25
     }
   },
-  "combatIntroSeconds": 1.5
+  "combatIntroSeconds": 1.5,
+  "inventorySlots": 9
 }

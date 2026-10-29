@@ -508,7 +508,8 @@
       "effect": "burrow",
       "baseDamage": 34,
       "specialRatio": 0.85,
-      "attackRatio": 0
+      "attackRatio": 0,
+      "splashRange": 1.5
     },
     "mew-blessing": {
       "name": "Bênção Primordial",
@@ -542,6 +543,34 @@
       "attackRatio": 0,
       "splashRange": 1.45,
       "selfHpCost": 0.2
+    },
+    "gastly-phantom": {
+      "name": "Emboscada Espectral",
+      "effect": "ghost-ambush",
+      "baseDamage": 24,
+      "specialRatio": 0.7,
+      "attackRatio": 0,
+      "skillRange": 2,
+      "splashRange": 0
+    },
+    "haunter-phantom": {
+      "name": "Garras das Sombras",
+      "effect": "ghost-ambush",
+      "baseDamage": 38,
+      "specialRatio": 0.83,
+      "attackRatio": 0,
+      "skillRange": 2,
+      "splashRange": 1.12
+    },
+    "gengar-phantom": {
+      "name": "Garras e Susto",
+      "effect": "ghost-ambush",
+      "baseDamage": 60,
+      "specialRatio": 1.04,
+      "attackRatio": 0,
+      "skillRange": 2,
+      "splashRange": 1.12,
+      "controlDuration": 0.65
     }
   }
 }

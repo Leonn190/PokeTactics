@@ -14,20 +14,20 @@ const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').r
 const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk: 'ATK', def: 'DEF', spa: 'SPA', spd: 'SPD' };
 
 const base = import.meta.env.BASE_URL;
-const typeIcon = (type: Element, size = 18): string => ['ground','rock','steel','dark','fairy','dragon'].includes(type)
+const typeIcon = (type: Element, size = 18): string => ['ground','rock','steel','dark','fairy','dragon','ghost'].includes(type)
   ? `<span class="type-fallback" title="${safe(ELEMENTS[type].name)}" style="width:${size}px;height:${size}px;background:${ELEMENTS[type].color}">${ELEMENTS[type].name.slice(0,2).toUpperCase()}</span>`
   : `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
 function icon(item: EquippedItem): string { return `<span class="gear-icon">${item.components.map(c=>`<i style="background:${ITEMS.components[c].color}"></i>`).join('')}</span>`; }
 function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
   const s = SPECIES[family];
   const id = s.pokedexIds[Math.min(stage, s.pokedexIds.length - 1)];
-  if (id===100 || id===101) return `<span class="voltorb-portrait ${id===101?'electrode':''}" style="width:${size}px;height:${size}px" title="${safe(s.names[Math.min(stage,s.names.length-1)])}"></span>`;
   return `<img class="pokemon-portrait" src="${base}portrait/${String(id).padStart(4, '0')}/Normal.png" width="${size}" height="${size}" alt="${safe(s.names[Math.min(stage, s.names.length - 1)])}" loading="lazy" draggable="false" />`;
 }
 
 export class Hud {
   private lastShop = '';
   private lastLootMessage = '';
+  private inventoryPage = 0;
   private lastTraits = '';
   private lastRank = '';
   private lastCombat = '';
@@ -77,6 +77,8 @@ export class Hud {
     element('rightPanel').classList.toggle('combat-active', this.panel === 'combat');
   }
 
+  changeInventoryPage(direction:number):void{this.inventoryPage=Math.max(0,this.inventoryPage+direction);}
+
   toast(message: string): void {
     const node = element('toast');
     node.textContent = message; node.classList.remove('hidden');
@@ -104,17 +106,22 @@ export class Hud {
       this.lastLootMessage=snapshot.lootMessageId;this.toast(snapshot.lootMessage);
     }
     const inventory = player.itemInventory || [];
-    const itemGroups=new Map<string,{item:EquippedItem;count:number}>();
-    for (const item of inventory) {
-      const key=item.recipe || item.components[0];
-      const group=itemGroups.get(key);
-      if(group) group.count++;else itemGroups.set(key,{item,count:1});
-    }
+    /* The arena's physical 3×3 item slots are authoritative: each icon is one real item. */
+    const pageSize=ITEMS.inventorySlots;
+    const pageCount=Math.max(1,Math.ceil(inventory.length/pageSize));
+    this.inventoryPage=Math.max(0,Math.min(pageCount-1,this.inventoryPage));
+    const visible=inventory.slice(this.inventoryPage*pageSize,(this.inventoryPage+1)*pageSize);
     const equippedLabel=(item:EquippedItem)=>item.recipe ? RECIPES[item.recipe]?.description || 'Item completo' : ITEMS.components[item.components[0]].name;
-    const gearHtml=[...itemGroups.values()].map(({item,count})=>`<button type="button" class="inventory-item ${view.inventoryItemId===item.id?'selected':''}" data-inventory-item="${item.id}" title="${safe(itemTooltip(item))}">${icon(item)}<small>×${count}</small></button>`).join('');
+    const slots=Array.from({length:pageSize},(_,index)=>{
+      const item=visible[index];
+      return item
+        ? `<button type="button" class="inventory-slot inventory-item ${view.inventoryItemId===item.id?'selected':''}" data-inventory-item="${item.id}" title="${safe(itemTooltip(item))}" aria-label="${safe(equippedLabel(item))}">${icon(item)}</button>`
+        : `<span class="inventory-slot empty" aria-hidden="true"><i></i></span>`;
+    }).join('');
     const ballNames=LOOT.ballNames;
     const balls=(Object.keys(ballNames) as BallKind[]).map(ball=>`<button class="inventory-ball ${view.selectedBall===ball?'selected':''}" data-inventory-ball="${ball}" ${(player.consumables?.[ball]||0)?'':'disabled'} title="${safe(ballNames[ball])}: duplique um Pokémon elegível">◉<small>×${player.consumables?.[ball]||0}</small></button>`).join('');
-    this.updateHTML('inventoryContents',`${gearHtml||'<span class="inventory-none">Sem componentes</span>'}<span class="inventory-divider"></span>${balls}`);
+    this.updateHTML('inventoryContents',`<div class="inventory-grid">${slots}</div><div class="inventory-balls" aria-label="Pokébolas">${balls}</div>${pageCount>1?`<div class="inventory-pages"><button data-inventory-page="previous" ${this.inventoryPage===0?'disabled':''} aria-label="Itens anteriores">‹</button><span>${this.inventoryPage+1}/${pageCount}</span><button data-inventory-page="next" ${this.inventoryPage===pageCount-1?'disabled':''} aria-label="Próximos itens">›</button></div>`:''}`);
+    element('inventoryCounter').textContent=`${Math.min(inventory.length,ITEMS.inventorySlots)}/${ITEMS.inventorySlots}`;
     const choosing = (player.pendingEvolution?.length || 0) === 4;
     element('eeveeEvolution').classList.toggle('hidden', !choosing);
     if (choosing) this.updateHTML('eeveeBranches', EEVEE_BRANCHES.map(branch => {

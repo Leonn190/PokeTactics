@@ -32,7 +32,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'burrow' | 'mew-blessing' | 'self-explosion';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -108,6 +108,7 @@ export const LEGENDARY_FAMILIES = (Object.keys(SPECIES) as Family[]).filter(f =>
 export const EEVEE_BRANCHES = ['vaporeon','flareon','jolteon','umbreon','sylveon','leafeon','glaceon','espeon'] as Family[];
 
 export const ELEMENTS: Record<Element, { name: string; color: string; description: string }> = {
+  ghost: { name: 'Fantasma', color: '#b58af8', description: 'Sem bônus de sinergia por enquanto' },
   dragon: { name: 'Dragão', color: '#afa1ff', description: 'Sem bônus de sinergia por enquanto' },
   grass: { name: 'Planta', color: '#81d9a2', description: 'Sem bônus de sinergia por enquanto' },
   poison: { name: 'Venenoso', color: '#c38aff', description: 'Sem bônus de sinergia por enquanto' },

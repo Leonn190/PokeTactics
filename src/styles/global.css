@@ -382,3 +382,61 @@
 .voltorb-portrait:after{content:'';position:absolute;left:24%;top:39%;width:52%;height:13%;border-top:2px solid #20242a;border-bottom:2px solid #20242a}
 .voltorb-portrait.electrode{background:linear-gradient(to bottom,#f7f6e9 0 48%,#303039 48% 54%,#ee4b4a 54%)}
 .voltorb-portrait.electrode:after{border-top:0;border-bottom:3px solid #282936;transform:rotate(180deg);border-radius:50%;top:34%}
+
+/* V17.5 — a 3×3 equipment rack is an actual extension of the arena, not an inventory panel. */
+.item-inventory{position:absolute;left:17px;bottom:clamp(213px,24vh,252px);z-index:21;
+  width:164px;max-height:none;overflow:visible;padding:12px 10px 10px;
+  background:linear-gradient(142deg,#416149 0%,#244839 35%,#19352c 100%);
+  border:3px ridge #90ac77;border-radius:8px;transform:perspective(420px) rotateX(5deg);
+  box-shadow:inset 0 3px 0 #afd29b36,inset 0 -6px 10px #071e18a6,0 7px 0 #0c261b,0 13px 19px #0009}
+.item-inventory:before{content:'';position:absolute;inset:5px;border:1px solid #d2e4ae22;border-radius:4px;pointer-events:none}
+.item-inventory.view-only{opacity:.37;pointer-events:none}
+.item-platform-label{display:flex;justify-content:space-between;align-items:center;padding:0 5px 6px;
+  font:900 10px 'Barlow Condensed';letter-spacing:1.7px;color:#cfe0b5;text-shadow:0 1px #071d17}
+.item-platform-label b{font:700 10px 'Barlow Condensed';letter-spacing:0;color:#d2d4ad}
+.inventory-contents{display:block}
+.inventory-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.inventory-slot{display:flex;align-items:center;justify-content:center;position:relative;
+  width:100%;height:39px;min-width:0;padding:3px;border:1px solid #6c8e79;
+  border-radius:5px;background:linear-gradient(145deg,#09251f,#173c31);box-shadow:inset 1px 2px 4px #000a,0 1px #c1e1bd35}
+.inventory-slot.empty{border-color:#607e6a8c;background:linear-gradient(140deg,#183b31,#122a25)}
+.inventory-slot.empty i{width:17px;height:17px;border:1px dashed #668b72a8;border-radius:3px;transform:rotate(45deg)}
+.inventory-item{cursor:grab;touch-action:none}
+.inventory-item:hover{border-color:#f3d3a2;filter:brightness(1.25)}
+.inventory-item.selected{border-color:#ffdf96;box-shadow:0 0 0 2px #f9d07e8c,0 0 14px #ffd68e69,inset 0 2px 5px #0009}
+.inventory-item:active{cursor:grabbing}
+.inventory-slot .gear-icon{transform:scale(1.34)}
+.inventory-balls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding-top:8px}
+.inventory-ball{width:100%;height:23px;min-width:0;padding:1px;border:1px solid #698e75;border-radius:4px;
+  background:linear-gradient(#49654d,#1e4134);font-size:15px}
+.inventory-ball small{font-size:8px;bottom:-3px}
+.inventory-pages{display:flex;align-items:center;justify-content:center;gap:7px;padding-top:5px;color:#e3dec3;font:700 10px Inter}
+.inventory-pages button{height:20px;min-width:28px;border:1px solid #71917c;background:#294c39;color:#f6df9a;cursor:pointer}
+.inventory-pages button:disabled{opacity:.4;cursor:default}
+.item-drag-ghost{position:fixed;z-index:200;pointer-events:none;transform:translate(-50%,-60%);
+  width:48px;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:#203e35eb;border:2px solid #f3da99;box-shadow:0 4px 22px #000b,0 0 16px #ffe1a37c}
+.item-drag-ghost.hidden{display:none}
+.item-drag-ghost .gear-icon{transform:scale(1.8)}
+.item-drag-ghost.valid-target{border-color:#88ffaa;box-shadow:0 0 18px #73ff9e8c}
+/* Give the five percentage stats and item slots their own real height. Avoid clipping on shorter displays. */
+.unit-inspector{width:336px;bottom:clamp(191px,22vh,233px);top:auto;height:auto;
+  max-height:min(590px,calc(100vh - 270px));overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:#739d87 #152822;padding:13px 17px 15px}
+.inspector-percentages{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:10px 0 9px}
+.inspector-percent{padding:7px 2px;min-height:42px}
+.inspector-percent small{font-size:9px}.inspector-percent b{font-size:16px}
+.inspector-equipment{padding:10px 0;gap:8px}
+.inspector-ability-wrap{margin-top:13px}
+.inspector-ability-tooltip{position:static;display:none;margin-top:8px}
+.inspector-ability-wrap:focus-within .inspector-ability-tooltip,.inspector-ability-wrap:hover .inspector-ability-tooltip{display:block}
+@media(max-width:1200px){.unit-inspector{width:292px;padding:11px 13px}}
+@media(max-width:980px){.item-inventory{left:8px;bottom:212px;width:143px;padding:8px 7px}.inventory-slot{height:34px}
+ .unit-inspector{width:236px;bottom:205px;max-height:calc(100vh - 280px)}.inspector-percentages{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-height:740px){.item-inventory{bottom:191px}.unit-inspector{bottom:188px;max-height:calc(100vh - 215px)}}
+
+/* Preserve the existing compact-height inspector dock without covering the ranking panel. */
+@media(min-width:1201px) and (max-height:980px){
+ .unit-inspector{right:calc(314px + 27px);top:clamp(165px,24vh,290px);bottom:auto;
+   max-height:calc(100vh - 335px);overflow-y:auto}
+}

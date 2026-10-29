@@ -17,7 +17,35 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
       if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();
-      if (fx.kind === 'explosion') {
+      if (fx.kind === 'ghost-trail') {
+        ctx.globalAlpha=.46*(1-t);ctx.shadowColor='#be84ff';ctx.shadowBlur=12;
+        for(let i=0;i<6;i++){
+          const a=i*2.3999+time*1.4, r=(4+i%3*4)+t*14;
+          ctx.fillStyle=i%2?'#dfbaff':'#9266e9';
+          ctx.beginPath();ctx.arc(from.x+Math.cos(a)*r,from.y-10+Math.sin(a)*r,2.3*(1-t)+.3,0,PI2);ctx.fill();
+        }
+      } else if (fx.kind === 'ghost-slash') {
+        const range=Math.max(.6,fx.value)*cellScale;
+        ctx.translate(from.x,from.y-15);ctx.globalAlpha=(1-t)*.92;
+        ctx.shadowColor='#b47bff';ctx.shadowBlur=17;
+        ctx.lineWidth=(4.4-2*t);ctx.lineCap='round';ctx.strokeStyle='#e0c4ff';
+        for(let i=-1;i<=1;i++){
+          const shift=i*8;
+          ctx.beginPath();ctx.moveTo(-range*.7,shift+range*.2);
+          ctx.quadraticCurveTo(-range*.15,shift-range*.37,range*.67,shift-range*.46);ctx.stroke();
+        }
+      } else if (fx.kind === 'ghost-scare') {
+        const r=Math.max(1,fx.value)*cellScale*(.35+.7*t);
+        ctx.globalAlpha=(1-t)*.8;ctx.shadowColor='#d6a4ff';ctx.shadowBlur=24;
+        ctx.fillStyle='#9d65df33';ctx.strokeStyle='#ecd4ff';ctx.lineWidth=3*(1-t)+1;
+        ctx.beginPath();ctx.arc(from.x,from.y-20,r,0,PI2);ctx.fill();ctx.stroke();
+        for(let i=0;i<9;i++){
+          const a=i*PI2/9+time*.3;
+          const x=from.x+Math.cos(a)*r, y=from.y-20+Math.sin(a)*r;
+          ctx.fillStyle=i%2?'#f9e5ff':'#b77cff';
+          ctx.beginPath();ctx.arc(x,y,3.5*(1-t),0,PI2);ctx.fill();
+        }
+      } else if (fx.kind === 'explosion') {
         const radius=Math.max(1,fx.value)*cellScale*t;
         ctx.strokeStyle=`rgba(255,225,100,${1-t})`;
         ctx.fillStyle=`rgba(255,153,55,${(1-t)*.27})`;
