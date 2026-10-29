@@ -3,6 +3,7 @@ import test from 'node:test';
 import { FrameScheduler } from '../src/client/performance/frame-scheduler';
 import { SnapshotClock } from '../src/client/animation/snapshot-clock';
 import { EffectTimeline } from '../src/client/animation/effect-timeline';
+import { UnitInterpolator } from '../src/client/animation/unit-interpolator';
 import type { CombatEffect } from '../server/types';
 
 test('visual frames never control game time; unlimited mode follows requestAnimationFrame', () => {
@@ -41,4 +42,18 @@ test('effect renderer interpolates time without mutating combat rules or rewindi
   assert.equal(timeline.time(fx,0), .30000000000000004);
   timeline.sync('new-round', [fx]);
   assert.equal(timeline.time(fx,0), .2);
+});
+
+test('unit movement stays continuous between irregular snapshots', () => {
+  const animator = new UnitInterpolator();
+  animator.sync('battle', [{id:'p',x:0,y:0}], 1000);
+  animator.sync('battle', [{id:'p',x:1,y:0}], 1100);
+  assert.ok(Math.abs(animator.position('p',1150)!.x - .5) < .001);
+  const before = animator.position('p',1170)!.x;
+  animator.sync('battle', [{id:'p',x:2,y:0}], 1170);
+  assert.ok(Math.abs(animator.position('p',1170)!.x - before) < .001);
+  animator.sync('battle', [{id:'p',x:10,y:0}], 1300);
+  assert.equal(animator.position('p',1300)!.x,10,'large relocation must snap');
+  animator.sync('next', [{id:'q',x:7,y:8}], 1400);
+  assert.equal(animator.position('p',1400),null,'expired unit must be evicted');
 });
