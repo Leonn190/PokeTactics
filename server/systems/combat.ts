@@ -826,10 +826,32 @@ function digTick(battle: Battle, source: CombatUnit, dt: number): void {
       effect(battle,source,source,'earth-trail',source.stage ? .58 : .38);
     }
     if (dig.time>=dig.duration) {
+      // Units may move into the chosen landing spot while the Pokémon is underground.
+      // Recheck occupancy against the authoritative unit positions before surfacing.
+      const occupied = battle.units.some(u => u !== source && u.hp > 0 &&
+        Math.hypot(u.x-source.x,u.y-source.y) < .62);
+      if (occupied) {
+        const desired = battle.units.find(u => u.id === dig.targetId && isTargetable(u)) ||
+          battle.units.filter(u => u.playerId !== source.playerId && isTargetable(u))
+            .sort((a,b) => distance(source,a)-distance(source,b) || a.id.localeCompare(b.id))[0];
+        const free = desired && digDestination(battle, source, desired);
+        // The subterranean position, not the sprite, is moved to the safe resting location.
+        if (free) { source.x=free.x; source.y=free.y; }
+        else { source.x=dig.fromX; source.y=dig.fromY; }
+      }
       dig.phase='rise';dig.time=0;dig.duration=.27;
       effect(battle,source,source,'earth-burst',source.stage ? .85 : .55);
     }
   } else if (dig.phase === 'rise' && dig.time>=dig.duration) {
+    // Last-moment collision protection: a target can move during the rise itself.
+    if (battle.units.some(u => u !== source && u.hp > 0 && Math.hypot(u.x-source.x,u.y-source.y)<.62)) {
+      const intended = battle.units.find(u => u.id===dig.targetId && isTargetable(u)) ||
+        battle.units.filter(u => u.playerId !== source.playerId && isTargetable(u))
+          .sort((a,b)=>distance(source,a)-distance(source,b)||a.id.localeCompare(b.id))[0];
+      const free = intended && digDestination(battle,source,intended);
+      if (free) { source.x=free.x; source.y=free.y; }
+      else { source.x=dig.fromX; source.y=dig.fromY; }
+    }
     source.dig=null;source.moving=false;
     const victim=battle.units.find(u=>u.id===dig.targetId && isTargetable(u))
       || battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u)).sort((a,b)=>distance(source,a)-distance(source,b)||a.id.localeCompare(b.id))[0];

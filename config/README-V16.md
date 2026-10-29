@@ -1,3 +1,7 @@
+# Nota de revisão: V16 IR
+
+Este documento descreve a V16 original. Para integrar e publicar a revisão que corrige o bloqueio no GitHub Actions, **leia primeiro `README-V16-IR.md` na raiz do ZIP.**
+
 # PokéTactics v16 — implementação
 
 ## Instalação

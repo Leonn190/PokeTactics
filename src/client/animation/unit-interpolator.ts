@@ -1,6 +1,6 @@
 /** Smooth per-unit interpolation between immutable, authoritative snapshots. */
 type Position = { x: number; y: number };
-type MovingUnit = Position & { id: string };
+type MovingUnit = Position & { id: string; dig?: { phase: string } | null };
 type Track = { from: Position; to: Position; receivedAt: number; duration: number };
 const clamp = (min: number, max: number, n: number) => Math.max(min, Math.min(max, n));
 
@@ -20,7 +20,7 @@ export class UnitInterpolator {
       const previous = this.tracks.get(unit.id);
       const current = previous ? this.position(unit.id, now)! : { x: unit.x, y: unit.y };
       // Large relocation / first sight should not tween across the entire battlefield.
-      const jump = Math.hypot(unit.x - current.x, unit.y - current.y) > 3;
+      const jump = !unit.dig && Math.hypot(unit.x - current.x, unit.y - current.y) > 3;
       const target = { x: unit.x, y: unit.y };
       this.tracks.set(unit.id, { from: jump ? target : current, to: target, receivedAt: now,
         duration: jump || !previous ? 0 : duration });
