@@ -21,3 +21,28 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run build
+      - name: Gerar ZIP somente com arquivos alterados
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --depth=1 origin "$BASE_SHA"
+          python - <<'PY'
+          import os, subprocess, zipfile
+          base = os.environ['BASE_SHA']
+          names = subprocess.check_output(
+              ['git', 'diff', '--name-only', '--diff-filter=ACMR', base, 'HEAD'],
+              text=True
+          ).splitlines()
+          with zipfile.ZipFile('PokeTactics-Refatoracao-FPS.zip', 'w', zipfile.ZIP_DEFLATED) as output:
+              for name in names:
+                  if os.path.isfile(name):
+                      output.write(name)
+          print('Arquivos adicionados ao ZIP:', len(names))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request'
+        with:
+          name: PokeTactics-Refatoracao-FPS
+          path: PokeTactics-Refatoracao-FPS.zip
+          if-no-files-found: error
