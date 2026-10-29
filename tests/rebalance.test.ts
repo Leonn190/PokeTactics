@@ -40,7 +40,7 @@ test('HP real, poder HP/5, IV/evolução e HP PvE migrado uma única vez', () =>
     const second = SPECIES[family].stageBases?.[1];
     assert.equal(calculateStats(family, 1, iv, 1).hp, second?.hp ?? stats.hp);
   }
-  assert.equal(SHOP_FAMILIES.length, 15);
+  assert.equal(SHOP_FAMILIES.length, 18);
   assert.equal(LEGENDARY_FAMILIES.length, 11);
   assert.ok(LEGENDARY_FAMILIES.every(f => SPECIES[f].base.hp >= 400));
   assert.equal(SPECIES.snorlax.base.hp, 610);
