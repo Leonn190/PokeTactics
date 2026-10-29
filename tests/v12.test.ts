@@ -9,11 +9,11 @@ const iv: Stats = { hp:50, atk:50, def:50, spa:50, spd:50, speed:50 };
 const unit = (family:Family,id:string,stage:number,level:number,position:Pokemon['position']): Pokemon =>
   ({ id, family, stage, level, xp:level-1, iv:{...iv}, position });
 
-test('v12: bônus base por nível de 2%, sem mudar vida ou IV base', () => {
+test('v12: bônus base linear de 1% por nível, sem mudar vida ou IV base', () => {
   const base = SPECIES.charmander.base;
   assert.equal(calculateStats('charmander',1,iv,0).hp,base.hp);
-  assert.equal(calculateStats('charmander',6,iv,0).hp,Math.round(base.hp*1.1));
-  assert.equal(calculateStats('charmander',11,iv,0).atk,Math.round(base.atk*1.2));
+  assert.equal(calculateStats('charmander',6,iv,0).hp,Math.round(base.hp*1.05));
+  assert.equal(calculateStats('charmander',11,iv,0).atk,Math.round(base.atk*1.1));
 });
 
 test('v12: Vulpix é incomum e custa dois de ouro', () => {
@@ -36,7 +36,7 @@ test('v12: Venusaur final absorve clone ao soltar um sobre o outro (+5 permanent
   assert.equal(p.units[0].level,18);
   assert.equal(p.units[0].xp,17);
   assert.deepEqual(p.units[0].position,{area:'board',col:2,row:1});
-  const visual = game.snapshot().visualEvents.find(e=>e.unitId==='higher'&&e.kind==='evolve');
+  const visual = game.snapshot().visualEvents.find(e=>e.unitId==='higher'&&e.kind==='fusion');
   assert.equal(visual?.sources?.length,2);
   (game as any).round=2;
   (game as any).battles=[];
