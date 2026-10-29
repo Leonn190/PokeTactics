@@ -49,9 +49,8 @@ function launchMatch(): void {
   currentWorker.addEventListener('message', (event: MessageEvent<ServerToClient>) => {
     if (worker !== currentWorker) return;
     if (event.data.type === 'rejected') return hud.toast(event.data.reason);
+    if (!arena.acceptSnapshot(event.data.snapshot)) return;
     state = event.data.snapshot;
-    arena.snapshot = state;
-    arena.snapshotReceivedAt = performance.now();
     if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
       && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
     const now = performance.now();

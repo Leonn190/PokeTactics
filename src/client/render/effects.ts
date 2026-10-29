@@ -1,81 +1,18 @@
 /** VFX for charged moves. Basic projectile visuals are shared across species by elemental type. */
 import { SPECIES } from '../../../server/data';
 import type { CombatEffect } from '../../../server/types';
-import { paintBasicProjectile } from './projectiles';
+import { renderTravelEffects } from '../vfx/travel-effects';
+import { renderImpactEffects } from '../vfx/impact-effects';
 const PI2 = Math.PI * 2;
 
-export function renderCombatEffects(context: CanvasRenderingContext2D, effects: CombatEffect[], flipY: boolean, toScreen: (x:number,y:number)=>{x:number;y:number}, cellScale: number, time: number): void {
+export function renderCombatEffects(context: CanvasRenderingContext2D, effects: CombatEffect[], flipY: boolean, toScreen: (x:number,y:number)=>{x:number;y:number}, cellScale: number, time: number, resolveTime?: (effect: CombatEffect) => number): void {
     const ctx = context;
     for (const fx of effects) {
-      const t = Math.max(0, Math.min(1, fx.time / fx.duration));
+      const t = Math.max(0, Math.min(1, (resolveTime ? resolveTime(fx) : fx.time) / fx.duration));
       const from = toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
-      if (fx.kind === 'basic-projectile') {
-        paintBasicProjectile(ctx, fx.basicType || 'normal', from, to, t, cellScale);
-        continue;
-      }
-      if (fx.kind === 'piercing-flame') {
-        const x = from.x + (to.x - from.x) * t;
-        const y = from.y + (to.y - from.y) * t - cellScale * .23;
-        const dx = to.x - from.x, dy = to.y - from.y;
-        const length = Math.hypot(dx, dy) || 1;
-        ctx.save();
-        ctx.shadowBlur = 17; ctx.shadowColor = '#ff5516';
-        for (let i = 3; i >= 0; i--) {
-          const behind = i * (cellScale * .095);
-          const px = x - dx / length * behind, py = y - dy / length * behind;
-          const radius = 5.5 + (3-i) * 1.35;
-          ctx.globalAlpha = (4-i)/4 * .88;
-          ctx.fillStyle = i % 2 ? '#ff8e31' : '#fff0a1';
-          ctx.beginPath(); ctx.arc(px, py, radius, 0, PI2); ctx.fill();
-        }
-        ctx.restore();
-        continue;
-      }
-      if (fx.kind === 'trainer-hit') {
-        const flight = Math.min(1, t / .78);
-        // Projétil guiado; descreve um arco que converge para o avatar.
-        const ease = flight * flight * (3 - 2 * flight);
-        const x = from.x + (to.x - from.x) * ease + Math.sin(flight * Math.PI) * 9;
-        const y = from.y + (to.y - from.y) * ease - Math.sin(flight * Math.PI) * 55 - 23;
-        ctx.save(); ctx.shadowColor = SPECIES[fx.family].glow; ctx.shadowBlur = 22;
-        ctx.fillStyle = '#fffce6'; ctx.strokeStyle = SPECIES[fx.family].glow; ctx.lineWidth = 3;
-        ctx.globalAlpha = flight < 1 ? 1 : Math.max(0, 1 - (t - .78) / .22);
-        ctx.beginPath(); ctx.arc(x, y, flight < 1 ? 7 : 10 + (t - .78) * 75, 0, PI2); ctx.fill(); ctx.stroke();
-        ctx.restore(); continue;
-      }
-      if (fx.kind === 'damage') {
-        // Flutua apenas sobre o Pokémon atingido. O projétil é desenhado separadamente.
-        const p = to;
-        const amount = Math.max(1, Math.round(fx.value));
-        const size = Math.min(35, 13 + Math.sqrt(amount) * 1.8);
-        const color = fx.damageType === 'physical' ? '#ffd1a0' : fx.damageType === 'special' ? '#97d0ff' : '#eab1ff';
-        ctx.save(); ctx.globalAlpha = Math.min(1, (1 - t) * 1.55);
-        ctx.font = `900 ${size}px 'Barlow Condensed',sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 3.5; ctx.strokeStyle = '#122027';
-        const posY = p.y - cellScale * .4 - 24 - t * 54;
-        ctx.strokeText(String(amount), p.x, posY); ctx.fillStyle = color; ctx.fillText(String(amount), p.x, posY);
-        ctx.restore(); continue;
-      }
-      if (fx.kind === 'ball' || fx.kind === 'bone' || fx.kind === 'egg') {
-        const arrival = fx.kind === 'bone' ? .78 : .83;
-        const fly = Math.min(1,t/arrival);
-        const x = from.x+(to.x-from.x)*fly, y = from.y+(to.y-from.y)*fly - 25*Math.sin(fly*Math.PI)-12;
-        const color = fx.kind === 'egg' ? '#e8ffe6' : fx.kind === 'bone' ? '#edd9af' : SPECIES[fx.family].glow;
-        ctx.save();ctx.globalAlpha = fly < 1 ? 1 : Math.max(0,1-(t-arrival)/(1-arrival));
-        ctx.shadowColor=color;ctx.shadowBlur=13;ctx.fillStyle=color;ctx.strokeStyle='#fffbdc';ctx.lineWidth=2;
-        if (fx.kind === 'bone') {
-          ctx.translate(x,y);ctx.rotate(fly*14);ctx.fillRect(-12,-3,24,6);
-          for(const dx of [-12,12]) for(const dy of [-4,4]) { ctx.beginPath();ctx.arc(dx,dy,4,0,PI2);ctx.fill(); }
-        } else if (fx.kind === 'egg') {
-          ctx.beginPath();ctx.ellipse(x,y,8,11,fly*2,0,PI2);ctx.fill();ctx.stroke();
-        } else { ctx.beginPath();ctx.arc(x,y,10,0,PI2);ctx.fill();ctx.stroke(); }
-        ctx.restore();continue;
-      }
-      if (fx.kind === 'impact') {
-        ctx.save();ctx.globalAlpha=(1-t)*.75;ctx.strokeStyle=SPECIES[fx.family].glow;ctx.lineWidth=3;
-        ctx.beginPath();ctx.ellipse(to.x,to.y-9,(fx.value || 1.65)*cellScale*(.4+t*.6),
-          (fx.value || 1.65)*cellScale*(.18+t*.3),0,0,PI2);ctx.stroke();ctx.restore();continue;
-      }
+      if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
+      if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();
       if (fx.kind === 'pollen') {
         // O Morteiro de Pólen leva 0,3 s desde o lançamento até o dano no motor.

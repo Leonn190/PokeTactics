@@ -7,7 +7,7 @@
   "hudRefreshMs": 190,
   "snapshotIntervalMs": 85,
   "simulationTickMs": 50,
-  "maxFrameRate": 60,
+  "maxFrameRate": 0,
   "idleSpritePreload": [
     "Idle",
     "Sleep",

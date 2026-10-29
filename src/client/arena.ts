@@ -1,4 +1,10 @@
-import { getStageData, gridXY, SPECIES, RENDER_SETTINGS } from '../../server/data';
+import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, RULES } from '../../server/data';
+import { FrameScheduler } from './performance/frame-scheduler';
+import { PerformanceProfiler } from './performance/profiler';
+import { SnapshotClock } from './animation/snapshot-clock';
+import { EffectTimeline } from './animation/effect-timeline';
+import { SpriteManager } from './animation/sprite-manager';
+import { UnitInterpolator } from './animation/unit-interpolator';
 import { renderCombatEffects } from './render/effects';
 import { SpriteBoundsCache } from './render/sprite-bounds';
 import { drawContactShadow } from './render/shadows';
@@ -36,24 +42,38 @@ export class Arena {
   private zoom = 1;
   private cameraOffset = { x: 0, y: 0 };
   private trainer = { x: -4.75, y: 3.57 };
-  private visualPositions = new Map<string, { x: number; y: number }>();
-  private spriteCache = new Map<string, HTMLImageElement>();
+  private unitInterpolator = new UnitInterpolator();
+  private rafHandle: number | null = null;
+  private spriteManager = new SpriteManager();
+  private frameScheduler = new FrameScheduler(RENDER_SETTINGS.maxFrameRate);
+  private visualClock = new SnapshotClock();
+  private effectTimeline = new EffectTimeline();
+  private profiler = new PerformanceProfiler();
+  private renderLead = 0;
   private spriteBounds = new SpriteBoundsCache();
   private warmedSpecies = new Set<number>();
   private animationTicks = new WeakMap<PmdSheet, number>();
   private grassCanvas: HTMLCanvasElement | null = null;
   private grassKey = '';
-  private lastBattleId = '';
   private lastFrame = 0;
-  private frameDelta = 1 / 60;
   private frame = 0;
   private active = false;
   private renderScale = Math.min(window.devicePixelRatio || 1, RENDER_SETTINGS.maxPixelRatio);
   private frameCost = 0;
   private frameIntervals = 0;
   private sampleCount = 0;
-  snapshotReceivedAt = performance.now();
   snapshot: GameSnapshot | null = null;
+
+  /** Reject stale messages; the render clock is independent of Worker message cadence. */
+  acceptSnapshot(snapshot: GameSnapshot, arrivedAt = performance.now()): boolean {
+    if (!this.visualClock.accept(snapshot.serial, arrivedAt)) return false;
+    this.snapshot = snapshot;
+    this.effectTimeline.sync(snapshot.visibleBattle?.id || '', snapshot.visibleBattle?.effects || []);
+    if (snapshot.visibleBattle) this.unitInterpolator.sync(snapshot.visibleBattle.id, snapshot.visibleBattle.units, arrivedAt);
+    else this.unitInterpolator.reset();
+    this.profiler.snapshot();
+    return true;
+  }
   view: ClientView;
 
   constructor(private canvas: HTMLCanvasElement, view: ClientView) {
@@ -61,12 +81,34 @@ export class Arena {
     this.view = view;
     window.addEventListener('resize', () => this.resize());
     this.resize();
-    requestAnimationFrame(time => this.draw(time));
+    document.addEventListener('visibilitychange', () => {
+      this.frameScheduler.reset();
+      this.lastFrame = 0;
+      if (document.hidden && this.rafHandle !== null) {
+        cancelAnimationFrame(this.rafHandle);
+        this.rafHandle = null;
+      } else if (!document.hidden) this.scheduleFrame();
+    });
   }
 
   setActive(active: boolean): void {
     this.active = active;
     this.lastFrame = 0;
+    this.frameScheduler.reset();
+    this.visualClock.reset();
+    this.effectTimeline.reset();
+    this.unitInterpolator.reset();
+    if (active) this.scheduleFrame();
+    else if (this.rafHandle !== null) { cancelAnimationFrame(this.rafHandle); this.rafHandle = null; }
+  }
+
+  private scheduleFrame(): void {
+    if (this.rafHandle !== null || !this.active || document.hidden) return;
+    this.rafHandle = requestAnimationFrame(time => {
+      this.rafHandle = null;
+      this.draw(time);
+      this.scheduleFrame();
+    });
   }
 
   private resize(): void {
@@ -169,11 +211,7 @@ export class Arena {
   }
 
   private image(url: string): HTMLImageElement {
-    let sprite = this.spriteCache.get(url);
-    if (!sprite) {
-      sprite = new Image(); sprite.decoding = 'async'; sprite.src = url; this.spriteCache.set(url, sprite);
-    }
-    return sprite;
+    return this.spriteManager.get(url);
   }
 
   private warmAnimationSheets(dex: number, anims: PmdEntry): void {
@@ -220,7 +258,7 @@ export class Arena {
           this.animationTicks.set(animation, totalTicks);
         }
         const active = unit.animation && !unit.bench && this.snapshot?.phase !== 'planning' && selectedAction === unit.animation.name;
-        const extrapolation = Math.max(0, Math.min(.11, (performance.now() - this.snapshotReceivedAt) / 1000));
+        const extrapolation = this.renderLead;
         const elapsedTicks = active && selectedAction !== 'Withdraw'
           ? Math.min(totalTicks - .001, ((unit.animation!.elapsed + extrapolation) / unit.animation!.duration) * totalTicks)
           : (time * 60 + ((unit.id.charCodeAt(unit.id.length - 1) || 0) % 13) * 2) % totalTicks;
@@ -384,17 +422,11 @@ export class Arena {
     const enemyBenchUnits = foePlayer ? foePlayer.units.filter(u => u.position.area === 'bench') : foeId ? snapshot.visibleBattle?.benches[foeId] || [] : [];
     const foeBench = benchUnits(enemyBenchUnits, foeId || '', false, true, 0);
     if (snapshot.phase !== 'planning' && snapshot.visibleBattle && snapshot.observedId === this.view.scoutId) {
-      if (this.lastBattleId !== snapshot.visibleBattle.id) {
-        this.visualPositions.clear(); this.lastBattleId = snapshot.visibleBattle.id;
-      }
       const observedOnTop = snapshot.visibleBattle.participants.length === 2 && snapshot.visibleBattle.playerB === this.view.scoutId;
+      const poseTime = performance.now();
       const battleMarkers = snapshot.visibleBattle.units.filter(u => u.hp > 0).map(u => {
-        const smooth = this.visualPositions.get(u.id) || { x: u.x, y: u.y };
-        const follow = 1 - Math.exp(-(u.charge ? 70 : 19) * this.frameDelta);
-        smooth.x += (u.x - smooth.x) * follow;
-        smooth.y += (u.y - smooth.y) * follow;
-        this.visualPositions.set(u.id, smooth);
-        return { ...u, ownerId: u.playerId, x: smooth.x, y: observedOnTop ? -smooth.y : smooth.y,
+        const pose = this.unitInterpolator.position(u.id, poseTime) || u;
+        return { ...u, ownerId: u.playerId, x: pose.x, y: observedOnTop ? -pose.y : pose.y,
           own: u.playerId === this.view.scoutId, required: u.energyNeeded };
       });
       if (this.quadActive) {
@@ -650,16 +682,15 @@ export class Arena {
   }
 
   private draw(timestamp: number): void {
-    // Do not render an entirely obscured canvas or a background tab.
-    requestAnimationFrame(time => this.draw(time));
-    if (!this.active || document.hidden) { this.lastFrame = 0; return; }
-    if (this.lastFrame && timestamp - this.lastFrame < 1000 / RENDER_SETTINGS.maxFrameRate - 1) return;
+    // The scheduler only schedules frames while a visible game is active.
+    if (!this.active || document.hidden) { this.lastFrame = 0; this.frameScheduler.reset(); return; }
+    const dt = this.frameScheduler.nextFrame(timestamp);
+    if (dt === null) return;
     const frameStarted = performance.now();
     const lastInterval = this.lastFrame ? timestamp - this.lastFrame : 1000 / 60;
+    this.renderLead = this.visualClock.leadSeconds(timestamp, this.snapshot?.accelerated ? RULES.combatAcceleration : 1);
     const ctx = this.context;
-    const dt = Math.min(.05, (timestamp - this.lastFrame) / 1000 || 1 / 60);
     this.lastFrame = timestamp;
-    this.frameDelta = dt;
     this.frame += dt;
     ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     this.background();
@@ -695,19 +726,22 @@ export class Arena {
     if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
       renderCombatEffects(this.context, this.snapshot.visibleBattle.effects,
         this.snapshot.visibleBattle.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId,
-        (x, y) => this.toScreen(x, y), this.cellScale, this.frame);
+        (x, y) => this.toScreen(x, y), this.cellScale, this.frame,
+        fx => this.effectTimeline.time(fx, this.renderLead));
     }
     if (battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(dt, this.frame, battle);
     else this.drawTrainers(dt, this.frame);
     // Adaptive backing resolution: changes only after sustained heavy frames.
     // Canvas UI dimensions, Pokémon positions and art assets remain unchanged.
-    this.frameCost += performance.now() - frameStarted;
+    const renderMs = performance.now() - frameStarted;
+    this.profiler.frame(timestamp, renderMs, markers.length, battle?.effects.length || 0, this.renderScale);
+    this.frameCost += renderMs;
     this.frameIntervals += lastInterval;
     if (++this.sampleCount >= RENDER_SETTINGS.qualityCheckFrames) {
       const average = this.frameCost / this.sampleCount;
       const avgInterval = this.frameIntervals / this.sampleCount;
       const deviceMax = Math.min(window.devicePixelRatio || 1, RENDER_SETTINGS.maxPixelRatio);
-      if ((average > RENDER_SETTINGS.slowFrameMs || avgInterval > RENDER_SETTINGS.slowFrameMs) && this.renderScale > RENDER_SETTINGS.minPixelRatio) {
+      if (average > RENDER_SETTINGS.slowFrameMs && this.renderScale > RENDER_SETTINGS.minPixelRatio) {
         this.renderScale = Math.max(RENDER_SETTINGS.minPixelRatio, this.renderScale - .15);
         this.resize();
       } else if (average < RENDER_SETTINGS.fastFrameMs && avgInterval < 19 && this.renderScale < deviceMax) {
