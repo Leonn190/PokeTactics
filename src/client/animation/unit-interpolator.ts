@@ -18,11 +18,12 @@ export class UnitInterpolator {
     for (const unit of units) {
       ids.add(unit.id);
       const previous = this.tracks.get(unit.id);
-      const current = this.position(unit.id, now) || unit;
+      const current = previous ? this.position(unit.id, now)! : { x: unit.x, y: unit.y };
       // Large relocation / first sight should not tween across the entire battlefield.
       const jump = Math.hypot(unit.x - current.x, unit.y - current.y) > 3;
-      this.tracks.set(unit.id, { from: jump ? unit : current, to: unit, receivedAt: now, duration: jump ? 0 : duration });
-      if (!previous) this.tracks.set(unit.id, { from: unit, to: unit, receivedAt: now, duration: 0 });
+      const target = { x: unit.x, y: unit.y };
+      this.tracks.set(unit.id, { from: jump ? target : current, to: target, receivedAt: now,
+        duration: jump || !previous ? 0 : duration });
     }
     for (const id of this.tracks.keys()) if (!ids.has(id)) this.tracks.delete(id);
   }
