@@ -1,4 +1,9 @@
-import { getStageData, gridXY, SPECIES, RENDER_SETTINGS } from '../../server/data';
+import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, RULES } from '../../server/data';
+import { FrameScheduler } from './performance/frame-scheduler';
+import { PerformanceProfiler } from './performance/profiler';
+import { SnapshotClock } from './animation/snapshot-clock';
+import { EffectTimeline } from './animation/effect-timeline';
+import { SpriteManager } from './animation/sprite-manager';
 import { renderCombatEffects } from './render/effects';
 import { SpriteBoundsCache } from './render/sprite-bounds';
 import { drawContactShadow } from './render/shadows';
@@ -37,7 +42,12 @@ export class Arena {
   private cameraOffset = { x: 0, y: 0 };
   private trainer = { x: -4.75, y: 3.57 };
   private visualPositions = new Map<string, { x: number; y: number }>();
-  private spriteCache = new Map<string, HTMLImageElement>();
+  private spriteManager = new SpriteManager();
+  private frameScheduler = new FrameScheduler(RENDER_SETTINGS.maxFrameRate);
+  private visualClock = new SnapshotClock();
+  private effectTimeline = new EffectTimeline();
+  private profiler = new PerformanceProfiler();
+  private renderLead = 0;
   private spriteBounds = new SpriteBoundsCache();
   private warmedSpecies = new Set<number>();
   private animationTicks = new WeakMap<PmdSheet, number>();
@@ -52,8 +62,16 @@ export class Arena {
   private frameCost = 0;
   private frameIntervals = 0;
   private sampleCount = 0;
-  snapshotReceivedAt = performance.now();
   snapshot: GameSnapshot | null = null;
+
+  /** Reject stale messages; the render clock is independent of Worker message cadence. */
+  acceptSnapshot(snapshot: GameSnapshot, arrivedAt = performance.now()): boolean {
+    if (!this.visualClock.accept(snapshot.serial, arrivedAt)) return false;
+    this.snapshot = snapshot;
+    this.effectTimeline.sync(snapshot.visibleBattle?.id || '', snapshot.visibleBattle?.effects || []);
+    this.profiler.snapshot();
+    return true;
+  }
   view: ClientView;
 
   constructor(private canvas: HTMLCanvasElement, view: ClientView) {
@@ -67,6 +85,11 @@ export class Arena {
   setActive(active: boolean): void {
     this.active = active;
     this.lastFrame = 0;
+    this.frameScheduler.reset();
+    this.visualClock.reset();
+    this.effectTimeline.reset();
+    this.visualPositions.clear();
+    this.lastBattleId = '';
   }
 
   private resize(): void {
@@ -169,11 +192,7 @@ export class Arena {
   }
 
   private image(url: string): HTMLImageElement {
-    let sprite = this.spriteCache.get(url);
-    if (!sprite) {
-      sprite = new Image(); sprite.decoding = 'async'; sprite.src = url; this.spriteCache.set(url, sprite);
-    }
-    return sprite;
+    return this.spriteManager.get(url);
   }
 
   private warmAnimationSheets(dex: number, anims: PmdEntry): void {
@@ -220,7 +239,7 @@ export class Arena {
           this.animationTicks.set(animation, totalTicks);
         }
         const active = unit.animation && !unit.bench && this.snapshot?.phase !== 'planning' && selectedAction === unit.animation.name;
-        const extrapolation = Math.max(0, Math.min(.11, (performance.now() - this.snapshotReceivedAt) / 1000));
+        const extrapolation = this.renderLead;
         const elapsedTicks = active && selectedAction !== 'Withdraw'
           ? Math.min(totalTicks - .001, ((unit.animation!.elapsed + extrapolation) / unit.animation!.duration) * totalTicks)
           : (time * 60 + ((unit.id.charCodeAt(unit.id.length - 1) || 0) % 13) * 2) % totalTicks;
@@ -652,12 +671,13 @@ export class Arena {
   private draw(timestamp: number): void {
     // Do not render an entirely obscured canvas or a background tab.
     requestAnimationFrame(time => this.draw(time));
-    if (!this.active || document.hidden) { this.lastFrame = 0; return; }
-    if (this.lastFrame && timestamp - this.lastFrame < 1000 / RENDER_SETTINGS.maxFrameRate - 1) return;
+    if (!this.active || document.hidden) { this.lastFrame = 0; this.frameScheduler.reset(); return; }
+    const dt = this.frameScheduler.nextFrame(timestamp);
+    if (dt === null) return;
     const frameStarted = performance.now();
     const lastInterval = this.lastFrame ? timestamp - this.lastFrame : 1000 / 60;
+    this.renderLead = this.visualClock.leadSeconds(timestamp, this.snapshot?.accelerated ? RULES.combatAcceleration : 1);
     const ctx = this.context;
-    const dt = Math.min(.05, (timestamp - this.lastFrame) / 1000 || 1 / 60);
     this.lastFrame = timestamp;
     this.frameDelta = dt;
     this.frame += dt;
@@ -695,19 +715,22 @@ export class Arena {
     if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
       renderCombatEffects(this.context, this.snapshot.visibleBattle.effects,
         this.snapshot.visibleBattle.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId,
-        (x, y) => this.toScreen(x, y), this.cellScale, this.frame);
+        (x, y) => this.toScreen(x, y), this.cellScale, this.frame,
+        fx => this.effectTimeline.time(fx, this.renderLead));
     }
     if (battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(dt, this.frame, battle);
     else this.drawTrainers(dt, this.frame);
     // Adaptive backing resolution: changes only after sustained heavy frames.
     // Canvas UI dimensions, Pokémon positions and art assets remain unchanged.
-    this.frameCost += performance.now() - frameStarted;
+    const renderMs = performance.now() - frameStarted;
+    this.profiler.frame(timestamp, renderMs, markers.length, battle?.effects.length || 0, this.renderScale);
+    this.frameCost += renderMs;
     this.frameIntervals += lastInterval;
     if (++this.sampleCount >= RENDER_SETTINGS.qualityCheckFrames) {
       const average = this.frameCost / this.sampleCount;
       const avgInterval = this.frameIntervals / this.sampleCount;
       const deviceMax = Math.min(window.devicePixelRatio || 1, RENDER_SETTINGS.maxPixelRatio);
-      if ((average > RENDER_SETTINGS.slowFrameMs || avgInterval > RENDER_SETTINGS.slowFrameMs) && this.renderScale > RENDER_SETTINGS.minPixelRatio) {
+      if (average > RENDER_SETTINGS.slowFrameMs && this.renderScale > RENDER_SETTINGS.minPixelRatio) {
         this.renderScale = Math.max(RENDER_SETTINGS.minPixelRatio, this.renderScale - .15);
         this.resize();
       } else if (average < RENDER_SETTINGS.fastFrameMs && avgInterval < 19 && this.renderScale < deviceMax) {
