@@ -28,9 +28,9 @@ function scene(caster: Family, allies: Family[] = [], enemies: Family[] = ['snor
 }
 const stopped = (units: CombatUnit[]) => units.forEach(u=>u.attackClock=1000);
 
-test('49 fichas herdadas da v11.2, mais cinco novas formas', () => {
-  assert.equal(Object.values(SPECIES).reduce((n,s)=>n+s.names.length,0),54);
-  assert.equal(SHOP_FAMILIES.length,15);
+test('49 fichas herdadas da v11.2, mais dez novas formas nas versões seguintes', () => {
+  assert.equal(Object.values(SPECIES).reduce((n,s)=>n+s.names.length,0),59);
+  assert.equal(SHOP_FAMILIES.length,18);
   assert.equal(LEGENDARY_FAMILIES.length,11);
   for (const [id, form] of Object.entries(spec.pokemon)) {
     const family = form.family as Family;

@@ -20,13 +20,14 @@ test('IV 0 / 50 / 100 e +1% linear por nível após o nível 1, inclusive chefes
   assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 3.49));
 });
 
-test('as quatro configurações são reais, chefes são Gen 1/2 e lendários ficam fora da loja', () => {
+test('as quatro configurações são reais, chefes são Gen 1/2 e apenas Mew é lendário comprável', () => {
   assert.equal(PHASES.stagesPerChapter, 10);
   assert.deepEqual(PHASES.stages.map(s => s.type), ['battle','gold','battle','quad','bot','battle','gold','battle','double','boss']);
   assert.equal(LEGENDARY_FAMILIES.length, 11);
-  assert.equal(SHOP_FAMILIES.length, 15);
-  assert.deepEqual(SHOP_FAMILIES.map(f => SPECIES[f].rarity).sort(), [1,1,2,2,2,2,2,2,2,2,3,3,4,4,4]);
-  assert.ok(LEGENDARY_FAMILIES.every(f => !SPECIES[f].shop && SPECIES[f].sprites[0].includes('.png')));
+  assert.equal(SHOP_FAMILIES.length, 18);
+  assert.deepEqual(SHOP_FAMILIES.map(f => SPECIES[f].rarity).sort((a,b) => a-b), [1,1,1,2,2,2,2,2,2,2,2,3,3,3,4,4,4,5]);
+  assert.deepEqual(LEGENDARY_FAMILIES.filter(f => SPECIES[f].shop), ['mew']);
+  assert.ok(LEGENDARY_FAMILIES.every(f => SPECIES[f].sprites[0].includes('.png')));
   for (const species of Object.values(SPECIES)) {
     assert.equal(species.names.length, species.sprites.length);
     for (const sprite of species.sprites) {
@@ -147,7 +148,10 @@ test('seis tabelas da loja reproduzem os pesos pedidos; níveis 5/6 normalizam 1
   const game = new GameEngine(33);
   game.players[0].level = 6;
   const rolled = Array.from({length:100}, () => rollFamily(game.players[0], Math.random));
-  assert.ok(rolled.every(offer => SPECIES[offer.family].shop && offer.rarity <= 4));
+  assert.ok(rolled.every(offer => SPECIES[offer.family].shop && offer.rarity <= 5));
+  assert.ok(rolled.every(offer => offer.rarity !== 5 || offer.family === 'mew'));
+  const legendaryOffer = rollFamily(game.players[0], () => .99999);
+  assert.deepEqual(legendaryOffer, { family: 'mew', rarity: 5 });
 });
 
 test('influência dos tipos inclui ativos e banco; tipos duplos recebem bônus secundário pela metade', () => {
