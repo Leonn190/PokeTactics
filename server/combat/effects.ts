@@ -5,7 +5,7 @@ export function effect(battle: Battle, source: CombatUnit, target: { x: number; 
   battle.effects.push({
     id: `${battle.id}:${battle.elapsed}:${battle.effects.length}`,
     x: source.x, y: source.y, targetX: target.x, targetY: target.y,
-    family: source.family, kind, value: ['pollen','water','earth-trail','earth-burst','dragon-tornado','dragon-wave'].includes(kind) ? value : Math.round(value), time: 0,
+    family: source.family, kind, value: ['pollen','water','earth-trail','earth-burst','dragon-tornado','dragon-wave','explosion'].includes(kind) ? value : Math.round(value), time: 0,
     duration: kind === 'earth-trail' ? .35 : kind === 'earth-burst' ? .45 : kind === 'dragon-tornado' || kind === 'dragon-wave' ? .45 : kind === 'psychic-spark' ? .5 : kind === 'ko' ? .9 : kind === 'basic-projectile' ? ANIMATIONS.basic.projectileDuration : kind === 'pollen' || kind === 'lightning' ? .52 : kind === 'water' ? .3 : .6
   });
 }

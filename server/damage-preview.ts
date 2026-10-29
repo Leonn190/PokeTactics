@@ -21,6 +21,7 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
   const physical = (label: string, value: number) => entry(label, value, 'physical');
   const special = (label: string, value: number) => entry(label, value, 'special');
   switch (move.effect) {
+    case 'self-explosion': return [special('DANO AOS INIMIGOS PRÓXIMOS',move.baseDamage+s*move.specialRatio), entry('CUSTO EM VIDA MÁXIMA', stats.hp*(move.selfHpCost||0), 'physical')];
     case 'mew-blessing': return [entry('CURA', (move.healBase || 0) + s*(move.healRatio || 0), 'heal'),
       special('DANO EXTRA POR BÁSICO', (move.bonusBase || 0) + s*(move.bonusSpaRatio || 0))];
     case 'dragon-storm': return [special('DANO POR ONDA ×3', move.baseDamage + s*move.specialRatio)];

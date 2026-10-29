@@ -33,7 +33,7 @@ setInterval(() => {
   accumulatedMs += elapsedMs;
   let steps = 0;
   while (accumulatedMs >= stepMs && steps < 5) {
-    game.tick(stepMs / 1000);
+    game.tick(stepMs / 1000, watchedPlayer === 'p0');
     accumulatedMs -= stepMs;
     steps++;
   }

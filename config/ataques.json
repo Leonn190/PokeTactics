@@ -524,6 +524,24 @@
       "bonusBase": 8,
       "bonusSpaRatio": 0.2,
       "buffDuration": 3
+    },
+    "voltorb-explosion": {
+      "name": "Explosão",
+      "effect": "self-explosion",
+      "baseDamage": 30,
+      "specialRatio": 0.9,
+      "attackRatio": 0,
+      "splashRange": 1.45,
+      "selfHpCost": 0.2
+    },
+    "electrode-explosion": {
+      "name": "Explosão",
+      "effect": "self-explosion",
+      "baseDamage": 50,
+      "specialRatio": 1.2,
+      "attackRatio": 0,
+      "splashRange": 1.45,
+      "selfHpCost": 0.2
     }
   }
 }

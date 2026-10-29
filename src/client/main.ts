@@ -5,7 +5,7 @@ import { RENDER_SETTINGS, SPECIES } from '../../server/data';
 import pmdManifest from './pmd-manifest.json';
 import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
-const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, dragging: false, dragX: 0, dragY: 0, hoveringHex: null, hoveringBench: null };
+const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, dragging: false, dragX: 0, dragY: 0, hoveringHex: null, hoveringBench: null, inventoryItemId:null,selectedBall:null };
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
@@ -31,7 +31,7 @@ let lastHudPhase = '';
 let lastHudGold = -1;
 
 function send(command: GameCommand): void {
-  if (!state || !worker || state.phase === 'finished' || state.players[0].eliminated) return;
+  if (!state || !worker || view.scoutId!=='p0' || state.phase === 'finished' || state.players[0].eliminated) return;
   worker.postMessage({ type: 'command', command } satisfies ClientToServer);
 }
 function watch(playerId: string): void {
@@ -41,7 +41,7 @@ function watch(playerId: string): void {
 
 function launchMatch(): void {
   worker?.terminate();
-  view.scoutId = 'p0'; view.selectedId = null;
+  view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;
   state = null; arena.snapshot = null; arena.setActive(true);
   lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0;
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
@@ -69,6 +69,39 @@ document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
   view.selectedId = null; clearDrag();
   document.getElementById('finalBanner')!.classList.add('hidden');
   menus.showHome();
+});
+
+document.getElementById('inventoryContents')!.addEventListener('click',event=>{
+  if (!state || view.scoutId!=='p0') return;
+  const item=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-item]');
+  const ball=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-ball]');
+  if(item) { view.inventoryItemId=item.dataset.inventoryItem||null;view.selectedBall=null; }
+  if(ball) { view.selectedBall=ball.dataset.inventoryBall as typeof view.selectedBall;view.inventoryItemId=null; }
+  hud.render(state,view);
+});
+document.getElementById('unitInspector')!.addEventListener('click',event=>{
+  if(!state || view.scoutId!=='p0') return;
+  const slot=(event.target as HTMLElement).closest<HTMLElement>('[data-gear-slot]');
+  if(!slot) return;
+  const unitId=slot.dataset.gearUnit!;
+  if(view.inventoryItemId) {
+    send({kind:'equip-item',itemId:view.inventoryItemId,unitId,ontoSlot:Number(slot.dataset.gearSlot)});
+    view.inventoryItemId=null;
+  } else send({kind:'unequip-item',unitId,slot:Number(slot.dataset.gearSlot)});
+});
+// Pointer dragging from the compact item tray to a field/bench unit.
+let trayDragId:string|null=null;
+document.getElementById('inventoryContents')!.addEventListener('pointerdown',event=>{
+  const item=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-item]');
+  if(item && view.scoutId==='p0') trayDragId=item.dataset.inventoryItem||null;
+});
+document.addEventListener('pointerup',event=>{
+  if(!trayDragId || !state) return;
+  const id=trayDragId;trayDragId=null;
+  if(event.target===canvas && view.scoutId==='p0') {
+    const unitId=arena.pickOwnUnit(event.clientX,event.clientY);
+    if(unitId) { send({kind:'equip-item',itemId:id,unitId});view.inventoryItemId=null; }
+  }
 });
 
 document.getElementById('shopCards')!.addEventListener('click', event => {
@@ -120,9 +153,10 @@ function setDragSprite(family: keyof typeof SPECIES, stage: number): void {
   ghost.style.height = `${ghostHeight}px`;
   ghostImage = new Image();
   ghostImage.decoding = 'async';
-  ghostImage.src = ghostIdle
+  const fallbackPath=species.sprites[Math.min(stage, species.sprites.length-1)];
+  ghostImage.src=ghostIdle
     ? `${import.meta.env.BASE_URL}sprite/${String(dex).padStart(4, '0')}/${ghostIdle.file}`
-    : `${import.meta.env.BASE_URL}${species.sprites[Math.min(stage, species.sprites.length - 1)].replace(/^\.\//, '')}`;
+    : /^https?:\/\//.test(fallbackPath) ? fallbackPath : `${import.meta.env.BASE_URL}${fallbackPath.replace(/^\.\//, '')}`;
   ghostStarted = performance.now();
 }
 
@@ -200,7 +234,12 @@ function finishDrag(event: PointerEvent): void {
 canvas.addEventListener('pointerdown', event => {
   if (event.button !== 0) return;
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
-  if (id) startDrag(id, event);
+  if (id && (view.inventoryItemId || view.selectedBall)) {
+    if(view.inventoryItemId) send({kind:'equip-item',itemId:view.inventoryItemId,unitId:id});
+    else if(view.selectedBall) send({kind:'use-ball',ball:view.selectedBall,unitId:id});
+    view.inventoryItemId=null;view.selectedBall=null;
+    if(state) hud.render(state,view);
+  } else if (id) startDrag(id, event);
   else if (state) {
     const target = arena.pickUnit(event.clientX, event.clientY);
     view.selectedId = target ? target.ownerId === 'p0' ? target.sourceId : target.id : null;
@@ -246,11 +285,11 @@ canvas.addEventListener('wheel', event => {
 document.addEventListener('keydown', event => {
   if (!state || event.repeat || state.phase === 'finished') return;
   if (event.key.toLowerCase() === 'd') send({ kind: 'reroll' });
-  if (event.key.toLowerCase() === 'e' && view.selectedId) {
+  if (event.key.toLowerCase() === 'e' && view.selectedId && !view.inventoryItemId && !view.selectedBall) {
     send({ kind: 'sell', unitId: view.selectedId });
     view.selectedId = null;
   }
   if (event.key === 'Escape') {
-    view.selectedId = null; watch('p0'); hud.render(state, view);
+    view.selectedId = null; view.inventoryItemId=null;view.selectedBall=null;watch('p0'); hud.render(state, view);
   }
 });

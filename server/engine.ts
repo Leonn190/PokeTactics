@@ -2,8 +2,10 @@ import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, 
 import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
+import { craft, makeComponent, ITEM_COLORS, ITEMS } from './systems/items';
+import { LOOT, eligibleForLoot, rollColor, rollReward } from './systems/loot';
 import { chapterForRound, roundTimers } from './chapter-timers';
-import type { Battle, Family, GameCommand, GameSnapshot, GoldDrop, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
+import type { Battle, Family, GameCommand, GameSnapshot, GoldDrop, LootDrop, LootReward, BallKind, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
 
 class Rng {
   constructor(private seed: number) { this.seed ||= 1; }
@@ -57,13 +59,17 @@ export class GameEngine {
   private lastCombatStats: GameSnapshot['combatStats'] = {};
   private trainer = { x: -4.75, y: 3.57, targetX: -4.75, targetY: 3.57 };
   private savedCoins: GoldDrop[] = [];
+  private savedLoot: LootDrop[] = [];
+  private lootMessage = '';
+  private lootMessageId = '';
   readonly players: Player[];
 
   constructor(seed = Date.now()) {
     this.rng = new Rng(seed);
     this.players = NAMES.slice(0, RULES.players).map((name, i) => ({
       id: `p${i}`, name, health: RULES.startingHealth, gold: RULES.startingGold, level: 1,
-      units: [], shop: Array(SHOP_SIZE).fill(null), locked: false,
+      units: [], shop: Array(SHOP_SIZE).fill(null), locked: false, itemInventory: [],
+      consumables: { pokeball:0,greatball:0,ultraball:0,masterball:0 },
       eliminated: false, lastWin: false, streak: 0, roundVictory: false, history: [], placement: null
     }));
     this.players.forEach((player, i) => {
@@ -79,7 +85,7 @@ export class GameEngine {
   private makePokemon(family: Family, position: UnitPosition): Pokemon {
     const iv = Object.fromEntries((Object.keys(SPECIES[family].base) as Array<keyof Stats>)
       .map(stat => [stat, this.rng.int(101)])) as unknown as Stats;
-    return { id: this.id(), family, stage: 0, level: 1, xp: 0, iv, position };
+    return { id: this.id(), family, stage: 0, level: 1, xp: 0, iv, position, equipment: [] };
   }
 
   private levelForRound(): number {
@@ -184,6 +190,7 @@ export class GameEngine {
             level: Math.max(...triple.map(u => u.level)),
             xp: Math.max(...triple.map(u => u.xp)), position: { ...anchor.position }
           };
+          evolved.equipment = this.preserveEquipment(player, triple);
           player.units.push(evolved);
           this.visualEvents.push({
             id: this.id(), unitId: evolved.id, ownerId: player.id, kind: 'evolve', age: 0,
@@ -209,6 +216,7 @@ export class GameEngine {
     player.units = player.units.filter(unit => !four.includes(unit));
     const evolved: Pokemon = { id:this.id(), family:branch, stage:1, iv,
       level:Math.max(...four.map(u => u.level)), xp:Math.max(...four.map(u => u.xp)), position:{...anchor.position} };
+    evolved.equipment = this.preserveEquipment(player,four);
     player.units.push(evolved);
     player.pendingEvolution = undefined;
     this.visualEvents.push({ id:this.id(), unitId:evolved.id, ownerId:player.id, kind:'evolve', age:0,
@@ -216,6 +224,66 @@ export class GameEngine {
       sources:four.map(u => ({ id:u.id, family:u.family, stage:u.stage, level:u.level, position:{...u.position} })),
       pokemon:{ family:evolved.family, stage:evolved.stage, level:evolved.level, position:{...evolved.position} } });
     if (player.id === 'p0') this.log = `${SPECIES[branch].names[0]} evoluiu!`;
+  }
+
+  private preserveEquipment(player: Player, sources: Pokemon[]): Pokemon['equipment'] {
+    const items = sources.flatMap(source => source.equipment || []);
+    const kept = items.slice(0, ITEMS.maxSlots);
+    player.itemInventory ||= [];
+    player.itemInventory.push(...items.slice(ITEMS.maxSlots));
+    return kept;
+  }
+
+  private freePlaceForReward(player: Player): UnitPosition | null {
+    const bench = this.findFreeBench(player);
+    if (bench >= 0) return { area:'bench', index: bench };
+    // An automatic merge may temporarily use an overflow slot, just like a shop purchase.
+    return null;
+  }
+
+  private rewardLoot(drop: LootDrop): boolean {
+    if (drop.claimed) return true;
+    const player = this.players.find(p=>p.id === drop.ownerId);
+    if (!player || player.eliminated) return false;
+    const reward = drop.reward;
+    if (reward.kind === 'pokemon') {
+      if (!reward.family) return false;
+      const pos = this.freePlaceForReward(player);
+      const mergeable = player.units.filter(u=>u.family===reward.family && u.stage===0).length >= (reward.family==='eevee'?3:2);
+      if (!pos && !mergeable) { drop.pending=true; return false; }
+      const unit = this.makePokemon(reward.family,pos || {area:'bench',index:BENCH_SIZE});
+      player.units.push(unit);
+      this.visualEvents.push({ id:this.id(), unitId:unit.id, ownerId:player.id, kind:'summon', age:0,
+        pokemon:{family:unit.family,stage:unit.stage,level:unit.level,position:{...unit.position}} });
+      this.merge(player);
+      this.lootMessage = `Espólio: ${SPECIES[reward.family].names[0]}`;
+    } else if (reward.kind === 'gold') {
+      player.gold += reward.amount || 0;
+      this.lootMessage = `Espólio: +${reward.amount} ouro`;
+    } else {
+      player.itemInventory ||= [];
+      player.itemInventory.push(makeComponent(this.id(),reward.color || ITEM_COLORS[0]));
+      this.lootMessage = `Espólio: componente ${(ITEMS.components[reward.color || ITEM_COLORS[0]]).name}`;
+    }
+    if (reward.bonusBall) {
+      player.consumables ||= {pokeball:0,greatball:0,ultraball:0,masterball:0};
+      player.consumables[reward.bonusBall]++;
+      this.lootMessage += ` + ${LOOT.ballNames[reward.bonusBall]}`;
+    }
+    this.lootMessageId=drop.id;
+    drop.claimed=true; drop.pending=false;
+    return true;
+  }
+
+  private spawnLoot(): void {
+    if (!eligibleForLoot(currentStage(this.round).type) || this.rng.next() >= LOOT.chancePerRound) return;
+    const chapter = chapterForRound(this.round);
+    const amount = LOOT.count.min + this.rng.int(LOOT.count.max - LOOT.count.min + 1);
+    for (let i=0;i<amount;i++) {
+      const color=rollColor(()=>this.rng.next(),chapter);
+      this.savedLoot.push({ id:this.id(),ownerId:'p0',x:-2.65 + this.rng.next()*5.3,
+        y:0.8 + this.rng.next()*2.1,color,claimed:false,reward:rollReward(color,()=>this.rng.next()) });
+    }
   }
 
   private buy(player: Player, slot: number): string | null {
@@ -245,13 +313,16 @@ export class GameEngine {
     return [...this.savedCoins.filter(coin => !coin.claimed), ...live];
   }
 
-  private tickTrainer(dt: number): void {
+  private tickTrainer(dt: number, canCollectLoot = true): void {
     const dx = this.trainer.targetX - this.trainer.x, dy = this.trainer.targetY - this.trainer.y;
     const length = Math.hypot(dx, dy);
     if (length > 0.001) {
       const distance = Math.min(length, 3.8 * dt);
       this.trainer.x += dx / length * distance;
       this.trainer.y += dy / length * distance;
+    }
+    for (const loot of canCollectLoot ? this.savedLoot : []) {
+      if (!loot.claimed && Math.hypot(this.trainer.x-loot.x,this.trainer.y-loot.y) <= .38) this.rewardLoot(loot);
     }
     for (const coin of this.collectibleGold()) {
       if (Math.hypot(this.trainer.x - coin.x, this.trainer.y - coin.y) > 0.36) continue;
@@ -272,6 +343,8 @@ export class GameEngine {
     const where = { ...target.position };
     const sources = [source, target].map(unit => ({ id: unit.id, family: unit.family, stage: unit.stage, level: unit.level, position: { ...unit.position } }));
     player.units = player.units.filter(unit => unit.id !== consumed.id);
+    const preserved = this.preserveEquipment(player,[stronger,consumed]);
+    stronger.equipment = preserved;
     stronger.position = where;
     stronger.level = Math.min(RULES.maxPokemonLevel, stronger.level + 5);
     stronger.xp = Math.max(stronger.xp, stronger.level - 1);
@@ -298,6 +371,51 @@ export class GameEngine {
       this.merge(human);
       return null;
     }
+    if (command.kind === 'equip-item') {
+      const item=human.itemInventory?.find(i=>i.id===command.itemId);
+      const target=human.units.find(u=>u.id===command.unitId);
+      if (!item || !target) return 'Item ou Pokémon inválido';
+      if (this.phase !== 'planning' && target.position.area === 'board') return 'Equipamentos de Pokémon em combate estão travados';
+      const equipped=target.equipment ||= [];
+      const slot=command.ontoSlot;
+      const already=slot!==undefined && Number.isInteger(slot) && slot>=0 && slot<equipped.length ? equipped[slot] : null;
+      const component=already || (item.kind === 'component' ? equipped.find(i=>i.kind==='component') : null);
+      if (item.kind === 'component' && component?.kind === 'component') {
+        const assembled=craft(this.id(),item,component);
+        if (!assembled) return 'Receita inválida';
+        const index=equipped.findIndex(i=>i.id===component.id);
+        equipped[index]=assembled;
+      } else {
+        if (equipped.length>=ITEMS.maxSlots) return 'Limite de dois equipamentos';
+        equipped.push(item);
+      }
+      human.itemInventory=human.itemInventory!.filter(i=>i.id!==item.id);
+      return null;
+    }
+    if (command.kind === 'unequip-item') {
+      const unit=human.units.find(u=>u.id===command.unitId);
+      if (!unit || !Number.isInteger(command.slot) || command.slot<0 || command.slot>=(unit.equipment?.length||0)) return 'Equipamento inválido';
+      if (this.phase !== 'planning' && unit.position.area==='board') return 'Equipamentos travados durante combate';
+      human.itemInventory ||= [];
+      human.itemInventory.push(unit.equipment!.splice(command.slot,1)[0]);
+      return null;
+    }
+    if (command.kind === 'use-ball') {
+      const target=human.units.find(u=>u.id===command.unitId);
+      const tier:Record<BallKind,number>={pokeball:1,greatball:2,ultraball:3,masterball:5};
+      if (!target || !Object.hasOwn(tier,command.ball) || SPECIES[target.family].rarity>tier[command.ball]) return 'Pokébola não aceita esse Pokémon';
+      if (!(human.consumables?.[command.ball] || 0)) return 'Pokébola indisponível';
+      const pos=this.freePlaceForReward(human);
+      if (!pos) return 'Banco cheio: libere uma vaga para duplicar';
+      const clone:Pokemon={ ...target,id:this.id(),iv:{...target.iv},position:pos,equipment:[] };
+      human.units.push(clone);
+      human.consumables![command.ball]--;
+      this.visualEvents.push({id:this.id(),unitId:clone.id,ownerId:human.id,kind:'summon',age:0,
+        pokemon:{family:clone.family,stage:clone.stage,level:clone.level,position:{...clone.position}}});
+      this.merge(human);
+      this.log = `${SPECIES[clone.family].names[clone.stage]} duplicado!`;
+      return null;
+    }
     if (command.kind === 'buy') {
       if (!Number.isInteger(command.slot) || command.slot < 0 || command.slot >= SHOP_SIZE) return 'Slot inválido';
       return this.buy(human, command.slot);
@@ -315,6 +433,7 @@ export class GameEngine {
     if (command.kind === 'sell') {
       human.gold += SPECIES[unit.family].rarity * (SPECIES[unit.family].eeveeBranch ? 4 : 3 ** unit.stage);
       human.units = human.units.filter(u => u.id !== unit.id);
+      human.itemInventory ||= []; human.itemInventory.push(...(unit.equipment || []));
       if (human.pendingEvolution?.includes(unit.id)) this.merge(human);
       return null;
     }
@@ -474,6 +593,7 @@ export class GameEngine {
         if (cpu && !coin.claimed) { cpu.gold += RULES.goldDropPerKnockout; coin.claimed = true; }
       }
     }
+    this.spawnLoot();
     // Simultaneous eliminations should not erase the match champion.
     if (this.players.every(p => p.eliminated || p.health <= 0)) {
       const survivor = [...this.players].filter(p => !p.eliminated).sort((a, b) => (beforeDamage.get(b.id) || 0) - (beforeDamage.get(a.id) || 0))[0];
@@ -515,6 +635,7 @@ export class GameEngine {
         .map(c => ({ ...c, y: flipped ? -c.y : c.y })));
     }
     this.savedCoins = this.savedCoins.filter(c => !c.claimed);
+    this.savedLoot = this.savedLoot.filter(d => !d.claimed);
     this.round++;
     this.phase = 'planning'; this.clock = 0; this.duration = roundTimers(this.round).preparationSeconds;
     for (const p of this.players) {
@@ -529,10 +650,10 @@ export class GameEngine {
     this.log = `Preparação • Rodada ${this.round}`;
   }
 
-  tick(dt: number): void {
+  tick(dt: number, canCollectLoot = true): void {
     if (this.phase === 'finished') return;
     const step = Math.max(0, Math.min(0.1, dt));
-    this.tickTrainer(step);
+    this.tickTrainer(step, canCollectLoot);
     for (const animation of this.visualEvents) animation.age += step;
     this.visualEvents = this.visualEvents.filter(animation => animation.age < 1.7);
     this.clock += step;
@@ -560,7 +681,9 @@ export class GameEngine {
       accelerated: this.phase === 'combat' && this.clock >= roundTimers(this.round).combatSeconds,
       observedId: watched,
       players: this.players.map(p => ({
-        ...p, units: p.units.map(u => ({ ...u, iv: { ...u.iv }, position: { ...u.position } })),
+        ...p, units: p.units.map(u => ({ ...u, iv: { ...u.iv }, position: { ...u.position }, equipment:(u.equipment||[]).map(i=>({...i,components:[...i.components]})) })),
+        itemInventory:p.id==='p0' ? (p.itemInventory||[]).map(i=>({...i,components:[...i.components]})) : [],
+        consumables:p.id==='p0' ? {...p.consumables} as NonNullable<Player['consumables']> : {pokeball:0,greatball:0,ultraball:0,masterball:0},
         shop: p.id === 'p0' ? p.shop.map(offer => offer && { ...offer }) : []
       })),
       opponentId: this.phase === 'planning' ? null : this.opponentId,
@@ -580,7 +703,8 @@ export class GameEngine {
           return [p.id, actualWinner ? (p.id === actualWinner ? 'victorious' : 'defeated') : null];
         })) : {},
       log: this.log, winnerId: this.winnerId,
-      trainer: { ...this.trainer }, collectibleGold: this.collectibleGold()
+      trainer: { ...this.trainer }, collectibleGold: this.collectibleGold(),
+      collectibleLoot:this.savedLoot.filter(d=>!d.claimed).map(d=>({...d,reward:{...d.reward}})),lootMessage:this.lootMessage,lootMessageId:this.lootMessageId
     };
   }
 }

@@ -17,7 +17,20 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
       if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();
-      if (fx.kind === 'pollen') {
+      if (fx.kind === 'explosion') {
+        const radius=Math.max(1,fx.value)*cellScale*t;
+        ctx.strokeStyle=`rgba(255,225,100,${1-t})`;
+        ctx.fillStyle=`rgba(255,153,55,${(1-t)*.27})`;
+        ctx.lineWidth=Math.max(1,5*(1-t));
+        ctx.beginPath();ctx.arc(from.x,from.y-8,radius,0,PI2);ctx.fill();ctx.stroke();
+        for(let i=0;i<14;i++) {
+          const a=i*2.399963;
+          const r=radius*(.5+(i%4)/8);
+          ctx.fillStyle=i%2?'#fff4aa':'#ffc36e';
+          ctx.globalAlpha=(1-t)*.85;
+          ctx.beginPath();ctx.arc(from.x+Math.cos(a)*r,from.y-8+Math.sin(a)*r,Math.max(0.3,(3+i%3)*(1-t)),0,PI2);ctx.fill();
+        }
+      } else if (fx.kind === 'pollen') {
         // O Morteiro de Pólen leva 0,3 s desde o lançamento até o dano no motor.
         const fly = Math.min(1, t / (.3 / fx.duration));
         const x = from.x + (to.x - from.x) * fly;

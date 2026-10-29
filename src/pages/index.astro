@@ -7,7 +7,7 @@ const baseURL = import.meta.env.BASE_URL;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="app-version" content="16-IR" />
+    <meta name="app-version" content="17" />
     <meta name="theme-color" content="#0d141c" />
     <meta name="description" content="TFT Pokémon — batalha tática automática com oito participantes." />
     <title>Poké Tactics</title>
@@ -17,7 +17,7 @@ const baseURL = import.meta.env.BASE_URL;
       <div id="menuLayer" class="menu-layer" aria-label="Menu principal do PokéTactics">
         <div class="menu-stars" aria-hidden="true"></div>
         <section id="homeScreen" class="home-screen">
-            <div class="home-topline"><span>✦ PRIMEIRA TEMPORADA</span><span>VERSÃO 16 IR <i></i> BETA</span></div>
+            <div class="home-topline"><span>✦ PRIMEIRA TEMPORADA</span><span>VERSÃO 17 <i></i> BETA</span></div>
           <div class="home-center">
             <div class="home-emblem" aria-label="Ícone PokéTactics"><div class="emblem-ball"><span></span></div><div class="emblem-crosshair"></div></div>
             <p class="home-eyebrow">ESTRATÉGIA · EVOLUÇÃO · CONQUISTA</p>
@@ -71,7 +71,11 @@ const baseURL = import.meta.env.BASE_URL;
       <div class="arena-status"><span class="status-spark"></span><span id="battleStatus">PREPARAÇÃO</span></div>
       <div id="unitInspector" class="unit-inspector glass hidden"></div>
 
-      <footer class="bottom-hud glass">
+      <aside id="itemInventory" class="item-inventory glass" aria-label="Inventário de itens e Pokébolas">
+        <div class="inventory-title"><b>MOCHILA · ITENS</b><small>Toque ou arraste até seu Pokémon</small></div>
+        <div id="inventoryContents" class="inventory-contents"></div>
+      </aside>
+      <footer id="shopFooter" class="bottom-hud glass">
         <div class="bottom-header">
           <div class="shop-meta"><div class="shop-chances" id="shopChances" aria-label="Probabilidades por raridade"></div><div id="typeInfluence" class="type-influence" aria-label="Influência dos tipos nos sorteios da loja"></div></div>
         </div>

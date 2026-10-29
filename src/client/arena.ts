@@ -10,6 +10,7 @@ import { OrientationController } from './animation/orientation';
 import { drawUnitVisualEvent } from './animation/unit-visuals';
 import { paintArenaBackground } from './scene/background';
 import { drawCoin } from './scene/coin-renderer';
+import { bonusStats } from '../../server/systems/items';
 import { renderTrainerAvatar } from './scene/trainer-renderer';
 import { renderFloatingNumber } from './vfx/floating-numbers';
 import { renderCombatEffects } from './render/effects';
@@ -22,6 +23,8 @@ import pmdManifest from './pmd-manifest.json';
 
 export interface ClientView {
   scoutId: string;
+  inventoryItemId?: string | null;
+  selectedBall?: import('../../server/types').BallKind | null;
   selectedId: string | null;
   dragId: string | null;
   dragging: boolean;
@@ -463,7 +466,7 @@ export class Arena {
   pickCoin(clientX: number, clientY: number): { x: number; y: number } | null {
     if (!this.snapshot || this.view.scoutId !== 'p0') return null;
     const world = this.pointerWorld(clientX, clientY);
-    const drop = this.snapshot.collectibleGold.find(d => !d.claimed && Math.hypot(world.x - d.x, world.y - d.y) < .38);
+    const drop = [...this.snapshot.collectibleGold,...this.snapshot.collectibleLoot].find(d => !d.claimed && Math.hypot(world.x - d.x, world.y - d.y) < .38);
     return drop ? { x: drop.x, y: drop.y } : null;
   }
 
@@ -473,6 +476,22 @@ export class Arena {
       if (coin.claimed) continue;
       const p = this.toScreen(coin.x, coin.y);
       drawCoin(this.context, p.x, p.y);
+    }
+  }
+
+  private drawLoot(time: number): void {
+    if (!this.snapshot || this.view.scoutId !== 'p0') return;
+    const ctx=this.context;
+    const colors={gray:'#c5ced5',blue:'#64b5ff',yellow:'#ffda73'};
+    for (const loot of this.snapshot.collectibleLoot) {
+      if (loot.claimed) continue;
+      const p=this.toScreen(loot.x,loot.y);
+      const r=7+Math.sin(time*3+loot.x)*1.3;
+      ctx.save();ctx.shadowColor=colors[loot.color];ctx.shadowBlur=13;
+      ctx.globalAlpha=.85;
+      ctx.fillStyle=colors[loot.color];ctx.beginPath();ctx.arc(p.x,p.y-4,r,0,PI2);ctx.fill();
+      ctx.lineWidth=1.6;ctx.strokeStyle='#fff9df';ctx.stroke();
+      ctx.globalAlpha=.3;ctx.beginPath();ctx.arc(p.x,p.y-4,r+4,0,PI2);ctx.stroke();ctx.restore();
     }
   }
 
@@ -509,9 +528,17 @@ export class Arena {
     const baseY = spriteTop - (this.snapshot?.phase === 'planning' ? 7 : 10);
     if (this.snapshot?.phase !== 'planning') {
       ctx.fillStyle = '#101f20d9'; ctx.fillRect(bx - 1, baseY - 1, barWidth + 2, 7);
-      ctx.fillStyle = unit.own ? '#74e6a9' : '#ff947d'; ctx.fillRect(bx, baseY, barWidth * Math.max(0, unit.hp / unit.maxHp), 5);
+      const scale=Math.max(1,unit.maxHp);
+      const green=Math.max(0,Math.min(1,unit.hp/scale));
       const shield = (unit.barrier?.hp || 0) + (unit.barriers || []).reduce((total,b) => total+b.hp,0);
-      if (shield > 0) { ctx.fillStyle = '#d5b3ff'; ctx.fillRect(bx, baseY - 3, barWidth * Math.min(1, shield/unit.maxHp), 2); }
+      const white=Math.max(0,Math.min(1-green,shield/scale));
+      ctx.fillStyle = unit.own ? '#74e6a9' : '#ff947d'; ctx.fillRect(bx, baseY, barWidth*green, 5);
+      if (white>0) {ctx.fillStyle='#f1f9ff';ctx.fillRect(bx+barWidth*green,baseY,barWidth*white,5);}
+      if (shield>Math.max(0,scale-unit.hp)) {
+        ctx.fillStyle='#f1f9ff';ctx.fillRect(bx,baseY-2,barWidth,1);
+      }
+      ctx.fillStyle='#06121bcf';
+      for (let hp=150;hp<scale;hp+=150) ctx.fillRect(bx+barWidth*hp/scale-.65,baseY,1.3,5);
       if (unit.psychicImbuement && unit.psychicImbuement.until > (this.snapshot?.visibleBattle?.elapsed || 0)) {
         const life = unit.psychicImbuement.until - (this.snapshot?.visibleBattle?.elapsed || 0);
         ctx.save();ctx.globalAlpha=.28+.12*Math.sin(time*7);ctx.strokeStyle='#e99fe8';ctx.lineWidth=2;
@@ -704,6 +731,7 @@ export class Arena {
     this.drawUnitVisuals(timestamp);
     if (intro) this.drawArrival(battle!);
     this.drawCoins();
+    this.drawLoot(this.frame);
     if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
       renderCombatEffects(this.context, this.snapshot.visibleBattle.effects,
         this.snapshot.visibleBattle.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId,

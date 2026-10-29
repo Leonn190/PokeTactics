@@ -1,5 +1,12 @@
 import pokemonConfig from '../config/pokemons.json';
 export type Family = keyof typeof pokemonConfig.species;
+export type ItemColor = 'green' | 'blue' | 'purple' | 'orange' | 'yellow' | 'red';
+export type BallKind = 'pokeball' | 'greatball' | 'ultraball' | 'masterball';
+export type LootColor = 'gray' | 'blue' | 'yellow';
+export interface EquippedItem { id: string; kind: 'component' | 'complete'; components: ItemColor[]; recipe?: string }
+export interface PercentStats { vampirism: number; critChance: number; critDamage: number; durability: number; amplification: number }
+export interface LootReward { kind: 'gold'|'pokemon'|'component'; amount?: number; family?: Family; rarity?: Rarity; color?: ItemColor; bonusBall?: BallKind }
+export interface LootDrop { id: string; ownerId: string; x: number; y: number; color: LootColor; claimed: boolean; reward: LootReward; pending?: boolean }
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
 export type Element = 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'dragon' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy';
@@ -17,6 +24,7 @@ export interface Pokemon {
   xp: number;
   iv: Stats;
   position: UnitPosition;
+  equipment?: EquippedItem[];
 }
 
 export interface ShopOffer {
@@ -42,6 +50,8 @@ export interface Player {
   history: StageResult[];
   placement: number | null;
   pendingEvolution?: string[];
+  itemInventory?: EquippedItem[];
+  consumables?: Record<BallKind, number>;
 }
 
 export interface CombatMetrics {
@@ -63,7 +73,7 @@ export interface PsychicImbuement { sourceId: string; extraDamage: number; until
 export interface DigState { phase: 'sink' | 'travel' | 'rise'; time: number; duration: number; fromX: number; fromY: number; toX: number; toY: number; targetId: string; trailClock: number }
 export interface StormState { x: number; y: number; nextWave: number; waves: number; targetIds: string[]; elapsed: number }
 export interface TimedStatEffect { sourceId: string; stat: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; amount: number; until: number }
-export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' }
+export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' | 'item' }
 
 export interface CombatUnit {
   id: string;
@@ -83,6 +93,13 @@ export interface CombatUnit {
   energyNeeded: number;
   range: number;
   stats: Stats;
+  equipment: EquippedItem[];
+  itemStacks: Record<string, number>;
+  itemTimers: Record<string, number>;
+  itemNow: number;
+  hitSerial: number;
+  focusCount: number;
+  itemBurn?: { sourceId: string; dps: number; until: number } | null;
   cooldown: number;
   attackClock: number;
   moving: boolean;
@@ -132,7 +149,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion';
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;
@@ -170,6 +187,7 @@ export interface Battle {
   knockoutAt: Record<string, number>;
   goldDrops: GoldDrop[];
   goldRound: boolean;
+  seed: number;
   kind: StageType;
   units: CombatUnit[];
   effects: CombatEffect[];
@@ -230,6 +248,9 @@ export interface GameSnapshot {
   winnerId: string | null;
   trainer: { x: number; y: number; targetX: number; targetY: number };
   collectibleGold: GoldDrop[];
+  collectibleLoot: LootDrop[];
+  lootMessage: string;
+  lootMessageId: string;
 }
 
 export type GameCommand =
@@ -239,6 +260,9 @@ export type GameCommand =
   | { kind: 'move'; unitId: string; position: UnitPosition }
   | { kind: 'sell'; unitId: string }
   | { kind: 'choose-eevee'; branch: Family }
+  | { kind: 'equip-item'; itemId: string; unitId: string; ontoSlot?: number }
+  | { kind: 'unequip-item'; unitId: string; slot: number }
+  | { kind: 'use-ball'; ball: BallKind; unitId: string }
   | { kind: 'move-trainer'; x: number; y: number };
 
 export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' } | { type: 'watch'; playerId: string };

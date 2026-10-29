@@ -346,3 +346,39 @@
 @media(prefers-reduced-motion:reduce){.rank-dots i{animation:none!important}}
 
 .rank-combat-status:empty{display:none}
+
+/* V17: compact item tray, TFT-like combined health/shield, five percentage stats. */
+.item-inventory{position:absolute;z-index:20;left:13px;bottom:238px;width:min(212px,22vw);max-height:188px;overflow-y:auto;padding:9px;border:1px solid #70938580;border-radius:9px;background:#112d2de8;box-shadow:0 10px 25px #061414a9;scrollbar-width:thin}
+.item-inventory.view-only{opacity:.4;pointer-events:none}
+.inventory-title{display:flex;flex-direction:column;gap:2px;margin-bottom:7px;color:#dfecdc;font:800 12px 'Barlow Condensed'}
+.inventory-title small{font:500 9px Inter;color:#9db7a9}
+.inventory-contents{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.inventory-divider{flex-basis:100%;height:1px;background:#58746855;margin:3px 0}
+.inventory-item,.inventory-ball{position:relative;min-width:30px;height:31px;padding:3px;display:flex;align-items:center;justify-content:center;gap:2px;border:1px solid #6b8f81;border-radius:4px;background:#20383be8;color:#f2ddbd;cursor:grab}
+.inventory-item.selected,.inventory-ball.selected{border-color:#ffe29a;box-shadow:0 0 0 2px #edc88380}
+.inventory-item small,.inventory-ball small{position:absolute;right:1px;bottom:-4px;font:900 9px Inter;color:#fff7dc;text-shadow:0 1px 3px #081917}
+.inventory-ball{font-size:20px;color:#ffce8c;cursor:pointer}
+.inventory-ball:disabled{opacity:.35;cursor:default}
+.inventory-none{font:600 10px Inter;color:#97b4a8}
+.gear-icon{display:inline-flex;align-items:center;gap:2px;height:18px}
+.gear-icon i{display:inline-block;width:11px;height:14px;border:1px solid #ffffffa0;border-radius:2px;box-shadow:inset 0 0 3px #fff7,0 0 4px #0008}
+.inspector-percentages{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;margin-top:7px}
+.inspector-percent{background:#19352e;border:1px solid #55756866;border-radius:4px;padding:4px 1px;text-align:center;min-width:0}
+.inspector-percent small{display:block;font:800 8px 'Barlow Condensed';color:#a7d7c5}
+.inspector-percent b{font:800 13px 'Barlow Condensed';color:#ebf6db}
+.inspector-equipment{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:6px 0;border-bottom:1px solid #58746855}
+.inspector-equipment>span{font:800 10px 'Barlow Condensed';color:#b7d3c2}
+.inspector-equipment>small{width:100%;font:500 8px Inter;color:#a0bdaf}
+.inspector-slot{height:24px;min-width:29px;background:#203e37;color:#a3c4b7;border:1px dashed #8cb69f;border-radius:3px;cursor:pointer}
+.inspector-slot.occupied{border-style:solid;border-color:#dcbd83}
+.inspector-slot:disabled{cursor:default}
+.shop-card{max-width:100%}
+.bottom-hud{left:max(185px,calc((100% - 1140px)/2 + 10px));right:max(314px,calc((100% - 1140px)/2 + 10px))}
+@media(max-width:980px){.item-inventory{left:5px;bottom:213px;width:180px;max-height:120px;padding:5px}.bottom-hud{left:8px;right:8px}.inspector-percent b{font-size:11px}}
+@media(max-height:740px){.item-inventory{bottom:195px;max-height:105px}.inspector-percentages{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.voltorb-portrait{display:inline-block;position:relative;flex:none;overflow:hidden;vertical-align:middle;border-radius:50%;border:2px solid #242b37;background:linear-gradient(to bottom,#ef474b 0 48%,#242832 48% 54%,#f8f8ec 54%);box-shadow:inset -6px -6px 12px #1c242a55,0 2px 9px #070e1466;aspect-ratio:1}
+.voltorb-portrait:before{content:'';position:absolute;left:20%;top:17%;width:20%;height:17%;border-radius:50%;background:#ffffff99;transform:rotate(-25deg)}
+.voltorb-portrait:after{content:'';position:absolute;left:24%;top:39%;width:52%;height:13%;border-top:2px solid #20242a;border-bottom:2px solid #20242a}
+.voltorb-portrait.electrode{background:linear-gradient(to bottom,#f7f6e9 0 48%,#303039 48% 54%,#ee4b4a 54%)}
+.voltorb-portrait.electrode:after{border-top:0;border-bottom:3px solid #282936;transform:rotate(180deg);border-radius:50%;top:34%}

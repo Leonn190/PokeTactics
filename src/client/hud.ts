@@ -1,10 +1,12 @@
 import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, getStageData, ATTACKS } from '../../server/data';
 import { totalPower } from '../../server/formulas';
+import { bonusStats, effectivePercents, itemTooltip, ITEM_COLORS, ITEMS, RECIPES, numberParam } from '../../server/systems/items';
+import { LOOT } from '../../server/systems/loot';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
 import { moveDescription } from './menus';
 import { previewAbility, previewBasic } from '../../server/damage-preview';
 import { damageHtml, damageRows } from './damage-labels';
-import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
+import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats, EquippedItem, BallKind } from '../../server/types';
 import type { ClientView } from './arena';
 
 const element = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -15,14 +17,17 @@ const base = import.meta.env.BASE_URL;
 const typeIcon = (type: Element, size = 18): string => ['ground','rock','steel','dark','fairy','dragon'].includes(type)
   ? `<span class="type-fallback" title="${safe(ELEMENTS[type].name)}" style="width:${size}px;height:${size}px;background:${ELEMENTS[type].color}">${ELEMENTS[type].name.slice(0,2).toUpperCase()}</span>`
   : `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
+function icon(item: EquippedItem): string { return `<span class="gear-icon">${item.components.map(c=>`<i style="background:${ITEMS.components[c].color}"></i>`).join('')}</span>`; }
 function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
   const s = SPECIES[family];
   const id = s.pokedexIds[Math.min(stage, s.pokedexIds.length - 1)];
+  if (id===100 || id===101) return `<span class="voltorb-portrait ${id===101?'electrode':''}" style="width:${size}px;height:${size}px" title="${safe(s.names[Math.min(stage,s.names.length-1)])}"></span>`;
   return `<img class="pokemon-portrait" src="${base}portrait/${String(id).padStart(4, '0')}/Normal.png" width="${size}" height="${size}" alt="${safe(s.names[Math.min(stage, s.names.length - 1)])}" loading="lazy" draggable="false" />`;
 }
 
 export class Hud {
   private lastShop = '';
+  private lastLootMessage = '';
   private lastTraits = '';
   private lastRank = '';
   private lastCombat = '';
@@ -93,6 +98,23 @@ export class Hud {
     this.latestSnapshot = snapshot;
     this.latestView = view;
     const player = snapshot.players[0];
+    element('shopFooter').classList.toggle('hidden',view.scoutId!=='p0');
+    element('itemInventory').classList.toggle('view-only',view.scoutId!=='p0');
+    if (snapshot.lootMessage && snapshot.lootMessageId!==this.lastLootMessage) {
+      this.lastLootMessage=snapshot.lootMessageId;this.toast(snapshot.lootMessage);
+    }
+    const inventory = player.itemInventory || [];
+    const itemGroups=new Map<string,{item:EquippedItem;count:number}>();
+    for (const item of inventory) {
+      const key=item.recipe || item.components[0];
+      const group=itemGroups.get(key);
+      if(group) group.count++;else itemGroups.set(key,{item,count:1});
+    }
+    const equippedLabel=(item:EquippedItem)=>item.recipe ? RECIPES[item.recipe]?.description || 'Item completo' : ITEMS.components[item.components[0]].name;
+    const gearHtml=[...itemGroups.values()].map(({item,count})=>`<button type="button" class="inventory-item ${view.inventoryItemId===item.id?'selected':''}" data-inventory-item="${item.id}" title="${safe(itemTooltip(item))}">${icon(item)}<small>×${count}</small></button>`).join('');
+    const ballNames=LOOT.ballNames;
+    const balls=(Object.keys(ballNames) as BallKind[]).map(ball=>`<button class="inventory-ball ${view.selectedBall===ball?'selected':''}" data-inventory-ball="${ball}" ${(player.consumables?.[ball]||0)?'':'disabled'} title="${safe(ballNames[ball])}: duplique um Pokémon elegível">◉<small>×${player.consumables?.[ball]||0}</small></button>`).join('');
+    this.updateHTML('inventoryContents',`${gearHtml||'<span class="inventory-none">Sem componentes</span>'}<span class="inventory-divider"></span>${balls}`);
     const choosing = (player.pendingEvolution?.length || 0) === 4;
     element('eeveeEvolution').classList.toggle('hidden', !choosing);
     if (choosing) this.updateHTML('eeveeBranches', EEVEE_BRANCHES.map(branch => {
@@ -212,7 +234,7 @@ export class Hud {
       return roster.map(unit => {
         const metrics = metricsByUnit[unit.id];
         const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === id);
-        const maxHp = combatant?.maxHp || calculateStats(unit.family, unit.level, unit.iv, unit.stage).hp;
+        const maxHp = combatant?.maxHp || bonusStats(calculateStats(unit.family, unit.level, unit.iv, unit.stage),unit.equipment).hp;
         const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
         const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
         const physicalMitigated = metrics?.blockedPhysical || 0;
@@ -282,7 +304,7 @@ export class Hud {
   }
 
   private renderInspectorResources(battle: CombatUnit | undefined, pokemon: Pokemon): void {
-    const stats = battle?.stats || calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
+    const stats = battle?.stats || bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage),pokemon.equipment);
     const energyNeeded = Math.max(1, battle?.energyNeeded ?? getStageData(pokemon.family, pokemon.stage).energy);
     const hp = Math.max(0, battle?.hp ?? stats.hp);
     const maxHp = Math.max(1, battle?.maxHp ?? stats.hp);
@@ -295,17 +317,22 @@ export class Hud {
     const values = panel.querySelectorAll<HTMLElement>('.inspector-resource b');
     if (values[0]) values[0].textContent = `${Math.ceil(hp)} / ${Math.ceil(maxHp)}`;
     if (values[1]) values[1].textContent = `${Math.floor(energy)} / ${energyNeeded}`;
+    const percents=effectivePercents(battle || {equipment:pokemon.equipment||[],itemStacks:{},itemTimers:{}},battle?.itemNow||0);
+    for(const [key,value] of Object.entries(percents)) {
+      const element=panel.querySelector<HTMLElement>(`[data-percent="${key}"]`);
+      if (element) element.textContent=`${(value*100).toFixed(0)}%`;
+    }
   }
 
   private fromCombat(unit: CombatUnit): Pokemon {
     return { id: unit.sourceId, family: unit.family, stage: unit.stage, level: unit.level,
-      iv: unit.iv, xp: 0, position: { area: 'board', col: unit.col, row: unit.row } };
+      iv: unit.iv, equipment:unit.equipment, xp: 0, position: { area: 'board', col: unit.col, row: unit.row } };
   }
 
   private inspector(pokemon: Pokemon, owner: string, combatant?: CombatUnit): string {
     const data = SPECIES[pokemon.family];
     const stage = getStageData(pokemon.family, pokemon.stage);
-    const stats = calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
+    const stats = combatant?.stats || bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage),pokemon.equipment);
     const ivAverage = Object.values(pokemon.iv).reduce((a, b) => a + b, 0) / Object.keys(pokemon.iv).length;
     const power = totalPower(stats);
     const move = ATTACKS.moves[stage.move];
@@ -318,13 +345,19 @@ export class Hud {
     const energyNeeded = Math.max(1, stage.energy);
     const hpPercent = Math.min(100, hp / maxHp * 100);
     const energyPercent = Math.min(100, energy / energyNeeded * 100);
-    return `<div class="inspector-top">${portrait(pokemon.family, 56, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${stage.range}</div></div></div>
+    const basicRange=stage.range+(pokemon.equipment||[]).filter(item=>item.recipe==='red+red').length*numberParam('longbow','range');
+    return `<div class="inspector-top">${portrait(pokemon.family, 56, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${basicRange}</div></div></div>
       <div class="inspector-resources" aria-label="Vida e energia">
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
         <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>
       </div>
       <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span></div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
+      <div class="inspector-percentages">${([['vampirism','VAMP'],['critChance','CRÍT'],['critDamage','DANO CRÍT'],['durability','DURAB'],['amplification','AMPLIF']] as const).map(([key,label])=>`<div class="inspector-percent"><small>${label}</small><b data-percent="${key}">0%</b></div>`).join('')}</div>
+      <div class="inspector-equipment"><span>EQUIPAMENTO</span>${Array.from({length:ITEMS.maxSlots},(_,index)=>{
+        const item=pokemon.equipment?.[index];
+        return `<button class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Slot livre'}" ${owner==='VOCÊ'?'':'disabled'}>${item?icon(item):'+'}</button>`;
+      }).join('')}<small>${owner==='VOCÊ'?'Clique para remover • use a mochila para equipar':''}</small></div>
       <div class="inspector-basic">ATAQUE REGULAR <b>${damageHtml(basic)} <small>de dano ${basic.kind === 'special' ? 'especial' : 'físico'}</small></b></div>
       <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${stage.range}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
       <div class="inspector-footer"><div class="inspector-types">${stage.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;

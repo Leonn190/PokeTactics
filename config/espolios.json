@@ -1,0 +1,95 @@
+{
+  "enabled": true,
+  "chancePerRound": 0.6,
+  "count": {
+    "min": 1,
+    "max": 2
+  },
+  "colors": {
+    "gray": 70,
+    "blue": 25,
+    "yellow": 5
+  },
+  "eligibleTypes": [
+    "battle",
+    "gold",
+    "quad",
+    "double",
+    "bot",
+    "boss"
+  ],
+  "chapterModifiers": {},
+  "rolls": {
+    "gray": [
+      {
+        "kind": "gold",
+        "weight": 65,
+        "min": 1,
+        "max": 4
+      },
+      {
+        "kind": "pokemon",
+        "rarity": 1,
+        "weight": 30
+      },
+      {
+        "kind": "pokemon",
+        "rarity": 2,
+        "weight": 5
+      }
+    ],
+    "blue": [
+      {
+        "kind": "gold",
+        "weight": 45,
+        "min": 4,
+        "max": 8
+      },
+      {
+        "kind": "pokemon",
+        "rarity": 3,
+        "weight": 25
+      },
+      {
+        "kind": "component",
+        "weight": 30
+      }
+    ],
+    "yellow": [
+      {
+        "kind": "gold",
+        "weight": 65,
+        "min": 10,
+        "max": 20
+      },
+      {
+        "kind": "pokemon",
+        "rarity": 4,
+        "weight": 25
+      },
+      {
+        "kind": "pokemon",
+        "rarity": 5,
+        "weight": 10
+      }
+    ]
+  },
+  "ballBonusChance": {
+    "gray": {
+      "pokeball": 0.025
+    },
+    "blue": {
+      "greatball": 0.02,
+      "ultraball": 0.008
+    },
+    "yellow": {
+      "masterball": 0.001
+    }
+  },
+  "ballNames": {
+    "pokeball": "Pokébola",
+    "greatball": "Great Ball",
+    "ultraball": "Ultra Ball",
+    "masterball": "Master Ball"
+  }
+}

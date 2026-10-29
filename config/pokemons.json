@@ -2378,6 +2378,72 @@
           "chargedAnimation": "Attack"
         }
       ]
+    },
+    "voltorb": {
+      "names": [
+        "Voltorb",
+        "Electrode"
+      ],
+      "pokedexIds": [
+        100,
+        101
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#f1cf74",
+      "base": {
+        "hp": 245,
+        "atk": 44,
+        "def": 49,
+        "spa": 69,
+        "spd": 50,
+        "speed": 72
+      },
+      "stageBases": [
+        {
+          "hp": 245,
+          "atk": 44,
+          "def": 49,
+          "spa": 69,
+          "spd": 50,
+          "speed": 72
+        },
+        {
+          "hp": 390,
+          "atk": 65,
+          "def": 70,
+          "spa": 108,
+          "spd": 72,
+          "speed": 125
+        }
+      ],
+      "range": 1,
+      "energy": 70,
+      "attack": "voltorb-explosion",
+      "elements": [
+        "electric"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "range": 1,
+          "energy": 70,
+          "move": "voltorb-explosion",
+          "chargedType": "electric",
+          "chargedAnimation": "Attack"
+        },
+        {
+          "range": 1,
+          "energy": 70,
+          "move": "electrode-explosion",
+          "chargedType": "electric",
+          "chargedAnimation": "Attack"
+        }
+      ]
     }
   }
 }

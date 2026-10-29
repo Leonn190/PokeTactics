@@ -32,7 +32,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'burrow' | 'mew-blessing';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'burrow' | 'mew-blessing' | 'self-explosion';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -47,7 +47,7 @@ export type MoveData = {
   splashMultiplier?: number;
   conversion?: { kind: 'none' | 'stat_buff' | 'heal' | 'barrier'; stat?: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; points_per_damage_per_ally?: number; duration_seconds?: number; healing_pool_per_damage?: number; shield_pool_per_damage?: number; max_barrier_fraction_of_target_max_hp?: number };
   shredBase?: number; shredRatio?: number; shredDuration?: number; controlDuration?: number;
-  skillRange?: number; guardDuration?: number; guardReduction?: number;
+  skillRange?: number; selfHpCost?: number; guardDuration?: number; guardReduction?: number;
   speedReduction?: number; shieldSpaRatio?: number; bonusBase?: number; bonusSpaRatio?: number; buffDuration?: number;
 };
 

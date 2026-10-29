@@ -16,6 +16,7 @@ const entries: Entry[] = (Object.keys(SPECIES) as Family[]).flatMap(family => SP
 }))).sort((a,b) => a.dex - b.dex || a.name.localeCompare(b.name));
 
 function portrait(dex: number, name: string, className: string): string {
+  if(dex===100 || dex===101) return `<span class="voltorb-portrait ${dex===101?'electrode':''} ${className}" title="${escapeHTML(name)}"></span>`;
   return `<img class="${className}" src="${baseUrl}portrait/${String(dex).padStart(4,'0')}/Normal.png" alt="${escapeHTML(name)}" loading="lazy" draggable="false" />`;
 }
 
@@ -49,6 +50,7 @@ export function moveDescription(move: MoveData): string {
     'dragon-cyclone':'Tornado dracônico que atinge o alvo e inimigos próximos, reduzindo a velocidade de ataque.',
     'dragon-storm':'Invoca três ondas dracônicas e levanta inimigos na primeira.',
     burrow:'Escava até o inimigo mais distante, emergindo junto dele para causar dano especial.',
+    'self-explosion':'Explode causando dano especial aos inimigos ao redor e perde 20% da própria Vida máxima.',
     'mew-blessing':'Cura e protege o aliado com menor porcentagem de vida; seus ataques básicos causam dano especial extra por 3 segundos.'
   };
   const conversion = move.conversion;

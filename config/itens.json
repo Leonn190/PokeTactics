@@ -1,0 +1,191 @@
+{
+  "maxSlots": 2,
+  "defaults": {
+    "vampirism": 0,
+    "critChance": 0.25,
+    "critDamage": 1.25,
+    "durability": 0,
+    "amplification": 0
+  },
+  "limits": {
+    "durability": 0.75,
+    "vampirism": 1,
+    "critChance": 1,
+    "amplification": 3
+  },
+  "components": {
+    "green": {
+      "name": "Verde",
+      "color": "#69db90",
+      "stat": "hp",
+      "value": 75
+    },
+    "blue": {
+      "name": "Azul",
+      "color": "#69b7ff",
+      "stat": "spd",
+      "value": 8
+    },
+    "purple": {
+      "name": "Roxo",
+      "color": "#cb90ff",
+      "stat": "spa",
+      "value": 8
+    },
+    "orange": {
+      "name": "Laranja",
+      "color": "#ffaa62",
+      "stat": "atk",
+      "value": 8
+    },
+    "yellow": {
+      "name": "Amarelo",
+      "color": "#f8e16e",
+      "stat": "def",
+      "value": 8
+    },
+    "red": {
+      "name": "Vermelho",
+      "color": "#ff656d",
+      "stat": "speed",
+      "value": 8
+    }
+  },
+  "recipes": {
+    "green+green": {
+      "effect": "regeneration",
+      "description": "Vida máxima +15%; cura 1% da Vida máxima a cada 2s",
+      "hpPercent": 0.15,
+      "healPercent": 0.01,
+      "interval": 2
+    },
+    "green+blue": {
+      "effect": "adaptive_shield",
+      "description": "Curas e barreiras recebidas +20%; barreira de 25% da Vida por 5s abaixo de 40% (uma vez)",
+      "receivedHealShield": 0.2,
+      "threshold": 0.4,
+      "barrierFraction": 0.25,
+      "duration": 5
+    },
+    "green+purple": {
+      "effect": "ally_healing",
+      "description": "Habilidades curam aliado mais ferido em 20% do dano",
+      "healingShare": 0.2
+    },
+    "green+orange": {
+      "effect": "vampirism",
+      "description": "+20 pontos percentuais de Vampirismo",
+      "vampirism": 0.2
+    },
+    "green+yellow": {
+      "effect": "burn_aura",
+      "description": "A cada 3s queima alvo próximo: 4% da Vida máxima em 4s e -30% cura",
+      "interval": 3,
+      "burnPercent": 0.04,
+      "duration": 4,
+      "healReduction": 0.3,
+      "radius": 2
+    },
+    "green+red": {
+      "effect": "cast_haste",
+      "description": "Ao usar habilidade +30% VEL por 4s",
+      "speedPercent": 0.3,
+      "duration": 4
+    },
+    "blue+blue": {
+      "effect": "magic_guard",
+      "description": "-20% dano especial recebido; 3% Vida após habilidade recebida (4s recarga)",
+      "specialReduction": 0.2,
+      "healPercent": 0.03,
+      "cooldown": 4
+    },
+    "blue+purple": {
+      "effect": "scaling_spa",
+      "description": "+8% SpA a cada 5s, até +40%",
+      "interval": 5,
+      "step": 0.08,
+      "max": 0.4
+    },
+    "blue+orange": {
+      "effect": "opening_immunity",
+      "description": "Imune a controle e +15% amplificação nos primeiros 8s",
+      "duration": 8,
+      "amplification": 0.15
+    },
+    "blue+yellow": {
+      "effect": "focused_defense",
+      "description": "+8 DEF e SpD por inimigo mirando no portador (máx 4)",
+      "perTarget": 8,
+      "maxTargets": 4
+    },
+    "blue+red": {
+      "effect": "bonus_energy",
+      "description": "Ataques básicos geram +5 de energia",
+      "energy": 5
+    },
+    "purple+purple": {
+      "effect": "archmage",
+      "description": "SpA total +30%",
+      "spaPercent": 0.3
+    },
+    "purple+orange": {
+      "effect": "spell_critical",
+      "description": "Habilidades podem critar; +20pp chance crítica e +15pp dano crítico",
+      "critChance": 0.2,
+      "critDamage": 0.15
+    },
+    "purple+yellow": {
+      "effect": "magic_sunder",
+      "description": "Habilidades reduzem SpD em 25% por 5s; +25% dano contra barreiras",
+      "shred": 0.25,
+      "duration": 5,
+      "shieldBonus": 0.25
+    },
+    "purple+red": {
+      "effect": "cast_wave",
+      "description": "A cada 2 habilidades, onda: 60% SpA aos inimigos perto do alvo",
+      "casts": 2,
+      "spaRatio": 0.6,
+      "radius": 1.7
+    },
+    "orange+orange": {
+      "effect": "executioner",
+      "description": "ATK total +25%; básicos contra alvo abaixo de 30% Vida recebem +10% dano",
+      "atkPercent": 0.25,
+      "threshold": 0.3,
+      "amplification": 0.1
+    },
+    "orange+yellow": {
+      "effect": "armor_break",
+      "description": "Básicos reduzem DEF 25% por 5s",
+      "shred": 0.25,
+      "duration": 5
+    },
+    "orange+red": {
+      "effect": "guinsoo",
+      "description": "Cada básico +5% VEL até +100% durante combate",
+      "step": 0.05,
+      "max": 1
+    },
+    "yellow+yellow": {
+      "effect": "bramble",
+      "description": "Reduz 50% do excesso de crítico recebido e reflete 10% dano de básicos",
+      "criticalExtraReduction": 0.5,
+      "reflect": 0.1
+    },
+    "yellow+red": {
+      "effect": "titan",
+      "description": "Básico ou dano recebido: +2% amplificação e +1% durabilidade, até 10",
+      "ampPerStack": 0.02,
+      "durPerStack": 0.01,
+      "maxStacks": 10
+    },
+    "red+red": {
+      "effect": "longbow",
+      "description": "Ataque básico +1 alcance e +25% VEL",
+      "range": 1,
+      "speedPercent": 0.25
+    }
+  },
+  "combatIntroSeconds": 1.5
+}
