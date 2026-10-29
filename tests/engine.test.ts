@@ -9,15 +9,15 @@ import type { Stats } from '../server/types';
 
 const all = (value: number): Stats => ({ hp: value, speed: value, atk: value, def: value, spa: value, spd: value });
 
-test('IV 0 / 50 / 100 e +2% por nível após o nível 1, inclusive chefes', () => {
+test('IV 0 / 50 / 100 e +1% linear por nível após o nível 1, inclusive chefes', () => {
   const base = SPECIES.bulbasaur.base;
   assert.equal(calculateStats('bulbasaur', 0, all(0), 0).hp, Math.round(base.hp * .8));
   assert.equal(calculateStats('bulbasaur', 0, all(50), 0).atk, base.atk);
   assert.equal(calculateStats('bulbasaur', 0, all(100), 0).spa, Math.round(base.spa * 1.2));
   assert.equal(calculateStats('bulbasaur', 1, all(50), 0).hp, base.hp);
-  assert.equal(calculateStats('bulbasaur', 2, all(50), 0).hp, Math.round(base.hp * 1.02));
-  assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, Math.round(base.hp * 2.98));
-  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 5.98));
+  assert.equal(calculateStats('bulbasaur', 2, all(50), 0).hp, Math.round(base.hp * 1.01));
+  assert.equal(calculateStats('bulbasaur', 100, all(50), 0).hp, Math.round(base.hp * 1.99));
+  assert.equal(calculateStats('bulbasaur', 250, all(50), 0).hp, Math.round(base.hp * 3.49));
 });
 
 test('as quatro configurações são reais, chefes são Gen 1/2 e lendários ficam fora da loja', () => {
@@ -339,9 +339,9 @@ test('uma partida completa termina com exatamente um campeão e posições finai
   assert.deepEqual(snapshot.players.map(p => p.placement).sort((a, b) => Number(a) - Number(b)), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
-test('preparação tem 40 segundos e cada capítulo possui exatamente dez etapas', () => {
+test('preparação varia entre 25s no capítulo 1 e 35s do capítulo 2 em diante; capítulos têm dez etapas', () => {
   const game = new GameEngine(92);
-  assert.equal(game.snapshot().phaseSeconds, 40);
+  assert.equal(game.snapshot().phaseSeconds, 25);
   assert.equal(game.snapshot().chapter, 1);
   assert.equal(game.snapshot().stage, 1);
   for (let i = 0; i < 20000 && game.snapshot().round < 11; i++) game.tick(.1);
@@ -349,6 +349,7 @@ test('preparação tem 40 segundos e cada capítulo possui exatamente dez etapas
   assert.equal(snapshot.round, 11);
   assert.equal(snapshot.chapter, 2);
   assert.equal(snapshot.stage, 1);
+  assert.equal(snapshot.phaseSeconds, 35);
 });
 
 test('comprar, roletar e reorganizar banco funcionam durante o combate; campo fica travado', () => {
@@ -369,7 +370,8 @@ test('comprar, roletar e reorganizar banco funcionam durante o combate; campo fi
 
 test('após 30 segundos com combate pendente entra aceleração 3×', () => {
   const game = new GameEngine(13);
-  for (let i = 0; i < 402; i++) game.tick(.1);
+  // Inicia a fase diretamente para não depender do tempo de preparação por capítulo.
+  (game as any).startCombat();
   const battle = game.snapshot().visibleBattle!;
   // Mantém este confronto vivo para testar a regra de aceleração.
   for (const unit of battle.units) {
