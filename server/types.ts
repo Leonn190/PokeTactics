@@ -124,8 +124,9 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame';
   damageType?: 'physical' | 'special' | 'true';
+  basicType?: Element;
   family: Family;
   time: number;
   duration: number;

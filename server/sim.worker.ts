@@ -1,5 +1,6 @@
 /** Authoritative in-browser server. A future WebSocket transport can use the same protocol and engine. */
 import { GameEngine } from './engine';
+import { RENDER_SETTINGS } from './data';
 import type { ClientToServer, ServerToClient } from './types';
 
 const game = new GameEngine();
@@ -18,6 +19,7 @@ self.addEventListener('message', (event: MessageEvent<ClientToServer>) => {
     if (reason) send({ type: 'rejected', reason });
   }
   send({ type: 'snapshot', snapshot: game.snapshot(watchedPlayer) });
+  nextSnapshot = performance.now() + RENDER_SETTINGS.snapshotIntervalMs;
 });
 
 setInterval(() => {
@@ -27,6 +29,6 @@ setInterval(() => {
   game.tick(dt);
   if (now >= nextSnapshot) {
     send({ type: 'snapshot', snapshot: game.snapshot(watchedPlayer) });
-    nextSnapshot = now + 45;
+    nextSnapshot = now + RENDER_SETTINGS.snapshotIntervalMs;
   }
-}, 50);
+}, RENDER_SETTINGS.simulationTickMs);

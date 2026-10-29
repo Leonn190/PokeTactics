@@ -2,9 +2,13 @@ import pokemonConfig from '../config/pokemons.json';
 import movesConfig from '../config/ataques.json';
 import phaseConfig from '../config/fases.json';
 import rulesConfig from '../config/regras_gerais.json';
+import animationConfig from '../config/animacoes.json';
+import renderConfig from '../config/renderizacao.json';
 import type { Element, Family, Rarity, StageType, Stats } from './types';
 
-export type BasicAttackData = { stat: 'atk' | 'spa'; category: 'physical' | 'special'; animation: string; projectile?: 'seed' | 'lightning' | 'spell' };
+export type BasicAttackData = { stat: 'atk' | 'spa'; category: 'physical' | 'special'; animation: string; projectile?: 'basic-projectile' };
+export const ANIMATIONS = animationConfig;
+export const RENDER_SETTINGS = renderConfig;
 export type StageData = { elements: Element[]; range: number; energy: number; move: string; chargedType: Element; chargedAnimation: string; basic: BasicAttackData };
 export interface SpeciesData {
   names: string[];
@@ -23,7 +27,7 @@ export interface SpeciesData {
   bossOnly?: boolean;
   eeveeBranch?: boolean;
   basic?: BasicAttackData;
-  stages?: Partial<Omit<StageData, 'basic'>>[];
+  stages?: Partial<StageData>[];
 }
 
 export type MoveData = {
@@ -65,19 +69,36 @@ export const SPECIES = Object.fromEntries(Object.entries(pokemonConfig.species).
   }
 ])) as Record<Family, SpeciesData>;
 
-/** Configuração do estágio; ao contrário da configuração anterior não assume um carregado para toda a família. */
+/** One immutable stage configuration per family/form. Data is shared by client and server.
+ * Range selects a melee (no projectile) or ranged basic (same visual for each type).
+ * Explicit stats/category remain authoritative to preserve existing balance. */
+const stageCache = new Map<string, StageData>();
 export function getStageData(family: Family, stage: number): StageData {
   const species = SPECIES[family];
-  const override = species.stages?.[Math.min(Math.max(0, stage), species.names.length - 1)] || {};
-  return {
-    elements: override.elements || species.elements,
-    range: override.range ?? species.range,
-    energy: override.energy ?? species.energy,
-    move: override.move || species.attack,
-    chargedType: override.chargedType || species.elements[0],
-    chargedAnimation: override.chargedAnimation || 'Attack',
-    basic: species.basic || { stat: 'atk', category: 'physical', animation: 'Attack' }
+  const index = Math.min(Math.max(0, stage), species.names.length - 1);
+  const key = `${family}:${index}`;
+  const cached = stageCache.get(key);
+  if (cached) return cached;
+  const override = species.stages?.[index] || {};
+  const elements = override.elements || species.elements;
+  const range = override.range ?? species.range;
+  const basicOriginal = override.basic || species.basic;
+  const ranged = range > ANIMATIONS.basic.meleeMaxRange;
+  const basic: BasicAttackData = {
+    stat: basicOriginal?.stat || 'atk',
+    category: basicOriginal?.category || 'physical',
+    animation: ranged ? ANIMATIONS.basic.rangedAnimation : ANIMATIONS.basic.meleeAnimation,
+    ...(ranged ? { projectile: 'basic-projectile' as const } : {})
   };
+  const result: StageData = {
+    elements, range, energy: override.energy ?? species.energy,
+    move: override.move || species.attack,
+    chargedType: override.chargedType || elements[0],
+    chargedAnimation: override.chargedAnimation || 'Attack',
+    basic
+  };
+  stageCache.set(key, result);
+  return result;
 }
 
 export const SHOP_FAMILIES = (Object.keys(SPECIES) as Family[]).filter(f => SPECIES[f].shop);

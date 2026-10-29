@@ -99,7 +99,7 @@ export class GameEngine {
   private prepareMatchmaking(): void {
     const active = this.players.filter(p => !p.eliminated).map(p => p.id);
     if (currentStage(this.round).type === 'bot' || currentStage(this.round).type === 'boss' || active.length < 2) {
-      this.schedules = []; return;
+      this.schedules = []; this.cachedMatchupOptions = null; return;
     }
     const quad = currentStage(this.round).type === 'quad';
     const groupSize = (remaining: number): number => {
@@ -135,10 +135,13 @@ export class GameEngine {
       candidates.splice(winner.i, 1);
     }
     this.schedules = chosen.length ? Array.from({ length: RULES.matchmaking.options }, (_, i) => chosen[i % chosen.length]) : [];
+    this.cachedMatchupOptions = null;
   }
 
+  private cachedMatchupOptions: Record<string, string[][]> | null = null;
   private matchupOptions(): Record<string, string[][]> {
-    return Object.fromEntries(this.players.map(player => [player.id, this.schedules.map(schedule => {
+    if (this.cachedMatchupOptions) return this.cachedMatchupOptions;
+    return this.cachedMatchupOptions = Object.fromEntries(this.players.map(player => [player.id, this.schedules.map(schedule => {
       const group = schedule.find(g => g.includes(player.id)) || [];
       return group.filter(id => id !== player.id);
     })]));

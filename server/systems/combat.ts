@@ -1,5 +1,5 @@
-import { ATTACKS, calculateStats, getStageData, gridXY, SPECIES } from '../data';
-import { attackCooldown, mitigatedDamage } from '../formulas';
+import { ANIMATIONS, ATTACKS, calculateStats, getStageData, gridXY, SPECIES } from '../data';
+import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
 
@@ -38,7 +38,6 @@ function bestEggCenter(battle: Battle, source: CombatUnit, radius: number, range
   })[0] || null;
 }
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
-const stageValue = (values: number[] | undefined, stage: number, fallback = 0) => values?.[Math.min(stage, values.length - 1)] ?? fallback;
 
 function animate(unit: CombatUnit, name: AnimationName, duration: number, next?: string): void {
   unit.animation = { name, duration, elapsed: 0, ...(next ? { next } : {}) };
@@ -120,7 +119,7 @@ function effect(battle: Battle, source: CombatUnit, target: { x: number; y: numb
     id: `${battle.id}:${battle.elapsed}:${battle.effects.length}`,
     x: source.x, y: source.y, targetX: target.x, targetY: target.y,
     family: source.family, kind, value: kind === 'pollen' || kind === 'water' ? value : Math.round(value), time: 0,
-    duration: kind === 'ko' ? .9 : kind === 'pollen' || kind === 'lightning' ? .52 : kind === 'water' ? .3 : .6
+    duration: kind === 'ko' ? .9 : kind === 'basic-projectile' ? ANIMATIONS.basic.projectileDuration : kind === 'pollen' || kind === 'lightning' ? .52 : kind === 'water' ? .3 : .6
   });
 }
 
@@ -604,7 +603,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     };
     return;
   }
-  animate(source, 'Attack', .38);
+  animate(source, stage.chargedAnimation, .38);
   shot(target, 'spell', move.baseDamage + a * (move.attackRatio || 0) + s * move.specialRatio,
     true, 1, move.effect === 'drain' || move.effect === 'burn' || move.effect === 'slow' ? move.effect : undefined);
   if (move.effect === 'chain') {
@@ -928,10 +927,12 @@ export function tickBattle(battle: Battle, dt: number): void {
     } else {
       animate(unit, stage.basic.animation, Math.min(.4, unit.cooldown * .82));
       const basic = ATTACKS.basic;
-      const raw = stat(unit,stage.basic.stat) * basic.offensiveRatio;
-      const projectileKind = stage.basic.projectile || (stage.basic.category === 'special' ? 'spell' : 'physical');
+      const raw = rawBasicDamage(stat(unit,stage.basic.stat), basic.offensiveRatio);
+      const ranged = !!stage.basic.projectile;
+      const projectileKind = ranged ? 'basic-projectile' : 'physical';
       projectile(battle, unit, target, projectileKind, raw, stage.basic.category === 'special', false,
-        stage.basic.projectile ? (projectileKind === 'lightning' ? 1 / 3 : 1) : .35);
+        ranged ? ANIMATIONS.projectilesByType[stage.elements[0]].arrival : .35);
+      if (ranged) battle.effects[battle.effects.length - 1].basicType = stage.elements[0];
       unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain);
     }
     unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);

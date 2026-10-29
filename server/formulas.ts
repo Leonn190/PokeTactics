@@ -16,3 +16,13 @@ export function attackCooldown(speed: number): number {
 export function mitigatedDamage(raw: number, defense: number): number {
   return Math.max(0, raw) * 100 / (100 + Math.max(0, defense));
 }
+
+/** Stage-aware scalar used both in combat resolution and ability previews. */
+export function stageValue(values: readonly number[] | undefined, stage: number, fallback = 0): number {
+  return values?.[Math.min(Math.max(0, stage), values.length - 1)] ?? fallback;
+}
+
+/** Pure raw basic-attack formula; type defenses are applied elsewhere. */
+export function rawBasicDamage(offense: number, offensiveRatio: number): number {
+  return offense * offensiveRatio;
+}

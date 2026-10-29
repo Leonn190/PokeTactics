@@ -1,7 +1,7 @@
 import { Arena, type ClientView } from './arena';
 import { Hud } from './hud';
 import { Menus } from './menus';
-import { SPECIES } from '../../server/data';
+import { RENDER_SETTINGS, SPECIES } from '../../server/data';
 import pmdManifest from './pmd-manifest.json';
 import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
@@ -42,7 +42,7 @@ function watch(playerId: string): void {
 function launchMatch(): void {
   worker?.terminate();
   view.scoutId = 'p0'; view.selectedId = null;
-  state = null; arena.snapshot = null;
+  state = null; arena.snapshot = null; arena.setActive(true);
   lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0;
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
   const currentWorker = worker;
@@ -55,7 +55,8 @@ function launchMatch(): void {
     if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
       && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
     const now = performance.now();
-    if (now - lastHudRender > 95 || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold) {
+    hud.renderClock(state);
+    if (now - lastHudRender > RENDER_SETTINGS.hudRefreshMs || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold) {
       hud.render(state, view);
       lastHudRender = now; lastHudPhase = state.phase; lastHudGold = state.players[0].gold;
     }
@@ -65,7 +66,7 @@ function launchMatch(): void {
 }
 const menus = new Menus(launchMatch);
 document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
-  worker?.terminate(); worker = null; state = null; arena.snapshot = null;
+  worker?.terminate(); worker = null; state = null; arena.snapshot = null; arena.setActive(false);
   view.selectedId = null; clearDrag();
   document.getElementById('finalBanner')!.classList.add('hidden');
   menus.showHome();
@@ -142,9 +143,8 @@ function drawDraggedIdle(time: number): void {
       ctx.drawImage(ghostImage, 0, 0, ghostWidth, ghostHeight);
     }
   }
-  requestAnimationFrame(drawDraggedIdle);
+  if (view.dragging) requestAnimationFrame(drawDraggedIdle);
 }
-requestAnimationFrame(drawDraggedIdle);
 
 function updateGhost(event: PointerEvent): void {
   if (!view.dragId || !state) return;
@@ -155,6 +155,7 @@ function updateGhost(event: PointerEvent): void {
     const unit = state.players[0].units.find(u => u.id === view.dragId);
     if (unit) setDragSprite(unit.family, unit.stage);
     ghost.classList.remove('hidden');
+    requestAnimationFrame(drawDraggedIdle);
     document.querySelector('.shop-row')?.classList.add('drag-selling');
     document.getElementById('sellOverlay')?.classList.remove('hidden');
   }

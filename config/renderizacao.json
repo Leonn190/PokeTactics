@@ -1,0 +1,25 @@
+{
+  "maxPixelRatio": 1.5,
+  "minPixelRatio": 1,
+  "slowFrameMs": 23,
+  "fastFrameMs": 15.5,
+  "qualityCheckFrames": 100,
+  "hudRefreshMs": 190,
+  "snapshotIntervalMs": 85,
+  "simulationTickMs": 50,
+  "maxFrameRate": 60,
+  "idleSpritePreload": [
+    "Idle",
+    "Sleep",
+    "Walk",
+    "Attack",
+    "Shoot"
+  ],
+  "spriteBoundsPerIdleTask": 2,
+  "spriteBoundsFallback": {
+    "left": 0.18,
+    "right": 0.82,
+    "top": 0.15,
+    "bottom": 0.9
+  }
+}

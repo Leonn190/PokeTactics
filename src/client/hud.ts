@@ -2,6 +2,8 @@ import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_C
 import { totalPower } from '../../server/formulas';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
 import { moveDescription } from './menus';
+import { previewAbility, previewBasic } from '../../server/damage-preview';
+import { damageHtml, damageRows } from './damage-labels';
 import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats } from '../../server/types';
 import type { ClientView } from './arena';
 
@@ -71,6 +73,16 @@ export class Hud {
     this.toastTimer = window.setTimeout(() => node.classList.add('hidden'), 1800);
   }
 
+  /** Lightweight frequent timer update; no shop/rank DOM rebuilding. */
+  renderClock(snapshot: GameSnapshot): void {
+    const value = snapshot.phase === 'finished' ? '—' : String(Math.ceil(snapshot.timeLeft));
+    const countdown = element('countdown');
+    if (countdown.textContent !== value) countdown.textContent = value;
+    const progress = element('stageProgress');
+    progress.style.transform = `scaleX(${Math.max(0, Math.min(1, snapshot.phaseSeconds ? snapshot.timeLeft / snapshot.phaseSeconds : 0))})`;
+    progress.classList.toggle('fast', snapshot.accelerated);
+  }
+
   render(snapshot: GameSnapshot, view: ClientView): void {
     this.latestSnapshot = snapshot;
     this.latestView = view;
@@ -85,10 +97,7 @@ export class Hud {
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
     element('roundLabel').textContent = `${snapshot.chapter}-${snapshot.stage}`;
-    element('countdown').textContent = snapshot.phase === 'finished' ? '—' : String(Math.ceil(snapshot.timeLeft));
-    const progress = element('stageProgress');
-    progress.style.width = `${Math.max(0, Math.min(100, snapshot.phaseSeconds ? snapshot.timeLeft / snapshot.phaseSeconds * 100 : 0))}%`;
-    progress.classList.toggle('fast', snapshot.accelerated);
+    this.renderClock(snapshot);
     element('goldCount').textContent = String(player.gold);
     const streak = (RULES.streakBonuses as Record<string, number>)[String(Math.min(5, Math.abs(player.streak)))] || 0;
     const interest = Math.min(RULES.maxInterest, Math.floor(player.gold / RULES.interestEveryGold));
@@ -127,7 +136,7 @@ export class Hud {
       if (!offer) return '<div class="shop-empty"></div>';
       const data = SPECIES[offer.family];
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
-      return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, typeInfluence(player).shares)).toFixed(1)}%">
+      return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${data.range} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, influence.shares)).toFixed(1)}%">
           <div class="shop-portrait">${portrait(offer.family, 100)}</div><div class="shop-card-footer"><span class="shop-name">${data.names[0]}</span>
           <span class="shop-type">${data.elements.map(type => typeIcon(type, 18)).join('')}</span>
           <span class="shop-cost"><i>◈</i>${offer.price}</span></div></button>`;
@@ -227,8 +236,7 @@ export class Hud {
     const inspector = inspectedPokemon ? this.inspector(inspectedPokemon, inspectOwner, battleInspected) : '';
     element('unitInspector').classList.toggle('hidden', !inspectedPokemon);
     if (inspector !== this.lastInspector) { element('unitInspector').innerHTML = inspector; this.lastInspector = inspector; }
-    const liveHp = document.getElementById('inspectorCombatHp');
-    if (liveHp && battleInspected) liveHp.textContent = `VIDA NO COMBATE ${Math.ceil(battleInspected.hp)} / ${Math.ceil(battleInspected.maxHp)}`;
+    if (inspectedPokemon) this.renderInspectorResources(battleInspected, inspectedPokemon);
 
     const final = snapshot.phase === 'finished';
     element('finalBanner').classList.toggle('hidden', !final);
@@ -238,6 +246,22 @@ export class Hud {
       element('finalTitle').textContent = humanWon ? 'VITÓRIA' : 'ELIMINADO';
       element('finalSubtitle').textContent = humanWon ? '1º LUGAR · 8 JOGADORES' : `COLOCAÇÃO ${player.placement || '—'}º · VENCEDOR: ${snapshot.players.find(p => p.id === snapshot.winnerId)?.name}`;
     }
+  }
+
+  private renderInspectorResources(battle: CombatUnit | undefined, pokemon: Pokemon): void {
+    const stats = battle?.stats || calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage);
+    const energyNeeded = Math.max(1, battle?.energyNeeded ?? getStageData(pokemon.family, pokemon.stage).energy);
+    const hp = Math.max(0, battle?.hp ?? stats.hp);
+    const maxHp = Math.max(1, battle?.maxHp ?? stats.hp);
+    const energy = Math.max(0, battle?.energy ?? 0);
+    const panel = element('unitInspector');
+    const hpNode = panel.querySelector<HTMLElement>('.inspector-resource-track .hp');
+    const energyNode = panel.querySelector<HTMLElement>('.inspector-resource-track .energy');
+    if (hpNode) hpNode.style.width = `${Math.min(100, hp / maxHp * 100)}%`;
+    if (energyNode) energyNode.style.width = `${Math.min(100, energy / energyNeeded * 100)}%`;
+    const values = panel.querySelectorAll<HTMLElement>('.inspector-resource b');
+    if (values[0]) values[0].textContent = `${Math.ceil(hp)} / ${Math.ceil(maxHp)}`;
+    if (values[1]) values[1].textContent = `${Math.floor(energy)} / ${energyNeeded}`;
   }
 
   private fromCombat(unit: CombatUnit): Pokemon {
@@ -253,10 +277,23 @@ export class Hud {
     const power = totalPower(stats);
     const move = ATTACKS.moves[stage.move];
     const description = moveDescription(move);
-    return `<div class="inspector-top">${portrait(pokemon.family, 56, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">${safe(owner)} · NÍVEL ${pokemon.level} · ALCANCE ${stage.range}</div></div></div>
+    const basic = previewBasic(pokemon.family, pokemon.stage, stats);
+    const preview = previewAbility(pokemon.family, pokemon.stage, stats);
+    const hp = stats.hp;
+    const maxHp = Math.max(1, stats.hp);
+    const energy = 0;
+    const energyNeeded = Math.max(1, stage.energy);
+    const hpPercent = Math.min(100, hp / maxHp * 100);
+    const energyPercent = Math.min(100, energy / energyNeeded * 100);
+    return `<div class="inspector-top">${portrait(pokemon.family, 56, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${stage.range}</div></div></div>
+      <div class="inspector-resources" aria-label="Vida e energia">
+        <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
+        <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>
+      </div>
       <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span></div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
-      <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${stage.range}</div><p>${safe(description)}</p></div></div>
-      <div class="inspector-footer">${combatant ? '<span id="inspectorCombatHp" class="inspector-live-hp"></span>' : ''}<div class="inspector-types">${stage.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
+      <div class="inspector-basic">ATAQUE REGULAR <b>${damageHtml(basic)} <small>de dano ${basic.kind === 'special' ? 'especial' : 'físico'}</small></b></div>
+      <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${stage.range}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
+      <div class="inspector-footer"><div class="inspector-types">${stage.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }
 }
