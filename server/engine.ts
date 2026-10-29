@@ -2,6 +2,7 @@ import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, 
 import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
+import { chapterForRound, roundTimers } from './chapter-timers';
 import type { Battle, Family, GameCommand, GameSnapshot, GoldDrop, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
 
 class Rng {
@@ -41,7 +42,7 @@ export class GameEngine {
   private idCounter = 0;
   private serial = 0;
   private clock = 0;
-  private duration = RULES.preparationSeconds;
+  private duration = roundTimers(1).preparationSeconds;
   private phase: Phase = 'planning';
   private round = 1;
   private battles: Battle[] = [];
@@ -186,7 +187,9 @@ export class GameEngine {
           player.units.push(evolved);
           this.visualEvents.push({
             id: this.id(), unitId: evolved.id, ownerId: player.id, kind: 'evolve', age: 0,
-            sources: triple.map(u => ({ family: u.family, stage: u.stage, position: { ...u.position } }))
+            delay: triple.some(u => this.visualEvents.some(e => e.kind === 'summon' && e.unitId === u.id && e.age < .2)) ? .63 : 0,
+            sources: triple.map(u => ({ id: u.id, family: u.family, stage: u.stage, level: u.level, position: { ...u.position } })),
+            pokemon: { family: evolved.family, stage: evolved.stage, level: evolved.level, position: { ...evolved.position } }
           });
           if (player.id === 'p0') this.log = `${SPECIES[family].names[stage + 1]} evoluiu!`;
           changed = true;
@@ -209,7 +212,9 @@ export class GameEngine {
     player.units.push(evolved);
     player.pendingEvolution = undefined;
     this.visualEvents.push({ id:this.id(), unitId:evolved.id, ownerId:player.id, kind:'evolve', age:0,
-      sources:four.map(u => ({ family:u.family, stage:u.stage, position:{...u.position} })) });
+      delay: four.some(u => this.visualEvents.some(e => e.kind === 'summon' && e.unitId === u.id && e.age < .2)) ? .63 : 0,
+      sources:four.map(u => ({ id:u.id, family:u.family, stage:u.stage, level:u.level, position:{...u.position} })),
+      pokemon:{ family:evolved.family, stage:evolved.stage, level:evolved.level, position:{...evolved.position} } });
     if (player.id === 'p0') this.log = `${SPECIES[branch].names[0]} evoluiu!`;
   }
 
@@ -224,10 +229,9 @@ export class GameEngine {
     const bought = this.makePokemon(offer.family, { area: 'bench', index: free < 0 ? BENCH_SIZE : free });
     player.units.push(bought);
     player.shop[slot] = null;
+    this.visualEvents.push({ id: this.id(), unitId: bought.id, ownerId: player.id, kind: 'summon', age: 0,
+      pokemon: { family: bought.family, stage: bought.stage, level: bought.level, position: { ...bought.position } } });
     this.merge(player);
-    if (player.units.some(u => u.id === bought.id)) {
-      this.visualEvents.push({ id: this.id(), unitId: bought.id, ownerId: player.id, kind: 'summon', age: 0 });
-    }
     return null;
   }
 
@@ -266,12 +270,13 @@ export class GameEngine {
     const stronger = source.level > target.level ? source : target;
     const consumed = stronger.id === source.id ? target : source;
     const where = { ...target.position };
-    const sources = [source, target].map(unit => ({ family: unit.family, stage: unit.stage, position: { ...unit.position } }));
+    const sources = [source, target].map(unit => ({ id: unit.id, family: unit.family, stage: unit.stage, level: unit.level, position: { ...unit.position } }));
     player.units = player.units.filter(unit => unit.id !== consumed.id);
     stronger.position = where;
     stronger.level = Math.min(RULES.maxPokemonLevel, stronger.level + 5);
     stronger.xp = Math.max(stronger.xp, stronger.level - 1);
-    this.visualEvents.push({ id: this.id(), unitId: stronger.id, ownerId: player.id, kind: 'evolve', age: 0, sources });
+    this.visualEvents.push({ id: this.id(), unitId: stronger.id, ownerId: player.id, kind: 'fusion', age: 0, sources,
+      pokemon: { family: stronger.family, stage: stronger.stage, level: stronger.level, position: { ...stronger.position } } });
     if (player.id === 'p0') this.log = `${SPECIES[stronger.family].names[Math.min(stronger.stage, SPECIES[stronger.family].names.length - 1)]} • +5 níveis pela fusão!`;
     return true;
   }
@@ -370,7 +375,7 @@ export class GameEngine {
   }
 
   private createNPC(player: Player, kind: 'bot' | 'boss', legendary: Family | null): Player {
-    const chapter = Math.floor((this.round - 1) / PHASES.stagesPerChapter) + 1;
+    const chapter = chapterForRound(this.round);
     const isBoss = kind === 'boss';
     const size = isBoss ? 1 : Math.min(PHASES.bot.maxUnits, 1 + (chapter - 1) * PHASES.bot.extraUnitsEveryChapter);
     const level = isBoss ? chapter * PHASES.boss.levelPerChapter : PHASES.bot.baseLevel + (chapter - 1) * PHASES.bot.levelsPerChapter;
@@ -390,7 +395,7 @@ export class GameEngine {
   }
 
   private startCombat(): void {
-    this.phase = 'combat'; this.clock = 0; this.duration = RULES.combatSeconds;
+    this.phase = 'combat'; this.clock = 0; this.duration = roundTimers(this.round).combatSeconds;
     const stage = currentStage(this.round);
     const alive = this.players.filter(p => !p.eliminated);
     this.battles = [];
@@ -452,7 +457,7 @@ export class GameEngine {
           if (stage.type === 'gold') player.gold += RULES.goldRoundWinnerBonus;
           return;
         }
-        let damage = chapterDamage(Math.floor((this.round - 1) / PHASES.stagesPerChapter) + 1);
+        let damage = chapterDamage(chapterForRound(this.round));
         if (quad) {
           damage += RULES.quadPlacementExtraDamage[String(place) as keyof typeof RULES.quadPlacementExtraDamage] || 0;
         } else {
@@ -473,6 +478,15 @@ export class GameEngine {
     if (this.players.every(p => p.eliminated || p.health <= 0)) {
       const survivor = [...this.players].filter(p => !p.eliminated).sort((a, b) => (beforeDamage.get(b.id) || 0) - (beforeDamage.get(a.id) || 0))[0];
       if (survivor) survivor.health = 1;
+    }
+    // Emit the actual post-clamp, post-champion-correction damage once per affected trainer.
+    for (const player of this.players) {
+      const amount = (beforeDamage.get(player.id) || 0) - player.health;
+      if (amount <= 0) continue;
+      const battle = this.battles.find(b => b.participants.includes(player.id));
+      if (!battle) continue;
+      this.visualEvents.push({ id: this.id(), kind: 'trainer-damage', unitId: player.id,
+        ownerId: player.id, battleId: battle.id, age: 0, value: amount });
     }
     for (const p of this.players) if (!p.eliminated && p.health === 0) p.eliminated = true;
     const eliminated = this.players.filter(p => p.eliminated && p.placement === null)
@@ -502,7 +516,7 @@ export class GameEngine {
     }
     this.savedCoins = this.savedCoins.filter(c => !c.claimed);
     this.round++;
-    this.phase = 'planning'; this.clock = 0; this.duration = RULES.preparationSeconds;
+    this.phase = 'planning'; this.clock = 0; this.duration = roundTimers(this.round).preparationSeconds;
     for (const p of this.players) {
       if (p.eliminated) continue;
       p.gold += projectedIncome(p);
@@ -524,10 +538,10 @@ export class GameEngine {
     this.clock += step;
     if (this.phase === 'planning' && this.clock >= this.duration) this.startCombat();
     else if (this.phase === 'combat') {
-      const accelerated = this.clock >= RULES.combatSeconds;
+      const accelerated = this.clock >= roundTimers(this.round).combatSeconds;
       for (const battle of this.battles) tickBattle(battle, accelerated ? step * RULES.combatAcceleration : step);
       // Last-resort resolution prevents regeneration stalemates, without truncating normal fights at 30s.
-      if (this.clock >= RULES.combatSafetySeconds) this.battles.forEach(forceResolveBattle);
+      if (this.clock >= roundTimers(this.round).safetySeconds) this.battles.forEach(forceResolveBattle);
       if (this.battles.every(b => b.resolved && b.outcomeElapsed >= 1.5)) this.finishCombat();
     } else if (this.phase === 'result' && this.clock >= this.duration) this.nextRound();
   }
@@ -539,11 +553,11 @@ export class GameEngine {
     return {
       serial: ++this.serial, phase: this.phase, phaseSeconds: this.duration,
       timeLeft: Math.max(0, this.duration - this.clock), round: this.round,
-      chapter: Math.floor((this.round - 1) / PHASES.stagesPerChapter) + 1,
+      chapter: chapterForRound(this.round),
       stage: ((this.round - 1) % PHASES.stagesPerChapter) + 1,
       stageType: currentStage(this.round).type,
       stageName: currentStage(this.round).name,
-      accelerated: this.phase === 'combat' && this.clock >= RULES.combatSeconds,
+      accelerated: this.phase === 'combat' && this.clock >= roundTimers(this.round).combatSeconds,
       observedId: watched,
       players: this.players.map(p => ({
         ...p, units: p.units.map(u => ({ ...u, iv: { ...u.iv }, position: { ...u.position } })),
@@ -551,7 +565,7 @@ export class GameEngine {
       })),
       opponentId: this.phase === 'planning' ? null : this.opponentId,
       lastOpponentId: this.lastOpponentId,
-      visualEvents: this.visualEvents.filter(a => a.ownerId === watched || a.ownerId === 'p0').map(a => ({ ...a })),
+      visualEvents: this.visualEvents.filter(a => a.ownerId === watched || a.ownerId === 'p0' || (a.kind === 'trainer-damage' && a.battleId === battle?.id)).map(a => ({ ...a })),
       possibleOpponents: this.phase === 'planning' ? this.matchupOptions() : {},
       // postMessage performs the one structured clone at the worker boundary.
       visibleBattle: battle,

@@ -2,10 +2,13 @@ import { ANIMATIONS, ATTACKS, calculateStats, getStageData, gridXY, SPECIES } fr
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
+import { distance, closestTwo, bestEnemyCluster, bestEggCenter, woundedAllies } from '../combat/targeting';
+import { effect, floatingDamage } from '../combat/effects';
+import { heal } from '../combat/healing';
+import { trainerSpot } from '../combat/trainer-position';
+export { trainerSpot } from '../combat/trainer-position';
 
 const metrics = (): CombatMetrics => ({ casts: 0, controlSeconds: 0, dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0, blockedPhysical: 0, blockedSpecial: 0, barrierAbsorbed: 0, abilityMitigated: 0 });
-const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
-const stableId = (a: CombatUnit, b: CombatUnit) => a.id.localeCompare(b.id);
 function stat(unit: CombatUnit, key: StatKey): number {
   const base = unit.stats[key];
   if (key === 'hp') return base;
@@ -14,29 +17,6 @@ function stat(unit: CombatUnit, key: StatKey): number {
   return Math.max(0, base + increase - decrease);
 }
 
-function closestTwo(battle: Battle, source: CombatUnit): CombatUnit[] {
-  return battle.units.filter(u => u.hp > 0 && u.playerId === source.playerId && u.id !== source.id)
-    .sort((a,b) => distance(source,a)-distance(source,b) || stableId(a,b)).slice(0, 2);
-}
-
-function bestEnemyCluster(battle: Battle, source: CombatUnit, radius: number): CombatUnit | null {
-  const targets = battle.units.filter(u => u.hp > 0 && u.playerId !== source.playerId);
-  return targets.filter(u => distance(source,u) <= source.range + .08).sort((a,b) =>
-    targets.filter(u => distance(u,b) <= radius).length - targets.filter(u => distance(u,a) <= radius).length
-    || distance(source,a)-distance(source,b) || stableId(a,b))[0] || null;
-}
-
-function bestEggCenter(battle: Battle, source: CombatUnit, radius: number, range: number): CombatUnit | null {
-  const allies = battle.units.filter(u => u.hp > 0 && u.playerId === source.playerId);
-  if (!allies.some(u => u.hp < u.maxHp)) return null;
-  const membership = (center: CombatUnit) => allies.filter(u => distance(center,u) <= radius);
-  return allies.filter(u => distance(source,u) <= range && membership(u).some(a => a.hp < a.maxHp)).sort((a,b) => {
-    const aa = membership(a), bb = membership(b);
-    return bb.length-aa.length || bb.filter(u=>u.hp<u.maxHp).length-aa.filter(u=>u.hp<u.maxHp).length
-      || bb.reduce((s,u)=>s+u.maxHp-u.hp,0)-aa.reduce((s,u)=>s+u.maxHp-u.hp,0)
-      || distance(source,a)-distance(source,b) || stableId(a,b);
-  })[0] || null;
-}
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
 
 function animate(unit: CombatUnit, name: AnimationName, duration: number, next?: string): void {
@@ -112,15 +92,6 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
 
 export function createBattle(playerA: Player, playerB: Player, id: string): Battle {
   return createBattleGroup([playerA, playerB], id);
-}
-
-function effect(battle: Battle, source: CombatUnit, target: { x: number; y: number }, kind: CombatEffect['kind'], value: number): void {
-  battle.effects.push({
-    id: `${battle.id}:${battle.elapsed}:${battle.effects.length}`,
-    x: source.x, y: source.y, targetX: target.x, targetY: target.y,
-    family: source.family, kind, value: kind === 'pollen' || kind === 'water' ? value : Math.round(value), time: 0,
-    duration: kind === 'ko' ? .9 : kind === 'basic-projectile' ? ANIMATIONS.basic.projectileDuration : kind === 'pollen' || kind === 'lightning' ? .52 : kind === 'water' ? .3 : .6
-  });
 }
 
 // A animação do projétil e a aplicação do dano compartilham o mesmo relógio.
@@ -246,8 +217,7 @@ function applyBallConversion(battle: Battle, caster: CombatUnit, amount: number)
         ally.attackClock *= ally.cooldown/previousCooldown;
       }
     } else if (conversion.kind === 'heal') {
-      const gained = heal(ally, amount * (conversion.healing_pool_per_damage || 0) / allies.length, caster);
-      if (gained) effect(battle,caster,ally,'heal',gained);
+      heal(battle, ally, amount * (conversion.healing_pool_per_damage || 0) / allies.length, caster);
     } else if (conversion.kind === 'barrier') {
       const desired = amount * (conversion.shield_pool_per_damage || 0) / allies.length;
       const old = ally.barriers.find(b => b.sourceId === caster.id);
@@ -307,8 +277,7 @@ function landProjectiles(battle: Battle, dt: number): void {
     if (hit.special === 'healing-egg') {
       const center = { x:fx.targetX, y:fx.targetY };
       for (const ally of battle.units.filter(u => u.hp > 0 && u.playerId === caster.playerId && distance(u,center) <= (move.splashRange || 1.65))) {
-        const gained = heal(ally,(move.healBase || 0) + stat(caster,'spa')*(move.healRatio || 0),caster);
-        if (gained) effect(battle,caster,ally,'heal',gained);
+        heal(battle, ally,(move.healBase || 0) + stat(caster,'spa')*(move.healRatio || 0),caster);
       }
       effect(battle,caster,center,'impact',move.splashRange || 1.65);
       continue;
@@ -319,8 +288,7 @@ function landProjectiles(battle: Battle, dt: number): void {
     if (hit.special === 'single-knockup') { applyKnockup(battle,caster,target,move.controlDuration || .75); continue; }
     if (hit.special === 'rock-strike') continue;
     if (hit.onHit === 'drain') {
-      const gained = heal(caster, (move.healBase || 0) + caster.stats.spa * (move.healRatio || 0));
-      if (gained > 0) effect(battle, caster, caster, 'heal', gained);
+      heal(battle, caster, (move.healBase || 0) + caster.stats.spa * (move.healRatio || 0));
     } else if (hit.onHit === 'burn' && target.hp > 0) {
       target.damageOverTime = { amount: (move.dotBase || 0) + caster.stats.spa * (move.dotRatio || 0), time: move.dotDuration || 3, sourceId: caster.id };
     } else if (hit.onHit === 'slow' && target.hp > 0) {
@@ -346,15 +314,6 @@ function landProjectiles(battle: Battle, dt: number): void {
       }
     }
   }
-}
-
-function floatingDamage(battle: Battle, target: CombatUnit, amount: number, damageType: 'physical' | 'special' | 'true'): void {
-  // Pequenos ticks de veneno se somam em uma só etiqueta por alvo.
-  const recent = [...battle.effects].reverse().find(fx => fx.kind === 'damage' && fx.targetId === target.id && fx.damageType === damageType && fx.time < .12);
-  if (recent) { recent.value += amount; return; }
-  battle.effects.push({ id: `${battle.id}:hit:${battle.elapsed}:${battle.effects.length}`, targetId: target.id,
-    x: target.x, y: target.y, targetX: target.x, targetY: target.y,
-    kind: 'damage', damageType, family: target.family, value: amount, time: 0, duration: .85 });
 }
 
 function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage: number): void {
@@ -411,18 +370,6 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   return damage + absorbedTotal;
 }
 
-function heal(unit: CombatUnit, amount: number, caster: CombatUnit = unit): number {
-  const gain = Math.min(unit.maxHp - unit.hp, Math.max(0, amount));
-  unit.hp += gain;
-  caster.metrics.healed += gain;
-  return gain;
-}
-
-function woundedAllies(battle: Battle, source: CombatUnit, range: number, count: number): CombatUnit[] {
-  return battle.units.filter(u => u.playerId === source.playerId && u.hp > 0 && u.hp < u.maxHp && distance(u, source) <= range)
-    .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp || distance(a, source) - distance(b, source)).slice(0, count);
-}
-
 function grantBarrier(battle: Battle, source: CombatUnit, moveId: string): void {
   const move = ATTACKS.moves[moveId];
   const hp = (move.shieldBase || 0) + (move.shieldDefenseRatio || 0) * source.stats.def;
@@ -440,8 +387,7 @@ function supportTick(battle: Battle, source: CombatUnit, dt: number): void {
   if (move.effect === 'shield' || move.shieldBase) grantBarrier(battle, source, moveId);
   else if (move.effect === 'heal-powder') {
     for (const ally of woundedAllies(battle, source, move.healRange || 3.5, move.healTargets || 2)) {
-      const gained = heal(ally, (move.healBase || 0) + source.stats.spa * (move.healRatio || 0), source);
-      if (gained) effect(battle, source, ally, 'heal', gained);
+      heal(battle, ally, (move.healBase || 0) + source.stats.spa * (move.healRatio || 0), source);
     }
   }
 }
@@ -630,8 +576,7 @@ function pollenTick(battle: Battle, source: CombatUnit, dt: number): void {
     deal(battle, source, enemy, stageValue(move.damageByStage, source.stage) + stat(source,'spa') * move.specialRatio, true, true);
   }
   for (const ally of woundedAllies(battle, source, move.healRange || 3.3, move.healTargets || 2)) {
-    const gained = heal(ally, stageValue(move.healByStage, source.stage) + source.stats.spa * (move.healRatio || 0), source);
-    if (gained > 0) effect(battle, source, ally, 'heal', gained);
+    heal(battle, ally, stageValue(move.healByStage, source.stage) + source.stats.spa * (move.healRatio || 0), source);
   }
   source.pendingPollen = null;
 }
@@ -776,15 +721,6 @@ function resolve(battle: Battle): void {
     // Preserva a direção final para o cliente fazer apenas o menor giro até
     // a câmera no encerramento. Somente os vencedores realizam essa virada.
   }
-}
-
-/** Posições compartilhadas com os avatares do canvas. */
-export function trainerSpot(slot: number, quad: boolean): { x: number; y: number } {
-  if (!quad) return slot === 0 ? { x: -4.78, y: 3.52 } : { x: 4.82, y: -3.52 };
-  return [
-    { x: -9.12, y: 3.53 }, { x: -9.12, y: -3.53 },
-    { x: 9.12, y: -3.53 }, { x: 9.12, y: 3.53 }
-  ][slot] || { x: 0, y: 0 };
 }
 
 function tickOutcome(battle: Battle, dt: number): void {

@@ -3,6 +3,7 @@ import { SPECIES } from '../../../server/data';
 import type { CombatEffect } from '../../../server/types';
 import { renderTravelEffects } from '../vfx/travel-effects';
 import { renderImpactEffects } from '../vfx/impact-effects';
+import { renderFloatingNumber } from '../vfx/floating-numbers';
 const PI2 = Math.PI * 2;
 
 export function renderCombatEffects(context: CanvasRenderingContext2D, effects: CombatEffect[], flipY: boolean, toScreen: (x:number,y:number)=>{x:number;y:number}, cellScale: number, time: number, resolveTime?: (effect: CombatEffect) => number): void {
@@ -123,6 +124,7 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
           const a = i * PI2 / 6 + t * 1.8;
           ctx.fillStyle = '#c5ffd6'; ctx.fillRect(to.x + Math.cos(a) * (8 + t * 26) - 2, to.y - 20 + Math.sin(a) * (6 + t * 16) - 2, 4, 4);
         }
+        renderFloatingNumber(ctx, to.x, to.y - cellScale * .4 - 24, fx.value, t, 'heal');
       } else if (fx.kind === 'physical') {
         ctx.globalAlpha = 1 - t; ctx.strokeStyle = '#fff6d5'; ctx.lineWidth = 4.5; ctx.shadowColor = '#ffc078'; ctx.shadowBlur = 10;
         ctx.beginPath(); ctx.arc(to.x, to.y - 16, 8 + t * 18, -.95, .9); ctx.stroke();

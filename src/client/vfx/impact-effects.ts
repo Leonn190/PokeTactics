@@ -1,6 +1,7 @@
 /** Hit numbers, impact rings and collectible projectile landing effects. */
 import { SPECIES } from '../../../server/data';
 import type { CombatEffect } from '../../../server/types';
+import { renderFloatingNumber } from './floating-numbers';
 type Point = { x: number; y: number };
 const PI2 = Math.PI * 2;
 export function renderImpactEffects(ctx: CanvasRenderingContext2D, fx: CombatEffect, from: Point, to: Point, t: number, cellScale: number): boolean {
@@ -17,16 +18,8 @@ export function renderImpactEffects(ctx: CanvasRenderingContext2D, fx: CombatEff
         ctx.restore(); return true;
       }
       if (fx.kind === 'damage') {
-        // Flutua apenas sobre o Pokémon atingido. O projétil é desenhado separadamente.
-        const p = to;
-        const amount = Math.max(1, Math.round(fx.value));
-        const size = Math.min(35, 13 + Math.sqrt(amount) * 1.8);
-        const color = fx.damageType === 'physical' ? '#ffd1a0' : fx.damageType === 'special' ? '#97d0ff' : '#eab1ff';
-        ctx.save(); ctx.globalAlpha = Math.min(1, (1 - t) * 1.55);
-        ctx.font = `900 ${size}px 'Barlow Condensed',sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 3.5; ctx.strokeStyle = '#122027';
-        const posY = p.y - cellScale * .4 - 24 - t * 54;
-        ctx.strokeText(String(amount), p.x, posY); ctx.fillStyle = color; ctx.fillText(String(amount), p.x, posY);
-        ctx.restore(); return true;
+        renderFloatingNumber(ctx, to.x, to.y - cellScale * .4 - 24, fx.value, t, fx.damageType || 'physical');
+        return true;
       }
       if (fx.kind === 'ball' || fx.kind === 'bone' || fx.kind === 'egg') {
         const arrival = fx.kind === 'bone' ? .78 : .83;

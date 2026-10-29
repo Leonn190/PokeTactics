@@ -187,9 +187,14 @@ export interface UnitVisualEvent {
   id: string;
   unitId: string;
   ownerId: string;
-  kind: 'summon' | 'evolve';
+  kind: 'summon' | 'evolve' | 'fusion' | 'trainer-damage';
   age: number;
-  sources?: Array<{ family: Family; stage: number; position: UnitPosition }>;
+  sources?: Array<{ family: Family; stage: number; position: UnitPosition; level: number; id?: string }>;
+  pokemon?: { family: Family; stage: number; position: UnitPosition; level: number };
+  delay?: number; // stagger evolution after a simultaneous purchase
+  value?: number; // effective HP lost by trainer, not the pre-clamp formula
+  battleId?: string;
+
 }
 
 export interface GameSnapshot {

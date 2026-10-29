@@ -35,6 +35,12 @@ export class Hud {
   private latestSnapshot: GameSnapshot | null = null;
   private latestView: ClientView | null = null;
   private toastTimer = 0;
+  private readonly fragmentCache = new Map<string, string>();
+  private updateHTML(id: string, html: string): void {
+    if (this.fragmentCache.get(id) === html) return;
+    element(id).innerHTML = html;
+    this.fragmentCache.set(id, html);
+  }
 
   constructor() {
     document.querySelectorAll<HTMLButtonElement>('[data-panel]').forEach(button => button.addEventListener('click', () => {
@@ -89,11 +95,11 @@ export class Hud {
     const player = snapshot.players[0];
     const choosing = (player.pendingEvolution?.length || 0) === 4;
     element('eeveeEvolution').classList.toggle('hidden', !choosing);
-    if (choosing) element('eeveeBranches').innerHTML = EEVEE_BRANCHES.map(branch => {
+    if (choosing) this.updateHTML('eeveeBranches', EEVEE_BRANCHES.map(branch => {
       const s = SPECIES[branch], move = ATTACKS.moves[s.attack];
       return `<button class="evolution-choice" data-eevee-branch="${branch}" style="--evo-glow:${s.glow}">
         ${portrait(branch,70)}<strong>${s.names[0]}</strong><small>${s.elements.map(t=>typeIcon(t,16)).join('')} ${safe(move.name)}</small></button>`;
-    }).join('');
+    }).join(''));
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
     element('roundLabel').textContent = `${snapshot.chapter}-${snapshot.stage}`;
@@ -104,21 +110,21 @@ export class Hud {
     const victory = player.roundVictory ? RULES.victoryIncome : 0;
     element('incomeCount').textContent = `+${RULES.baseIncome + interest + victory + streak}`;
     const streakText = player.streak > 0 ? `${player.streak} vitórias seguidas` : player.streak < 0 ? `${-player.streak} derrotas seguidas` : 'sem sequência';
-    element('incomeBreakdown').innerHTML = `<strong>PRÓXIMA RENDA</strong><div>Renda base <b>+${RULES.baseIncome}</b></div><div>Juros (${player.gold} ÷ ${RULES.interestEveryGold}, limite ${RULES.maxInterest}) <b>+${interest}</b></div><div>Última vitória <b>+${victory}</b></div><div>Sequência (${streakText}) <b>+${streak}</b></div><hr /><div class="total">Total projetado <b>+${RULES.baseIncome + interest + victory + streak}</b></div><small>Se vencer a próxima batalha, receberá +${RULES.victoryIncome} no pagamento seguinte. Juros e sequência serão recalculados.</small>`;
+    this.updateHTML('incomeBreakdown', `<strong>PRÓXIMA RENDA</strong><div>Renda base <b>+${RULES.baseIncome}</b></div><div>Juros (${player.gold} ÷ ${RULES.interestEveryGold}, limite ${RULES.maxInterest}) <b>+${interest}</b></div><div>Última vitória <b>+${victory}</b></div><div>Sequência (${streakText}) <b>+${streak}</b></div><hr /><div class="total">Total projetado <b>+${RULES.baseIncome + interest + victory + streak}</b></div><small>Se vencer a próxima batalha, receberá +${RULES.victoryIncome} no pagamento seguinte. Juros e sequência serão recalculados.</small>`);
     element('levelNumber').textContent = String(player.level);
     const fielded = player.units.filter(unit => unit.position.area === 'board');
     const odds = shopOdds(player.level);
     const rarities = ['COMUM', 'INCOMUM', 'RARO', 'ÉPICO', 'LENDÁRIO'];
-    element('shopChances').innerHTML = rarities.map((label, i) => `<div class="rarity-chance" title="${label}: peso ${odds[i]}%${odds.reduce((a,b) => a+b,0) !== 100 ? ' (pesos normalizados no sorteio)' : ''}"><i style="background:${RARITY_COLORS[i]}"></i><span>${label}</span><b>${odds[i]}%</b></div>`).join('');
+    this.updateHTML('shopChances', rarities.map((label, i) => `<div class="rarity-chance" title="${label}: peso ${odds[i]}%${odds.reduce((a,b) => a+b,0) !== 100 ? ' (pesos normalizados no sorteio)' : ''}"><i style="background:${RARITY_COLORS[i]}"></i><span>${label}</span><b>${odds[i]}%</b></div>`).join(''));
     const influence = typeInfluence(player);
     const topTypes = (Object.keys(influence.points) as Element[]).sort((a,b) => (influence.points[b] || 0) - (influence.points[a] || 0) || a.localeCompare(b)).slice(0, RULES.typeShopBias.maxShown);
-    element('typeInfluence').innerHTML = `<span class="influence-caption" title="Influência de tipos na loja: ativos valem ${RULES.typeShopBias.activePoints} pontos e banco ${RULES.typeShopBias.benchPoints}. Não concede bônus de combate.">TIPOS</span><div class="influence-track">${topTypes.length ? topTypes.map(type => {
+    this.updateHTML('typeInfluence', `<span class="influence-caption" title="Influência de tipos na loja: ativos valem ${RULES.typeShopBias.activePoints} pontos e banco ${RULES.typeShopBias.benchPoints}. Não concede bônus de combate.">TIPOS</span><div class="influence-track">${topTypes.length ? topTypes.map(type => {
       const info = ELEMENTS[type], fraction = influence.shares[type] || 0;
       return `<div class="influence-segment" style="width:${fraction * 100}%;--type-color:${info.color}" title="${info.name}: ${influence.points[type]} pontos • ${(fraction * 100).toFixed(1)}% da influência">${typeIcon(type, 16)}<span>${(fraction * 100).toFixed(0)}%</span></div>`;
-    }).join('') : '<span class="influence-empty">Sem tipos</span>'}</div>`;
+    }).join('') : '<span class="influence-empty">Sem tipos</span>'}</div>`);
     element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || player.gold < RULES.rerollCost || player.eliminated);
     element('lockButton').classList.toggle('locked', player.locked);
-    element('lockButton').innerHTML = player.locked ? '▣' : '◇';
+    this.updateHTML('lockButton', player.locked ? '▣' : '◇');
     element('lockButton').setAttribute('aria-label', player.locked ? 'Destravar loja' : 'Travar loja');
     element('lockButton').setAttribute('title', player.locked ? 'Destravar loja' : 'Travar loja');
 

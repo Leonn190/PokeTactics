@@ -5,11 +5,18 @@ import { SnapshotClock } from './animation/snapshot-clock';
 import { EffectTimeline } from './animation/effect-timeline';
 import { SpriteManager } from './animation/sprite-manager';
 import { UnitInterpolator } from './animation/unit-interpolator';
+import { VisualEventManager } from './animation/visual-event-manager';
+import { OrientationController } from './animation/orientation';
+import { drawUnitVisualEvent } from './animation/unit-visuals';
+import { paintArenaBackground } from './scene/background';
+import { drawCoin } from './scene/coin-renderer';
+import { renderTrainerAvatar } from './scene/trainer-renderer';
+import { renderFloatingNumber } from './vfx/floating-numbers';
 import { renderCombatEffects } from './render/effects';
 import { SpriteBoundsCache } from './render/sprite-bounds';
 import { drawContactShadow } from './render/shadows';
 import type { CombatUnit, Family, GameSnapshot, Pokemon, UnitPosition } from '../../server/types';
-import { trainerSpot } from '../../server/systems/combat';
+import { trainerSpot } from '../../server/combat/trainer-position';
 import pmdManifest from './pmd-manifest.json';
 
 export interface ClientView {
@@ -32,7 +39,6 @@ const BENCH_Y = 4.38;
 const ARENA_HALF = 4.25;
 const QUAD_OFFSET = 4.35;
 const benchXY = (index: number, enemy = false, offset = 0) => ({ x: offset + (index - 4.5) * (ARENA_HALF * 2 / 10), y: enemy ? -BENCH_Y : BENCH_Y });
-const TRAINER_COLORS = ['#d9f4ea', '#dd9fd0', '#82c4e5', '#b1b3ff', '#f5bc89', '#c3e7a4', '#a9dfdc', '#eeadab'];
 
 export class Arena {
   private context: CanvasRenderingContext2D;
@@ -48,10 +54,14 @@ export class Arena {
   private frameScheduler = new FrameScheduler(RENDER_SETTINGS.maxFrameRate);
   private visualClock = new SnapshotClock();
   private effectTimeline = new EffectTimeline();
+  private visualEvents = new VisualEventManager();
+  private orientation = new OrientationController();
   private profiler = new PerformanceProfiler();
   private renderLead = 0;
   private spriteBounds = new SpriteBoundsCache();
   private warmedSpecies = new Set<number>();
+  private planningCache: { serial: number; scout: string; markers: Marker[] } | null = null;
+  private unitEventLookup = new Map<string, NonNullable<GameSnapshot['visualEvents']>[number]>();
   private animationTicks = new WeakMap<PmdSheet, number>();
   private grassCanvas: HTMLCanvasElement | null = null;
   private grassKey = '';
@@ -68,8 +78,30 @@ export class Arena {
   acceptSnapshot(snapshot: GameSnapshot, arrivedAt = performance.now()): boolean {
     if (!this.visualClock.accept(snapshot.serial, arrivedAt)) return false;
     this.snapshot = snapshot;
+    // Build stable lookup once per snapshot rather than allocating it at display frequency.
+    this.unitEventLookup.clear();
+    for (const event of snapshot.visualEvents) {
+      if (event.kind !== 'trainer-damage') this.unitEventLookup.set(`${event.ownerId}:${event.unitId}`, event);
+    }
     this.effectTimeline.sync(snapshot.visibleBattle?.id || '', snapshot.visibleBattle?.effects || []);
-    if (snapshot.visibleBattle) this.unitInterpolator.sync(snapshot.visibleBattle.id, snapshot.visibleBattle.units, arrivedAt);
+    this.visualEvents.sync(snapshot.visualEvents, arrivedAt);
+    const orientationIds = new Set<string>();
+    for (const player of snapshot.players) for (const unit of player.units) orientationIds.add(unit.id);
+    for (const unit of snapshot.visibleBattle?.units || []) orientationIds.add(unit.id);
+    for (const event of snapshot.visualEvents) {
+      orientationIds.add(event.unitId);
+      for (const source of event.sources || []) if (source.id) orientationIds.add(source.id);
+    }
+    this.orientation.prune(orientationIds);
+    if (snapshot.visibleBattle) {
+      this.unitInterpolator.sync(snapshot.visibleBattle.id, snapshot.visibleBattle.units, arrivedAt);
+      // Download Rotate during the 1.5s arrival, before the first orientation turn.
+      for (const unit of snapshot.visibleBattle.units) {
+        const dex = SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
+        const anims = PMD[String(dex)];
+        if (anims && !this.warmedSpecies.has(dex)) this.warmAnimationSheets(dex, anims);
+      }
+    }
     else this.unitInterpolator.reset();
     this.profiler.snapshot();
     return true;
@@ -97,7 +129,11 @@ export class Arena {
     this.frameScheduler.reset();
     this.visualClock.reset();
     this.effectTimeline.reset();
+    this.visualEvents.reset();
+    this.orientation.reset();
     this.unitInterpolator.reset();
+    this.planningCache = null;
+    this.unitEventLookup.clear();
     if (active) this.scheduleFrame();
     else if (this.rafHandle !== null) { cancelAnimationFrame(this.rafHandle); this.rafHandle = null; }
   }
@@ -217,7 +253,7 @@ export class Arena {
   private warmAnimationSheets(dex: number, anims: PmdEntry): void {
     if (this.warmedSpecies.has(dex)) return;
     this.warmedSpecies.add(dex);
-    for (const action of RENDER_SETTINGS.idleSpritePreload) {
+    for (const action of [...RENDER_SETTINGS.idleSpritePreload, 'Rotate']) {
       if (anims[action]) this.image(`${import.meta.env.BASE_URL}sprite/${String(dex).padStart(4, '0')}/${anims[action].file}`);
     }
   }
@@ -236,12 +272,18 @@ export class Arena {
       this.warmAnimationSheets(id, anims);
       const action = unit.bench ? 'Sleep' : this.snapshot?.phase === 'planning' ? 'Idle'
         : unit.animation?.name || (unit.moving ? (anims.Hover ? 'Hover' : 'Walk') : 'Idle');
+      const battle = this.snapshot?.visibleBattle;
+      const flipped = this.snapshot?.phase !== 'planning' && battle?.participants.length === 2 && battle.playerB === this.view.scoutId;
+      const facing = this.direction(unit.facingX || 0, flipped ? -(unit.facingY || 0) : (unit.facingY || 0));
+      const desired = this.snapshot?.phase === 'planning' || this.snapshot?.phase === 'result' || this.snapshot?.phase === 'finished' || unit.bench ? 0 : facing;
+      const orientation = this.orientation.get(unit.id, desired, time, !unit.bench && (action === 'Idle' || action === 'Walk' || action === 'Hover'));
+      const turning = !!orientation.rotate && (action === 'Idle' || action === 'Walk' || action === 'Hover') && !!anims.Rotate;
       // PMD species can omit special sheets. Fallback only to names in this real manifest.
       const fallbacks = action === 'Shoot' ? ['Attack', 'Idle']
         : action === 'SpAttack' ? ['Shoot', 'Attack', 'Idle']
         : action === 'Walk' ? ['Walk', 'Attack', 'Idle']
         : action === 'Strike' ? ['Attack', 'Idle'] : ['Idle'];
-      let selectedAction = anims[action] ? action : fallbacks.find(name=>anims[name]) || 'Idle';
+      let selectedAction = turning ? 'Rotate' : anims[action] ? action : fallbacks.find(name=>anims[name]) || 'Idle';
       let animation = anims[selectedAction];
       let url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
       let sprite = this.image(url);
@@ -264,21 +306,13 @@ export class Arena {
           : (time * 60 + ((unit.id.charCodeAt(unit.id.length - 1) || 0) % 13) * 2) % totalTicks;
         let tick = elapsedTicks, frame = 0;
         while (frame < durations.length - 1 && tick >= durations[frame]) tick -= durations[frame++];
-        const flipped = this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle?.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId;
-        // Withdraw é uma habilidade de giro; a entrada no combate não deve girar.
+        // Withdraw and other ability-specific animations take precedence over orientation.
         const spinning = selectedAction === 'Withdraw' && !!unit.spinTime;
-        const battle = this.snapshot?.visibleBattle;
-        const facing = this.direction(unit.facingX || 0, flipped ? -(unit.facingY || 0) : (unit.facingY || 0));
-        let dir = spinning ? Math.floor(((unit.spinDuration || 2) - (unit.spinTime || 0)) / .095) % 8
-          : this.snapshot?.phase === 'planning' || unit.bench ? 0 : facing;
-        if (!spinning && battle?.resolved && battle.winner === unit.ownerId && !unit.bench) {
-          // Menor arco entre a última orientação e a frente (0), em até 0,3 s.
-          // Não usamos a sheet Rotate: seus frames fazem a volta completa.
-          const delta = ((-facing + 12) % 8) - 4;
-          const fraction = Math.min(1, battle.outcomeElapsed / .3);
-          dir = (Math.round(facing + delta * fraction) + 8) % 8;
-        }
-        const row = animation.directions === 1 ? 0 : dir % animation.directions;
+        const dir = spinning ? Math.floor(((unit.spinDuration || 2) - (unit.spinTime || 0)) / .095) % 8
+          : orientation.direction;
+        if (selectedAction === 'Rotate' && orientation.rotate) frame = Math.min(durations.length - 1, orientation.rotate.frame);
+        const row = animation.directions === 1 ? 0
+          : (selectedAction === 'Rotate' && orientation.rotate ? orientation.rotate.row : dir) % animation.directions;
         // Tamanho baseado em pixels dos próprios sprites; sem formas geométricas.
         const sizeScale = this.cellScale / 48 * (unit.bench ? .95 : 1.13);
         const bounds = this.spriteBounds.get(sprite, `${url}:${frame}:${row}`, frame * animation.width, row * animation.height, animation.width, animation.height);
@@ -306,45 +340,8 @@ export class Arena {
   }
 
   private paintBackground(ctx: CanvasRenderingContext2D): void {
-    const w = this.width, h = this.height;
-    const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, '#102b29'); gradient.addColorStop(.5, '#183c2d'); gradient.addColorStop(1, '#0a231e');
-    ctx.fillStyle = gradient; ctx.fillRect(0, 0, w, h);
-    const quad = this.quadActive;
-    const bounds = [this.toScreen(-ARENA_HALF - (quad ? QUAD_OFFSET : 0), -3.95), this.toScreen(ARENA_HALF + (quad ? QUAD_OFFSET : 0), 3.95)];
-    const left = bounds[0].x, top = bounds[0].y, fieldW = bounds[1].x - left, fieldH = bounds[1].y - top;
-    ctx.save(); ctx.shadowColor = '#030e0db0'; ctx.shadowBlur = 30;
-    ctx.fillStyle = '#0d3029'; ctx.beginPath(); ctx.roundRect(left - 9, top - 9, fieldW + 18, fieldH + 18, 19); ctx.fill(); ctx.restore();
-    const field = ctx.createLinearGradient(left, top, left, top + fieldH);
-    field.addColorStop(0, '#2c7045'); field.addColorStop(.45, '#397b49'); field.addColorStop(.55, '#3e844d'); field.addColorStop(1, '#2b6b43');
-    ctx.fillStyle = field; ctx.beginPath(); ctx.roundRect(left, top, fieldW, fieldH, 12); ctx.fill();
-    ctx.save(); ctx.beginPath(); ctx.roundRect(left, top, fieldW, fieldH, 12); ctx.clip();
-    // Faixas de grama cortada, fibras e iluminação sutil sem grade permanente.
-    for (let i = 0; i < 12; i++) {
-      ctx.fillStyle = i % 2 ? '#0e40251a' : '#a6eb7c0c';
-      ctx.fillRect(left, top + fieldH * i / 12, fieldW, fieldH / 12);
-    }
-    ctx.fillStyle = '#d85f4911'; ctx.fillRect(left, top, fieldW, fieldH / 2);
-    ctx.fillStyle = '#b6e87a09'; ctx.fillRect(left, top + fieldH / 2, fieldW, fieldH / 2);
-    for (let i = 0; i < (quad ? 670 : 420); i++) {
-      const x = left + ((i * 173 + 43) % 997) / 997 * fieldW;
-      const y = top + ((i * 379 + 97) % 991) / 991 * fieldH;
-      ctx.strokeStyle = i % 3 ? '#c1eaa01e' : '#174d2c24'; ctx.lineWidth = .7;
-      ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x + (i % 3) - 1, y - 2); ctx.stroke();
-    }
-    ctx.restore();
-    ctx.strokeStyle = '#d3f0b46d'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(left + 4, top + 4, fieldW - 8, fieldH - 8, 10); ctx.stroke();
-    const middle = this.toScreen(0, 0);
-    ctx.strokeStyle = '#e5f5c67a'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(left + 5, middle.y); ctx.lineTo(left + fieldW - 5, middle.y); ctx.stroke();
-    if (quad) {
-      // Junção das DUAS arenas completas: seam central longitudinal de 14x8.
-      ctx.strokeStyle = '#def4c0ab'; ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.moveTo(middle.x, top + 4); ctx.lineTo(middle.x, top + fieldH - 4); ctx.stroke();
-      ctx.strokeStyle = '#194c3299'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(middle.x + 5, top + 5); ctx.lineTo(middle.x + 5, top + fieldH - 5); ctx.stroke();
-    }
+    paintArenaBackground(ctx, this.width, this.height, this.quadActive,
+      ARENA_HALF, QUAD_OFFSET, (x, y) => this.toScreen(x, y));
   }
 
   private background(): void {
@@ -410,6 +407,9 @@ export class Arena {
   private markers(): Marker[] {
     const snapshot = this.snapshot;
     if (!snapshot) return [];
+    if (snapshot.phase === 'planning' && this.planningCache?.serial === snapshot.serial && this.planningCache.scout === this.view.scoutId) {
+      return this.planningCache.markers;
+    }
     const watched = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
     const benchUnits = (units: Pokemon[], ownerId: string, own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
       const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index, enemy, offset);
@@ -449,7 +449,9 @@ export class Arena {
         level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
-    return [...convert(friendly.units, true), ...bench];
+    const prepared = [...convert(friendly.units, true), ...bench];
+    this.planningCache = { serial: snapshot.serial, scout: this.view.scoutId, markers: prepared };
+    return prepared;
   }
 
   pickCoin(clientX: number, clientY: number): { x: number; y: number } | null {
@@ -464,12 +466,7 @@ export class Arena {
     for (const coin of this.snapshot.collectibleGold) {
       if (coin.claimed) continue;
       const p = this.toScreen(coin.x, coin.y);
-      const ctx = this.context;
-      ctx.save(); ctx.shadowBlur = 16; ctx.shadowColor = '#ffd77d';
-      ctx.fillStyle = '#e6b74a'; ctx.strokeStyle = '#fff0a2'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(p.x, p.y - 10, 10, 0, PI2); ctx.fill(); ctx.stroke();
-      ctx.shadowBlur = 0; ctx.font = '800 14px Inter'; ctx.fillStyle = '#694b1b'; ctx.textAlign = 'center';
-      ctx.fillText('1', p.x, p.y - 5); ctx.restore();
+      drawCoin(this.context, p.x, p.y);
     }
   }
 
@@ -522,32 +519,7 @@ export class Arena {
   }
 
   private drawTrainerAvatar(playerId: string, x: number, y: number, time: number, label: string): void {
-    const index = Math.max(0, Math.min(7, Number(playerId.slice(1)) || 0));
-    const color = TRAINER_COLORS[index];
-    const ctx = this.context;
-    const p = this.toScreen(x, y);
-    const radius = 14 * this.zoom;
-    ctx.save();
-    ctx.beginPath(); ctx.ellipse(p.x, p.y + radius, radius + 8, 6, 0, 0, PI2); ctx.fillStyle = '#0008'; ctx.fill();
-    ctx.beginPath(); ctx.arc(p.x, p.y, radius + 8 + Math.sin(time * 2.8 + index) * 2, 0, PI2);
-    ctx.strokeStyle = `${color}70`; ctx.lineWidth = 2; ctx.stroke();
-    ctx.shadowColor = color; ctx.shadowBlur = 16;
-    ctx.beginPath(); ctx.arc(p.x, p.y + Math.sin(time * 3 + index) * 2, radius, 0, PI2);
-    ctx.fillStyle = color; ctx.fill(); ctx.shadowBlur = 0;
-    if (index) {
-      // Each CPU owns a recognizable little tactician, not a copy of the player's circle.
-      ctx.fillStyle = color; ctx.strokeStyle = '#30444c'; ctx.lineWidth = 2;
-      const ear = (index % 3 + 1) * 3;
-      ctx.beginPath(); ctx.moveTo(p.x - radius * .75, p.y - radius * .55); ctx.lineTo(p.x - radius * .85, p.y - radius - ear);
-      ctx.lineTo(p.x - radius * .15, p.y - radius * .76); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(p.x + radius * .75, p.y - radius * .55); ctx.lineTo(p.x + radius * .85, p.y - radius - ear);
-      ctx.lineTo(p.x + radius * .15, p.y - radius * .76); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#263c44'; ctx.fillRect(p.x - 4, p.y + radius * .4, 8, 2);
-    }
-    ctx.beginPath(); ctx.arc(p.x - 3, p.y - 2, 1.8, 0, PI2); ctx.arc(p.x + 3, p.y - 2, 1.8, 0, PI2); ctx.fillStyle = '#233d47'; ctx.fill();
-    ctx.textAlign = 'center'; ctx.font = "700 11px 'Barlow Condensed'";
-    ctx.fillStyle = '#f6df9e'; ctx.fillText(label, p.x, p.y - radius - 20);
-    ctx.restore();
+    renderTrainerAvatar(this.context, this.toScreen(x, y), playerId, time, label, this.zoom);
   }
 
   private drawTrainers(dt: number, time: number): void {
@@ -608,64 +580,45 @@ export class Arena {
     });
   }
 
-  private drawUnitVisuals(): void {
+  private drawUnitVisuals(now: number): void {
     if (!this.snapshot) return;
-    const ctx = this.context;
     const watched = this.snapshot.players.find(p => p.id === this.view.scoutId);
     if (!watched) return;
+    const positionOf = (position: UnitPosition) => position.area === 'bench'
+      ? benchXY(position.index) : gridXY(position.col, position.row + 4);
     for (const event of this.snapshot.visualEvents) {
-      if (event.ownerId !== this.view.scoutId) continue;
-      const unit = watched.units.find(u => u.id === event.unitId);
-      if (!unit) continue;
-      const positionWorld = (position: UnitPosition) => position.area === 'bench'
-        ? benchXY(position.index) : gridXY(position.col, position.row + 4);
-      const world = positionWorld(unit.position);
-      const to = this.toScreen(world.x, world.y);
-      const t = event.age;
-      if (event.kind === 'summon') {
-        if (t < .42) {
-          const from = this.toScreen(this.trainer.x, this.trainer.y);
-          const k = Math.min(1, t / .42);
-          this.renderPokeball(from.x + (to.x - from.x) * k,
-            from.y - 17 + (to.y - from.y + 17) * k - Math.sin(k * Math.PI) * this.cellScale * .85, 8);
-        } else if (t < 1.05) {
-          ctx.save(); ctx.strokeStyle = '#eafeee'; ctx.lineWidth = 3; ctx.globalAlpha = (1.05 - t) / .63;
-          ctx.beginPath(); ctx.ellipse(to.x, to.y - 26, (t - .42) * 85, (t - .42) * 60, 0, 0, PI2); ctx.stroke(); ctx.restore();
-        }
-      } else {
-        // Três cópias convergem para a posição da evolução antes de mostrar a forma nova.
-        if (event.sources && t < .74) {
-          const progress = Math.min(1, t / .64);
-          const ease = progress * progress * (3 - 2 * progress);
-          event.sources.forEach((source, i) => {
-            const from = positionWorld(source.position);
-            const x = from.x + (world.x - from.x) * ease + Math.sin(progress * Math.PI) * (i - 1) * .32;
-            const y = from.y + (world.y - from.y) * ease - Math.sin(progress * Math.PI) * .24;
-            const p = this.toScreen(x, y);
-            const donor: Marker = {
-              id: `merge:${event.id}:${i}`, sourceId: event.unitId, ownerId: event.ownerId,
-              x, y, family: source.family, stage: source.stage, own: true,
-              level: unit.level, hp: 1, maxHp: 1, energy: 0, required: 1, flash: 0
-            };
-            ctx.save(); ctx.globalAlpha = t < .46 ? 1 : Math.max(0, (.74 - t) / .28);
-            this.drawPokemonSprite(p.x, p.y, donor, this.frame);
-            ctx.restore();
-          });
-        }
-        const f = Math.max(0, 1 - t / 1.45);
-        ctx.save(); ctx.globalAlpha = f;
-        ctx.strokeStyle = '#ffe5a5'; ctx.shadowColor = '#f8d176'; ctx.shadowBlur = 25; ctx.lineWidth = 3 + f * 3;
-        for (let ring = 0; ring < 3; ring++) {
-          const r = this.cellScale * (.28 + ring * .17 + t * .24);
-          ctx.beginPath(); ctx.ellipse(to.x, to.y - 17, r, r * .48, 0, 0, PI2); ctx.stroke();
-        }
-        if (t >= .54) {
-          ctx.fillStyle = '#fff3bd';
-          const pulse = Math.max(0, 1 - Math.abs(t - .76) / .4);
-          ctx.beginPath(); ctx.arc(to.x, to.y - 28, 45 * pulse, 0, PI2); ctx.fill();
-        }
-        ctx.restore();
-      }
+      if (event.ownerId !== watched.id || event.kind === 'trainer-damage' || !event.pokemon) continue;
+      const pos = positionOf(event.pokemon.position);
+      const dest = this.toScreen(pos.x, pos.y);
+      const age = this.visualEvents.age(event, now);
+      drawUnitVisualEvent(this.context, event, age, dest, this.toScreen(this.trainer.x, this.trainer.y),
+        position => { const q = positionOf(position); return this.toScreen(q.x, q.y); },
+        this.cellScale, (x, y, pokemon, opacity, scale) => {
+          if (opacity <= 0) return;
+          const marker: Marker = { id: pokemon.id, sourceId: pokemon.id, ownerId: event.ownerId,
+            x, y, family: pokemon.family, stage: pokemon.stage, level: pokemon.level, own: true,
+            hp: 1, maxHp: 1, energy: 0, required: getStageData(pokemon.family, pokemon.stage).energy,
+            flash: 0, bench: pokemon.position.area === 'bench' };
+          this.context.save(); this.context.globalAlpha = opacity;
+          this.context.translate(x, y); this.context.scale(scale, scale);
+          this.drawPokemonSprite(0, 0, marker, this.frame);
+          this.context.restore();
+        }, (x, y, radius) => this.renderPokeball(x, y, radius));
+    }
+  }
+
+  private drawTrainerDamage(now: number, battle: NonNullable<GameSnapshot['visibleBattle']>): void {
+    const flip = battle.participants.length === 2 && battle.playerB === this.view.scoutId;
+    for (const event of this.snapshot?.visualEvents || []) {
+      if (event.kind !== 'trainer-damage' || event.battleId !== battle.id || !event.value) continue;
+      const slot = battle.participants.indexOf(event.ownerId);
+      if (slot < 0) continue;
+      const spot = trainerSpot(slot, battle.participants.length > 2);
+      const actual = event.ownerId === 'p0' && this.view.scoutId === 'p0'
+        ? this.trainer : { x: spot.x, y: flip ? -spot.y : spot.y };
+      const p = this.toScreen(actual.x, actual.y);
+      renderFloatingNumber(this.context, p.x, p.y - this.cellScale * .65,
+        event.value, Math.min(1, this.visualEvents.age(event, now) / 1.25), 'trainer');
     }
   }
 
@@ -709,7 +662,7 @@ export class Arena {
     const battle = this.snapshot?.visibleBattle;
     const intro = this.snapshot?.phase === 'combat' && battle && !battle.resolved && battle.introElapsed < 1.5;
     const enemyIntroOrder = intro ? new Map(battle!.units.filter(u => u.playerId !== this.view.scoutId).map((u,i) => [u.id, i])) : null;
-    const visualEvents = new Map((this.snapshot?.visualEvents || []).map(event => [`${event.ownerId}:${event.unitId}`, event]));
+    const visualEvents = this.unitEventLookup;
     markers.filter(marker => {
       if (this.view.dragging && marker.ownerId === 'p0' && marker.sourceId === this.view.dragId) return false;
       if (intro && !marker.bench && marker.ownerId !== this.view.scoutId) {
@@ -717,10 +670,11 @@ export class Arena {
         if (battle!.introElapsed < .77 + (enemyIndex % 7) * .06 + Math.floor(enemyIndex / 7) * .13) return false;
       }
       const animation = visualEvents.get(`${marker.ownerId}:${marker.sourceId}`);
-      return !(animation?.kind === 'summon' && animation.age < .42)
-        && !(animation?.kind === 'evolve' && animation.age < .74);
+      const age = animation ? this.visualEvents.age(animation, timestamp) : 99;
+      return !(animation?.kind === 'summon' && age < .75)
+        && !(animation?.kind === 'evolve' && age < 1.12);
     }).sort((a, b) => a.y - b.y).forEach(marker => this.drawUnit(marker, this.frame));
-    this.drawUnitVisuals();
+    this.drawUnitVisuals(timestamp);
     if (intro) this.drawArrival(battle!);
     this.drawCoins();
     if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
@@ -731,6 +685,7 @@ export class Arena {
     }
     if (battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(dt, this.frame, battle);
     else this.drawTrainers(dt, this.frame);
+    if (battle && this.snapshot?.phase !== 'planning') this.drawTrainerDamage(timestamp, battle);
     // Adaptive backing resolution: changes only after sustained heavy frames.
     // Canvas UI dimensions, Pokémon positions and art assets remain unchanged.
     const renderMs = performance.now() - frameStarted;
