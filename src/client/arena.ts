@@ -4,6 +4,7 @@ import { PerformanceProfiler } from './performance/profiler';
 import { SnapshotClock } from './animation/snapshot-clock';
 import { EffectTimeline } from './animation/effect-timeline';
 import { SpriteManager } from './animation/sprite-manager';
+import { UnitInterpolator } from './animation/unit-interpolator';
 import { renderCombatEffects } from './render/effects';
 import { SpriteBoundsCache } from './render/sprite-bounds';
 import { drawContactShadow } from './render/shadows';
@@ -41,7 +42,8 @@ export class Arena {
   private zoom = 1;
   private cameraOffset = { x: 0, y: 0 };
   private trainer = { x: -4.75, y: 3.57 };
-  private visualPositions = new Map<string, { x: number; y: number }>();
+  private unitInterpolator = new UnitInterpolator();
+  private rafHandle: number | null = null;
   private spriteManager = new SpriteManager();
   private frameScheduler = new FrameScheduler(RENDER_SETTINGS.maxFrameRate);
   private visualClock = new SnapshotClock();
@@ -53,9 +55,7 @@ export class Arena {
   private animationTicks = new WeakMap<PmdSheet, number>();
   private grassCanvas: HTMLCanvasElement | null = null;
   private grassKey = '';
-  private lastBattleId = '';
   private lastFrame = 0;
-  private frameDelta = 1 / 60;
   private frame = 0;
   private active = false;
   private renderScale = Math.min(window.devicePixelRatio || 1, RENDER_SETTINGS.maxPixelRatio);
@@ -69,6 +69,8 @@ export class Arena {
     if (!this.visualClock.accept(snapshot.serial, arrivedAt)) return false;
     this.snapshot = snapshot;
     this.effectTimeline.sync(snapshot.visibleBattle?.id || '', snapshot.visibleBattle?.effects || []);
+    if (snapshot.visibleBattle) this.unitInterpolator.sync(snapshot.visibleBattle.id, snapshot.visibleBattle.units, arrivedAt);
+    else this.unitInterpolator.reset();
     this.profiler.snapshot();
     return true;
   }
@@ -79,7 +81,14 @@ export class Arena {
     this.view = view;
     window.addEventListener('resize', () => this.resize());
     this.resize();
-    requestAnimationFrame(time => this.draw(time));
+    document.addEventListener('visibilitychange', () => {
+      this.frameScheduler.reset();
+      this.lastFrame = 0;
+      if (document.hidden && this.rafHandle !== null) {
+        cancelAnimationFrame(this.rafHandle);
+        this.rafHandle = null;
+      } else if (!document.hidden) this.scheduleFrame();
+    });
   }
 
   setActive(active: boolean): void {
@@ -88,8 +97,18 @@ export class Arena {
     this.frameScheduler.reset();
     this.visualClock.reset();
     this.effectTimeline.reset();
-    this.visualPositions.clear();
-    this.lastBattleId = '';
+    this.unitInterpolator.reset();
+    if (active) this.scheduleFrame();
+    else if (this.rafHandle !== null) { cancelAnimationFrame(this.rafHandle); this.rafHandle = null; }
+  }
+
+  private scheduleFrame(): void {
+    if (this.rafHandle !== null || !this.active || document.hidden) return;
+    this.rafHandle = requestAnimationFrame(time => {
+      this.rafHandle = null;
+      this.draw(time);
+      this.scheduleFrame();
+    });
   }
 
   private resize(): void {
@@ -403,17 +422,11 @@ export class Arena {
     const enemyBenchUnits = foePlayer ? foePlayer.units.filter(u => u.position.area === 'bench') : foeId ? snapshot.visibleBattle?.benches[foeId] || [] : [];
     const foeBench = benchUnits(enemyBenchUnits, foeId || '', false, true, 0);
     if (snapshot.phase !== 'planning' && snapshot.visibleBattle && snapshot.observedId === this.view.scoutId) {
-      if (this.lastBattleId !== snapshot.visibleBattle.id) {
-        this.visualPositions.clear(); this.lastBattleId = snapshot.visibleBattle.id;
-      }
       const observedOnTop = snapshot.visibleBattle.participants.length === 2 && snapshot.visibleBattle.playerB === this.view.scoutId;
+      const poseTime = performance.now();
       const battleMarkers = snapshot.visibleBattle.units.filter(u => u.hp > 0).map(u => {
-        const smooth = this.visualPositions.get(u.id) || { x: u.x, y: u.y };
-        const follow = 1 - Math.exp(-(u.charge ? 70 : 19) * this.frameDelta);
-        smooth.x += (u.x - smooth.x) * follow;
-        smooth.y += (u.y - smooth.y) * follow;
-        this.visualPositions.set(u.id, smooth);
-        return { ...u, ownerId: u.playerId, x: smooth.x, y: observedOnTop ? -smooth.y : smooth.y,
+        const pose = this.unitInterpolator.position(u.id, poseTime) || u;
+        return { ...u, ownerId: u.playerId, x: pose.x, y: observedOnTop ? -pose.y : pose.y,
           own: u.playerId === this.view.scoutId, required: u.energyNeeded };
       });
       if (this.quadActive) {
@@ -669,8 +682,7 @@ export class Arena {
   }
 
   private draw(timestamp: number): void {
-    // Do not render an entirely obscured canvas or a background tab.
-    requestAnimationFrame(time => this.draw(time));
+    // The scheduler only schedules frames while a visible game is active.
     if (!this.active || document.hidden) { this.lastFrame = 0; this.frameScheduler.reset(); return; }
     const dt = this.frameScheduler.nextFrame(timestamp);
     if (dt === null) return;
@@ -679,7 +691,6 @@ export class Arena {
     this.renderLead = this.visualClock.leadSeconds(timestamp, this.snapshot?.accelerated ? RULES.combatAcceleration : 1);
     const ctx = this.context;
     this.lastFrame = timestamp;
-    this.frameDelta = dt;
     this.frame += dt;
     ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     this.background();
