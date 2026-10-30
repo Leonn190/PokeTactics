@@ -122,13 +122,18 @@ export class Hud {
     while(cells.length<ITEMS.inventorySlots)cells.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
     this.updateHTML('inventoryContents',`<div class="inventory-grid" role="group" aria-label="Itens no chão">${cells.join('')}</div>${balls.length?`<div class="ball-ground" role="group" aria-label="Pokébolas no chão">${balls.join('')}</div>`:''}`);
     element('inventoryCounter').textContent=`${inventoryUsed(player)}/${ITEMS.inventorySlots}`;
-    const choosing = (player.pendingEvolution?.length || 0) === evolutionCopies('eevee',0,hasAugment(player,'P11'));
+    const evolvingFamily=player.pendingEvolutionKind==='scyther'?'scyther':'eevee';
+    const choosing=(player.pendingEvolution?.length||0)===evolutionCopies(evolvingFamily,0,hasAugment(player,'P11'));
     element('eeveeEvolution').classList.toggle('hidden', !choosing);
-    if (choosing) this.updateHTML('eeveeBranches', EEVEE_BRANCHES.map(branch => {
+    if (choosing){
+      element('eeveeEvolution').querySelector<HTMLElement>('.evolution-kicker')!.textContent=evolvingFamily==='scyther'?'SCYTHER · EVOLUÇÃO ALTERNATIVA':'EEVEE · ESCOLHA SUA EVOLUÇÃO';
+      element('eeveeEvolution').querySelector<HTMLElement>('p')!.textContent=evolvingFamily==='scyther'?'Escolha entre Scizor e Kleavor. A forma manterá os IVs, nível, itens e experiência.':'As cópias serão fundidas. A forma escolhida mantém os maiores IVs, nível e experiência.';
+      this.updateHTML('eeveeBranches', (evolvingFamily==='scyther'?(['scizor','kleavor'] as const):EEVEE_BRANCHES).map(branch => {
       const s = SPECIES[branch], move = ATTACKS.moves[s.attack];
       return `<button class="evolution-choice" data-eevee-branch="${branch}" style="--evo-glow:${s.glow}">
         ${portrait(branch,70)}<strong>${s.names[0]}</strong><small>${s.elements.map(t=>typeIcon(t,16)).join('')} ${safe(move.name)}</small></button>`;
     }).join(''));
+    }
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
     element('roundLabel').textContent = `${snapshot.chapter}-${snapshot.stage}`;

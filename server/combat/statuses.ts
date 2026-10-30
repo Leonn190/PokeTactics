@@ -14,7 +14,7 @@ export function incapacitated(u:CombatUnit,now:number):boolean {
 }
 export function blocksEnergy(u:CombatUnit,now:number):boolean {return active(u,'sleeping',now)||active(u,'frozen',now);}
 export function apply(b:Battle,u:CombatUnit,key:Exclude<StatusKey,'poisoned'|'burning'>,source:CombatUnit,seconds:number,instanceId:string):boolean {
- if(u.hp<=0||u.controlImmune||seconds<=0)return false;
+ if(u.hp<=0||u.controlImmune||seconds<=0||(u.family==='diglett'&&u.moving))return false;
  const previous=u.statuses[key];
  if(previous?.instanceId===instanceId && previous.until>b.elapsed) return false;
  const until=b.elapsed+seconds;

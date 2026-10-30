@@ -50,7 +50,11 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
     case 'ditto-transform': return [];
     case 'stomp': case 'rock-charge': case 'bone-throw': case 'single-knockup': case 'rock-strike': case 'sting':
       return [physical('DANO',move.baseDamage+a*(move.attackRatio || 0)+s*(move.effect==='rock-charge'?move.specialRatio:0))];
-    case 'multi': return [physical(`DANO POR GOLPE × ${move.hits || 4}`, move.baseDamage+a*(move.attackRatio || 0)),special('VENENO FINAL',(move.finalVenomBase||0)+s*(move.finalVenomSpaRatio||0))];
+    case 'multi': return [physical(`DANO POR GOLPE × ${move.hits || 4}`, move.baseDamage+a*(move.attackRatio || 0))];
+    case 'meteor-rain': return [special('DANO DE CADA METEORO',move.baseDamage+s*move.specialRatio),special('FRAGMENTO CARDINAL',(move.baseDamage+s*move.specialRatio)*(move.fragmentRatio??.25))];
+    case 'cone-slash': return [special(move.executeThreshold?'CORTE EXECUTANTE':'CORTE EM CONE',move.baseDamage+s*move.specialRatio)];
+    case 'scizor-double': return [special('DANO POR GOLPE × 2',move.baseDamage+s*move.specialRatio)];
+    case 'jynx-kiss': return [special('BEIJO GLACIAL',move.baseDamage+s*move.specialRatio)];
     case 'piercing-fire': return [special('DANO POR ALVO',move.baseDamage+s*move.specialRatio)];
     case 'eevee-ball': {
       const damage=move.baseDamage+a*(move.attackRatio||0);

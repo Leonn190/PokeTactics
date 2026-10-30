@@ -22,7 +22,64 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
       if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();
-      if(fx.kind==='lullaby-note'){
+      if(fx.kind==='meteor-fall' && fx.meteor){
+        // Warning ring is visible before impact; the rock lands on the exact server tick.
+        const warnEnd=fx.meteor.hitAt, warning=fx.meteor.warning;
+        const drop=Math.min(1,Math.max(0,(fx.time-warning)/(warnEnd-warning)));
+        const radius=Math.max(.3,fx.value)*cellScale;
+        ctx.globalAlpha=.28+.22*Math.sin(time*10);
+        ctx.strokeStyle='#fbb96b';ctx.fillStyle='#c36a3733';ctx.lineWidth=2;
+        ctx.setLineDash([7,5]);ctx.beginPath();ctx.ellipse(to.x,to.y,radius,radius*.58,0,0,PI2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+        if(fx.time<warnEnd && drop>0){
+          const y=to.y-cellScale*(2.3*(1-drop)+.28);
+          const size=cellScale*(.22+drop*.10);
+          ctx.globalAlpha=Math.min(1,drop*1.6);ctx.shadowBlur=18;ctx.shadowColor='#fca34f';
+          ctx.fillStyle='#c78863';ctx.strokeStyle='#ffdf9f';ctx.lineWidth=3;
+          ctx.beginPath();for(let i=0;i<7;i++){const a=i*PI2/7;const x=to.x+Math.cos(a)*size,py=y+Math.sin(a)*size;
+            if(i===0)ctx.moveTo(x,py);else ctx.lineTo(x,py);
+          }ctx.closePath();ctx.fill();ctx.stroke();
+          ctx.strokeStyle='#ffb359';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(to.x,y-cellScale*.26);ctx.lineTo(to.x,y-cellScale*.63);ctx.stroke();
+        }
+      } else if(fx.kind==='meteor-fragment'){
+        const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t;
+        ctx.globalAlpha=.88;ctx.shadowColor='#e9aa63';ctx.shadowBlur=8;ctx.fillStyle='#d3ae7b';ctx.strokeStyle='#fff0c3';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(x-6,y-6);ctx.lineTo(x+5,y-5);ctx.lineTo(x+7,y+4);ctx.lineTo(x-3,y+7);ctx.closePath();ctx.fill();ctx.stroke();
+      } else if(fx.kind==='meteor-impact'){
+        const radius=Math.max(.16,fx.value)*cellScale;
+        ctx.globalAlpha=Math.max(0,1-t)*.82;ctx.shadowColor='#ffb963';ctx.shadowBlur=16;
+        ctx.fillStyle='#f6ad4d45';ctx.strokeStyle='#ffe0a1';ctx.lineWidth=Math.max(1.5,4*(1-t));
+        ctx.beginPath();ctx.ellipse(to.x,to.y,radius*(.35+t*.8),radius*(.25+t*.6),0,0,PI2);ctx.fill();ctx.stroke();
+        for(let i=0;i<7;i++){const a=i*PI2/7;const x=to.x+Math.cos(a)*radius*t,y=to.y+Math.sin(a)*radius*t*.65;
+          ctx.fillStyle='#e7b17e';ctx.fillRect(x-3,y-3,6*(1-t)+2,6*(1-t)+2);
+        }
+      } else if(fx.kind==='cone-slash' && fx.cone){
+        // A genuine circular sector; orientation, radius and aperture use the server's parameters.
+        const angle=Math.atan2(to.y-from.y,to.x-from.x),half=fx.cone.angle*Math.PI/360;
+        const radius=cellScale*fx.cone.range;
+        ctx.globalAlpha=(1-t)*.50;ctx.shadowBlur=16;
+        ctx.shadowColor=fx.family==='kleavor'?'#ffc87d':'#cef99d';
+        ctx.fillStyle=fx.family==='kleavor'?'#efad565a':'#a8ea7565';
+        ctx.strokeStyle=fx.family==='kleavor'?'#ffedb7':'#e1ffc2';
+        ctx.lineWidth=Math.max(1.5,5*(1-t));
+        ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.arc(from.x,from.y,radius,angle-half,angle+half);ctx.closePath();ctx.fill();ctx.stroke();
+        for(const skew of [-.14,.14]){
+          const a=angle+skew;ctx.beginPath();ctx.moveTo(from.x,from.y);
+          ctx.quadraticCurveTo(from.x+Math.cos(a-.30)*radius*.55,from.y+Math.sin(a-.30)*radius*.55,
+            from.x+Math.cos(a)*radius,from.y+Math.sin(a)*radius);ctx.stroke();
+        }
+      } else if(fx.kind==='scizor-dash'){
+        const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t;
+        ctx.globalAlpha=.7*(1-t);ctx.strokeStyle='#ff9ca8';ctx.shadowColor='#ed4960';ctx.shadowBlur=12;
+        ctx.lineWidth=Math.max(1,7*(1-t));ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(from.x,from.y-cellScale*.4);ctx.lineTo(x,y-cellScale*.4);ctx.stroke();
+      } else if(fx.kind==='scizor-impact'){
+        ctx.globalAlpha=Math.max(0,1-t);ctx.strokeStyle='#fce1ef';ctx.shadowColor='#f75b6e';ctx.shadowBlur=14;
+        ctx.lineWidth=4*(1-t)+1;ctx.lineCap='round';
+        for(const d of [-1,1]){
+          ctx.beginPath();ctx.moveTo(to.x-cellScale*.18,to.y-cellScale*.35+d*cellScale*.11);
+          ctx.lineTo(to.x+cellScale*.17,to.y-cellScale*.72-d*cellScale*.12);ctx.stroke();
+        }
+      } else if(fx.kind==='lullaby-note'){
         const radius=cellScale*(.7+Math.max(0,fx.value)*.15);
         ctx.globalAlpha=.48+.19*Math.sin(time*4);
         for(let i=0;i<10;i++){

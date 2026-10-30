@@ -25,7 +25,19 @@ const arena = new Arena(canvas, view);
 const hud = new Hud();
 const audio = new GameAudio();
 const playerSettings = new PlayerSettings(volume => audio.setVolume(volume), fps => arena.setFrameRate(fps));
-document.getElementById('gameSettingsButton')!.addEventListener('click', () => playerSettings.open());
+// Count actual drawn frames instead of displaying the selected FPS cap.
+const fpsReadout=document.getElementById('gameFpsCounter')!;
+let framesDrawn=0,windowStart=performance.now(),smoothedFps=75;
+function countDrawnFrame(now:number){
+ if(!arena.snapshot)return;
+ framesDrawn++;
+ const span=now-windowStart;
+ if(span>=650){const measured=framesDrawn*1000/span;smoothedFps=smoothedFps*.45+measured*.55;
+   fpsReadout.textContent=`FPS: ${Math.round(smoothedFps)}`;framesDrawn=0;windowStart=now;
+ }
+}
+// Count the actual rendered frames through the arena's rendering callback.
+arena.onDrawFrame=countDrawnFrame;
 const augments = new AugmentView(command=>send(command));
 function updateWorldWidgets():void {
   arena.placeWorldRack(document.getElementById('itemInventory')!);
@@ -68,6 +80,7 @@ function launchMatch(): void {
   worker?.terminate();
   view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
+  framesDrawn=0;windowStart=performance.now();smoothedFps=75;fpsReadout.textContent='FPS: —';
   lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0;
   augments.reset();
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
@@ -380,13 +393,15 @@ canvas.addEventListener('wheel', event => {
 }, { passive: false });
 document.addEventListener('keydown', event => {
   if (playerSettings.isOpen() || !state || event.repeat || state.phase === 'finished') return;
+  if ((event.target as HTMLElement).closest('input,textarea,select,[contenteditable]'))return;
   if (event.key.toLowerCase() === 'd') send({ kind: 'reroll' });
   if (event.key.toLowerCase() === 'e' && view.selectedId && !view.inventoryItemId && !view.selectedBall) {
     send({ kind: 'sell', unitId: view.selectedId });
     view.selectedId = null;
   }
   if (event.key === 'Escape') {
-    view.selectedId = null; view.inventoryItemId=null;view.selectedBall=null;watch('p0'); hud.render(state, view);
+    if ((event.target as HTMLElement).closest('input, textarea, select, [contenteditable]') || !document.getElementById('eeveeEvolution')!.classList.contains('hidden') || !document.getElementById('settingsScreen')!.classList.contains('hidden') || document.querySelector('dialog[open]') || !!document.querySelector('.augment-overlay:not(.hidden)'))return;
+    event.preventDefault();playerSettings.open();return;
   }
 });
 

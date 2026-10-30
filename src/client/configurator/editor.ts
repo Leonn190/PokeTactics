@@ -8,6 +8,7 @@ import type { Family,ItemColor } from '../../../server/types';
 
 const safe=(value:unknown)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 const pt:Record<string,string>={
+ meteorCount:'Quantidade de meteoros',impactRadius:'Raio do impacto',fragmentRatio:'Dano dos fragmentos',fallSpeed:'Velocidade de queda',fragmentSpeed:'Velocidade dos fragmentos',warningSeconds:'Aviso do impacto',coneRange:'Comprimento do cone',coneAngle:'Abertura do cone (graus)',executeThreshold:'Limiar de execução',shieldDamageMultiplier:'Multiplicador contra barreiras',dashSpeed:'Velocidade do dash',hitInterval:'Intervalo dos golpes',freezeBase:'Congelamento base',freezeSpaRatio:'Congelamento por SpA',freezeMax:'Congelamento máximo',adjacentRadius:'Raio do alvo secundário',adjacentFreezeRatio:'Controle no alvo secundário',pierceBase:'Perfuração base',pierceSpaRatio:'Perfuração por SpA',pierceMax:'Perfuração máxima',tickInterval:'Intervalo (s)',baseDps:'Dano por segundo',healingReduction:'Redução de cura',durabilityBonus:'Durabilidade extra',wakeOnPhysicalBasic:'Despertar com ataque regular',
  hp:'Vida',atk:'Ataque (ATK)',def:'Defesa (DEF)',spa:'Ataque especial (SpA)',spd:'Defesa especial (SpD)',speed:'Velocidade (VEL)',
  baseDamage:'Dano base',attackRatio:'Escala de ATK',specialRatio:'Escala de SpA',offensiveRatio:'Escala ofensiva',energyGain:'Energia recebida',
  damageByStage:'Dano por evolução',healByStage:'Cura por evolução',damageRatioByStage:'Dano físico por evolução',healBase:'Cura base',healRatio:'Escala de cura (SpA)',
@@ -15,7 +16,6 @@ const pt:Record<string,string>={
  shieldByStage:'Barreira por evolução',shield_pool_per_damage:'Barreira por dano',healing_pool_per_damage:'Cura por dano',
  stunDuration:'Duração do atordoamento',stunBase:'Atordoamento base',stunSpaRatio:'Atordoamento por SpA',controlDuration:'Duração do controle',controlSpaRatio:'Controle por SpA',controlMax:'Limite do controle',
  dotBase:'Dano periódico base',dotRatio:'Dano periódico por SpA',dotDuration:'Duração do dano periódico',
- finalVenomBase:'Veneno final base',finalVenomSpaRatio:'Veneno final por SpA',
  gasTimeRatio:'Dano por segundo de barreira',gasAttackRatio:'Escala de ATK da nuvem',chargeMaxDuration:'Tempo máximo acumulado',
  sleepDuration:'Duração do sono',sleepTicks:'Instâncias de cura',sleepHealBase:'Cura por instância',sleepHealSpaRatio:'Cura por SpA',
  durabilitySpaRatio:'Durabilidade por SpA',durabilityMax:'Limite de Durabilidade',guardReduction:'Redução base',guardSpaRatio:'Redução por SpA',guardMaxReduction:'Redução máxima',
@@ -64,25 +64,33 @@ const entries:PokemonEntry[]=Object.entries(documentOf('pokemons.json').species 
  .sort((a,b)=>a.dex-b.dex);
 function portrait(id:number,name:string){return `<img src="${import.meta.env.BASE_URL}portrait/${String(id).padStart(4,'0')}/Normal.png" alt="${safe(name)}" loading="lazy" />`;}
 function same(a:any,b:any){return JSON.stringify(a)===JSON.stringify(b);}
+// Percent values are displayed as percentages, while stored JSON values remain fractions.
+const percentKeys=new Set(['fragmentRatio','executeThreshold','pierceBase','pierceMax','adjacentFreezeRatio','healingReduction','durabilityBonus','speedBonusPercent','defBonusPercent','spdBonusPercent']);
+const isPercent=(path:PathPart[])=>percentKeys.has(String(path.at(-1)));
+const formattedNumber=(value:number,path:PathPart[])=>isPercent(path)?number(value*100):number(value);
 function field(file:string,path:PathPart[],label?:string,help=''){
  const current=get(file,path),before=originalValue(file,path);
  if(typeof current!=='number' || !Number.isFinite(current))return '';
  const changed=!same(current,before);
- const integer=Number.isInteger(before);
+ const percent=isPercent(path);
+ const displayCurrent=percent ? Math.round(current*100000)/1000 : current;
+ const integer=percent || Number.isInteger(before);
  const numericLabel=label??pretty(String(path.at(-1)));
  const step=integer?'1':'any';
- const restrict=before>=0?'min="0"':'';
+ const restrict=percent?'min="0" max="100"':before>=0?'min="0"':'';
  return `<label class="cfg-field ${changed?'modified':''}" title="${safe(help||path.join(' / '))}">
   <span class="cfg-field-label">${safe(numericLabel)}${changed?'<i>●</i>':''}</span>
-  <span class="cfg-field-control"><input type="number" step="${step}" ${restrict} value="${safe(current)}" data-cfg-path="${route(file,path)}" />
-  <small>${changed?`Antes: ${number(before)}`:integer?'UNIDADES':'VALOR'}</small></span></label>`;
+  <span class="cfg-field-control"><input type="number" step="${step}" ${restrict} value="${safe(displayCurrent)}" data-cfg-path="${route(file,path)}" />
+  <small>${changed?`Antes: ${formattedNumber(before,path)}${percent?'%':''}`:percent?'%':integer?'UNIDADES':'VALOR'}</small></span></label>`;
 }
 function fields(file:string,base:PathPart[],obj:any,labelPrefix='',depth=0):string {
  if(typeof obj==='number')return field(file,base,labelPrefix||pretty(String(base.at(-1))));
+ if(typeof obj==='boolean')return `<label class="cfg-field cfg-boolean ${!same(obj,originalValue(file,base))?'modified':''}"><span class="cfg-field-label">${safe(labelPrefix||pretty(String(base.at(-1))))}</span><input type="checkbox" data-cfg-path="${route(file,base)}" ${obj?'checked':''} /></label>`;
  if(obj===null||typeof obj!=='object'||depth>8)return '';
  return Object.entries(obj).map(([key,value])=>{
   const path=[...base,Array.isArray(obj)?Number(key):key];
   if(typeof value==='number')return field(file,path,Array.isArray(obj)?`${labelPrefix||'Nível'} ${Number(key)+1}`:pretty(key));
+  if(typeof value==='boolean')return fields(file,path,value,pretty(key),depth+1);
   if(value && typeof value==='object'){
    if(!Object.values(value).some(v=>typeof v==='number' || typeof v==='object'))return '';
    return `<section class="cfg-subgroup"><h4>${safe(Array.isArray(obj)?`${labelPrefix||'Etapa'} ${Number(key)+1}`:pretty(key))}</h4><div class="cfg-fields">${fields(file,path,value,'',depth+1)}</div></section>`;
@@ -115,6 +123,7 @@ export class Configurator {
  private selectedAugment='';
  private selectedItem='';
  private preview:PhysicalPreview|null=null;
+ private previewZoom=1;
  private openPage=false;
  constructor(private goBack:()=>void){
   this.el=document.getElementById('settingsScreen')!;
@@ -154,7 +163,7 @@ export class Configurator {
      recursive('regras_gerais.json','PARÂMETROS COMPLEMENTARES', ['matchmaking']);
   if(this.tab==='pokemon'){
    const cv=target.querySelector<HTMLCanvasElement>('#cfgPhysicalPreview');
-   if(cv){this.preview=new PhysicalPreview(cv);this.refreshPreview();}
+   if(cv){this.preview=new PhysicalPreview(cv);this.preview.setZoom(this.previewZoom);this.refreshPreview();}
   }
  }
  private pokemon():string{
@@ -192,7 +201,7 @@ export class Configurator {
       ${e.stage<s.names.length-1?field('pokemons.json',['species',e.family,'evolutionCopies',e.stage],'CÓPIAS PARA EVOLUIR'):''}
       <label class="cfg-field"><span class="cfg-field-label">RARIDADE DA FAMÍLIA</span>${choose('pokemons.json',['species',e.family,'rarity'],rarities.map((name,i)=>[i+1,name]))}</label>
       ${field('pokemons.json',['species',e.family,'physicalSizes',e.stage],'TAMANHO FÍSICO')}
-    </div><div class="cfg-preview-wrap"><canvas id="cfgPhysicalPreview" width="430" height="270" aria-label="Prévia animada do corpo e sombra"></canvas><p>ESCALA PMD · SOMBRA · CORPO FÍSICO · 1 CASA DE REFERÊNCIA<br><strong>${number(size)}×</strong> · A configuração não aparece no painel da partida.</p></div>`)}
+    </div><div class="cfg-preview-wrap"><canvas id="cfgPhysicalPreview" width="430" height="270" aria-label="Prévia animada do corpo e sombra"></canvas><div><p>GEOMETRIA DA ARENA · SOMBRA · COLISÃO REAL<br><strong>${number(size)}×</strong> · O zoom não altera o parâmetro.</p><label class="cfg-preview-tools">Zoom <input type="range" data-cfg-zoom min="0.65" max="1.7" step="0.05" value="${this.previewZoom}"/><output>${this.previewZoom.toFixed(2)}×</output></label></div></div>`)}
   </div>`;
   return `<div class="cfg-poke-layout"><aside class="cfg-poke-list"><div class="cfg-poke-filter"><input data-cfg-search placeholder="⌕ Buscar Pokémon..." value="${safe(this.search)}" />
     <div class="cfg-filter-line"><select data-cfg-rarity><option value="all">Todas raridades</option>${rarities.map((name,i)=>`<option value="${i+1}" ${this.rarity===String(i+1)?'selected':''}>${name}</option>`).join('')}</select>
@@ -246,12 +255,13 @@ export class Configurator {
  }
  private onInput(event:Event):void {
   const el=event.target as HTMLInputElement;
+  if(el.matches('[data-cfg-zoom]')){this.previewZoom=Number(el.value);this.preview?.setZoom(this.previewZoom);const zoomOutput=el.parentElement?.querySelector('output');if(zoomOutput)zoomOutput.textContent=`${this.previewZoom.toFixed(2)}×`;return;}
   if(el.matches('[data-cfg-search]')){this.search=el.value;const pos=el.selectionStart;this.render();const input=this.el.querySelector<HTMLInputElement>('[data-cfg-search]');if(input){input.focus();input.setSelectionRange(pos,pos);}return;}
-  if(!el.matches('[data-cfg-path]'))return;
+  if(!el.matches('[data-cfg-path]') || el.type==='checkbox')return;
   const [file,path]=decode(el.dataset.cfgPath!);
   const prev=get(file,path);
   const raw=el.value.trim();if(!raw)return;
-  const next=typeof prev==='number'?Number(raw):raw;
+  const next=typeof prev==='number'?(isPercent(path)?Number(raw)/100:Number(raw)):raw;
   if(typeof next==='number'&&!Number.isFinite(next))return;
   setValue(file,path,next);
   if(file==='pokemons.json' && path[0]==='species' && path[2]==='stageBases' && path[3]===0){
@@ -266,6 +276,7 @@ export class Configurator {
   if(el.matches('[data-cfg-rarity]')){this.rarity=el.value;this.render();return;}
   if(el.matches('[data-cfg-type]')){this.type=el.value;this.render();return;}
   if(el.matches('[data-cfg-shoponly]')){this.onlyShop=el.checked;this.render();return;}
+  if(el.matches('input[type=checkbox][data-cfg-path]')){const [file,path]=decode(el.dataset.cfgPath!);setValue(file,path,el.checked);this.render();return;}
   if(el.matches('select[data-cfg-path]')){const [file,path]=decode(el.dataset.cfgPath!);const previous=get(file,path);setValue(file,path,typeof previous==='number'?Number(el.value):el.value);}
   if(el.matches('[data-cfg-path]'))this.render();
  }

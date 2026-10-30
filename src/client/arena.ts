@@ -20,7 +20,6 @@ import { drawContactShadow } from './render/shadows';
 import { visualProfile, cosmeticMotion } from './animation/visual-profiles';
 import { markerAt, frameAt, impactFraction, type PmdSheet, type PmdEntry } from './animation/pmd-metadata';
 import type { BodyPoints } from './render/projectile-origin';
-import { drawBurrowMound } from './render/burrow';
 import { tierFor } from '../../server/systems/synergies/registry';
 import { randomIndex } from '../../server/systems/synergies/positioning';
 import type { CombatUnit, Family, GameSnapshot, Pokemon, UnitPosition } from '../../server/types';
@@ -49,6 +48,7 @@ const QUAD_OFFSET = 4.35;
 const benchXY = (index: number, enemy = false, offset = 0) => ({ x: offset + (index - 4.5) * (ARENA_HALF * 2 / 10), y: enemy ? -BENCH_Y : BENCH_Y });
 
 export class Arena {
+  onDrawFrame?: (timestamp:number)=>void;
   private context: CanvasRenderingContext2D;
   private width = 0;
   private height = 0;
@@ -505,7 +505,7 @@ export class Arena {
       const p = gridXY(col, row), screen = this.toScreen(p.x, p.y);
       const own = row >= 4;
       const selected = isEditable && own && this.view.dragId && this.view.hoveringHex?.col === col && this.view.hoveringHex?.row === row - 4;
-      const radius = scale * .56;
+      const radius = scale * .60; // exact tiling from gridXY (1.04 horizontal, .91 vertical spacing)
       ctx.beginPath();
       for (let vertex = 0; vertex < 6; vertex++) {
         const angle = vertex * PI2 / 6 + Math.PI / 6;
@@ -685,18 +685,6 @@ export class Arena {
       ctx.save();ctx.globalAlpha=fade;ctx.shadowColor='#a46eff';ctx.shadowBlur=18;
       this.drawPokemonSprite(p.x,p.y-3-Math.sin(time*8)*2,unit,time);
       ctx.restore();return;
-    }
-    const dig = unit.dig;
-    // The dirt mound follows the actual simulated x/y. An underground unit never reveals its sprite or bars.
-    if (dig?.phase === 'travel') { drawBurrowMound(ctx,p.x,p.y,radius,unit.stage,time); return; }
-    if (dig?.phase === 'rise' || dig?.phase === 'sink') {
-      const exposed = dig.phase === 'sink' ? 1 - dig.time/dig.duration : dig.time/dig.duration;
-      // No second mound: the PMD Diglett/Dugtrio art already contains its hole.
-      ctx.save();
-      ctx.beginPath(); ctx.rect(p.x-radius*3,p.y-radius*5,radius*6,radius*5+2); ctx.clip();
-      this.drawPokemonSprite(p.x,p.y+Math.max(0,1-exposed)*this.cellScale*1.25,unit,time);
-      ctx.restore();
-      return;
     }
     // The PMD sprite itself already contains the ground under Diglett/Dugtrio.
     // Shadow markers are metadata, never an additional soil decal.
@@ -1047,6 +1035,7 @@ export class Arena {
     // Canvas UI dimensions, Pokémon positions and art assets remain unchanged.
     const renderMs = performance.now() - frameStarted;
     this.profiler.frame(timestamp, renderMs, markers.length, battle?.effects.length || 0, this.renderScale);
+    this.onDrawFrame?.(timestamp);
     this.frameCost += renderMs;
     this.frameIntervals += lastInterval;
     if (++this.sampleCount >= RENDER_SETTINGS.qualityCheckFrames) {

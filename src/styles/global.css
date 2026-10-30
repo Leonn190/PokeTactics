@@ -540,3 +540,5 @@
 .unit-inspector{overflow:visible}
 .inspector-ability-wrap{position:relative}
 .inspector-ability-tooltip{z-index:100;max-width:min(370px,calc(100vw - 28px));width:max-content;min-width:235px;left:auto;right:0;bottom:calc(100% + 8px);top:auto}
+
+.game-fps-counter{pointer-events:none;min-width:70px;text-align:center;border-color:#79bfb96b;color:#c7f1e6;background:#0f2632e8;font-variant-numeric:tabular-nums;font-size:11px;letter-spacing:.045em}

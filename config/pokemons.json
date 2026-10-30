@@ -3562,6 +3562,298 @@
         1.01
       ],
       "evolutionCopies": []
+    },
+    "aerodactyl": {
+      "names": [
+        "Aerodactyl"
+      ],
+      "pokedexIds": [
+        142
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#d7a7ef",
+      "base": {
+        "hp": 480,
+        "atk": 101,
+        "def": 72,
+        "spa": 118,
+        "spd": 83,
+        "speed": 113
+      },
+      "stageBases": [
+        {
+          "hp": 480,
+          "atk": 101,
+          "def": 72,
+          "spa": 118,
+          "spd": 83,
+          "speed": 113
+        }
+      ],
+      "rangeClass": "Médio",
+      "energy": 85,
+      "attack": "meteor-rain",
+      "elements": [
+        "rock",
+        "flying"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "rock",
+            "flying"
+          ],
+          "rangeClass": "Médio",
+          "energy": 85,
+          "move": "meteor-rain",
+          "chargedType": "rock",
+          "chargedAnimation": "Attack"
+        }
+      ],
+      "physicalSizes": [
+        1.28
+      ],
+      "evolutionCopies": []
+    },
+    "scyther": {
+      "names": [
+        "Scyther"
+      ],
+      "pokedexIds": [
+        123
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#d7a7ef",
+      "base": {
+        "hp": 445,
+        "atk": 113,
+        "def": 77,
+        "spa": 92,
+        "spd": 76,
+        "speed": 119
+      },
+      "stageBases": [
+        {
+          "hp": 445,
+          "atk": 113,
+          "def": 77,
+          "spa": 92,
+          "spd": 76,
+          "speed": 119
+        }
+      ],
+      "rangeClass": "Curto",
+      "energy": 65,
+      "attack": "scyther-cone",
+      "elements": [
+        "bug",
+        "flying"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "bug",
+            "flying"
+          ],
+          "rangeClass": "Curto",
+          "energy": 65,
+          "move": "scyther-cone",
+          "chargedType": "bug",
+          "chargedAnimation": "Attack"
+        }
+      ],
+      "physicalSizes": [
+        1.2
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "scizor": {
+      "names": [
+        "Scizor"
+      ],
+      "pokedexIds": [
+        212
+      ],
+      "rarity": 4,
+      "shop": false,
+      "glow": "#d7a7ef",
+      "base": {
+        "hp": 640,
+        "atk": 134,
+        "def": 126,
+        "spa": 111,
+        "spd": 101,
+        "speed": 81
+      },
+      "stageBases": [
+        {
+          "hp": 640,
+          "atk": 134,
+          "def": 126,
+          "spa": 111,
+          "spd": 101,
+          "speed": 81
+        }
+      ],
+      "rangeClass": "Curto",
+      "energy": 70,
+      "attack": "scizor-double",
+      "elements": [
+        "bug",
+        "steel"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "bug",
+            "steel"
+          ],
+          "rangeClass": "Curto",
+          "energy": 70,
+          "move": "scizor-double",
+          "chargedType": "bug",
+          "chargedAnimation": "Attack"
+        }
+      ],
+      "physicalSizes": [
+        1.29
+      ],
+      "evolutionCopies": []
+    },
+    "kleavor": {
+      "names": [
+        "Kleavor"
+      ],
+      "pokedexIds": [
+        900
+      ],
+      "rarity": 4,
+      "shop": false,
+      "glow": "#d7a7ef",
+      "base": {
+        "hp": 580,
+        "atk": 140,
+        "def": 105,
+        "spa": 121,
+        "spd": 92,
+        "speed": 94
+      },
+      "stageBases": [
+        {
+          "hp": 580,
+          "atk": 140,
+          "def": 105,
+          "spa": 121,
+          "spd": 92,
+          "speed": 94
+        }
+      ],
+      "rangeClass": "Curto",
+      "energy": 75,
+      "attack": "kleavor-cone",
+      "elements": [
+        "bug",
+        "rock"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "bug",
+            "rock"
+          ],
+          "rangeClass": "Curto",
+          "energy": 75,
+          "move": "kleavor-cone",
+          "chargedType": "bug",
+          "chargedAnimation": "Attack"
+        }
+      ],
+      "physicalSizes": [
+        1.3
+      ],
+      "evolutionCopies": []
+    },
+    "jynx": {
+      "names": [
+        "Jynx"
+      ],
+      "pokedexIds": [
+        124
+      ],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#8ebdf8",
+      "base": {
+        "hp": 340,
+        "atk": 51,
+        "def": 49,
+        "spa": 105,
+        "spd": 99,
+        "speed": 92
+      },
+      "stageBases": [
+        {
+          "hp": 340,
+          "atk": 51,
+          "def": 49,
+          "spa": 105,
+          "spd": 99,
+          "speed": 92
+        }
+      ],
+      "rangeClass": "Médio",
+      "energy": 70,
+      "attack": "jynx-kiss",
+      "elements": [
+        "ice",
+        "psychic"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "ice",
+            "psychic"
+          ],
+          "rangeClass": "Médio",
+          "energy": 70,
+          "move": "jynx-kiss",
+          "chargedType": "ice",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        1.04
+      ],
+      "evolutionCopies": []
     }
   }
 }

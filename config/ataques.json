@@ -132,11 +132,12 @@
       "effect": "multi",
       "baseDamage": 14,
       "attackRatio": 0.4,
-      "specialRatio": 0,
+      "specialRatio": 0.22,
       "hits": 4,
       "seconds": 0.9,
-      "finalVenomBase": 8,
-      "finalVenomSpaRatio": 0.65
+      "pierceBase": 0.1,
+      "pierceSpaRatio": 0.0025,
+      "pierceMax": 0.7
     },
     "gas-cloud": {
       "name": "Nuvem de Gás",
@@ -535,14 +536,14 @@
       "controlDuration": 0.5
     },
     "diglett-burrow": {
-      "name": "Escavação Surpresa",
+      "name": "Perseguição Subterrânea",
       "effect": "burrow",
       "baseDamage": 22,
       "specialRatio": 0.6,
       "attackRatio": 0
     },
     "dugtrio-burrow": {
-      "name": "Escavação Surpresa",
+      "name": "Perseguição Subterrânea",
       "effect": "burrow",
       "baseDamage": 34,
       "specialRatio": 0.85,
@@ -849,6 +850,56 @@
       "pillarDuration": 5,
       "wallDuration": 3,
       "wallBonusRatio": 0.48
+    },
+    "meteor-rain": {
+      "name": "Chuva Meteórica",
+      "effect": "meteor-rain",
+      "baseDamage": 125,
+      "specialRatio": 1.8,
+      "meteorCount": 4,
+      "impactRadius": 0.71,
+      "fragmentRatio": 0.25,
+      "fallSpeed": 2.8,
+      "fragmentSpeed": 8,
+      "warningSeconds": 0.4
+    },
+    "scyther-cone": {
+      "name": "Corte em Cone",
+      "effect": "cone-slash",
+      "baseDamage": 48,
+      "specialRatio": 0.95,
+      "coneRange": 2.4,
+      "coneAngle": 65
+    },
+    "kleavor-cone": {
+      "name": "Corte Executante",
+      "effect": "cone-slash",
+      "baseDamage": 62,
+      "specialRatio": 1.18,
+      "coneRange": 2.75,
+      "coneAngle": 71,
+      "executeThreshold": 0.2
+    },
+    "scizor-double": {
+      "name": "Ataque Duplo",
+      "effect": "scizor-double",
+      "baseDamage": 46,
+      "specialRatio": 0.88,
+      "hits": 2,
+      "shieldDamageMultiplier": 2,
+      "dashSpeed": 9,
+      "hitInterval": 0.22
+    },
+    "jynx-kiss": {
+      "name": "Beijo Glacial",
+      "effect": "jynx-kiss",
+      "baseDamage": 47,
+      "specialRatio": 0.83,
+      "freezeBase": 1.2,
+      "freezeSpaRatio": 0.006,
+      "freezeMax": 2.6,
+      "adjacentRadius": 1,
+      "adjacentFreezeRatio": 0.45
     }
   }
 }

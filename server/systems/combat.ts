@@ -18,12 +18,13 @@ import { clearStep, resolveBodies } from './physical-collision';
 import { pushTarget } from './synergies/positioning';
 import { tickFlameOrbits } from '../combat/flame-orbits';
 import { basicInRange, basicApproachDistance } from '../combat/basic-range';
+import { meteorCenters, withinCone } from '../combat/field-skills';
 export { trainerSpot } from '../combat/trainer-position';
 
 const moveIdOf = (unit: CombatUnit): string => unit.bossMove || getStageData(unit.family, unit.stage).move;
 const combatCooldown = (unit: CombatUnit, now: number): number =>
   attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
-const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow);
+const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !(unit.family==='diglett' && unit.moving) && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow);
 const metrics = (): CombatMetrics => ({ casts: 0, controlSeconds: 0, dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0, blockedPhysical: 0, blockedSpecial: 0, barrierAbsorbed: 0, abilityMitigated: 0 });
 function stat(unit: CombatUnit, key: StatKey): number {
   const base = unit.stats[key];
@@ -260,6 +261,104 @@ function applyBallConversion(battle: Battle, caster: CombatUnit, amount: number)
   }
 }
 
+/** World-space deterministic meteor and fragment impacts. Exactly one contact per fragment. */
+function tickFieldEffect(battle:Battle,fx:CombatEffect,oldTime:number,dt:number):boolean {
+  const source=fx.sourceId&&battle.units.find(u=>u.id===fx.sourceId);
+  if(fx.meteor){
+    const m=fx.meteor;
+    if(!m.done && oldTime<m.hitAt && fx.time>=m.hitAt){
+      m.done=true;
+      if(source){
+        for(const enemy of battle.units)if(enemy.playerId!==source.playerId&&isTargetable(enemy)&&distance(enemy,{x:fx.targetX,y:fx.targetY})<=m.radius)
+          deal(battle,source,enemy,m.raw,true,true,'rock');
+        battle.effects.push({id:fx.id+':impact',kind:'meteor-impact',family:source.family,sourceId:source.id,
+          x:fx.targetX,y:fx.targetY,targetX:fx.targetX,targetY:fx.targetY,time:0,duration:.42,value:m.radius});
+        const bounds=arenaBoundary(battle);
+        const axes=[[1,0],[-1,0],[0,1],[0,-1]] as const;
+        axes.forEach(([dx,dy],index)=>{
+          const endX=dx>0?bounds.maxX:dx<0?bounds.minX:fx.targetX;
+          const endY=dy>0?bounds.maxY:dy<0?bounds.minY:fx.targetY;
+          const span=Math.hypot(endX-fx.targetX,endY-fx.targetY);
+          if(span>.01)battle.effects.push({id:fx.id+':fragment:'+index,kind:'meteor-fragment',family:source.family,
+            sourceId:source.id,x:fx.targetX,y:fx.targetY,targetX:endX,targetY:endY,time:0,
+            duration:span/Math.max(.1,m.speed),value:0,fragment:{raw:m.raw*m.fragmentRatio,speed:m.speed}});
+        });
+      }
+    }
+    return true;
+  }
+  if(fx.fragment){
+    if(!source)return true;
+    const t0=Math.min(1,oldTime/fx.duration),t1=Math.min(1,fx.time/fx.duration);
+    const ax=fx.x+(fx.targetX-fx.x)*t0,ay=fx.y+(fx.targetY-fx.y)*t0;
+    const bx=fx.x+(fx.targetX-fx.x)*t1,by=fx.y+(fx.targetY-fx.y)*t1;
+    const block=firstObstacle(battle,source.playerId,ax,ay,bx,by);
+    const endX=block?ax+(bx-ax)*block.t:bx,endY=block?ay+(by-ay)*block.t:by;
+    let first:CombatUnit|null=null,min=Infinity;
+    for(const enemy of battle.units){
+      if(enemy.playerId===source.playerId||!isTargetable(enemy))continue;
+      if(segmentDistanceSq(ax,ay,endX,endY,enemy.x,enemy.y)>(collisionRadius(enemy.family,enemy.stage)+.12)**2)continue;
+      const d=Math.hypot(enemy.x-ax,enemy.y-ay);
+      if(d<min){min=d;first=enemy;}
+    }
+    if(first){
+      deal(battle,source,first,fx.fragment.raw,true,true,'rock');
+      effect(battle,source,first,'meteor-impact',.16);
+      fx.time=fx.duration; // one target, then the fragment disappears
+    } else if(block)fx.time=fx.duration;
+    return true;
+  }
+  if(fx.cone){
+    const c=fx.cone;
+    if(!c.done&&fx.time>=c.hitAt){
+      c.done=true;
+      if(source){
+        const aim={x:fx.targetX,y:fx.targetY};
+        for(const enemy of battle.units){
+          if(enemy.playerId===source.playerId||!isTargetable(enemy)||!withinCone(source,aim,enemy,c.range,c.angle))continue;
+          const dealt=deal(battle,source,enemy,c.raw,true,true,'bug');
+          if(c.executeThreshold>0&&dealt>0&&enemy.hp>0&&enemy.hp/enemy.maxHp<c.executeThreshold){
+            const remaining=enemy.hp;enemy.hp=0;
+            source.metrics.dealt+=remaining;source.metrics.specialDealt+=remaining;enemy.metrics.taken+=remaining;
+            floatingDamage(battle,enemy,remaining,'special');
+            if(!onSynergyDeath(battle,source,enemy,{deal,heal,effect,stat}))knockout(battle,source,enemy,remaining);
+          }
+        }
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Impact is tied to fixed simulation time, even at high/low client FPS. */
+function tickScizor(battle:Battle,source:CombatUnit,dt:number):void {
+  const action=source.scizorAction;
+  if(!action)return;
+  const target=battle.units.find(u=>u.id===action.targetId&&isTargetable(u));
+  if(!target){source.scizorAction=undefined;source.moving=false;return;}
+  action.elapsed+=dt;
+  if(action.elapsed<action.dashTime){
+    const t=Math.min(1,action.elapsed/action.dashTime);
+    const x=action.fromX+(action.toX-action.fromX)*t,y=action.fromY+(action.toY-action.fromY)*t;
+    const bounds=arenaBoundary(battle);
+    if(x>=bounds.minX&&x<=bounds.maxX&&y>=bounds.minY&&y<=bounds.maxY&&clearStep(battle,source,x,y)){
+      source.x=x;source.y=y;source.moving=true;
+    } else {action.elapsed=action.dashTime;source.moving=false;}
+    if(action.elapsed<action.dashTime)return;
+  }
+  source.moving=false;
+  const move=ATTACKS.moves['scizor-double'];
+  while(action.hitsDone<2&&action.elapsed>=action.dashTime+action.nextHit){
+    if(!isTargetable(target)||distance(source,target)>1.7)break;
+    deal(battle,source,target,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,'steel');
+    effect(battle,source,target,'scizor-impact',action.hitsDone+1);
+    animate(source,'Attack',move.hitInterval??.22);
+    action.hitsDone++;action.nextHit+=(move.hitInterval??.22);
+  }
+  if(action.hitsDone>=2||!isTargetable(target)||distance(source,target)>1.7)source.scizorAction=undefined;
+}
+
 function landProjectiles(battle: Battle, dt: number): void {
   // Multiple tornadoes may overlap; a single 50% slow is applied (never multiplied).
   for(const unit of battle.units)unit.windSlow=0;
@@ -270,6 +369,7 @@ function landProjectiles(battle: Battle, dt: number): void {
     }
     const oldTime = fx.time;
     fx.time += dt;
+    if(tickFieldEffect(battle,fx,oldTime,dt))continue;
     if (fx.wind) {
       const wind=fx.wind;
       const caster=battle.units.find(u=>u.id===wind.sourceId);
@@ -328,6 +428,7 @@ function landProjectiles(battle: Battle, dt: number): void {
     if (!caster || !target) continue;
     if(fx.obstacleImpact){effect(battle,caster,{x:fx.targetX,y:fx.targetY},'wall-impact',0);continue;}
     const move = ATTACKS.moves[hit.moveId || moveIdOf(caster)];
+
     if (hit.special === 'mew-blessing') {
       // A projectile aimed at a defeated/buried ally dissipates safely instead of healing a different unit off-screen.
       const ally = isTargetable(target) ? target : null;
@@ -383,6 +484,13 @@ function landProjectiles(battle: Battle, dt: number): void {
     }
     if (fx.kind==='falling-star' && (!caster.starWard || !caster.barriers.some(b=>b.kind==='star-ward'&&b.instanceId===caster.starWard!.instanceId&&b.hp>0))) continue;
     deal(battle, caster, target, hit.raw, hit.magical, hit.charged, hit.attackType);
+    if (hit.special === 'jynx-kiss' && isTargetable(target)){
+      const freeze=Math.min(move.freezeMax??2.6,(move.freezeBase??1.2)+stat(caster,'spa')*(move.freezeSpaRatio??0));
+      applyStatus(battle,target,'frozen',caster,freeze,fx.id);
+      const near=battle.units.filter(u=>u.playerId!==caster.playerId&&u.id!==target.id&&isTargetable(u)&&distance(u,target)<=(move.adjacentRadius??1))
+        .sort((a,b)=>distance(a,target)-distance(b,target)||a.id.localeCompare(b.id))[0];
+      if(near)applyStatus(battle,near,'frozen',caster,freeze*(move.adjacentFreezeRatio??.45),fx.id+':adjacent');
+    }
     if(fx.kind!=='falling-star' && !hit.charged && caster.family==='mr-mime' && target.hp>0){
       const allWalls=battle.obstacles.filter(o=>o.kind==='wall'&&o.sourceId===caster.id&&o.until>battle.elapsed);
       const special=firstObstacle({...battle,obstacles:allWalls},'opponent',caster.x,caster.y,target.x,target.y);
@@ -446,7 +554,10 @@ function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage
 function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, magical: boolean, charged = false, attackType?: Element,
   mode: 'normal' | 'dot' | 'reflect' | 'extra' = 'normal'): number {
   if (!isTargetable(target)) return 0;
-  const defense = magical ? stat(target,'spd') : stat(target,'def');
+  const beedrill=source.family==='weedle'&&source.stage===2;
+  const stinger=ATTACKS.moves['multi-jab'];
+  const pierce=beedrill?Math.max(0,Math.min(stinger.pierceMax??.7,(stinger.pierceBase??0)+stat(source,'spa')*(stinger.pierceSpaRatio??0))):0;
+  const defense = magical ? stat(target,'spd') : stat(target,'def')*(1-pierce);
   const element = attackType || getStageData(source.family, source.stage).chargedType;
   const typeFactor = charged ? chargedEffectiveness(element, getStageData(target.family, target.stage).elements) : 1;
   const attacker=effectivePercents(source,battle.elapsed);
@@ -477,8 +588,8 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (magical && effectCount(target,'magic_guard')) damage*=1-numberParam('magic_guard','specialReduction');
   // Shield bonus applies to shield HP ONLY. Spillover into ordinary life
   // conserves the unamplified portion of the attack rather than multiplying it.
-  const shieldFactor = charged && mode === 'normal' && effectCount(source,'magic_sunder')
-    ? 1 + numberParam('magic_sunder','shieldBonus') : 1;
+  const shieldFactor = (charged && mode === 'normal' && effectCount(source,'magic_sunder')
+    ? 1 + numberParam('magic_sunder','shieldBonus') : 1) * (source.family==='scizor' && source.scizorAction && charged ? ATTACKS.moves['scizor-double'].shieldDamageMultiplier??2 : 1);
   let absorbedTotal = 0;
   const absorbShield = (shieldHp: number): number => {
     const absorbed = Math.min(shieldHp, damage * shieldFactor);
@@ -518,7 +629,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   onSynergyHit(battle,source,target,hpBefore,damage+absorbedTotal,mode==='normal', {deal,heal,effect,stat});
   onAugmentDamage(battle,target);
   if(target.hp<=0 && !onSynergyDeath(battle,source,target,{deal,heal,effect,stat}))knockout(battle,source,target,damage);
-  if (!magical && !charged && mode==='normal' && damage+absorbedTotal>0) wakeFromBasic(target);
+  if (!magical && !charged && mode==='normal' && STATUS_RULES.sleeping.wakeOnPhysicalBasic && damage+absorbedTotal>0) wakeFromBasic(target);
   const actual=damage+absorbedTotal;
   if (mode==='normal' && actual>0) {
     if (attacker.vampirism>0 && source.hp>0) heal(battle,source,damage*attacker.vampirism,source);
@@ -755,6 +866,48 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='meteor-rain'){
+    const sourceSeed=[...source.id].reduce((n,char)=>Math.imul(n^char.charCodeAt(0),16777619)>>>0,2166136261);
+    const centers=meteorCenters(battle,source.metrics.casts^sourceSeed,move.meteorCount??4);
+    const raw=move.baseDamage+s*move.specialRatio;
+    const warning=Math.max(.1,move.warningSeconds??.4);
+    const travel=1/Math.max(.1,move.fallSpeed??2.8);
+    for(const [i,pos] of centers.entries())battle.effects.push({
+      id:`${battle.id}:meteor:${source.id}:${source.metrics.casts}:${i}`,sourceId:source.id,
+      kind:'meteor-fall',family:source.family,x:source.x,y:source.y,targetX:pos.x,targetY:pos.y,
+      time:0,duration:warning+travel+.12,value:move.impactRadius??.7,
+      meteor:{raw,radius:move.impactRadius??.7,fragmentRatio:move.fragmentRatio??.25,
+        speed:move.fragmentSpeed??8,hitAt:warning+travel,warning,done:false}
+    });
+    animate(source,stage.chargedAnimation,.5);return;
+  }
+  if(move.effect==='cone-slash' && target){
+    const range=move.coneRange??2.5,angle=move.coneAngle??65;
+    battle.effects.push({id:`${battle.id}:cone:${source.id}:${source.metrics.casts}`,sourceId:source.id,
+      kind:'cone-slash',family:source.family,x:source.x,y:source.y,targetX:target.x,targetY:target.y,
+      time:0,duration:.37,value:range,
+      cone:{raw:move.baseDamage+s*move.specialRatio,range,angle,executeThreshold:move.executeThreshold??0,hitAt:.16,done:false}});
+    animate(source,stage.chargedAnimation,.3);return;
+  }
+  if(move.effect==='scizor-double' && target){
+    const point=digDestination(battle,source,target);
+    if(!point)return;
+    const path=Math.hypot(point.x-source.x,point.y-source.y);
+    source.scizorAction={targetId:target.id,fromX:source.x,fromY:source.y,toX:point.x,toY:point.y,
+      elapsed:0,dashTime:Math.max(.08,path/Math.max(.1,move.dashSpeed??9)),hitsDone:0,nextHit:.04};
+    animate(source,'Attack',.32);
+    effect(battle,source,{x:point.x,y:point.y},'scizor-dash',path);
+    battle.effects[battle.effects.length-1].duration=source.scizorAction.dashTime;
+    return;
+  }
+  if(move.effect==='jynx-kiss' && target){
+    const freeze=Math.min(move.freezeMax??2.6,(move.freezeBase??1.2)+s*(move.freezeSpaRatio??0));
+    const raw=move.baseDamage+s*move.specialRatio;
+    projectile(battle,source,target,'frost',raw,true,true,.8,undefined,source,moveId,'ice');
+    // Keep freeze tied to projectile arrival via the existing pendingHit dispatch.
+    battle.effects[battle.effects.length-1].pendingHit!.special='jynx-kiss';
+    animate(source,stage.chargedAnimation,.4);return;
+  }
   if(move.effect==='mime-wall'){
     animate(source,stage.chargedAnimation,.5);summonWalls(battle,source,move.wallDuration??3);
     return;
@@ -863,7 +1016,10 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     return;
   }
   if (move.effect === 'burrow') {
-    startDig(battle,source);
+    source.preferredTargetId=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u))
+      .sort((a,b)=>distance(source,b)-distance(source,a)||a.id.localeCompare(b.id))[0]?.id;
+    animate(source,'Charge',.18);
+    // No teleport, extra mound, or damage on casting. Emergence happens at the end of travel.
     return;
   }
   if (move.effect === 'dragon-storm') {
@@ -1229,10 +1385,6 @@ function comboTick(battle: Battle, source: CombatUnit, dt: number): void {
     deal(battle, source, target, move.baseDamage + stat(source,'atk') * (move.attackRatio || 0), false, true);
     effect(battle, source, target, 'physical', 0);
     combo.hits--;
-    if(combo.hits===0 && target.hp>0 && move.finalVenomSpaRatio){
-      deal(battle,source,target,(move.finalVenomBase||0)+stat(source,'spa')*move.finalVenomSpaRatio,true,true,'poison');
-      effect(battle,source,target,'poison',0);
-    }
     combo.time += combo.interval;
     if (target.hp <= 0) source.combo = null;
     else if (combo.hits > 0) animate(source, 'Jab', combo.interval);
@@ -1359,72 +1511,21 @@ function digDestination(battle: Battle, source: CombatUnit, target: CombatUnit):
   }
   return options.sort((a,b)=>a.d-b.d||a.x-b.x||a.y-b.y)[0] || null;
 }
-function startDig(battle: Battle, source: CombatUnit): void {
-  const victim = battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u))
-    .sort((a,b)=>distance(source,b)-distance(source,a)||a.id.localeCompare(b.id))[0];
-  if (!victim) return;
-  const point=digDestination(battle,source,victim);
-  if (!point) return;
-  source.dig={phase:'sink',time:0,duration:.23,fromX:source.x,fromY:source.y,toX:point.x,toY:point.y,targetId:victim.id,trailClock:0};
-  animate(source,'Attack',.23);
+function emergeAfterWalk(battle:Battle,source:CombatUnit):void {
+  if(source.family!=='diglett'||!source.wasMoving)return;
+  source.wasMoving=false;
+  const target=battle.units.find(u=>u.id===source.preferredTargetId&&isTargetable(u)) ||
+    battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u))
+      .sort((a,b)=>distance(source,a)-distance(source,b)||a.id.localeCompare(b.id))[0];
+  const move=ATTACKS.moves[moveIdOf(source)],raw=move.baseDamage+stat(source,'spa')*move.specialRatio;
+  if(source.stage===0){if(target&&distance(source,target)<=2.5)deal(battle,source,target,raw,true,true,'ground');}
+  else for(const enemy of battle.units)if(enemy.playerId!==source.playerId&&isTargetable(enemy)&&distance(source,enemy)<=(move.splashRange??1.5))
+    deal(battle,source,enemy,raw,true,true,'ground');
+  effect(battle,source,source,'earth-burst',source.stage?.8:.5);
+  animate(source,'Attack',.24);
+  source.attackClock=Math.max(source.attackClock,.22);
 }
-function digTick(battle: Battle, source: CombatUnit, dt: number): void {
-  const dig=source.dig;
-  if (!dig) return;
-  dig.time = Math.min(dig.duration,dig.time+dt);
-  if (dig.phase === 'sink' && dig.time>=dig.duration) {
-    dig.phase='travel';dig.time=0;dig.duration=Math.max(.32,Math.hypot(dig.fromX-dig.toX,dig.fromY-dig.toY)/5);
-    source.animation=null;
-  } else if (dig.phase === 'travel') {
-    const t=dig.time/dig.duration;
-    source.x=dig.fromX+(dig.toX-dig.fromX)*t;
-    source.y=dig.fromY+(dig.toY-dig.fromY)*t;
-    dig.trailClock+=dt;
-    if (dig.trailClock >= .11) {
-      dig.trailClock %= .11;
-      effect(battle,source,source,'earth-trail',source.stage ? .58 : .38);
-    }
-    if (dig.time>=dig.duration) {
-      // Units may move into the chosen landing spot while the Pokémon is underground.
-      // Recheck occupancy against the authoritative unit positions before surfacing.
-      const occupied = battle.units.some(u => u !== source && u.hp > 0 &&
-        Math.hypot(u.x-source.x,u.y-source.y) < .62);
-      if (occupied) {
-        const desired = battle.units.find(u => u.id === dig.targetId && isTargetable(u)) ||
-          battle.units.filter(u => u.playerId !== source.playerId && isTargetable(u))
-            .sort((a,b) => distance(source,a)-distance(source,b) || a.id.localeCompare(b.id))[0];
-        const free = desired && digDestination(battle, source, desired);
-        // The subterranean position, not the sprite, is moved to the safe resting location.
-        if (free) { source.x=free.x; source.y=free.y; }
-        else { source.x=dig.fromX; source.y=dig.fromY; }
-      }
-      dig.phase='rise';dig.time=0;dig.duration=.27;
-      effect(battle,source,source,'earth-burst',source.stage ? .85 : .55);
-    }
-  } else if (dig.phase === 'rise' && dig.time>=dig.duration) {
-    // Last-moment collision protection: a target can move during the rise itself.
-    if (battle.units.some(u => u !== source && u.hp > 0 && Math.hypot(u.x-source.x,u.y-source.y)<.62)) {
-      const intended = battle.units.find(u => u.id===dig.targetId && isTargetable(u)) ||
-        battle.units.filter(u => u.playerId !== source.playerId && isTargetable(u))
-          .sort((a,b)=>distance(source,a)-distance(source,b)||a.id.localeCompare(b.id))[0];
-      const free = intended && digDestination(battle,source,intended);
-      if (free) { source.x=free.x; source.y=free.y; }
-      else { source.x=dig.fromX; source.y=dig.fromY; }
-    }
-    source.dig=null;source.moving=false;
-    const victim=battle.units.find(u=>u.id===dig.targetId && isTargetable(u))
-      || battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u)).sort((a,b)=>distance(source,a)-distance(source,b)||a.id.localeCompare(b.id))[0];
-    const move=ATTACKS.moves[moveIdOf(source)];
-    const power=move.baseDamage+stat(source,'spa')*move.specialRatio;
-    if (source.stage===0) {
-      if(victim && distance(source,victim)<=2.5) deal(battle,source,victim,power,true,true,'ground');
-    } else {
-      for (const enemy of battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u) && distance(source,u)<=(move.splashRange||1.5)))
-        deal(battle,source,enemy,power,true,true,'ground');
-    }
-    animate(source,'Attack',.2);
-  }
-}
+
 /** Deterministic ghost traversal: the whole path ignores occupied hexes, but the final spot does not. */
 function ghostLanding(battle: Battle, caster: CombatUnit, target: CombatUnit): {x:number;y:number} | null {
   const d=Math.max(.001,distance(caster,target));
@@ -1590,6 +1691,7 @@ function resolve(battle: Battle): void {
     unit.combo = null;
     unit.leap = null;
     unit.charge = null;
+    unit.scizorAction=undefined;unit.scizorPending=false;
     unit.dig = null; unit.ghost = null; unit.fear = null; unit.storm = null; unit.psychicImbuement = null; unit.refractionUntil = 0;
     unit.support = null;
     unit.gasTime = 0;
@@ -1768,7 +1870,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (incapacitated(unit,battle.elapsed)||unit.lullaby){unit.moving=false;continue;}
     if (unit.fear) { fearTick(unit,dt); continue; }
     if (unit.ghost) { ghostTick(battle,unit,dt); continue; }
-    if (unit.dig) { digTick(battle,unit,dt); continue; }
+    if(unit.scizorAction){tickScizor(battle,unit,dt);continue;}
     if (unit.storm) { stormTick(battle,unit,dt); continue; }
     if(pendingSkillTick(battle,unit))continue;
     if(unit.hitmonAction){tickHitmonAction(battle,unit,dt);continue;}
@@ -1819,7 +1921,17 @@ export function tickBattle(battle: Battle, dt: number): void {
       const squared = (enemy.x - unit.x) ** 2 + (enemy.y - unit.y) ** 2;
       if (squared < distanceSq) { target = enemy; distanceSq = squared; }
     }
+    if(unit.family==='diglett' && unit.preferredTargetId){
+      const preferred=battle.units.find(u=>u.id===unit.preferredTargetId&&isTargetable(u));
+      if(preferred){target=preferred;distanceSq=(target.x-unit.x)**2+(target.y-unit.y)**2;}
+      else unit.preferredTargetId=undefined;
+    }
     if (!target) continue;
+    if(unit.family==='scizor'){
+      if(unit.lastCombatTargetId&&unit.lastCombatTargetId!==target.id){unit.scizorPending=true;unit.energy=unit.energyNeeded;unit.attackClock=0;}
+      unit.lastCombatTargetId=target.id;
+      if(unit.scizorPending){unit.scizorPending=false;unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown;continue;}
+    }
     const d = Math.sqrt(distanceSq);
     unit.facingX = target.x - unit.x;
     unit.facingY = target.y - unit.y;
@@ -1827,6 +1939,9 @@ export function tickBattle(battle: Battle, dt: number): void {
        (move.effect==='hitmonchan-uppercut'||move.effect==='hitmonlee-spin-kick') &&
        !!hitmonChoice(battle,unit,moveIdOf(unit))){
       unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown*(unit.slow?1.3:1);continue;
+    }
+    if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded && move.effect === 'scizor-double'){
+      unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown;continue;
     }
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded && move.effect === 'stomp' && d <= (move.jumpRange || 3)) {
       unit.energy = 0;
@@ -1857,8 +1972,12 @@ export function tickBattle(battle: Battle, dt: number): void {
       }
       if(next){unit.x=next.x;unit.y=next.y;}
       unit.moving=!!next&&travel>.001;
+      if(unit.family==='diglett'){
+        if(unit.moving)unit.wasMoving=true;else emergeAfterWalk(battle,unit);
+      }
       continue;
     }
+    if(unit.family==='diglett'&&unit.wasMoving){emergeAfterWalk(battle,unit);continue;}
     if (unit.attackClock > 0) continue;
     if (unit.energy >= unit.energyNeeded && move.effect !== 'ditto-transform'
       && !(move.effect === 'star-refraction' && unit.refractionUntil > battle.elapsed)

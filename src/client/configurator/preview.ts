@@ -12,6 +12,8 @@ export class PhysicalPreview {
  private began=performance.now();
  private image=new Image();
  private path='';
+ private zoom=1;
+ setZoom(value:number):void {this.zoom=Math.max(.65,Math.min(1.7,value));}
  private options:PreviewOptions|null=null;
  private onVisibilityChange=():void=>{
   if(document.hidden){cancelAnimationFrame(this.frameId);this.frameId=0;}
@@ -44,17 +46,17 @@ export class PhysicalPreview {
   const cx=w*.5,ground=h*.70;
   ctx.clearRect(0,0,w,h);ctx.fillStyle='#0d1c28';ctx.fillRect(0,0,w,h);
   // Render the actual board hex spacing at the same base scale as the client.
-  const cellScale=75,origin=gridXY(3,4);
-  for(let row=3;row<=5;row++)for(let col=1;col<=5;col++){
+  const cellScale=75*this.zoom,origin=gridXY(3,4);
+  for(let row=2;row<=6;row++)for(let col=0;col<=6;col++){
     const p=gridXY(col,row),x=cx+(p.x-origin.x)*cellScale,y=ground+(p.y-origin.y)*cellScale;
     ctx.fillStyle=(row+col)%2?'#28434a':'#223c48';ctx.strokeStyle='#6b9db257';ctx.lineWidth=1.5;
     ctx.beginPath();for(let i=0;i<6;i++){
-      const a=Math.PI/3*i,xp=x+cellScale*.56*Math.cos(a),yp=y+cellScale*.56*Math.sin(a);
+      const a=Math.PI/3*i+Math.PI/6,xp=x+cellScale*.60*Math.cos(a),yp=y+cellScale*.60*Math.sin(a);
       if(!i)ctx.moveTo(xp,yp);else ctx.lineTo(xp,yp);
     }ctx.closePath();ctx.fill();ctx.stroke();
   }
   ctx.strokeStyle='#dfc27c';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(cx,ground,29,11,0,0,Math.PI*2);ctx.stroke();
-  const bodyRadius=75*.295*size;
+  const bodyRadius=cellScale*.295*size;
   ctx.strokeStyle='#ecbd6288';ctx.setLineDash([5,4]);ctx.beginPath();ctx.ellipse(cx,ground,bodyRadius,bodyRadius*.53,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
   const shadow=visualProfile(family,stage).shadow;
   if(shadow?.mode!=='none' && shadow?.mode!=='embedded'){
@@ -80,8 +82,8 @@ export class PhysicalPreview {
    }
   }
   ctx.font='12px system-ui';ctx.fillStyle='#b9d3d9';ctx.textAlign='center';
-  ctx.fillText(`CORPO Ø ${(2*.295*size).toFixed(2)} CASAS`,cx,h-20);
-  ctx.textAlign='left';ctx.font='11px system-ui';ctx.fillStyle='#b6c3cb';ctx.fillText('ARENA REAL · ZOOM 1×',23,24);
+  ctx.fillText(`COLISÃO Ø ${(2*.295*size).toFixed(2)} CASAS  ·  TAMANHO ${size.toFixed(2)}×`,cx,h-20);
+  ctx.textAlign='left';ctx.font='11px system-ui';ctx.fillStyle='#b6c3cb';ctx.fillText(`GEOMETRIA REAL · ZOOM ${this.zoom.toFixed(2)}×`,23,24);
   this.frameId=requestAnimationFrame(this.draw);
  }
 }

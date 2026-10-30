@@ -37,3 +37,22 @@
 @media(max-width:1100px){.cfg-fields{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}}
 
 .cfg-status-reapply{margin:12px 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap}.cfg-status-reapply label{color:#e7d8aa;font-size:12px;font-weight:700}.cfg-status-reapply select{max-width:100%;background:#1d3536;color:#e2f3e5;border:1px solid #73998b;border-radius:6px;padding:8px 10px}
+
+/* V21.5: intrinsic compact fields, consistent stage matrix and mixed controls */
+.cfg-fields{grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),170px));justify-content:start;align-items:start;gap:9px}
+.cfg-field{max-width:190px;min-height:68px;box-sizing:border-box;padding:9px 10px}
+.cfg-field-control{flex-direction:column;align-items:stretch;gap:4px}
+.cfg-field-control input{width:100%;box-sizing:border-box;padding:7px 8px}
+.cfg-field-control small{white-space:normal;max-width:100%;font-size:10px;line-height:1.25}
+.cfg-panel{min-width:0}.cfg-panel .cfg-subgroup{min-width:0}
+.cfg-stage-table{width:max-content;min-width:min(100%,350px);border-spacing:3px}
+.cfg-stage-table th{min-width:92px}.cfg-stage-table td{min-width:128px;width:150px}
+.cfg-stage-table td .cfg-field{max-width:150px}
+.cfg-boolean{flex-direction:row;justify-content:space-between;align-items:center;min-height:65px}
+.cfg-boolean input{width:20px;height:20px;accent-color:#e8c375;cursor:pointer}
+.cfg-field.modified .cfg-field-control small{color:#f4d791}
+.cfg-status-reapply{margin:8px 0;gap:8px}
+.cfg-status-reapply select{width:min(100%,340px)}
+.cfg-preview-tools{display:flex;gap:9px;align-items:center;margin:9px 0;color:#cbdde5;font-size:11px}
+.cfg-preview-tools input{accent-color:#dfba6f;max-width:150px}
+@media(max-width:700px){.cfg-fields{grid-template-columns:repeat(auto-fill,minmax(min(100%,132px),1fr))}.cfg-field{max-width:none}}

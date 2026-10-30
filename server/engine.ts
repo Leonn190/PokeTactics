@@ -197,14 +197,23 @@ export class GameEngine {
     while (changed) {
       changed = false;
       for (const family of FAMILIES) {
+        if (family === 'scyther') {
+          const scythers=player.units.filter(u=>u.family==='scyther');
+          const needed=evolutionCopies('scyther',0,hasAugment(player,'P11'));
+          if(scythers.length>=needed && !player.pendingEvolution){
+            if(player.id==='p0'){player.pendingEvolution=scythers.slice(0,needed).map(u=>u.id);player.pendingEvolutionKind='scyther';}
+            else {this.chooseEevee(player,this.rng.pick(['scizor','kleavor']));changed=true;}
+          }
+          continue;
+        }
         if (family === 'eevee') {
           const eevees = player.units.filter(u => u.family === 'eevee');
           const needed=evolutionCopies('eevee',0,hasAugment(player,'P11'));
           if (eevees.length >= needed) {
-            if (player.id === 'p0') player.pendingEvolution = eevees.slice(0, needed).map(u => u.id);
+            if (player.id === 'p0' && !player.pendingEvolution){player.pendingEvolution = eevees.slice(0, needed).map(u => u.id);player.pendingEvolutionKind='eevee';}
             else this.chooseEevee(player, this.rng.pick(EEVEE_BRANCHES));
             if (player.id !== 'p0') changed = true;
-          } else player.pendingEvolution = undefined;
+          } else if(player.pendingEvolutionKind==='eevee'){player.pendingEvolution=undefined;player.pendingEvolutionKind=undefined;}
           continue;
         }
         const maxStage = SPECIES[family].names.length - 1;
@@ -244,21 +253,22 @@ export class GameEngine {
   }
 
   private chooseEevee(player: Player, branch: Family): void {
-    const needed=evolutionCopies('eevee',0,hasAugment(player,'P11'));
-    const four = player.units.filter(u => u.family === 'eevee').slice(0, needed);
+    const family=branch==='scizor'||branch==='kleavor'?'scyther':'eevee';
+    const needed=evolutionCopies(family,0,hasAugment(player,'P11'));
+    const four = player.units.filter(u => u.family === family).slice(0, needed);
     if (four.length !== needed) return;
     const anchor = four.find(u => u.position.area === 'board') || four[0];
     const iv = Object.fromEntries((Object.keys(anchor.iv) as Array<keyof Stats>).map(key =>
       [key, Math.max(...four.map(unit => unit.iv[key]))])) as Stats;
     player.units = player.units.filter(unit => !four.includes(unit));
-    const evolved: Pokemon = { id:this.id(), family:branch, stage:1, iv,
+    const evolved: Pokemon = { id:this.id(), family:branch, stage:family==='scyther'?0:1, iv,
       level:Math.max(...four.map(u => u.level)), xp:Math.max(...four.map(u => u.xp)), position:{...anchor.position} };
     evolved.equipment = this.preserveEquipment(player,four);
     evolved.acquiredChapter=Math.min(...four.map(u=>u.acquiredChapter||1));
     evolved.appliedAugments=[...new Set(four.flatMap(u=>u.appliedAugments||[]))];
     applyEvolutionAugments(player,evolved,chapterForRound(this.round));
     player.units.push(evolved);
-    player.pendingEvolution = undefined;
+    player.pendingEvolution = undefined;player.pendingEvolutionKind=undefined;
     this.visualEvents.push({ id:this.id(), unitId:evolved.id, ownerId:player.id, kind:'evolve', age:0,
       delay: four.some(u => this.visualEvents.some(e => e.kind === 'summon' && e.unitId === u.id && e.age < .2)) ? .63 : 0,
       sources:four.map(u => ({ id:u.id, family:u.family, stage:u.stage, level:u.level, position:{...u.position} })),
@@ -498,9 +508,11 @@ export class GameEngine {
       return null;
     }
     if (command.kind === 'choose-eevee') {
-      if (!EEVEE_BRANCHES.includes(command.branch)) return 'Evolução inválida';
+      const scytherChoice=human.pendingEvolutionKind==='scyther';
+      if(!(scytherChoice ? (command.branch==='scizor'||command.branch==='kleavor') : EEVEE_BRANCHES.includes(command.branch))) return 'Evolução inválida';
       const ids = human.pendingEvolution;
-      if (!ids || ids.length !== evolutionCopies('eevee',0,hasAugment(human,'P11')) || ids.some(id => !human.units.some(u => u.id === id && u.family === 'eevee'))) return 'Reúna Eevee suficientes para evoluir';
+      const family=scytherChoice?'scyther':'eevee';
+      if(!ids || ids.length!==evolutionCopies(family,0,hasAugment(human,'P11')) || ids.some(id=>!human.units.some(u=>u.id===id&&u.family===family)))return 'Reúna as cópias para evoluir';
       this.chooseEevee(human, command.branch);
       this.merge(human);
       return null;
