@@ -528,6 +528,12 @@ function landProjectiles(battle: Battle, dt: number): void {
         if(firstObstacle(battle,caster.playerId,ax,ay,target.x,target.y))continue;
         hit.hitIds.push(target.id);
         deal(battle, caster, target, hit.raw, true, true, hit.attackType);
+        if(fx.kind==='psychic-shot'){
+          // Each angular bolt hits its first enemy, not an unlimited row of units.
+          // The existing piercing sweep prevents tunneling in accelerated combat.
+          fx.targetX=target.x;fx.targetY=target.y;fx.time=fx.duration;
+          break;
+        }
       }
       continue;
     }
