@@ -524,7 +524,7 @@ function landProjectiles(battle: Battle, dt: number): void {
         fx.time=fx.duration;effect(battle,caster,{x:bx,y:by},'wall-impact',0);}
       for (const target of battle.units) {
         if (target.playerId === caster.playerId || !isTargetable(target) || hit.hitIds.includes(target.id)) continue;
-        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > .43 ** 2) continue;
+        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > (fx.kind==='psychic-shot' ? fx.value : .43) ** 2) continue;
         if(firstObstacle(battle,caster.playerId,ax,ay,target.x,target.y))continue;
         hit.hitIds.push(target.id);
         deal(battle, caster, target, hit.raw, true, true, hit.attackType);
@@ -1054,6 +1054,60 @@ function fleeBaby(battle:Battle,source:CombatUnit,dt:number):void {
  else source.moving=false;
 }
 
+/** Abra crosses grid cells instantaneously. Only adjacent columns are excluded
+ * in the ordinary case; threatened Abra may leave its row to escape melee.
+ * Grid offset preserves the correct half in 4-player battles. */
+function psychicTeleport(battle:Battle,source:CombatUnit,target:CombatUnit,move:typeof ATTACKS.moves[string]):void {
+  const quad=battle.participants.length>2,slot=battle.participants.indexOf(source.playerId);
+  const offset=quad?(slot<2?-4.35:4.35):0;
+  const bounds=arenaBoundary(battle);
+  const enemies=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u));
+  const threatened=enemies.some(u=>distance(u,source)<=(move.closeEnemyRadius??1.5));
+  const rows=Array.from({length:8},(_,row)=>row);
+  const currentRow=rows.reduce((best,row)=>Math.abs(gridXY(source.col,row).y-source.y)<Math.abs(gridXY(source.col,best).y-source.y)?row:best,source.row);
+  const possible:Array<{x:number;y:number;score:number}>=[];
+  for(const row of threatened?rows:[currentRow]){
+    for(let col=0;col<7;col++){
+      const xy=gridXY(col,row),x=xy.x+offset,y=xy.y;
+      if(x<bounds.minX||x>bounds.maxX||y<bounds.minY||y>bounds.maxY)continue;
+      if(Math.hypot(x-source.x,y-source.y)<(move.teleportMinDistance??1.5))continue;
+      if(!clearStep(battle,source,x,y))continue;
+      if(battle.obstacles.some(o=>o.until>battle.elapsed && Math.hypot(o.x-x,o.y-y)<.7))continue;
+      // Escape is maximally far from the nearest enemy, never to a neighboring cell.
+      const safety=enemies.length?Math.min(...enemies.map(enemy=>Math.hypot(x-enemy.x,y-enemy.y))):0;
+      const score=threatened?safety: -Math.hypot(x-target.x,y-target.y)*.25+safety*.15;
+      possible.push({x,y,score});
+    }
+  }
+  possible.sort((a,b)=>b.score-a.score || a.y-b.y || a.x-b.x);
+  if(!possible.length)return;
+  const old={x:source.x,y:source.y};
+  const destination=possible[0];
+  effect(battle,source,old,'psychic-spark',0);
+  source.x=destination.x;source.y=destination.y;source.moving=false;
+  source.facingX=target.x-source.x;source.facingY=target.y-source.y;
+  effect(battle,source,source,'psychic-spark',0);
+}
+
+function psychicShots(battle:Battle,source:CombatUnit,target:CombatUnit,move:typeof ATTACKS.moves[string]):void {
+  const count=move.shotCountByStage?.[source.stage]||0;
+  if(!count)return;
+  const length=Math.hypot(target.x-source.x,target.y-source.y)||1;
+  const angle=Math.atan2(target.y-source.y,target.x-source.x),angleStep=(move.shotAngleDegrees??19)*Math.PI/180;
+  const maxDistance=move.shotRange??5.8;
+  const raw=(move.baseDamage||0)+stat(source,'spa')*move.specialRatio;
+  for(let index=0;index<count;index++){
+    // 3: [-1,0,1]; 5: [-2,-1,0,1,2]. Center always aims at the primary target.
+    const offset=index-Math.floor(count/2),direction=angle+offset*angleStep;
+    const endX=source.x+Math.cos(direction)*maxDistance,endY=source.y+Math.sin(direction)*maxDistance;
+    battle.effects.push({id:`${battle.id}:psychic:${source.id}:${source.metrics.casts}:${index}`,
+      sourceId:source.id,kind:'psychic-shot',family:source.family,
+      x:source.x,y:source.y,targetX:endX,targetY:endY,time:0,
+      duration:maxDistance/Math.max(.1,RULES.projectiles.unitsPerSecond),value:move.shotRadius??.36,
+      piercing:{sourceId:source.id,raw,attackType:'psychic',hitIds:[]}});
+  }
+}
+
 function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): void {
   const stage = getStageData(source.family, source.stage);
   const moveId = moveIdOf(source), move = ATTACKS.moves[moveId];
@@ -1069,6 +1123,12 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='psychic-teleport' && target){
+    psychicTeleport(battle,source,target,move);
+    psychicShots(battle,source,target,move);
+    animate(source,stage.chargedAnimation,.44);
+    return;
+  }
   if(move.effect==='flame-jet' && target){
     const d=Math.max(.001,distance(source,target));
     const duration=baby(source)?(move.babyDuration??2):(move.durationByStage?.[source.stage]??3);
@@ -2261,7 +2321,8 @@ export function tickBattle(battle: Battle, dt: number): void {
     } else {
       animate(unit, stage.basic.animation, Math.min(.4, unit.cooldown * .82), undefined, 'basic');
       const basic = ATTACKS.basic;
-      const raw = rawBasicDamage(stat(unit,'atk'),basic.offensiveRatio);
+      const spaFraction=unit.family==='abra'?(ATTACKS.moves['psychic-teleport'].basicSpaFraction??.3):0;
+      const raw = rawBasicDamage(stat(unit,'atk')*(1-spaFraction)+stat(unit,'spa')*spaFraction,basic.offensiveRatio);
       const ranged = !!stage.basic.projectile;
       const projectileKind = ranged ? 'basic-projectile' : 'physical';
       // Refraction targets must be distinct, targetable, in the *ordinary* range
