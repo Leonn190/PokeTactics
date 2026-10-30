@@ -1092,7 +1092,6 @@ function psychicTeleport(battle:Battle,source:CombatUnit,target:CombatUnit,move:
 function psychicShots(battle:Battle,source:CombatUnit,target:CombatUnit,move:typeof ATTACKS.moves[string]):void {
   const count=move.shotCountByStage?.[source.stage]||0;
   if(!count)return;
-  const length=Math.hypot(target.x-source.x,target.y-source.y)||1;
   const angle=Math.atan2(target.y-source.y,target.x-source.x),angleStep=(move.shotAngleDegrees??19)*Math.PI/180;
   const maxDistance=move.shotRange??5.8;
   const raw=(move.baseDamage||0)+stat(source,'spa')*move.specialRatio;
