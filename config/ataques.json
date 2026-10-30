@@ -985,6 +985,23 @@
       "shieldEnergyRatio": 0.58,
       "shieldDuration": 4,
       "shieldMaxHpFraction": 0.35
+    },
+    "psychic-teleport": {
+      "name": "Salto Psíquico",
+      "effect": "psychic-teleport",
+      "baseDamage": 12,
+      "specialRatio": 0.66,
+      "basicSpaFraction": 0.3,
+      "shotCountByStage": [
+        0,
+        3,
+        5
+      ],
+      "shotAngleDegrees": 19,
+      "shotRange": 5.8,
+      "shotRadius": 0.36,
+      "closeEnemyRadius": 1.5,
+      "teleportMinDistance": 1.5
     }
   }
 }
