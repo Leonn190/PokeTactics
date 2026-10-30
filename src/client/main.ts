@@ -5,9 +5,10 @@ import { Hud } from './hud';
 import { Menus } from './menus';
 import { PlayerSettings } from './player-settings';
 import { GameAudio } from './audio';
-import { RENDER_SETTINGS, SPECIES } from '../../server/data';
+import { BENCH_SIZE, RENDER_SETTINGS, SPECIES } from '../../server/data';
+import { ITEMS } from '../../server/systems/items';
 import pmdManifest from './pmd-manifest.json';
-import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
+import type { BallKind, ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
 // The provided PMD manifest does not yet include every portrait (notably
 // Lapras/Ditto). Resolve a missing static portrait without affecting animated PMD.
@@ -64,6 +65,7 @@ let pointerStart = { x: 0, y: 0 };
 let lastHudRender = 0;
 let lastHudPhase = '';
 let lastHudGold = -1;
+let lastShopRevision = '';
 
 function send(command: GameCommand): void {
   if (!state || !worker || (view.scoutId!=='p0' && command.kind!=='augment-choose' && command.kind!=='augment-reroll') || state.phase === 'finished' || state.players[0].eliminated) return;
@@ -81,7 +83,7 @@ function launchMatch(): void {
   view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
   framesDrawn=0;windowStart=performance.now();smoothedFps=75;fpsReadout.textContent='FPS: —';
-  lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0;
+  lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0; lastShopRevision = '';
   augments.reset();
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
   const currentWorker = worker;
@@ -93,11 +95,15 @@ function launchMatch(): void {
     updateWorldWidgets();
     if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
       && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
+    if (view.inventoryItemId && !state.players[0].itemInventory?.some(item=>item.id===view.inventoryItemId)) view.inventoryItemId=null;
+    if (view.selectedBall && !(state.players[0].consumables?.[view.selectedBall]||0)) view.selectedBall=null;
     const now = performance.now();
+    // Render the authoritative shop immediately whenever offers change, even within the regular HUD throttle.
+    const shopRevision = state.players[0].shop.map(offer=>offer?.id||'-').join('|');
     hud.renderClock(state);
-    if (now - lastHudRender > RENDER_SETTINGS.hudRefreshMs || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold) {
+    if (now - lastHudRender > RENDER_SETTINGS.hudRefreshMs || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold || shopRevision !== lastShopRevision) {
       hud.render(state, view);
-      lastHudRender = now; lastHudPhase = state.phase; lastHudGold = state.players[0].gold;
+      lastHudRender = now; lastHudPhase = state.phase; lastHudGold = state.players[0].gold; lastShopRevision = shopRevision;
     }
   });
   currentWorker.addEventListener('error', () => hud.toast('Erro ao iniciar a simulação'));
@@ -117,15 +123,17 @@ document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
   menus.showHome();
 });
 
-document.getElementById('inventoryContents')!.addEventListener('click',event=>{
-  if(suppressTrayClick){suppressTrayClick=false;return;}
+const inventoryContents = document.getElementById('inventoryContents')!;
+inventoryContents.addEventListener('click',event=>{
   if (!state || view.scoutId!=='p0') return;
   const page=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-page]');
   if(page){hud.changeInventoryPage(page.dataset.inventoryPage==='next'?1:-1);hud.render(state,view);return;}
+  // Pointer clicks never arm a sticky item. Keyboard activation retains an accessible fallback.
+  if(event.detail!==0)return;
   const item=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-item]');
   const ball=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-ball]');
-  if(item) { view.inventoryItemId=item.dataset.inventoryItem||null;view.selectedBall=null; }
-  if(ball) { view.selectedBall=ball.dataset.inventoryBall as typeof view.selectedBall;view.inventoryItemId=null; }
+  if(item) {view.inventoryItemId=view.inventoryItemId===item.dataset.inventoryItem?null:item.dataset.inventoryItem||null;view.selectedBall=null;}
+  if(ball) {view.selectedBall=view.selectedBall===ball.dataset.inventoryBall?null:ball.dataset.inventoryBall as BallKind;view.inventoryItemId=null;}
   hud.render(state,view);
 });
 document.getElementById('unitInspector')!.addEventListener('click',event=>{
@@ -140,17 +148,32 @@ document.getElementById('unitInspector')!.addEventListener('click',event=>{
 });
 // The board rack offers the same point-and-drag behavior as the Pokémon themselves.
 let trayDragId:string|null=null;
-let trayDragBall:import('../../server/types').BallKind|null=null;
+let trayDragBall:BallKind|null=null;
 let trayPointer=-1;
 let trayStart={x:0,y:0};
 let trayDragging=false;
-let suppressTrayClick=false;
 const itemGhost=document.getElementById('itemDragGhost')!;
 function clearItemDrag():void{
+  if(trayPointer>=0 && inventoryContents.hasPointerCapture(trayPointer))inventoryContents.releasePointerCapture(trayPointer);
   trayDragId=null;trayDragBall=null;trayPointer=-1;trayDragging=false;
   itemGhost.classList.add('hidden');itemGhost.classList.remove('valid-target');itemGhost.innerHTML='';
 }
-document.getElementById('inventoryContents')!.addEventListener('pointerdown',event=>{
+function validInventoryDrop(unitId:string|null,itemId:string|null,ball:BallKind|null):boolean{
+  if(!state||!unitId)return false;
+  const player=state.players[0],unit=player.units.find(u=>u.id===unitId);
+  if(!unit||(state.phase!=='planning'&&unit.position.area==='board'))return false;
+  if(itemId){
+    const item=player.itemInventory?.find(i=>i.id===itemId);
+    return !!item&&((unit.equipment||[]).length<ITEMS.maxSlots || (item.kind==='component'&&!!unit.equipment?.some(e=>e.kind==='component')));
+  }
+  if(ball){
+    const tiers:Record<BallKind,number>={pokeball:1,greatball:2,ultraball:3,masterball:5};
+    if(!player.consumables?.[ball] || SPECIES[unit.family].rarity>tiers[ball])return false;
+    return Array.from({length:BENCH_SIZE},(_,index)=>index).some(index=>!player.units.some(u=>u.position.area==='bench'&&u.position.index===index));
+  }
+  return false;
+}
+inventoryContents.addEventListener('pointerdown',event=>{
   if(event.button!==0 || view.scoutId!=='p0'||!state)return;
   const item=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-item]');
   const ball=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-ball]');
@@ -160,6 +183,9 @@ document.getElementById('inventoryContents')!.addEventListener('pointerdown',eve
   trayPointer=event.pointerId;
   trayStart={x:event.clientX,y:event.clientY};
   trayDragging=false;
+  // Keep the pointer attached to this stable parent while the item moves over the canvas.
+  inventoryContents.setPointerCapture(event.pointerId);
+  event.preventDefault();
 });
 document.addEventListener('pointermove',event=>{
   if((!trayDragId&&!trayDragBall)||event.pointerId!==trayPointer)return;
@@ -172,37 +198,35 @@ document.addEventListener('pointermove',event=>{
   }
   if(trayDragging){
     itemGhost.style.left=`${event.clientX}px`;itemGhost.style.top=`${event.clientY}px`;
-    itemGhost.classList.toggle('valid-target',!!arena.pickOwnUnit(event.clientX,event.clientY));
+    itemGhost.classList.toggle('valid-target',validInventoryDrop(arena.pickOwnUnit(event.clientX,event.clientY),trayDragId,trayDragBall));
   }
 });
 document.addEventListener('pointerup',event=>{
   if((!trayDragId&&!trayDragBall)||event.pointerId!==trayPointer)return;
   const id=trayDragId,ball=trayDragBall;
-  if(trayDragging){
-    // Suppress only the synthesized click generated at the rack after a drag.
-    // Canvas drops must not suppress the user's *next* independent rack click.
-    suppressTrayClick=!!(document.elementFromPoint(event.clientX,event.clientY) as HTMLElement|null)
-      ?.closest('#inventoryContents');
-    // Browsers may omit the post-drag click; prevent stale suppression.
-    window.setTimeout(()=>{suppressTrayClick=false;},0);
-    if(view.scoutId==='p0'&&state){
-      const target=document.elementFromPoint(event.clientX,event.clientY);
-      const unitId=(target===canvas)?arena.pickOwnUnit(event.clientX,event.clientY):null;
-      const slot=target?.closest<HTMLElement>('[data-gear-slot]');
-      if(unitId&&ball)send({kind:'use-ball',ball,unitId});
-      else if(unitId&&id)send({kind:'equip-item',itemId:id,unitId});
-      else if(slot&&id)send({kind:'equip-item',itemId:id,unitId:slot.dataset.gearUnit!,ontoSlot:Number(slot.dataset.gearSlot)});
-      view.inventoryItemId=null;view.selectedBall=null;
-      hud.render(state,view);
+  if(trayDragging && view.scoutId==='p0'&&state){
+    const target=document.elementFromPoint(event.clientX,event.clientY);
+    const slot=target?.closest<HTMLElement>('[data-gear-slot]');
+    const unitId=target===canvas?arena.pickOwnUnit(event.clientX,event.clientY):null;
+    if(slot && id && validInventoryDrop(slot.dataset.gearUnit||null,id,null))
+      send({kind:'equip-item',itemId:id,unitId:slot.dataset.gearUnit!,ontoSlot:Number(slot.dataset.gearSlot)});
+    else if(unitId && validInventoryDrop(unitId,id,ball)){
+      if(ball)send({kind:'use-ball',ball,unitId});
+      else if(id)send({kind:'equip-item',itemId:id,unitId});
     }
+    // An invalid or empty drop does nothing: the authoritative inventory keeps the item.
+    view.inventoryItemId=null;view.selectedBall=null;
+    hud.render(state,view);
   }
   clearItemDrag();
 });
 document.addEventListener('pointercancel',clearItemDrag);
+window.addEventListener('blur',clearItemDrag);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearItemDrag();});
 
 document.getElementById('shopCards')!.addEventListener('click', event => {
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-shop]');
-  if (target) send({ kind: 'buy', slot: Number(target.dataset.shop) });
+  if (target?.dataset.shopOffer) send({ kind: 'buy', slot: Number(target.dataset.shop), offerId: target.dataset.shopOffer });
 });
 document.getElementById('rerollButton')!.addEventListener('click', () => send({ kind: 'reroll' }));
 document.getElementById('lockButton')!.addEventListener('click', () => send({ kind: 'lock' }));
@@ -400,6 +424,7 @@ document.addEventListener('keydown', event => {
     view.selectedId = null;
   }
   if (event.key === 'Escape') {
+    if(view.inventoryItemId||view.selectedBall){view.inventoryItemId=null;view.selectedBall=null;hud.render(state,view);event.preventDefault();return;}
     if ((event.target as HTMLElement).closest('input, textarea, select, [contenteditable]') || !document.getElementById('eeveeEvolution')!.classList.contains('hidden') || !document.getElementById('settingsScreen')!.classList.contains('hidden') || document.querySelector('dialog[open]') || !!document.querySelector('.augment-overlay:not(.hidden)'))return;
     event.preventDefault();playerSettings.open();return;
   }
