@@ -22,6 +22,7 @@ A divisão fundamental é:
 | Orquestração da partida | `server/engine.ts`, `server/chapter-timers.ts` | Jogadores, preparação, capítulos, comando, compra, evolução, resultado |
 | Worker e relógio | `server/sim.worker.ts`, `server/types.ts` | Passos lógicos fixos e contratos `ClientToServer`/`ServerToClient`; não depende do desenho |
 | Criação e execução do combate | `server/systems/combat.ts` | Estado da batalha, habilidades complexas legadas e sequência de execução; reduzir gradualmente a centralização |
+| Chamas orbitais | `server/combat/flame-orbits.ts` | Contato contínuo, cargas e reaplicação; reutiliza dano e atributos do motor por callbacks sem duplicá-los |
 | Seleção e ranking de alvos | `server/combat/targeting.ts` | Prioridades determinísticas, agrupamentos, curas e contagem de ameaças |
 | Efeitos e cura reutilizáveis | `server/combat/effects.ts`, `server/combat/healing.ts` | Eventos visuais originados pela simulação e aplicação de cura |
 | Física | `server/systems/physical-collision.ts` | Colisão entre corpos com tamanhos definidos no JSON |
@@ -86,7 +87,7 @@ Antes de criar arquivo, pasta, classe, helper ou registry: procure o sistema pro
 
 - Em loops de combate, evite `filter` + `sort` dentro de comparadores, cálculos repetidos do mesmo raio e reconstrução de arrays sem necessidade.
 - Preserve desempates estáveis, a ordem original das unidades e o RNG; a otimização dos alvos em `server/combat/targeting.ts` calcula rankings apenas uma vez por consulta. A contagem de ameaças é calculada no estado atual do tick para respeitar mortes anteriores.
-- Em `physical-collision.ts`, raios podem ser reutilizados em uma mesma resolução porque o tamanho não muda durante essa chamada. Não cache distâncias ou atributos entre ticks sem invalidação por posição, buff, morte, equipamento etc.
+- Em `server/combat/flame-orbits.ts`, candidatos, áreas de colisão e conjuntos temporários são reutilizados por atualização mantendo as verificações de contato contínuo e morte. Em `physical-collision.ts`, raios podem ser reutilizados em uma mesma resolução porque o tamanho não muda durante essa chamada. Não cache distâncias ou atributos entre ticks sem invalidação por posição, buff, morte, equipamento etc.
 - `server/sim.worker.ts` acumula tempo e avança a simulação em passos fixos. **Nunca** vincular ataques ao FPS nem diminuir a frequência de snapshots arbitrariamente.
 - `server/engine.ts#snapshot` envia uma vista completa. Eventual protocolo delta exige reconstrução confiável ao trocar de arena, fase ou reconectar; não foi adotado nesta revisão devido ao risco.
 - O editor só carrega sob demanda por `src/client/menus.ts`. Diferenças de configuração são memorizadas por revisão; a prévia suspende desenho em abas ocultas. O profiler F3 deve ser leve e não virar gargalo.
