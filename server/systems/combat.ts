@@ -3,7 +3,7 @@ import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gri
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
-import { distance, closestTwo, bestEnemyCluster, bestEggCenter, woundedAllies } from '../combat/targeting';
+import { distance, closestTwo, bestEnemyCluster, bestEggCenter, woundedAllies, countClosestThreats } from '../combat/targeting';
 import { effect, floatingDamage } from '../combat/effects';
 import { heal } from '../combat/healing';
 import { trainerSpot } from '../combat/trainer-position';
@@ -1489,11 +1489,8 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.controlImmune=effectCount(unit,'opening_immunity')>0 && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration');
     if (unit.hp<=0) continue;
     const enemies=battle.units.filter(e=>e.playerId!==unit.playerId && e.hp>0);
-    unit.focusCount=effectCount(unit,'focused_defense') ? Math.min(numberParam('focused_defense','maxTargets'),enemies.filter(enemy=>{
-      const valid=battle.units.filter(foe=>foe.playerId!==enemy.playerId && foe.hp>0);
-      valid.sort((a,b)=>distance(a,enemy)-distance(b,enemy)||a.id.localeCompare(b.id));
-      return valid[0]?.id===unit.id;
-    }).length) : 0;
+    unit.focusCount=effectCount(unit,'focused_defense')
+      ? countClosestThreats(battle,unit,numberParam('focused_defense','maxTargets')) : 0;
     if (effectCount(unit,'regeneration') && battle.elapsed>= (unit.itemTimers.regeneration||0)) {
       unit.itemTimers.regeneration=battle.elapsed+numberParam('regeneration','interval');
       heal(battle,unit,unit.maxHp*numberParam('regeneration','healPercent'));
