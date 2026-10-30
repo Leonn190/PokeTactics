@@ -108,6 +108,12 @@
       "trail": "#8754be",
       "shape": "orb",
       "arrival": 0.83
+    },
+    "fighting": {
+      "color": "#d39777",
+      "trail": "#8c5140",
+      "shape": "diamond",
+      "arrival": 0.83
     }
   }
 }
