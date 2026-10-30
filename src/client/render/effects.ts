@@ -15,8 +15,68 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       const t = Math.max(0, Math.min(1, (resolveTime ? resolveTime(fx) : fx.time) / fx.duration));
       const baseFrom = toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
-      const from = ['basic-projectile','dragon-orb','bone','egg','ball','psychic-blessing','piercing-flame','lightning','poison','spell']
+      const from = ['basic-projectile','dragon-orb','bone','egg','ball','psychic-blessing','piercing-flame','lightning','poison','spell','electro-shot']
         .includes(fx.kind) ? projectileOrigin(fx,baseFrom,to,cellScale,parts?.(fx)) : baseFrom;
+      // Real magnetized shots bend into an absorber; the server, not this drawing, cancels their hits.
+      if(fx.magnetPull){
+        const pull=fx.magnetPull;
+        const start=toScreen(pull.fromX,flipY?-pull.fromY:pull.fromY);
+        const end=toScreen(pull.toX,flipY?-pull.toY:pull.toY);
+        const k=Math.min(1,Math.max(0,(fx.time-pull.startTime)/pull.duration));
+        const ux=end.x-start.x,uy=end.y-start.y,normal=Math.hypot(ux,uy)||1;
+        const curve=cellScale*.18*Math.sin(k*Math.PI);
+        const x=start.x+ux*k-uy/normal*curve,y=start.y+uy*k+ux/normal*curve-cellScale*.22;
+        ctx.save();ctx.shadowColor='#7adfff';ctx.shadowBlur=11;ctx.fillStyle='#c2f4ff';ctx.strokeStyle='#62c8fc';
+        ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(start.x,start.y-cellScale*.22);
+        ctx.quadraticCurveTo(start.x+ux*.6-uy/normal*cellScale*.3,start.y+uy*.6+ux/normal*cellScale*.3-cellScale*.22,x,y);ctx.stroke();
+        ctx.beginPath();ctx.arc(x,y,Math.max(3,cellScale*.08),0,PI2);ctx.fill();ctx.restore();continue;
+      }
+      if(fx.kind==='electro-shot'||fx.kind==='electro-field'||fx.kind==='electro-pulse'||fx.kind==='electro-absorb'||fx.kind==='claw-strip'){
+        ctx.save();
+        if(fx.kind==='claw-strip'&&fx.claw){
+          const hit=fx.claw.hitAt;
+          const a=Math.atan2(to.y-from.y,to.x-from.x);
+          const length=fx.claw.length*cellScale,width=fx.claw.width*cellScale;
+          const phase=Math.min(1,fx.time/Math.max(.05,hit));
+          ctx.translate(from.x,from.y-cellScale*.24);ctx.rotate(a);
+          ctx.globalAlpha=fx.time>hit?Math.max(0,1-(fx.time-hit)/.23):.75;
+          ctx.lineWidth=Math.max(2,cellScale*.043);ctx.lineCap='round';ctx.strokeStyle='#ffedc5';
+          ctx.shadowColor='#ffd394';ctx.shadowBlur=12;
+          for(const n of [-1,0,1]){
+            const y=n*width*.29;
+            ctx.beginPath();ctx.moveTo(length*(phase-.33),y-width*.13);
+            ctx.quadraticCurveTo(length*(phase-.09),y+width*.12,length*phase,y-width*.07);ctx.stroke();
+          }
+        }else if(fx.kind==='electro-shot'){
+          const pos={x:from.x+(to.x-from.x)*t,y:from.y+(to.y-from.y)*t-cellScale*.25};
+          const rad=Math.max(5,cellScale*.13);
+          ctx.shadowColor='#6bdcff';ctx.shadowBlur=18;ctx.fillStyle='#6fdbff';ctx.strokeStyle='#d7ffff';ctx.lineWidth=2;
+          ctx.beginPath();ctx.arc(pos.x,pos.y,rad,0,PI2);ctx.fill();ctx.stroke();
+          ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(pos.x,pos.y,rad*.36,0,PI2);ctx.fill();
+          for(let i=0;i<4;i++){const a=i*Math.PI/2+time*7;ctx.strokeStyle='#95f7ff';ctx.beginPath();ctx.moveTo(pos.x+Math.cos(a)*rad,pos.y+Math.sin(a)*rad);
+            ctx.lineTo(pos.x+Math.cos(a+.32)*rad*1.7,pos.y+Math.sin(a+.32)*rad*1.7);ctx.stroke();}
+        }else if(fx.kind==='electro-field'){
+          const R=Math.max(.2,fx.value)*cellScale;
+          const grow=Math.min(1,fx.time/.16),shrink=Math.min(1,(fx.duration-fx.time)/.15);
+          const pulse=1+.035*Math.sin(time*12+fx.time*6);
+          const radius=R*(.2+.8*grow)*Math.max(0,shrink)*pulse;
+          ctx.translate(from.x,from.y-cellScale*.25);ctx.globalAlpha=.78;
+          ctx.shadowColor='#70f2ff';ctx.shadowBlur=21;ctx.fillStyle='#37bcea43';ctx.strokeStyle='#a6faff';ctx.lineWidth=2.5;
+          ctx.beginPath();ctx.arc(0,0,radius,0,PI2);ctx.fill();ctx.stroke();
+          ctx.fillStyle='#efffff';ctx.beginPath();ctx.arc(0,0,radius*.19,0,PI2);ctx.fill();
+          for(let i=0;i<7;i++){const a=i*PI2/7+time*(i%2?1.4:-.9),r=radius*(.62+.12*Math.sin(time*3+i));
+            ctx.strokeStyle=i%2?'#efffff':'#5cdbff';ctx.beginPath();ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r);
+            ctx.lineTo(Math.cos(a+.22)*(r+6),Math.sin(a+.22)*(r+6));ctx.stroke();}
+        }else if(fx.kind==='electro-pulse'){
+          const R=Math.max(.1,fx.value)*cellScale;
+          ctx.globalAlpha=(1-t)*.72;ctx.strokeStyle='#87edff';ctx.shadowColor='#69edff';ctx.shadowBlur=14;ctx.lineWidth=4*(1-t)+1;
+          ctx.beginPath();ctx.ellipse(to.x,to.y-cellScale*.25,R*(.23+.8*t),R*(.18+.77*t),0,0,PI2);ctx.stroke();
+        }else{
+          ctx.globalAlpha=(1-t)*.95;ctx.fillStyle='#e9ffff';ctx.shadowColor='#62e9ff';ctx.shadowBlur=22;
+          ctx.beginPath();ctx.arc(to.x,to.y-cellScale*.25,cellScale*(.07+.28*t),0,PI2);ctx.fill();
+        }
+        ctx.restore();continue;
+      }
       if (renderSynergyEffect(ctx, fx, from, to, t, cellScale, time)) continue;
       if (renderV16Effect(ctx, fx, from, to, t, cellScale, time)) continue;
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;

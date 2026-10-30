@@ -37,7 +37,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -68,6 +68,9 @@ export type MoveData = {
   coneRange?:number; coneAngle?:number; executeThreshold?:number;
   shieldDamageMultiplier?:number; dashSpeed?:number; hitInterval?:number;
   freezeBase?:number; freezeSpaRatio?:number; freezeMax?:number; adjacentRadius?:number; adjacentFreezeRatio?:number;
+  stripLength?:number;stripWidth?:number;pursuitByStage?:number[];pursuitSpeed?:number;interruptRange?:number;pursuitTimeout?:number;
+  pulseBase?:number;pulseSpaRatio?:number;pulsesByStage?:number[];durationByStage?:number[];
+  pulseInterval?:number;pulseRadius?:number;attractionRadius?:number;absorptionRadius?:number;orbSpeed?:number;pullSpeed?:number;
   chargeMaxDuration?: number; gasTimeRatio?: number; gasAttackRatio?: number; gasReleaseDelay?: number;
   sleepDuration?: number; sleepTicks?: number; sleepHealBase?: number; sleepHealSpaRatio?: number;
   controlSpaRatio?: number; controlMax?: number;

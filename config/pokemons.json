@@ -156,6 +156,15 @@
     ],
     "mr-mime": [
       "./sprites/122.png"
+    ],
+    "meowth": [
+      "./sprites/52.png",
+      "./sprites/53.png"
+    ],
+    "magnemite": [
+      "./sprites/81.png",
+      "./sprites/82.png",
+      "./sprites/462.png"
     ]
   },
   "species": {
@@ -3854,6 +3863,193 @@
         1.04
       ],
       "evolutionCopies": []
+    },
+    "meowth": {
+      "names": [
+        "Meowth",
+        "Persian"
+      ],
+      "pokedexIds": [
+        52,
+        53
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#e8d19e",
+      "base": {
+        "hp": 230,
+        "atk": 47,
+        "def": 37,
+        "spa": 48,
+        "spd": 42,
+        "speed": 81
+      },
+      "stageBases": [
+        {
+          "hp": 230,
+          "atk": 47,
+          "def": 37,
+          "spa": 48,
+          "spd": 42,
+          "speed": 81
+        },
+        {
+          "hp": 365,
+          "atk": 79,
+          "def": 59,
+          "spa": 75,
+          "spd": 65,
+          "speed": 116
+        }
+      ],
+      "rangeClass": "Curto",
+      "range": 0.6,
+      "energy": 60,
+      "attack": "claw-strip",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal"
+          ],
+          "rangeClass": "Curto",
+          "energy": 60,
+          "move": "claw-strip",
+          "chargedType": "normal",
+          "chargedAnimation": "Attack"
+        },
+        {
+          "elements": [
+            "normal"
+          ],
+          "rangeClass": "Curto",
+          "energy": 60,
+          "move": "claw-strip",
+          "chargedType": "normal",
+          "chargedAnimation": "Attack"
+        }
+      ],
+      "physicalSizes": [
+        0.86,
+        1.06
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "magnemite": {
+      "names": [
+        "Magnemite",
+        "Magneton",
+        "Magnezone"
+      ],
+      "pokedexIds": [
+        81,
+        82,
+        462
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#80dff3",
+      "base": {
+        "hp": 245,
+        "atk": 29,
+        "def": 66,
+        "spa": 69,
+        "spd": 47,
+        "speed": 43
+      },
+      "stageBases": [
+        {
+          "hp": 245,
+          "atk": 29,
+          "def": 66,
+          "spa": 69,
+          "spd": 47,
+          "speed": 43
+        },
+        {
+          "hp": 360,
+          "atk": 42,
+          "def": 86,
+          "spa": 104,
+          "spd": 69,
+          "speed": 65
+        },
+        {
+          "hp": 485,
+          "atk": 59,
+          "def": 112,
+          "spa": 139,
+          "spd": 94,
+          "speed": 77
+        }
+      ],
+      "rangeClass": "Alto",
+      "range": 3.8,
+      "energy": 75,
+      "attack": "electromagnetic-ball",
+      "elements": [
+        "electric",
+        "steel"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "lightning"
+      },
+      "stages": [
+        {
+          "elements": [
+            "electric",
+            "steel"
+          ],
+          "rangeClass": "Alto",
+          "energy": 75,
+          "move": "electromagnetic-ball",
+          "chargedType": "electric",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "electric",
+            "steel"
+          ],
+          "rangeClass": "Alto",
+          "energy": 80,
+          "move": "electromagnetic-ball",
+          "chargedType": "electric",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "electric",
+            "steel"
+          ],
+          "rangeClass": "Alto",
+          "energy": 85,
+          "move": "electromagnetic-ball",
+          "chargedType": "electric",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        0.9,
+        1.08,
+        1.26
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     }
   }
 }

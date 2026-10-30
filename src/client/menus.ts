@@ -55,6 +55,8 @@ export function moveDescription(move: MoveData): string {
     'cone-slash':'Corte frontal em cone; Kleavor executa inimigos com pouca vida após o golpe.',
     'scizor-double':'Avança até o alvo para dar dois golpes que destroem barreiras. Trocas reais de alvo recarregam a habilidade.',
     'jynx-kiss':'Beijo glacial que causa dano especial e aplica o Congelamento do jogo.',
+    'claw-strip':'Meowth arranha uma faixa frontal usando SpA. Persian persegue o inimigo mais distante; um ataque curto interrompe a corrida e recebe o arranhão.',
+    'electromagnetic-ball':'Dispara uma esfera elétrica que permanece no impacto, causa 3/4/5 pulsos especiais a cada 0,5 s e atrai e absorve projéteis inimigos.',
     'ghost-ambush':'Atravessa obstáculos em forma espectral até as costas do inimigo com menos Vida a até 2 casas. Gastly acerta só ele; Haunter arranha até 3 próximos; Gengar alterna arranhada e um susto que afasta os inimigos ao redor em até 1 casa.',
     'brutal-kick':'Chuta o inimigo, causando dano físico e empurrando até três casas. Colisão com a parede causa dano e atordoamento.',
     'desperate-splash':'Há 50% de chance de curar HP e fortalecer o próximo ataque regular com dano especial.',

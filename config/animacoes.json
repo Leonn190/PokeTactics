@@ -1268,6 +1268,56 @@
           "sway": 0.04
         }
       }
-    }
+    },
+    "meowth": [
+      {
+        "launch": "front",
+        "actions": {
+          "basic": {
+            "lunge": 0.12
+          },
+          "charged": {
+            "lunge": 0.18
+          }
+        }
+      },
+      {
+        "launch": "front",
+        "actions": {
+          "basic": {
+            "lunge": 0.12
+          },
+          "charged": {
+            "lunge": 0.18
+          }
+        }
+      }
+    ],
+    "magnemite": [
+      {
+        "launch": "core",
+        "actions": {
+          "charged": {
+            "pulse": 0.12
+          }
+        }
+      },
+      {
+        "launch": "core",
+        "actions": {
+          "charged": {
+            "pulse": 0.12
+          }
+        }
+      },
+      {
+        "launch": "core",
+        "actions": {
+          "charged": {
+            "pulse": 0.12
+          }
+        }
+      }
+    ]
   }
 }

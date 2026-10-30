@@ -90,7 +90,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
-    dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], statuses:{}, lullaby:null, starWard:null, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
+    persianPursuit: undefined, dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], statuses:{}, lullaby:null, starWard:null, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
     gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range + equipment.filter(i=>i.recipe==='red+red').length*numberParam('longbow','range'),energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
@@ -359,6 +359,97 @@ function tickScizor(battle:Battle,source:CombatUnit,dt:number):void {
   if(action.hitsDone>=2||!isTargetable(target)||distance(source,target)>1.7)source.scizorAction=undefined;
 }
 
+// Area-of-effect claw and Persian's short-range retaliation share a single damage path.
+function claw(battle:Battle,source:CombatUnit,target:{x:number;y:number}):void {
+ const move=ATTACKS.moves['claw-strip'];
+ const dx=target.x-source.x,dy=target.y-source.y,len=Math.hypot(dx,dy)||1;
+ const ux=dx/len,uy=dy/len,L=move.stripLength!,W=move.stripWidth!;
+ source.facingX=ux;source.facingY=uy;
+ battle.effects.push({id:`${battle.id}:claw:${source.id}:${battle.elapsed}:${battle.effects.length}`,
+  sourceId:source.id,kind:'claw-strip',family:source.family,x:source.x,y:source.y,
+  targetX:source.x+ux*L,targetY:source.y+uy*L,time:0,duration:Math.max(.35,(move.impactDelay!)+.2),value:0,
+  claw:{length:L,width:W,hitAt:move.impactDelay!,done:false,raw:move.baseDamage+stat(source,'spa')*move.specialRatio}});
+ animate(source,'Attack',.34);
+}
+function tickClaw(battle:Battle,fx:CombatEffect):void {
+ const state=fx.claw;if(!state||state.done||fx.time+1e-8<state.hitAt)return;
+ state.done=true;const caster=battle.units.find(u=>u.id===fx.sourceId);if(!caster)return;
+ const vx=fx.targetX-fx.x,vy=fx.targetY-fx.y,len=Math.hypot(vx,vy)||1;
+ for(const enemy of battle.units){
+  if(enemy.playerId===caster.playerId||!isTargetable(enemy))continue;
+  const dx=enemy.x-fx.x,dy=enemy.y-fx.y,forward=(dx*vx+dy*vy)/len;
+  const sideways=Math.abs(dx*vy-dy*vx)/len;
+  if(forward<0||forward>state.length||sideways>state.width/2)continue;
+  if(firstObstacle(battle,caster.playerId,fx.x,fx.y,enemy.x,enemy.y))continue;
+  deal(battle,caster,enemy,state.raw,true,true,'normal');
+ }
+}
+function pursuePersian(battle:Battle,unit:CombatUnit,dt:number):void {
+ const pursuit=unit.persianPursuit;if(!pursuit)return;
+ const move=ATTACKS.moves['claw-strip'];
+ const target=battle.units.find(u=>u.id===pursuit.targetId&&isTargetable(u));
+ if(!target){unit.persianPursuit=undefined;unit.preferredTargetId=undefined;return;}
+ unit.facingX=target.x-unit.x;unit.facingY=target.y-unit.y;
+ const gap=distance(unit,target);
+ if(gap<=(move.stripLength!)*.78 && !firstObstacle(battle,unit.playerId,unit.x,unit.y,target.x,target.y)){
+  unit.persianPursuit=undefined;unit.preferredTargetId=target.id;claw(battle,unit,target);unit.moving=false;return;
+ }
+ pursuit.elapsed+=dt;
+ if(pursuit.elapsed>= (move.pursuitTimeout!)||pursuit.stuck>1.5){unit.persianPursuit=undefined;return;}
+ const waypoint=firstObstacle(battle,unit.playerId,unit.x,unit.y,target.x,target.y)?routeAround(battle,unit,target):target;
+ const d=Math.hypot(waypoint.x-unit.x,waypoint.y-unit.y)||1;
+ const stride=Math.min(d,dt*(move.pursuitSpeed!)*(unit.slow?.65:1));
+ const dx=(waypoint.x-unit.x)/d,dy=(waypoint.y-unit.y)/d,bounds=arenaBoundary(battle);
+ let moved=false;
+ for(const angle of [0,.45,-.45,.9,-.9,1.35,-1.35]){
+  const vx=dx*Math.cos(angle)-dy*Math.sin(angle),vy=dx*Math.sin(angle)+dy*Math.cos(angle);
+  const x=unit.x+vx*stride,y=unit.y+vy*stride;
+  if(x<bounds.minX||x>bounds.maxX||y<bounds.minY||y>bounds.maxY||!clearStep(battle,unit,x,y))continue;
+  unit.x=x;unit.y=y;moved=stride>.001;break;
+ }
+ pursuit.stuck=moved?0:pursuit.stuck+dt;unit.moving=moved;
+}
+function magneticFields(battle:Battle,ownerId:string):CombatEffect[]{
+ return battle.effects.filter(f=>f.kind==='electro-field'&&!!f.magnet&&f.magnet.ownerId!==ownerId&&f.time<f.duration);
+}
+function magnetizeProjectile(battle:Battle,fx:CombatEffect,ownerId:string,ax:number,ay:number,bx:number,by:number):boolean {
+ if(fx.magnetPull)return true;
+ // Only genuine travelling shots are magnetized; instantaneous hits and falling stars are excluded.
+ const candidates=magneticFields(battle,ownerId).filter(field=>segmentDistanceSq(ax,ay,bx,by,field.x,field.y)<=(field.magnet!.attractionRadius**2))
+  .sort((a,b)=>segmentDistanceSq(ax,ay,bx,by,a.x,a.y)-segmentDistanceSq(ax,ay,bx,by,b.x,b.y)||a.id.localeCompare(b.id));
+ const orb=candidates[0];if(!orb)return false;
+ const dotX=bx-orb.x,dotY=by-orb.y;
+ const duration=Math.max(.08,Math.hypot(dotX,dotY)/(orb.magnet!.pullSpeed));
+ fx.magnetPull={orbId:orb.id,fromX:bx,fromY:by,toX:orb.x,toY:orb.y,startTime:fx.time,duration};
+ fx.duration=Math.max(fx.duration,fx.time+duration+.05);
+ return true;
+}
+function tickMagnetPull(battle:Battle,fx:CombatEffect):boolean {
+ const pull=fx.magnetPull;if(!pull)return false;
+ const orb=battle.effects.find(e=>e.id===pull.orbId&&e.kind==='electro-field'&&e.time<e.duration);
+ if(!orb){fx.magnetPull=undefined;fx.pendingHit=undefined;fx.piercing=undefined;fx.time=fx.duration;return true;}
+ const progress=Math.min(1,(fx.time-pull.startTime)/pull.duration);
+ const x=pull.fromX+(pull.toX-pull.fromX)*progress,y=pull.fromY+(pull.toY-pull.fromY)*progress;
+ if(progress>=1 || Math.hypot(x-orb.x,y-orb.y)<=(orb.magnet?.absorptionRadius??0)){
+  fx.pendingHit=undefined;fx.piercing=undefined;fx.time=fx.duration;
+  const source=battle.units.find(u=>u.id===orb.sourceId);
+  if(source)effect(battle,source,{x:orb.x,y:orb.y},'electro-absorb',0);
+ }
+ return true;
+}
+function tickMagneticField(battle:Battle,fx:CombatEffect):void {
+ const mag=fx.magnet;if(!mag)return;
+ const caster=battle.units.find(u=>u.id===fx.sourceId);if(!caster)return;
+ // Exactly one event per logical half-second, including the final pulse at expiry.
+ while(mag.pulseIndex<mag.pulseCount && fx.time+1e-7 >= (mag.pulseIndex+1)*mag.interval){
+  mag.pulseIndex++;
+  for(const enemy of battle.units){
+   if(enemy.playerId!==mag.ownerId&&isTargetable(enemy)&&distance(enemy,fx)<=mag.radius)
+    deal(battle,caster,enemy,mag.pulseRaw,true,true,'electric');
+  }
+  effect(battle,caster,{x:fx.x,y:fx.y},'electro-pulse',mag.radius);
+ }
+}
 function landProjectiles(battle: Battle, dt: number): void {
   // Multiple tornadoes may overlap; a single 50% slow is applied (never multiplied).
   for(const unit of battle.units)unit.windSlow=0;
@@ -369,6 +460,9 @@ function landProjectiles(battle: Battle, dt: number): void {
     }
     const oldTime = fx.time;
     fx.time += dt;
+    if(fx.claw){tickClaw(battle,fx);continue;}
+    if(fx.magnet){tickMagneticField(battle,fx);continue;}
+    if(tickMagnetPull(battle,fx))continue;
     if(tickFieldEffect(battle,fx,oldTime,dt))continue;
     if (fx.wind) {
       const wind=fx.wind;
@@ -405,6 +499,11 @@ function landProjectiles(battle: Battle, dt: number): void {
       const caster = battle.units.find(u => u.id === hit.sourceId);
       if (!caster) continue;
       const a = Math.min(1, oldTime / fx.duration), b = Math.min(1, fx.time / fx.duration);
+      if(magnetizeProjectile(battle,fx,caster.playerId,
+        fx.x+(fx.targetX-fx.x)*a,fx.y+(fx.targetY-fx.y)*a,
+        fx.x+(fx.targetX-fx.x)*b,fx.y+(fx.targetY-fx.y)*b)){
+        fx.piercing=undefined;continue;
+      }
       if (a >= 1) continue;
       const ax = fx.x + (fx.targetX - fx.x) * a, ay = fx.y + (fx.targetY - fx.y) * a;
       let bx = fx.x + (fx.targetX - fx.x) * b, by = fx.y + (fx.targetY - fx.y) * b;
@@ -421,6 +520,16 @@ function landProjectiles(battle: Battle, dt: number): void {
       continue;
     }
     const hit = fx.pendingHit;
+    if(hit && fx.kind!=='physical' && fx.kind!=='falling-star' && fx.kind!=='meteor-fall'){
+      const owner=battle.units.find(u=>u.id===hit.sourceId)?.playerId;
+      if(owner){
+        const t0=Math.min(1,oldTime/Math.max(.001,fx.duration*hit.arrival));
+        const t1=Math.min(1,fx.time/Math.max(.001,fx.duration*hit.arrival));
+        const ax=fx.x+(fx.targetX-fx.x)*t0,ay=fx.y+(fx.targetY-fx.y)*t0;
+        const bx=fx.x+(fx.targetX-fx.x)*t1,by=fx.y+(fx.targetY-fx.y)*t1;
+        if(magnetizeProjectile(battle,fx,owner,ax,ay,bx,by))continue;
+      }
+    }
     if (!hit || fx.time < fx.duration * hit.arrival) continue;
     fx.pendingHit = undefined; // impacto único, inclusive em simulações aceleradas
     const caster = battle.units.find(u => u.id === hit.sourceId);
@@ -429,6 +538,20 @@ function landProjectiles(battle: Battle, dt: number): void {
     if(fx.obstacleImpact){effect(battle,caster,{x:fx.targetX,y:fx.targetY},'wall-impact',0);continue;}
     const move = ATTACKS.moves[hit.moveId || moveIdOf(caster)];
 
+    if(hit.special==='magnet-impact'){
+      if(isTargetable(target))deal(battle,caster,target,hit.raw,true,true,'electric');
+      const move=ATTACKS.moves[hit.moveId||'electromagnetic-ball'];
+      const pulses=Math.max(0,Math.floor(move.pulsesByStage![caster.stage]));
+      const interval=move.pulseInterval!;
+      battle.effects.push({id:`${battle.id}:magnet:${caster.id}:${fx.id}`,sourceId:caster.id,
+        kind:'electro-field',family:caster.family,x:fx.targetX,y:fx.targetY,targetX:fx.targetX,targetY:fx.targetY,
+        time:0,duration:Math.max(.05,move.durationByStage![caster.stage]),value:move.pulseRadius!,
+        magnet:{ownerId:caster.playerId,radius:move.pulseRadius!,attractionRadius:move.attractionRadius!,
+          absorptionRadius:move.absorptionRadius!,pullSpeed:move.pullSpeed!,
+          pulseRaw:(move.pulseBase!)+stat(caster,'spa')*(move.pulseSpaRatio!),pulseCount:pulses,pulseIndex:0,interval}});
+      effect(battle,caster,{x:fx.targetX,y:fx.targetY},'electro-pulse',move.pulseRadius!);
+      continue;
+    }
     if (hit.special === 'mew-blessing') {
       // A projectile aimed at a defeated/buried ally dissipates safely instead of healing a different unit off-screen.
       const ally = isTargetable(target) ? target : null;
@@ -631,6 +754,14 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if(target.hp<=0 && !onSynergyDeath(battle,source,target,{deal,heal,effect,stat}))knockout(battle,source,target,damage);
   if (!magical && !charged && mode==='normal' && STATUS_RULES.sleeping.wakeOnPhysicalBasic && damage+absorbedTotal>0) wakeFromBasic(target);
   const actual=damage+absorbedTotal;
+  if(mode==='normal'&&actual>0&&target.persianPursuit&&target.hp>0&&source.playerId!==target.playerId){
+    const cfg=ATTACKS.moves['claw-strip'];const stage=getStageData(source.family,source.stage);
+    // A real, nearby strike from a short-range combatant, never DoT/reflection or a ranged shot.
+    if(stage.rangeClass==='Curto'&&!stage.basic.projectile&&distance(source,target)<=(cfg.interruptRange!)){
+      target.persianPursuit=undefined;target.preferredTargetId=source.id;
+      claw(battle,target,source);
+    }
+  }
   if (mode==='normal' && actual>0) {
     if (attacker.vampirism>0 && source.hp>0) heal(battle,source,damage*attacker.vampirism,source);
     if (charged && effectCount(source,'ally_healing')) {
@@ -680,7 +811,7 @@ function changeDittoShape(battle:Battle,unit:CombatUnit,family:CombatUnit['famil
  unit.hp=Math.min(unit.maxHp,Math.max(0,unit.maxHp*healthRatio));unit.range=range;unit.energyNeeded=energyNeeded;
  unit.energy=Math.min(unit.energy,unit.energyNeeded);
  unit.combo=null;unit.leap=null;unit.charge=null;unit.surf=null;unit.gasCharge=null;unit.support=null;
- unit.pendingPollen=null;unit.spinTime=0;unit.spinReduction=0;unit.hitmonAction=null;unit.ghost=null;unit.dig=null;
+ unit.pendingPollen=null;unit.persianPursuit=undefined;unit.spinTime=0;unit.spinReduction=0;unit.hitmonAction=null;unit.ghost=null;unit.dig=null;
  unit.animation=null;unit.refractionUntil=0;unit.orbitFlames=[];unit.lullaby=null;unit.starWard=null;unit.statuses={};unit.hitmonGuaranteed=false;
  effect(battle,unit,unit,'transform',0);
 }
@@ -866,6 +997,23 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='claw-strip'){
+    if((move.pursuitByStage?.[source.stage]??0)>0){
+      const farthest=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u))
+        .sort((a,b)=>distance(source,b)-distance(source,a)||a.id.localeCompare(b.id))[0];
+      if(farthest){source.persianPursuit={targetId:farthest.id,elapsed:0,stuck:0};
+        source.preferredTargetId=undefined;source.moving=true;return;}
+    }
+    if(target)claw(battle,source,target);
+    return;
+  }
+  if(move.effect==='electromagnetic-ball' && target){
+    const travel=distance(source,target)/Math.max(.1,move.orbSpeed!);
+    projectile(battle,source,target,'electro-shot',move.baseDamage+s*move.specialRatio,true,true,1,
+      undefined,source,moveId,'electric','magnet-impact');
+    battle.effects[battle.effects.length-1].duration=Math.max(.08,travel);
+    animate(source,stage.chargedAnimation,.46);return;
+  }
   if(move.effect==='meteor-rain'){
     const sourceSeed=[...source.id].reduce((n,char)=>Math.imul(n^char.charCodeAt(0),16777619)>>>0,2166136261);
     const centers=meteorCenters(battle,source.metrics.casts^sourceSeed,move.meteorCount??4);
@@ -1882,6 +2030,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.stunTime > 0 && !(effectCount(unit,'opening_immunity') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) {
       continue;
     }
+    if(unit.persianPursuit){pursuePersian(battle,unit,dt);continue;}
     if (unit.support) { supportTick(battle, unit, dt); continue; }
     if (unit.combo) { comboTick(battle, unit, dt); continue; }
     if (unit.gasTime > 0) { gasTick(battle, unit, dt); continue; }
@@ -1921,6 +2070,11 @@ export function tickBattle(battle: Battle, dt: number): void {
       const squared = (enemy.x - unit.x) ** 2 + (enemy.y - unit.y) ** 2;
       if (squared < distanceSq) { target = enemy; distanceSq = squared; }
     }
+    if(unit.family==='meowth'&&unit.preferredTargetId){
+      const preferred=battle.units.find(u=>u.id===unit.preferredTargetId&&isTargetable(u));
+      if(preferred){target=preferred;distanceSq=(target.x-unit.x)**2+(target.y-unit.y)**2;}
+      else unit.preferredTargetId=undefined;
+    }
     if(unit.family==='diglett' && unit.preferredTargetId){
       const preferred=battle.units.find(u=>u.id===unit.preferredTargetId&&isTargetable(u));
       if(preferred){target=preferred;distanceSq=(target.x-unit.x)**2+(target.y-unit.y)**2;}
@@ -1939,6 +2093,9 @@ export function tickBattle(battle: Battle, dt: number): void {
        (move.effect==='hitmonchan-uppercut'||move.effect==='hitmonlee-spin-kick') &&
        !!hitmonChoice(battle,unit,moveIdOf(unit))){
       unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown*(unit.slow?1.3:1);continue;
+    }
+    if(unit.attackClock<=0&&unit.energy>=unit.energyNeeded&&move.effect==='claw-strip'&&(move.pursuitByStage?.[unit.stage]??0)>0){
+      unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown;continue;
     }
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded && move.effect === 'scizor-double'){
       unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown;continue;

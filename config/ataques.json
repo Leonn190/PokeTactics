@@ -900,6 +900,46 @@
       "freezeMax": 2.6,
       "adjacentRadius": 1,
       "adjacentFreezeRatio": 0.45
+    },
+    "claw-strip": {
+      "name": "Arranhar / Arranhão Perseguidor",
+      "effect": "claw-strip",
+      "baseDamage": 24,
+      "specialRatio": 0.66,
+      "stripLength": 1.2,
+      "stripWidth": 0.9,
+      "impactDelay": 0.19,
+      "pursuitByStage": [
+        0,
+        1
+      ],
+      "pursuitSpeed": 2.3,
+      "interruptRange": 0.95,
+      "pursuitTimeout": 6
+    },
+    "electromagnetic-ball": {
+      "name": "Bola Eletromagnética",
+      "effect": "electromagnetic-ball",
+      "baseDamage": 20,
+      "specialRatio": 0.38,
+      "pulseBase": 12,
+      "pulseSpaRatio": 0.28,
+      "pulsesByStage": [
+        3,
+        4,
+        5
+      ],
+      "durationByStage": [
+        1.5,
+        2,
+        2.5
+      ],
+      "pulseInterval": 0.5,
+      "pulseRadius": 1.03,
+      "attractionRadius": 1.65,
+      "absorptionRadius": 0.22,
+      "orbSpeed": 6.8,
+      "pullSpeed": 4.7
     }
   }
 }

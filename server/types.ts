@@ -172,6 +172,7 @@ export interface CombatUnit {
   attackSpeedDebuffUntil: number;
   dig: DigState | null;
   preferredTargetId?:string;
+  persianPursuit?: {targetId:string; elapsed:number; stuck:number};
   wasMoving?:boolean;
   lastCombatTargetId?:string;
   scizorPending?:boolean;
@@ -224,7 +225,11 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact' | 'meteor-fall' | 'meteor-warning' | 'meteor-fragment' | 'meteor-impact' | 'cone-slash' | 'scizor-dash' | 'scizor-impact';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact' | 'meteor-fall' | 'meteor-warning' | 'meteor-fragment' | 'meteor-impact' | 'cone-slash' | 'scizor-dash' | 'scizor-impact' | 'claw-strip' | 'electro-shot' | 'electro-field' | 'electro-pulse' | 'electro-absorb';
+  magnet?:{ownerId:string;radius:number;attractionRadius:number;absorptionRadius:number;
+    pullSpeed:number;pulseRaw:number;pulseCount:number;pulseIndex:number;interval:number};
+  magnetPull?:{orbId:string;fromX:number;fromY:number;toX:number;toY:number;startTime:number;duration:number};
+  claw?:{length:number;width:number;hitAt:number;done:boolean;raw:number};
   meteor?:{raw:number;radius:number;fragmentRatio:number;speed:number;hitAt:number;warning:number;done:boolean};
   fragment?:{raw:number;speed:number};
   cone?:{raw:number;range:number;angle:number;executeThreshold:number;hitAt:number;done:boolean};
@@ -250,7 +255,7 @@ export interface CombatEffect {
     arrival: number;
     onHit?: 'drain' | 'burn' | 'slow' | 'poison';
     chain?: { remaining: number; visited: string[]; ratio: number; range: number };
-    special?: 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg' | 'dragon-breath' | 'dragon-cyclone' | 'mew-blessing' | 'bite-shred' | 'jynx-kiss';
+    special?: 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg' | 'dragon-breath' | 'dragon-cyclone' | 'mew-blessing' | 'bite-shred' | 'jynx-kiss' | 'magnet-impact';
     psychicBonus?: number;
   };
 }
