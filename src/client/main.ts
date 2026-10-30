@@ -3,6 +3,8 @@ import { AugmentView } from './augments';
 import { Arena, type ClientView } from './arena';
 import { Hud } from './hud';
 import { Menus } from './menus';
+import { PlayerSettings } from './player-settings';
+import { GameAudio } from './audio';
 import { RENDER_SETTINGS, SPECIES } from '../../server/data';
 import pmdManifest from './pmd-manifest.json';
 import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
@@ -21,6 +23,9 @@ const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, draggi
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
+const audio = new GameAudio();
+const playerSettings = new PlayerSettings(volume => audio.setVolume(volume), fps => arena.setFrameRate(fps));
+document.getElementById('gameSettingsButton')!.addEventListener('click', () => playerSettings.open());
 const augments = new AugmentView(command=>send(command));
 function updateWorldWidgets():void {
   arena.placeWorldRack(document.getElementById('itemInventory')!);
@@ -50,6 +55,7 @@ let lastHudGold = -1;
 
 function send(command: GameCommand): void {
   if (!state || !worker || (view.scoutId!=='p0' && command.kind!=='augment-choose' && command.kind!=='augment-reroll') || state.phase === 'finished' || state.players[0].eliminated) return;
+  if (command.kind === 'buy') audio.play('buy');
   worker.postMessage({ type: 'command', command } satisfies ClientToServer);
 }
 function watch(playerId: string): void {
@@ -58,6 +64,7 @@ function watch(playerId: string): void {
 }
 
 function launchMatch(): void {
+  audio.play('start');
   worker?.terminate();
   view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
@@ -83,9 +90,14 @@ function launchMatch(): void {
   currentWorker.addEventListener('error', () => hud.toast('Erro ao iniciar a simulação'));
   currentWorker.postMessage({ type: 'connect' } satisfies ClientToServer);
 }
-const menus = new Menus(launchMatch);
+const menus = new Menus(launchMatch, () => playerSettings.open());
+document.addEventListener('click', event => {
+  const button = (event.target as HTMLElement).closest('button');
+  if (button && button.id !== 'findMatchButton') audio.play('click');
+});
 updateWorldWidgets();
 document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
+  playerSettings.close(); audio.play('finish');
   worker?.terminate(); worker = null; state = null; arena.snapshot = null; arena.setActive(false);
   view.selectedId = null; clearDrag();augments.reset();
   document.getElementById('finalBanner')!.classList.add('hidden');
@@ -355,7 +367,7 @@ canvas.addEventListener('wheel', event => {
   updateWorldWidgets();
 }, { passive: false });
 document.addEventListener('keydown', event => {
-  if (!state || event.repeat || state.phase === 'finished') return;
+  if (playerSettings.isOpen() || !state || event.repeat || state.phase === 'finished') return;
   if (event.key.toLowerCase() === 'd') send({ kind: 'reroll' });
   if (event.key.toLowerCase() === 'e' && view.selectedId && !view.inventoryItemId && !view.selectedBall) {
     send({ kind: 'sell', unitId: view.selectedId });

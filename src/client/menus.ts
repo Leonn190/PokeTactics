@@ -81,10 +81,11 @@ export class Menus {
   private queueTicker: number | null = null;
   private startAt = 0;
 
-  constructor(private startMatch: () => void) {
+  constructor(private startMatch: () => void, private openPlayerSettings: () => void) {
     $('findMatchButton').addEventListener('click', () => this.queue());
     $('openRosterButton').addEventListener('click', () => this.showRoster());
-    $('openSettingsButton').addEventListener('click', () => { void this.openConfigurator(); });
+    $('openSettingsButton').addEventListener('click', () => this.openPlayerSettings());
+    $('openBalanceEditorButton').addEventListener('click', () => { void this.openConfigurator(); });
     $('rosterBack').addEventListener('click', () => this.showHome());
     $('cancelQueueButton').addEventListener('click', () => this.showHome());
     $('rosterSearch').addEventListener('input', () => this.renderList());
