@@ -9,7 +9,8 @@
     "dev": "astro dev --host 0.0.0.0",
     "build": "astro build",
     "preview": "astro preview --host 0.0.0.0",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "validate:config": "node scripts/validate-config.mjs"
   },
   "dependencies": {
     "astro": "^5.14.0"
