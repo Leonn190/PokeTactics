@@ -24,10 +24,10 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
     case 'flame-orbit': return [special('DANO ESPECIAL POR CONTATO',move.baseDamage+s*move.specialRatio)];
     case 'hitmonchan-uppercut': return [physical('SOCO ASCENDENTE',move.baseDamage+a*(move.attackRatio||0))];
     case 'hitmonlee-spin-kick': return [physical('DANO POR CHUTE (ATÉ 2)',move.baseDamage+a*(move.attackRatio||0))];
-    case 'star-refraction': return [special(`DANO POR PROJÉTIL (ATÉ ${Math.min(3,stage+2)} ALVOS)`,rawBasicDamage(s,ATTACKS.basic.offensiveRatio))];
-    case 'brutal-kick': return [physical('DANO DO CHUTE',move.baseDamage+a*(move.attackRatio||0)),physical('DANO DE COLISÃO',move.wallDamage||0)];
+    case 'star-refraction': return [physical('BÁSICO POR ALVO',rawBasicDamage(a,ATTACKS.basic.offensiveRatio)),special('EXTRA POR ACERTO (3 S)',s*move.specialRatio)];
+    case 'brutal-kick': return [physical('DANO DO CHUTE',move.baseDamage+a*(move.attackRatio||0)+s*move.specialRatio),physical('DANO DE COLISÃO',move.wallDamage||0)];
     case 'desperate-splash': return [entry('CURA (50% DE CHANCE)',(move.healBase||0)+s*(move.healRatio||0),'heal'),special('PRÓXIMO BÁSICO EXTRA',(move.bonusBase||0)+s*(move.bonusSpaRatio||0))];
-    case 'fang-tail': return [physical('DANO DA MORDIDA',move.baseDamage+a*(move.attackRatio||0)),physical('CAUDADA TRASEIRA',(move.tailBase||0)+a*(move.tailRatio||0))];
+    case 'fang-tail': return [physical('DANO DA MORDIDA',move.baseDamage+a*(move.attackRatio||0)+s*move.specialRatio),physical('CAUDADA TRASEIRA',(move.tailBase||0)+a*(move.tailRatio||0))];
     case 'self-explosion': return [special('DANO AOS INIMIGOS PRÓXIMOS',move.baseDamage+s*move.specialRatio), entry('CUSTO EM VIDA MÁXIMA', stats.hp*(move.selfHpCost||0), 'physical')];
     case 'mew-blessing': return [entry('CURA', (move.healBase || 0) + s*(move.healRatio || 0), 'heal'),
       special('DANO EXTRA POR BÁSICO', (move.bonusBase || 0) + s*(move.bonusSpaRatio || 0))];
@@ -39,22 +39,22 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
     case 'withdraw-guard': case 'shield': return [];
     case 'healing-egg': return [entry('CURA POR ALIADO', (move.healBase || 0) + s*(move.healRatio || 0), 'heal')];
     case 'heal-powder': return [entry('CURA POR ALIADO', stageValue(move.healByStage,stage)+(move.healRatio || 0)*s, 'heal')];
-    case 'flame-strike': return [physical('DANO', a*stageValue(move.damageRatioByStage,stage,1.55))];
+    case 'flame-strike': return [physical('DANO',a*stageValue(move.damageRatioByStage,stage,1.55)),special('QUEIMADURA/SEGUNDO',(move.dotBase||0)+s*(move.dotRatio||0))];
     case 'shock': return [special('DANO INICIAL', s*stageValue(move.damageRatioByStage,stage,1.05)),
       special('DANO DO SALTO', s*stageValue(move.damageRatioByStage,stage,1.05)*stageValue(move.secondaryRatioByStage,stage,.5))];
     case 'pollen': return [special('DANO EM ÁREA', stageValue(move.damageByStage,stage)+s*move.specialRatio),
       entry('CURA POR ALIADO',stageValue(move.healByStage,stage)+s*(move.healRatio || 0),'heal')];
     case 'spin': return [special('DANO POR SEGUNDO',stageValue(move.damageByStage,stage)+s*move.specialRatio)];
-    case 'gas': return [physical('DANO EM ÁREA',stageValue(move.damageByStage,stage)+a*stageValue(move.attackRatioByStage,stage,.9))];
+    case 'gas': return [physical('NUVEM APÓS BARREIRA',stageValue(move.damageByStage,stage)+a*(move.gasAttackRatio||0)+(move.chargeMaxDuration||0)*(move.gasTimeRatio||0))];
+    case 'lapras-surf': return [special('DANO NA PASSAGEM',move.baseDamage+s*move.specialRatio),special('ONDA APÓS PARAR',(move.baseDamage+s*move.specialRatio)*(move.continuationMultiplier||.5))];
+    case 'ditto-transform': return [];
     case 'stomp': case 'rock-charge': case 'bone-throw': case 'single-knockup': case 'rock-strike': case 'sting':
-      return [physical('DANO',move.baseDamage+a*(move.attackRatio || 0))];
-    case 'multi': return [physical(`DANO POR GOLPE × ${move.hits || 4}`, move.baseDamage+a*(move.attackRatio || 0))];
+      return [physical('DANO',move.baseDamage+a*(move.attackRatio || 0)+s*(move.effect==='rock-charge'?move.specialRatio:0))];
+    case 'multi': return [physical(`DANO POR GOLPE × ${move.hits || 4}`, move.baseDamage+a*(move.attackRatio || 0)),special('VENENO FINAL',(move.finalVenomBase||0)+s*(move.finalVenomSpaRatio||0))];
     case 'piercing-fire': return [special('DANO POR ALVO',move.baseDamage+s*move.specialRatio)];
     case 'eevee-ball': {
-      const source = stageData.basic.stat === 'atk' ? a : s;
-      const damage = move.baseDamage+source*(move.attackRatio || 0);
-      return [entry('DANO EM ÁREA',damage,stageData.basic.category),
-        entry('ALVOS SECUNDÁRIOS',damage*(move.splashMultiplier || .85),stageData.basic.category)];
+      const damage=move.baseDamage+a*(move.attackRatio||0);
+      return [physical('IMPACTO FÍSICO',damage),...(family==='eevee'?[special('EXPLOSÃO ESPECIAL',s*move.specialRatio)]:[])];
     }
     case 'poison-shot': return [special('DANO INICIAL',move.baseDamage+s*move.specialRatio),
       special('VENENO POR SEGUNDO', (move.dotBase || 0)+s*(move.dotRatio || 0))];

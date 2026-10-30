@@ -69,6 +69,11 @@ export class Arena {
   private spriteBounds = new SpriteBoundsCache();
   private warmedSpecies = new Set<number>();
   private planningCache: { serial: number; scout: string; markers: Marker[] } | null = null;
+  private pendingMove=new Map<string,{position:UnitPosition; serial:number}>();
+  previewMove(id:string,position:UnitPosition):void{
+    this.pendingMove.set(id,{position,serial:this.snapshot?.serial||0});
+    this.planningCache=null;
+  }
   private unitEventLookup = new Map<string, NonNullable<GameSnapshot['visualEvents']>[number]>();
   private animationTicks = new WeakMap<PmdSheet, number>();
   private spriteParts = new Map<string, BodyPoints>();
@@ -87,6 +92,13 @@ export class Arena {
   acceptSnapshot(snapshot: GameSnapshot, arrivedAt = performance.now()): boolean {
     if (!this.visualClock.accept(snapshot.serial, arrivedAt)) return false;
     this.snapshot = snapshot;
+    // Optimistic relocation ends as soon as the worker confirms or rejects it.
+    for(const [id,pending] of this.pendingMove){
+      const unit=snapshot.players[0]?.units.find(u=>u.id===id);
+      if(!unit || JSON.stringify(unit.position)===JSON.stringify(pending.position) || snapshot.serial>pending.serial+2)
+        this.pendingMove.delete(id);
+    }
+    this.planningCache=null;
     // Build stable lookup once per snapshot rather than allocating it at display frequency.
     this.unitEventLookup.clear();
     for (const event of snapshot.visualEvents) {
@@ -459,7 +471,8 @@ export class Arena {
       return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
         own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0, bench: true } as Marker;
     });
-    const bench = benchUnits(watched.units, watched.id, true, false, 0);
+    const liveUnits=watched.units.map(u=>this.pendingMove.has(u.id)?{...u,position:this.pendingMove.get(u.id)!.position}:u);
+    const bench = benchUnits(liveUnits, watched.id, true, false, 0);
     const foeId = snapshot.visibleBattle?.participants.find(id => id !== this.view.scoutId) || null;
     const foePlayer = snapshot.players.find(p => p.id === foeId);
     const enemyBenchUnits = foePlayer ? foePlayer.units.filter(u => u.position.area === 'bench') : foeId ? snapshot.visibleBattle?.benches[foeId] || [] : [];
@@ -492,7 +505,7 @@ export class Arena {
         level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
-    const prepared = [...convert(friendly.units, true), ...bench];
+    const prepared = [...convert(liveUnits, true), ...bench];
     this.planningCache = { serial: snapshot.serial, scout: this.view.scoutId, markers: prepared };
     return prepared;
   }
@@ -768,7 +781,7 @@ export class Arena {
   private updateTrainer(dt: number): void {
     if (!this.snapshot) return;
     const { x, y } = this.snapshot.trainer;
-    const lerp = Math.min(1, dt * 19);
+    const lerp = 1 - Math.exp(-Math.max(0,dt)*17);
     this.trainer.x += (x - this.trainer.x) * lerp;
     this.trainer.y += (y - this.trainer.y) * lerp;
   }
@@ -797,8 +810,9 @@ export class Arena {
       const start = .12 + (i % 7) * .06 + Math.floor(i / 7) * .13, duration = .65;
       const progress = (battle.introElapsed - start) / duration;
       if (progress < 0 || progress >= 1) return;
-      const x = from.x + (to.x - from.x) * progress;
-      const y = from.y - 20 + (to.y - from.y + 20) * progress - Math.sin(progress * Math.PI) * this.cellScale * .8;
+      const eased=progress*progress*(3-2*progress);
+      const x = from.x + (to.x - from.x) * eased;
+      const y = from.y - 20 + (to.y - from.y + 20) * eased - Math.sin(progress * Math.PI) * this.cellScale * .8;
       this.renderPokeball(x, y, Math.max(5, 9 * this.zoom));
     });
   }
@@ -811,7 +825,8 @@ export class Arena {
       ? benchXY(position.index) : gridXY(position.col, position.row + 4);
     for (const event of this.snapshot.visualEvents) {
       if (event.ownerId !== watched.id || event.kind === 'trainer-damage' || !event.pokemon) continue;
-      const pos = positionOf(event.pokemon.position);
+      const current=watched.units.find(u=>u.id===event.unitId);
+      const pos = positionOf(this.pendingMove.get(event.unitId)?.position || current?.position || event.pokemon.position);
       const dest = this.toScreen(pos.x, pos.y);
       const age = this.visualEvents.age(event, now);
       drawUnitVisualEvent(this.context, event, age, dest, this.toScreen(this.trainer.x, this.trainer.y),

@@ -22,7 +22,22 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
       if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();
-      if (fx.kind === 'hitmon-spin') {
+      if(fx.kind==='surf-wave'){
+        ctx.globalAlpha=Math.min(.87, Math.max(.1,(1-t)*1.4));
+        ctx.translate(from.x,from.y);ctx.rotate(Math.atan2(to.y-from.y,to.x-from.x));
+        const radius=Math.max(.35,fx.value)*cellScale;
+        ctx.fillStyle='#68d4f18c';ctx.strokeStyle='#c4fbff';ctx.shadowColor='#5ecdea';ctx.shadowBlur=12;
+        ctx.lineWidth=Math.max(2,cellScale*.045);
+        ctx.beginPath();ctx.ellipse(0,-radius*.18,radius*.75,radius*.43,0,0,PI2);ctx.fill();
+        for(let i=-1;i<=1;i++){
+          ctx.beginPath();ctx.arc(-radius*.1,i*radius*.34,radius*.49,-1.45,1.45);ctx.stroke();
+        }
+      } else if(fx.kind==='transform'){
+        ctx.globalAlpha=(1-t)*.82;ctx.strokeStyle='#e5b2ff';ctx.shadowColor='#b87dff';ctx.shadowBlur=18;
+        ctx.lineWidth=3;
+        ctx.beginPath();ctx.arc(from.x,from.y-16,cellScale*(.19+.8*t),0,PI2);ctx.stroke();
+        ctx.beginPath();ctx.arc(from.x,from.y-16,cellScale*(.45-.23*t),0,PI2);ctx.stroke();
+      } else if (fx.kind === 'hitmon-spin') {
         const radius=Math.max(.5,fx.value)*cellScale;
         ctx.translate(from.x,from.y-12);
         ctx.globalAlpha=(1-t)*.75;

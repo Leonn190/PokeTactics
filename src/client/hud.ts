@@ -330,26 +330,29 @@ export class Hud {
   }
 
   private inspector(pokemon: Pokemon, owner: string, combatant?: CombatUnit): string {
-    const data = SPECIES[pokemon.family];
-    const stage = getStageData(pokemon.family, pokemon.stage);
+    const displayFamily=combatant?.family||pokemon.family;
+    const displayStage=combatant?.stage??pokemon.stage;
+    const displayLevel=combatant?.level??pokemon.level;
+    const data = SPECIES[displayFamily];
+    const stage = getStageData(displayFamily,displayStage);
     const stats = combatant?.stats || bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage),pokemon.equipment);
     const ivAverage = Object.values(pokemon.iv).reduce((a, b) => a + b, 0) / Object.keys(pokemon.iv).length;
     const power = totalPower(stats);
     const move = ATTACKS.moves[stage.move];
     const description = moveDescription(move);
-    const basic = previewBasic(pokemon.family, pokemon.stage, stats);
-    const preview = previewAbility(pokemon.family, pokemon.stage, stats);
-    const hp = stats.hp;
-    const maxHp = Math.max(1, stats.hp);
-    const energy = 0;
-    const energyNeeded = Math.max(1, stage.energy);
+    const basic = previewBasic(displayFamily,displayStage,stats);
+    const preview = previewAbility(displayFamily,displayStage,stats);
+    const hp = combatant?.hp??stats.hp;
+    const maxHp = Math.max(1,combatant?.maxHp??stats.hp);
+    const energy = combatant?.energy??0;
+    const energyNeeded = Math.max(1,combatant?.energyNeeded??stage.energy);
     const hpPercent = Math.min(100, hp / maxHp * 100);
     const energyPercent = Math.min(100, energy / energyNeeded * 100);
     const refraction=combatant?.family==='staryu'&&combatant.stage===1&&combatant.refractionUntil>combatant.itemNow;
     const stageRange=refraction ? steppedRange(stage.rangeClass,1) : stage.range;
-    const basicRange=stageRange+(pokemon.equipment||[]).filter(item=>item.recipe==='red+red').length*numberParam('longbow','range');
+    const basicRange=combatant?.range??(stageRange+(pokemon.equipment||[]).filter(item=>item.recipe==='red+red').length*numberParam('longbow','range'));
     const rangeTitle=rangeLabel(basicRange,basicRange===stageRange ? (refraction ? 'Muito Alto' : stage.rangeClass) : undefined);
-    return `<div class="inspector-top">${portrait(pokemon.family, 56, pokemon.stage)}<div><div class="inspector-name">${safe(displayName(pokemon.family, pokemon.stage))}</div><div class="inspector-sub">NÍVEL ${pokemon.level} · ALCANCE ${rangeTitle}</div></div></div>
+    return `<div class="inspector-top">${portrait(displayFamily, 56, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}</div><div class="inspector-sub">NÍVEL ${displayLevel} · ALCANCE ${rangeTitle}</div></div></div>
       <div class="inspector-resources" aria-label="Vida e energia">
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
         <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>

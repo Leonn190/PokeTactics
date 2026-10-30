@@ -32,9 +32,8 @@ function stat(unit: CombatUnit, key: StatKey): number {
   return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
 }
 
-/** Attack range is measured to a target's near edge for melee combatants.
- * Projectile attackers still use exact center distance. This lets 0.6-range units
- * hit an adjacent 1.04-spaced slot without overlapping sprites. */
+/** Authoritative regular-attack reach is measured in world/hex units, never
+ * expanded by sprite size or visual collision radius. */
 function effectiveBasicRange(unit:CombatUnit,now:number):number {
  const base=getStageData(unit.family,unit.stage);
  const bonus=unit.range-base.range;
@@ -43,8 +42,18 @@ function effectiveBasicRange(unit:CombatUnit,now:number):number {
  return advanced+bonus;
 }
 function basicInRange(unit:CombatUnit,enemy:CombatUnit,now:number):boolean {
- const melee=!getStageData(unit.family,unit.stage).basic.projectile;
- return distance(unit,enemy)<=effectiveBasicRange(unit,now)+(melee ? collisionRadius(unit.family,unit.stage)+collisionRadius(enemy.family,enemy.stage) : 0)+.08;
+ // World-space hex neighbours are roughly 1.04 units apart. The combatants
+ // interpolate continuously, so axial/row thresholds would create unreachable
+ // melee states between logical hex centers. Repositioning uses the same metric.
+ const melee = !getStageData(unit.family,unit.stage).basic.projectile;
+ const reach = effectiveBasicRange(unit,now);
+ if (melee && reach <= .68) return distance(unit,enemy) <= 1.055;
+ return distance(unit,enemy) <= reach + .075;
+}
+function basicApproachDistance(unit:CombatUnit,enemy:CombatUnit,now:number):number {
+ const melee = !getStageData(unit.family,unit.stage).basic.projectile;
+ const reach = effectiveBasicRange(unit,now);
+ return melee && reach <= .68 ? 1.04 : reach;
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -93,7 +102,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
     dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
-    gasTime: 0, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
+    gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range + equipment.filter(i=>i.recipe==='red+red').length*numberParam('longbow','range'),energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
 }
@@ -232,11 +241,11 @@ function applyShred(battle: Battle, caster: CombatUnit, target: CombatUnit): voi
 function applyBallConversion(battle: Battle, caster: CombatUnit, amount: number): void {
   const move = ATTACKS.moves[getStageData(caster.family,caster.stage).move];
   const conversion = move.conversion;
-  if (!conversion || conversion.kind === 'none' || amount <= 0) return;
+  if (!conversion || conversion.kind === 'none') return;
   const allies = closestTwo(battle,caster);
   for (const ally of allies) {
     if (conversion.kind === 'stat_buff' && conversion.stat) {
-      const points = Math.min(50, Math.floor(amount * (conversion.points_per_damage_per_ally || 0)));
+      const points = Math.min(50, Math.floor(amount * (conversion.points_per_damage_per_ally || 0) + stat(caster,'spa')*(conversion.spaRatio || 0)));
       const previousCooldown = ally.cooldown;
       const old = ally.buffs.find(b => b.sourceId === caster.id && b.stat === conversion.stat);
       if (old) { old.amount = Math.max(points,old.amount); old.until = battle.elapsed + (conversion.duration_seconds || 6); }
@@ -246,9 +255,9 @@ function applyBallConversion(battle: Battle, caster: CombatUnit, amount: number)
         ally.attackClock *= ally.cooldown/previousCooldown;
       }
     } else if (conversion.kind === 'heal') {
-      heal(battle, ally, amount * (conversion.healing_pool_per_damage || 0) / allies.length, caster);
+      heal(battle, ally, (amount * (conversion.healing_pool_per_damage || 0) + stat(caster,'spa')*(conversion.spaRatio || 0)) / allies.length, caster);
     } else if (conversion.kind === 'barrier') {
-      const desired = amount * (conversion.shield_pool_per_damage || 0) / allies.length;
+      const desired = (amount * (conversion.shield_pool_per_damage || 0) + stat(caster,'spa')*(conversion.spaRatio || 0)) / allies.length;
       const old = ally.barriers.find(b => b.sourceId === caster.id);
       const activeOther = ally.barriers.filter(b => b.sourceId !== caster.id).reduce((sum,b) => sum+b.hp,0);
       const cap = Math.min(ally.maxHp*.35, ally.maxHp * (conversion.max_barrier_fraction_of_target_max_hp || .35));
@@ -351,8 +360,10 @@ function landProjectiles(battle: Battle, dt: number): void {
       const radius = move.splashRange || 1.65;
       let actual = 0;
       for (const enemy of battle.units.filter(u => u.hp > 0 && u.playerId !== caster.playerId && distance(u,center) <= radius)) {
-        actual += deal(battle, caster, enemy, hit.raw * (enemy.id === hit.targetId ? 1 : move.splashMultiplier || .85),
-          hit.magical, true, hit.attackType);
+        const multiplier=enemy.id === hit.targetId ? 1 : move.splashMultiplier || .85;
+        actual += deal(battle,caster,enemy,hit.raw*multiplier,false,true,hit.attackType);
+        if (caster.family === 'eevee' && move.specialRatio>0 && enemy.hp>0)
+          actual += deal(battle,caster,enemy,stat(caster,'spa')*move.specialRatio*multiplier,true,true,hit.attackType);
       }
       effect(battle,caster,center,'impact',radius);
       applyBallConversion(battle,caster,actual);
@@ -376,8 +387,12 @@ function landProjectiles(battle: Battle, dt: number): void {
       if (mew) { deal(battle,mew,target,buff.extraDamage,true,false,'psychic'); effect(battle,mew,target,'psychic-spark',0); }
     }
     if (hit.special === 'bone-throw' || hit.special==='bite-shred') { if (target.hp > 0) applyShred(battle,caster,target); continue; }
-    if (hit.special === 'single-knockup') { applyKnockup(battle,caster,target,move.controlDuration || .75); continue; }
-    if (hit.special === 'rock-strike') continue;
+    if (hit.special === 'single-knockup') { applyKnockup(battle,caster,target,Math.min(move.controlMax??3,(move.controlDuration || .75)+stat(caster,'spa')*(move.controlSpaRatio||0))); continue; }
+    if (hit.special === 'rock-strike') {
+      const extra=Math.min(move.durabilityMax ?? .35,stat(caster,'spa')*(move.durabilitySpaRatio||0));
+      if (extra>0 && caster.synergy) caster.synergy.percents.durability=(caster.synergy.percents.durability||0)+extra;
+      continue;
+    }
     if (hit.onHit === 'drain') {
       heal(battle, caster, (move.healBase || 0) + caster.stats.spa * (move.healRatio || 0));
     } else if (hit.onHit === 'burn' && target.hp > 0) {
@@ -440,7 +455,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
     ? 1+numberParam('executioner','amplification') : 1;
   const unguarded = Math.max(0, raw) * typeFactor * (1 - target.spinReduction) *
     (1+attacker.amplification) * execution * critFactor;
-  const afterAbility = unguarded * (target.guardUntil > battle.elapsed ? .4 : 1);
+  const afterAbility = unguarded * (target.guardUntil > battle.elapsed ? 1-(target.guardReductionEffective??.6) : 1);
   if (unguarded > afterAbility) { const blocked = mitigatedDamage(unguarded-afterAbility, defense);
     target.metrics.abilityMitigated += blocked; target.metrics.blocked += blocked;
     if (magical) target.metrics.blockedSpecial += blocked; else target.metrics.blockedPhysical += blocked; }
@@ -479,6 +494,11 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   target.metrics.taken += damage;
   const hpBefore=target.hp;
   target.hp -= damage;
+  // An actual enemy strike (including a blocked one) triggers Ditto's only transformation.
+  if (mode === 'normal' && source.playerId !== target.playerId && source.id !== target.id && target.hp > 0) {
+    if (target.ditto && !target.ditto.used) transformDitto(battle,target,source);
+    }
+  if (target.ditto?.active && target.hp > 0 && target.hp / target.maxHp < (ATTACKS.moves['ditto-transform'].revertHealthRatio ?? .3)) revertDitto(battle,target);
   // Exactly one energy point per *effective damage event*, not per damage amount.
   // Barrier absorption counts; a fully prevented hit does not. No further events are emitted.
   if (damage + absorbedTotal > 0)
@@ -533,9 +553,42 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   return actual;
 }
 
+function changeDittoShape(battle:Battle,unit:CombatUnit,family:CombatUnit['family'],stage:number,level:number,stats:CombatUnit['stats'],range:number,energyNeeded:number):void {
+ const healthRatio=unit.hp/Math.max(1,unit.maxHp);
+ unit.family=family;unit.stage=stage;unit.level=level;unit.stats={...stats};unit.maxHp=stats.hp;
+ unit.hp=Math.min(unit.maxHp,Math.max(0,unit.maxHp*healthRatio));unit.range=range;unit.energyNeeded=energyNeeded;
+ unit.energy=Math.min(unit.energy,unit.energyNeeded);
+ unit.combo=null;unit.leap=null;unit.charge=null;unit.surf=null;unit.gasCharge=null;unit.support=null;
+ unit.pendingPollen=null;unit.spinTime=0;unit.spinReduction=0;unit.hitmonAction=null;unit.ghost=null;unit.dig=null;
+ unit.animation=null;unit.refractionUntil=0;unit.orbitFlames=[];unit.hitmonGuaranteed=false;
+ effect(battle,unit,unit,'transform',0);
+}
+function transformDitto(battle:Battle,ditto:CombatUnit,attacker:CombatUnit):void {
+ const state=ditto.ditto;if(!state||state.used||!attacker.hp)return;
+ const cfg=ATTACKS.moves['ditto-transform'];const level=Math.min(attacker.level,state.original.level+(cfg.levelBonusCap??6));
+ const stage=attacker.stage;
+ // Never inherit the enemy's items, cumulative buffs, or already-scaled final stats.
+ // Ditto uses the copied species/IV progression with its own items and team bonuses.
+ const next=bonusStats(calculateStats(attacker.family,level,attacker.iv,stage),ditto.equipment);
+ const base=bonusStats(calculateStats(state.original.family,state.original.level,state.original.iv,state.original.stage),ditto.equipment);
+ for(const key of Object.keys(next) as Array<keyof typeof next>){
+   next[key]=Math.max(1,Math.round(next[key]*state.original.stats[key]/Math.max(1,base[key])));
+ }
+ state.used=true;state.active=true;
+ const rangeBonus=state.original.range-getStageData(state.original.family,state.original.stage).range;
+ changeDittoShape(battle,ditto,attacker.family,stage,level,next,getStageData(attacker.family,stage).range+rangeBonus,getStageData(attacker.family,stage).energy);
+}
+function revertDitto(battle:Battle,ditto:CombatUnit):void {
+ const state=ditto.ditto;if(!state?.active)return;
+ state.active=false;
+ const original=state.original;
+ changeDittoShape(battle,ditto,original.family,original.stage,original.level,original.stats,original.range,original.energyNeeded);
+ // Original Ditto's passive is consumed for the remainder of the battle.
+ ditto.energy=0;
+}
 function grantBarrier(battle: Battle, source: CombatUnit, moveId: string): void {
   const move = ATTACKS.moves[moveId];
-  const hp = ((move.shieldBase || 0) + (move.shieldDefenseRatio || 0) * source.stats.def) * shieldMultiplier(source)*sourceShieldMultiplier(source);
+  const hp = ((move.shieldBase || 0) + (move.shieldDefenseRatio || 0) * stat(source,'def') + (move.shieldSpaRatio || 0) * stat(source,'spa')) * shieldMultiplier(source)*sourceShieldMultiplier(source);
   source.barrier = { hp, maxHp: hp, time: move.shieldDuration || 4 }; // Renova; nunca empilha.
   effect(battle, source, source, 'shield', hp);
 }
@@ -822,7 +875,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     } else if (target) {
       // Surrounded at an edge: still deliver a physical blow rather than freezing the unit.
       animate(source, 'Attack', .4);
-      projectile(battle,source,target,'physical',move.baseDamage+a*(move.attackRatio||0),false,true,.32,
+      projectile(battle,source,target,'physical',move.baseDamage+a*(move.attackRatio||0)+s*move.specialRatio,false,true,.32,
         undefined,source,moveId,stage.chargedType,'single-knockup');
     }
     return;
@@ -838,8 +891,8 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     const center = bestEnemyCluster(battle,source,move.splashRange || 1.65);
     if (center) {
       animate(source,stage.chargedAnimation,.42);
-      projectile(battle,source,center,'ball',move.baseDamage + (stage.basic.stat === 'atk' ? a : s)*(move.attackRatio || 0),
-        stage.basic.category === 'special',true,.83,undefined,source,moveId,stage.chargedType,'eevee-ball');
+      projectile(battle,source,center,'ball',move.baseDamage + a*(move.attackRatio || 0),
+        false,true,.83,undefined,source,moveId,stage.chargedType,'eevee-ball');
     }
     return;
   }
@@ -863,6 +916,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   }
   if (move.effect === 'withdraw-guard') {
     source.guardUntil = battle.elapsed+(move.guardDuration || 4.5);
+    source.guardReductionEffective=Math.min(move.guardMaxReduction??.75,(move.guardReduction??.35)+s*(move.guardSpaRatio||0));
     animate(source,'Withdraw',.62);
     effect(battle,source,source,'shield',0);
     return;
@@ -906,10 +960,14 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   }
   if (move.effect === 'gas') {
     animate(source, stage.chargedAnimation, .48);
-    source.gasTime = .32;
-    effect(battle, source, source, 'gas', stageValue(move.radiusByStage, source.stage, 1.85));
+    const hp=((move.shieldBase||0)+s*(move.shieldSpaRatio||0))*shieldMultiplier(source)*sourceShieldMultiplier(source);
+    source.barrier={hp,maxHp:hp,time:move.shieldDuration||3.5};
+    source.gasCharge={startedAt:battle.elapsed,maxDuration:move.chargeMaxDuration||3.5};
+    effect(battle,source,source,'shield',hp);
     return;
   }
+  if (move.effect === 'ditto-transform') return;
+  if (move.effect === 'lapras-surf') { beginSurf(battle,source,moveId);return; }
   if (move.effect === 'stomp') {
     const maxRange = move.jumpRange || 3;
     const candidates = battle.units.filter(u => u.hp > 0 && u.playerId !== source.playerId && distance(u, source) <= maxRange);
@@ -939,12 +997,12 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   }
   if (move.effect === 'sting') {
     animate(source, stage.chargedAnimation, .42);
-    shot(target, 'physical', move.baseDamage + a * (move.attackRatio || 0), false, .36);
+    shot(target, 'physical', move.baseDamage + a * (move.attackRatio || 0), false, .36,'poison');
     return;
   }
   if (move.effect === 'flame-strike') {
     animate(source, 'Strike', .46);
-    shot(target, 'flame', a * stageValue(move.damageRatioByStage, source.stage, 1.55), false, 1 / 2.7);
+    shot(target, 'flame', a * stageValue(move.damageRatioByStage, source.stage, 1.55), false, 1 / 2.7,'burn');
     return;
   }
   if (move.effect === 'shock') {
@@ -966,6 +1024,81 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   }
 }
 
+/** Hex-grid directions, deterministic route scoring, swept hits and time-based Surf. */
+function beginSurf(battle:Battle,source:CombatUnit,moveId:string):void {
+ const move=ATTACKS.moves[moveId],bounds=arenaBoundary(battle);
+ // Real hex world-space neighbours: 1.04 on X, approximately 1.05 diagonally.
+ const directions=[[1,0],[-1,0],[.5,.8660254],[-.5,.8660254],[.5,-.8660254],[-.5,-.8660254]];
+ const stepSize=.065, radius=collisionRadius(source.family,source.stage);
+ const travelLimit=(move.surfSteps??2)*1.04,waveLimit=move.waveMaxDistance??11;
+ const waveRadius=move.waveRadius??.6;
+ const choices=directions.map(([dx,dy],order)=>{
+   // The wave can travel to the arena boundary; Lapras itself must stay entirely inside it.
+   const reach=(minX:number,maxX:number,minY:number,maxY:number)=>Math.max(0,Math.min(
+     dx>0?(maxX-source.x)/dx:dx<0?(minX-source.x)/dx:Infinity,
+     dy>0?(maxY-source.y)/dy:dy<0?(minY-source.y)/dy:Infinity));
+   const maxWave=Math.min(waveLimit,reach(bounds.minX,bounds.maxX,bounds.minY,bounds.maxY));
+   const maxTravel=Math.min(travelLimit,maxWave,reach(bounds.minX+radius,bounds.maxX-radius,bounds.minY+radius,bounds.maxY-radius));
+   let travel=0;
+   for(let step=stepSize;step<=maxTravel+stepSize*.5;step+=stepSize){
+     const next=Math.min(step,maxTravel),x=source.x+dx*next,y=source.y+dy*next;
+     if(!clearStep(battle,source,x,y))break;
+     travel=next;
+   }
+   let hits=0,passHits=0;
+   const endX=source.x+dx*maxWave,endY=source.y+dy*maxWave;
+   for(const target of battle.units){
+     if(!isTargetable(target) || target.playerId===source.playerId)continue;
+     const along=(target.x-source.x)*dx+(target.y-source.y)*dy;
+     if(along<0 || along>maxWave+waveRadius || segmentDistanceSq(source.x,source.y,endX,endY,target.x,target.y)>waveRadius**2)continue;
+     hits++;
+     if(along<=travel+waveRadius)passHits++;
+   }
+   return {dx,dy,order,travel,maxWave,hits,passHits};
+ }).filter(c=>c.maxWave>.065).sort((a,b)=>b.hits-a.hits||b.passHits-a.passHits||b.travel-a.travel||a.order-b.order);
+ const best=choices[0];if(!best)return;
+ const fxId=`${battle.id}:${source.id}:surf:${source.hitSerial++}`;
+ source.surf={dx:best.dx,dy:best.dy,travelled:0,waveTravel:0,maxTravel:best.travel,maxWave:best.maxWave,
+   waveX:source.x,waveY:source.y,hitIds:[],shieldIds:[],fxId};
+ source.facingX=best.dx;source.facingY=best.dy;
+ animate(source,'Charge',Math.max(.5,best.maxWave/(move.waveSpeed??5.8)));
+ battle.effects.push({id:fxId,sourceId:source.id,x:source.x,y:source.y,targetX:source.x,targetY:source.y,
+   family:source.family,stage:source.stage,kind:'surf-wave',time:0,duration:best.maxWave/(move.waveSpeed??5.8)+.3,value:waveRadius});
+}
+function surfTick(battle:Battle,source:CombatUnit,dt:number):void {
+ const surf=source.surf;if(!surf)return;
+ const move=ATTACKS.moves['lapras-surf'];const speed=move.waveSpeed||5.8;
+ const previousX=surf.waveX,previousY=surf.waveY;
+ const waveStep=Math.min(surf.maxWave-surf.waveTravel,dt*speed);
+ surf.waveTravel+=waveStep;surf.waveX+=surf.dx*waveStep;surf.waveY+=surf.dy*waveStep;
+ if(surf.travelled<surf.maxTravel){
+   const steps=Math.min(surf.maxTravel-surf.travelled,dt*speed);
+   const nx=source.x+surf.dx*steps,ny=source.y+surf.dy*steps;
+   if(clearStep(battle,source,nx,ny)){source.x=nx;source.y=ny;surf.travelled+=steps;source.moving=true;}
+   else surf.maxTravel=surf.travelled; // Respect new obstacles after the route was chosen.
+ }
+ for(const target of battle.units){
+   if(!isTargetable(target)||target.playerId===source.playerId||surf.hitIds.includes(target.id))continue;
+   if(segmentDistanceSq(previousX,previousY,surf.waveX,surf.waveY,target.x,target.y)>(move.waveRadius||.6)**2)continue;
+   surf.hitIds.push(target.id);
+   const firstPhase=surf.maxTravel>.0001 && (target.x-(surf.waveX-surf.dx*surf.waveTravel))*surf.dx+(target.y-(surf.waveY-surf.dy*surf.waveTravel))*surf.dy<=surf.maxTravel+.00001;
+   const before=target.hp;
+   deal(battle,source,target,(move.baseDamage+stat(source,'spa')*move.specialRatio)
+     *(firstPhase?1:move.continuationMultiplier??.5),true,true,'water');
+   if(firstPhase && target.hp<before && !surf.shieldIds.includes(target.id)){
+     surf.shieldIds.push(target.id);
+     const hp=stat(source,'spa')*(move.shieldSpaRatio||0)*shieldMultiplier(source)*sourceShieldMultiplier(source);
+     const shield=source.barriers.find(b=>b.sourceId===source.id && b.kind==='surf');
+     if(shield)shield.hp+=hp;
+     else source.barriers.push({sourceId:source.id,kind:'surf',hp,until:Infinity});
+     effect(battle,source,source,'shield',hp);
+   }
+ }
+ const fx=battle.effects.find(e=>e.id===surf.fxId);
+ if(fx){fx.x=surf.waveX;fx.y=surf.waveY;fx.targetX=surf.waveX+surf.dx;fx.targetY=surf.waveY+surf.dy;}
+ if(surf.waveTravel>=surf.maxWave-.00001){source.surf=null;if(fx)fx.time=fx.duration;}
+}
+
 function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
   const pending=source.synergy?.pendingSkill;
   if(!pending)return false;
@@ -985,7 +1118,7 @@ function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
   const a=stat(source,'atk');
   if(pending.kind==='kick'){
     if(!isTargetable(target))return true;
-    deal(battle,source,target,(move.baseDamage||0)+a*(move.attackRatio||0),false,true,'fighting');
+    deal(battle,source,target,(move.baseDamage||0)+a*(move.attackRatio||0)+stat(source,'spa')*move.specialRatio,false,true,'fighting');
     if(target.hp>0){
       const push=pushTarget(battle,source,target,move.push||1);
       if(push.wall&&push.moved<(move.push||1)){
@@ -997,7 +1130,7 @@ function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
   } else {
     const facing=Math.hypot(source.facingX,source.facingY)||1;
     const vx=source.facingX/facing,vy=source.facingY/facing;
-    if(isTargetable(target))deal(battle,source,target,(move.baseDamage||0)+a*(move.attackRatio||0),false,true,'water');
+    if(isTargetable(target))deal(battle,source,target,(move.baseDamage||0)+a*(move.attackRatio||0)+stat(source,'spa')*move.specialRatio,false,true,'water');
     for(const enemy of battle.units){
       if(enemy.playerId===source.playerId||!isTargetable(enemy)||enemy===target)continue;
       const dx=enemy.x-source.x,dy=enemy.y-source.y;
@@ -1065,6 +1198,10 @@ function comboTick(battle: Battle, source: CombatUnit, dt: number): void {
     deal(battle, source, target, move.baseDamage + stat(source,'atk') * (move.attackRatio || 0), false, true);
     effect(battle, source, target, 'physical', 0);
     combo.hits--;
+    if(combo.hits===0 && target.hp>0 && move.finalVenomSpaRatio){
+      deal(battle,source,target,(move.finalVenomBase||0)+stat(source,'spa')*move.finalVenomSpaRatio,true,true,'poison');
+      effect(battle,source,target,'poison',0);
+    }
     combo.time += combo.interval;
     if (target.hp <= 0) source.combo = null;
     else if (combo.hits > 0) animate(source, 'Jab', combo.interval);
@@ -1073,17 +1210,23 @@ function comboTick(battle: Battle, source: CombatUnit, dt: number): void {
 }
 
 function gasTick(battle: Battle, source: CombatUnit, dt: number): void {
-  source.gasTime -= dt;
-  if (source.gasTime > 0) return;
-  source.gasTime = 0;
+  if (source.gasCharge) {
+    if(source.barrier && source.barrier.time>0 && source.barrier.hp>0 && battle.elapsed-source.gasCharge.startedAt<source.gasCharge.maxDuration)return;
+    source.barrier=null;
+  } else {
+    source.gasTime -= dt;
+    if (source.gasTime > 0) return;
+  }
+  source.gasTime=0;
   const move = ATTACKS.moves[getStageData(source.family, source.stage).move];
   const radius = stageValue(move.radiusByStage, source.stage, 1.85);
-  const raw = stageValue(move.damageByStage, source.stage) + stat(source,'atk') * stageValue(move.attackRatioByStage, source.stage, .9);
+  const raw = stageValue(move.damageByStage, source.stage) + stat(source,'atk') * (move.gasAttackRatio ?? .25) + Math.min(move.chargeMaxDuration||3.5,source.gasCharge ? battle.elapsed-source.gasCharge.startedAt : 0)*(move.gasTimeRatio||0);
   for (const target of battle.units) {
-    if (target.hp > 0 && target.playerId !== source.playerId && distance(source, target) <= radius) {
-      deal(battle, source, target, raw, false, true);
-    }
+    if (target.hp > 0 && target.playerId !== source.playerId && distance(source, target) <= radius)
+      deal(battle,source,target,raw,false,true);
   }
+  effect(battle,source,source,'gas',radius);
+  source.gasCharge=null;
 }
 
 function leapTick(battle: Battle, source: CombatUnit, dt: number): void {
@@ -1102,8 +1245,21 @@ function leapTick(battle: Battle, source: CombatUnit, dt: number): void {
   for (const target of battle.units) {
     if (target.playerId === source.playerId || target.hp <= 0 || distance(source, target) > (move.splashRange || 1.75)) continue;
     deal(battle, source, target, move.baseDamage + stat(source,'atk') * (move.attackRatio || 0), false, true);
-    applyKnockup(battle,source,target,move.stunDuration || 1,.35);
+    applyKnockup(battle,source,target,move.stunDuration || 2,.35);
   }
+  source.sleep={time:0,healed:0};
+  animate(source,'Sleep',move.sleepDuration||3);
+}
+function sleepTick(battle:Battle,source:CombatUnit,dt:number):void {
+ const sleep=source.sleep;if(!sleep)return;
+ const move=ATTACKS.moves['heavy-stomp'];const duration=move.sleepDuration||3;
+ sleep.time=Math.min(duration,sleep.time+dt);
+ const ticks=move.sleepTicks||5;
+ while(sleep.healed<ticks && sleep.time>=duration*(sleep.healed+1)/ticks-1e-7){
+   heal(battle,source,(move.sleepHealBase||0)+stat(source,'spa')*(move.sleepHealSpaRatio||0),source);
+   sleep.healed++;
+ }
+ if(sleep.time>=duration){source.sleep=null;source.animation=null;}
 }
 
 /** Real, time-based movement. Hits are checked along each swept segment, not at the end of the charge. */
@@ -1129,7 +1285,7 @@ function chargeTick(battle: Battle, source: CombatUnit, dt: number): void {
       if (target.playerId === source.playerId || target.hp <= 0 || charge.hitIds.includes(target.id)) continue;
       if (segmentDistanceSq(oldX, oldY, hitX, hitY, target.x, target.y) > .52 ** 2) continue;
       charge.hitIds.push(target.id);
-      deal(battle,source,target,move.baseDamage+stat(source,'atk')*(move.attackRatio||0),false,true,'rock');
+      deal(battle,source,target,move.baseDamage+stat(source,'atk')*(move.attackRatio||0)+stat(source,'spa')*move.specialRatio,false,true,'rock');
       if (target.hp > 0) applyKnockup(battle,source,target,move.controlDuration||.4);
       effect(battle,source,target,'impact',.4);
     }
@@ -1549,6 +1705,9 @@ export function tickBattle(battle: Battle, dt: number): void {
     if(unit.hitmonAction){tickHitmonAction(battle,unit,dt);continue;}
     if(unit.synergy?.flight || (unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil>battle.elapsed))continue;
     if (unit.charge) { chargeTick(battle,unit,dt); continue; }
+    if (unit.surf) { surfTick(battle,unit,dt); continue; }
+    if (unit.sleep) { sleepTick(battle,unit,dt); continue; }
+    if (unit.gasCharge) { gasTick(battle,unit,dt); continue; }
     if (unit.stunTime > 0 && !(effectCount(unit,'opening_immunity') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) {
       continue;
     }
@@ -1562,6 +1721,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.cooldown = combatCooldown(unit,battle.elapsed);
     const stage = getStageData(unit.family, unit.stage);
     const move = ATTACKS.moves[moveIdOf(unit)];
+    if (move.effect === 'ditto-transform')unit.energy=0;
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded &&
       (move.effect === 'healing-egg' || move.effect === 'withdraw-guard' || move.effect === 'mew-blessing' || move.effect === 'burrow' || move.effect === 'ghost-ambush')) {
       const center = move.effect === 'healing-egg'
@@ -1606,8 +1766,7 @@ export function tickBattle(battle: Battle, dt: number): void {
       continue;
     }
     if (!basicInRange(unit,target,battle.elapsed)) {
-      const stageBasic=getStageData(unit.family,unit.stage);
-      const reach=effectiveBasicRange(unit,battle.elapsed)+(!stageBasic.basic.projectile ? collisionRadius(unit.family,unit.stage)+collisionRadius(target.family,target.stage) : 0)+.04;
+      const reach=basicApproachDistance(unit,target,battle.elapsed);
       let travel=Math.min(Math.max(0,d-reach),dt*(.68+stat(unit,'speed')/180)*(unit.slow?.65:1));
       const bounds=arenaBoundary(battle);
       const dx=(target.x-unit.x)/d,dy=(target.y-unit.y)/d;
@@ -1627,7 +1786,7 @@ export function tickBattle(battle: Battle, dt: number): void {
       continue;
     }
     if (unit.attackClock > 0) continue;
-    if (unit.energy >= unit.energyNeeded
+    if (unit.energy >= unit.energyNeeded && move.effect !== 'ditto-transform'
       && !(move.effect === 'star-refraction' && unit.refractionUntil > battle.elapsed)
       && (move.effect !== 'heal-powder' || woundedAllies(battle, unit, move.healRange || 3.5, move.healTargets || 2).length)
       && (move.effect !== 'healing-egg' || bestEggCenter(battle,unit,move.splashRange || 1.65,move.skillRange || 3.2))) {
@@ -1636,7 +1795,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     } else {
       animate(unit, stage.basic.animation, Math.min(.4, unit.cooldown * .82), undefined, 'basic');
       const basic = ATTACKS.basic;
-      const raw = rawBasicDamage(stat(unit,unit.bossMove ? 'atk' : stage.basic.stat), basic.offensiveRatio);
+      const raw = rawBasicDamage(stat(unit,'atk'),basic.offensiveRatio);
       const ranged = !!stage.basic.projectile;
       const projectileKind = ranged ? 'basic-projectile' : 'physical';
       // Refraction targets must be distinct, targetable, in the *ordinary* range
@@ -1649,9 +1808,13 @@ export function tickBattle(battle: Battle, dt: number): void {
         .sort((a,b) => distance(a,target!) - distance(b,target!) || a.id.localeCompare(b.id))
         .slice(0,multi-1) : [];
       for (const victim of [target,...extras]) {
-        projectile(battle, unit, victim, projectileKind, raw, !unit.bossMove && stage.basic.category === 'special', false,
+        projectile(battle, unit, victim, projectileKind, raw, false, false,
           ranged ? ANIMATIONS.projectilesByType[stage.elements[0]].arrival : .35);
         if (ranged) battle.effects[battle.effects.length - 1].basicType = stage.elements[0];
+        if(unit.family==='staryu' && unit.refractionUntil>battle.elapsed){
+          projectile(battle,unit,victim,'water',stat(unit,'spa')*ATTACKS.moves['star-refraction'].specialRatio,true,true,
+            ranged ? ANIMATIONS.projectilesByType[stage.elements[0]].arrival : .35);
+        }
       }
       if(unit.synergy?.splashBonus){
         projectile(battle,unit,target,'water',unit.synergy.splashBonus,true,false,ranged?ANIMATIONS.projectilesByType[stage.elements[0]].arrival:.35);

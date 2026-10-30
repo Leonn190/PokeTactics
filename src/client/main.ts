@@ -7,6 +7,16 @@ import { RENDER_SETTINGS, SPECIES } from '../../server/data';
 import pmdManifest from './pmd-manifest.json';
 import type { ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
+// The provided PMD manifest does not yet include every portrait (notably
+// Lapras/Ditto). Resolve a missing static portrait without affecting animated PMD.
+document.addEventListener('error',event=>{
+ const img=event.target;
+ if(!(img instanceof HTMLImageElement))return;
+ const match=img.src.match(/\/portrait\/0*(\d+)\/Normal\.png(?:[?#]|$)/);
+ if(!match)return;
+ img.src=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${Number(match[1])}.png`;
+},true);
+
 const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, dragging: false, dragX: 0, dragY: 0, hoveringHex: null, hoveringBench: null, inventoryItemId:null,selectedBall:null };
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
@@ -281,10 +291,10 @@ function finishDrag(event: PointerEvent): void {
     if (sell) send({ kind: 'sell', unitId: id });
     else if (target === canvas) {
       const benchIndex = arena.pickBench(event.clientX, event.clientY);
-      if (benchIndex !== null) send({ kind: 'move', unitId: id, position: { area: 'bench', index: benchIndex } });
+      if (benchIndex !== null) { const position={area:'bench' as const,index:benchIndex};arena.previewMove(id,position);send({kind:'move',unitId:id,position}); }
       else if (state.phase === 'planning' && view.scoutId === 'p0') {
         const hex = arena.pickHex(event.clientX, event.clientY);
-        if (hex) send({ kind: 'move', unitId: id, position: { area: 'board', ...hex } });
+        if (hex) { const position={area:'board' as const,...hex};arena.previewMove(id,position);send({kind:'move',unitId:id,position}); }
       }
     }
   }

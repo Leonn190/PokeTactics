@@ -6,7 +6,46 @@ import { liveDescription, synchronizeDescriptions } from './descriptions';
 import type { Family } from '../../../server/types';
 
 const safe=(value:unknown)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
-const pretty=(s:string)=>s.replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ').replaceAll(/\bspa\b/gi,'SpA').replaceAll(/\bspd\b/gi,'SpD');
+const pt:Record<string,string>={
+ hp:'Vida',atk:'Ataque (ATK)',def:'Defesa (DEF)',spa:'Ataque especial (SpA)',spd:'Defesa especial (SpD)',speed:'Velocidade (VEL)',
+ baseDamage:'Dano base',attackRatio:'Escala de ATK',specialRatio:'Escala de SpA',offensiveRatio:'Escala ofensiva',energyGain:'Energia recebida',
+ damageByStage:'Dano por evolução',healByStage:'Cura por evolução',damageRatioByStage:'Dano físico por evolução',healBase:'Cura base',healRatio:'Escala de cura (SpA)',
+ shieldBase:'Barreira base',shieldSpaRatio:'Escala de barreira (SpA)',shieldDefenseRatio:'Escala de barreira (DEF)',shieldDuration:'Duração da barreira',
+ shieldByStage:'Barreira por evolução',shield_pool_per_damage:'Barreira por dano',healing_pool_per_damage:'Cura por dano',
+ stunDuration:'Duração do atordoamento',stunBase:'Atordoamento base',stunSpaRatio:'Atordoamento por SpA',controlDuration:'Duração do controle',controlSpaRatio:'Controle por SpA',controlMax:'Limite do controle',
+ dotBase:'Dano periódico base',dotRatio:'Dano periódico por SpA',dotDuration:'Duração do dano periódico',
+ finalVenomBase:'Veneno final base',finalVenomSpaRatio:'Veneno final por SpA',
+ gasTimeRatio:'Dano por segundo de barreira',gasAttackRatio:'Escala de ATK da nuvem',chargeMaxDuration:'Tempo máximo acumulado',
+ sleepDuration:'Duração do sono',sleepTicks:'Instâncias de cura',sleepHealBase:'Cura por instância',sleepHealSpaRatio:'Cura por SpA',
+ durabilitySpaRatio:'Durabilidade por SpA',durabilityMax:'Limite de Durabilidade',guardReduction:'Redução base',guardSpaRatio:'Redução por SpA',guardMaxReduction:'Redução máxima',
+ points_per_damage_per_ally:'Pontos por dano/aliado',spaRatio:'Escala direta de SpA',max_barrier_fraction_of_target_max_hp:'Limite da barreira',
+ seconds:'Segundos',duration_seconds:'Duração (s)',guardDuration:'Duração da proteção',bonusBase:'Bônus base',bonusSpaRatio:'Bônus por SpA',buffDuration:'Duração do bônus',
+ chance:'Probabilidade',push:'Casas de empurrão',wallDamage:'Dano ao colidir',radiusByStage:'Raio por evolução',splashRange:'Raio de área',
+ secondaryTargetsByStage:'Alvos por evolução',secondaryRatioByStage:'Escala secundária por evolução',range:'Alcance',skillRange:'Alcance da habilidade',
+ evolutionCopies:'Cópias para evoluir',physicalSizes:'Tamanho físico',rarity:'Raridade',
+ surfSteps:'Casas percorridas',waveMaxDistance:'Alcance da onda',waveRadius:'Largura da onda',waveSpeed:'Velocidade da onda',continuationMultiplier:'Dano após parar',
+ levelBonusCap:'Limite adicional de níveis',revertHealthRatio:'Vida mínima para manter a cópia',
+ tornadoSpeed:'Velocidade do tornado',tornadoDistance:'Distância do tornado',tornadoRadius:'Raio do tornado',
+
+ splashMultiplier:'Multiplicador de dano em área',slowDuration:'Duração da lentidão',shredBase:'Redução base de defesa',shredRatio:'Escala da redução de defesa',shredDuration:'Duração da redução',
+ healRange:'Alcance da cura',healTargets:'Alvos da cura',chainRange:'Alcance do encadeamento',hits:'Quantidade de golpes',speedReduction:'Redução de velocidade',selfHpCost:'Vida consumida',
+ tornadoSlow:'Lentidão do tornado',tornadoSpeedReduction:'Redução de velocidade do tornado',dashRange:'Distância da investida',impactDelay:'Atraso do impacto',
+ orbCount:'Quantidade de orbes',orbitRadius:'Raio da órbita',rotationSpeed:'Velocidade de rotação',orbRadius:'Raio dos orbes',impactsBase:'Acertos iniciais',spaPerExtraImpact:'SpA por acerto extra',maxImpacts:'Limite de acertos',reimpactSeconds:'Tempo para novo acerto',
+ speedBonusPercent:'Bônus de velocidade',defBonusPercent:'Bônus de defesa',spdBonusPercent:'Bônus de defesa especial',maxDuration:'Duração máxima',gasReleaseDelay:'Atraso da nuvem',
+ jumpRange:'Distância do salto',chainBase:'Dano base da corrente',chainRatio:'Escala da corrente',tailBase:'Dano base da cauda',tailRatio:'Escala da cauda',tailRadius:'Raio da cauda',hitRadius:'Raio de impacto',stunHpRatio:'Escala por vida do alvo',stunMin:'Atordoamento mínimo',stunMax:'Atordoamento máximo',
+ preparationSeconds:'Duração da preparação',combatSeconds:'Duração do combate',players:'Jogadores',startingHealth:'Vida inicial',startingGold:'Ouro inicial',baseIncome:'Renda por rodada',interestEveryGold:'Ouro para receber juros',maxInterest:'Limite de juros',victoryIncome:'Ouro por vitória',
+ chapterBaseDamageOffset:'Aumento de dano por capítulo',survivingUnitDamage:'Dano por unidade sobrevivente',doubleDamageMultiplier:'Multiplicador de dano duplo',goldDropPerKnockout:'Ouro por abate',goldRoundWinnerBonus:'Ouro extra ao vencer',combatAcceleration:'Aceleração do combate',combatSafetySeconds:'Tempo de segurança',resultSeconds:'Duração do resultado',
+ shopSize:'Tamanho da loja',benchSize:'Tamanho do banco',boardColumns:'Colunas do tabuleiro',boardRows:'Linhas do tabuleiro',rerollCost:'Custo de atualização da loja',activePerBattle:'Ativos por batalha',benchPerBattle:'Reservas por batalha',maxPokemonLevel:'Nível máximo Pokémon',
+ activePoints:'Pontos de unidades ativas',benchPoints:'Pontos do banco',shareBonusMultiplier:'Multiplicador do bônus compartilhado',secondaryTypeMultiplier:'Multiplicador do tipo secundário',maxShown:'Máximo exibido',options:'Opções',repeatPenalty:'Penalidade de repetição',recentRepeatPenalty:'Penalidade de repetição recente',
+ ivBase:'IV base',ivPerPoint:'Bônus por IV',levelPerPoint:'Bônus por nível',fusionLevels:'Níveis de fusão',stagesPerChapter:'Etapas por capítulo',baseLevel:'Nível base',levelsPerChapter:'Níveis por capítulo',extraUnitsEveryChapter:'Unidades extras por capítulo',maxUnits:'Máximo de unidades',iv:'IV',levelPerChapter:'Níveis por capítulo',firstChapterIv:'IV do primeiro capítulo',secondChapterIv:'IV do segundo capítulo',laterChapterIv:'IV dos próximos capítulos',
+ weight:'Peso no sorteio',min:'Mínimo',max:'Máximo',enabled:'Ativado',chancePerRound:'Chance por rodada',sharedRoundChance:'Chance da rodada compartilhada',maxGrantPerRound:'Máximo de recompensas por rodada',
+ value:'Valor',amplification:'Amplificação',vampirism:'Vampirismo',critChance:'Chance crítica',critDamage:'Dano crítico',durability:'Durabilidade',healPercent:'Porcentagem de cura',threshold:'Limite para ativar',radius:'Raio',speedPercent:'Bônus percentual de velocidade',
+ hpPercent:'Porcentagem de vida',receivedHealShield:'Cura e barreira recebidas',barrierFraction:'Porção de barreira',healingShare:'Cura compartilhada',burnPercent:'Porcentagem de queimadura',healReduction:'Redução de cura',specialReduction:'Redução de dano especial',cooldown:'Intervalo entre usos',perTarget:'Por alvo',maxTargets:'Máximo de alvos',energy:'Energia',spaPercent:'Porcentagem de SpA',shieldBonus:'Bônus contra barreira',casts:'Usos de habilidade',atkPercent:'Porcentagem de ATK',criticalExtraReduction:'Redução de crítico adicional',reflect:'Reflexão',ampPerStack:'Amplificação por acúmulo',durPerStack:'Durabilidade por acúmulo',maxStacks:'Limite de acúmulos',combatIntroSeconds:'Tempo de entrada no combate',inventorySlots:'Espaços de inventário',
+ gold:'Ouro',benchXp:'XP do banco',fraction:'Fração',bronze:'Bronze',silver:'Prata',prismatic:'Prismático',levels:'Níveis',level:'Nível',activeXp:'XP das unidades ativas',floor:'Limite inferior',top:'Limite superior',bonus:'Bônus',items:'Itens',rounds:'Rodadas',components:'Componentes',interestCap:'Limite de juros',xp:'Experiência',preparations:'Preparações',rolls:'Atualizações de loja',every:'A cada',count:'Quantidade',smallest:'Menor valor',stacks:'Acúmulos',eeveeCopies:'Cópias de Eevee',
+ durabilityReduction:'Redução da Durabilidade',maxSpeed:'Velocidade máxima',energyPerSecond:'Energia por segundo',regen:'Regeneração',damage:'Dano',landingSpeed:'Velocidade de aterrissagem',healingShieldAmp:'Amplificação de cura e barreira',emergencyShield:'Barreira emergencial',share:'Compartilhamento',reviveHp:'Vida ao reviver',inherit:'Herança',dragonIv:'IV de Dragão',dot:'Dano periódico',deathHeal:'Cura ao abater',hpThreshold:'Limite de vida',version:'Versão',flightDuration:'Duração do voo',maxReceived:'Máximo recebido',intangibility:'Intangibilidade',maxInherited:'Máximo herdado',waveSpacing:'Espaçamento das ondas',maxDurability:'Durabilidade máxima',minDurability:'Durabilidade mínima',
+ hpCompareDivisor:'Divisor da vida',attackSpeed:'Velocidade de ataque',duration:'Duração',shield:'Barreira'
+};
+const pretty=(s:string)=>pt[s]||s.replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ').replaceAll(/\bspa\b/gi,'SpA').replaceAll(/\bspd\b/gi,'SpD');
 const number=(value:number)=>Number.isInteger(value)?String(value):String(+value.toFixed(4));
 const route=(file:string,path:PathPart[])=>encodeURIComponent(JSON.stringify([file,...path]));
 const decode=(code:string):[string,PathPart[]]=>{const [file,...path]=JSON.parse(decodeURIComponent(code));return [file,path];};
@@ -14,7 +53,7 @@ const get=(file:string,path:PathPart[])=>valueOf(file,path);
 const tabs=[
  ['pokemon','◈','POKÉMON'],['shop','◉','LOJA'],['augments','✦','AUGMENTS'],['items','◇','ITENS'],
  ['synergies','⬟','SINERGIAS'],['loot','✧','ESPÓLIOS'],['rules','⚙','REGRAS E ECONOMIA'],
- ['phases','◷','FASES'],['ranges','⌖','ALCANCES'],['visual','◐','ANIMAÇÕES'],['other','⋯','OUTROS']
+ ['phases','◷','FASES'],['ranges','⌖','ALCANCES'],['other','⋯','OUTROS']
 ] as const;
 type Tab=typeof tabs[number][0];
 const rarities=['COMUM','INCOMUM','RARO','ÉPICO','LENDÁRIO'];
@@ -110,7 +149,6 @@ export class Configurator {
    this.tab==='rules'?recursive('regras_gerais.json','REGRAS GERAIS E ECONOMIA',Object.keys(documentOf('regras_gerais.json')).filter(k=>k!=='shopOddsByLevel')):
    this.tab==='phases'?recursive('fases.json','CAPÍTULOS, FASES E ADVERSÁRIOS'):
    this.tab==='ranges'?recursive('alcances.json','CLASSES DE ALCANCE'):
-   this.tab==='visual'?recursive('animacoes.json','PERFIS E ANIMAÇÕES')+recursive('renderizacao.json','RENDERIZAÇÃO'):
    recursive('ataques.json','ATAQUES REGULARES', ['basic'])+recursive('pokemons.json','REFERÊNCIAS GLOBAIS', ['other'])+
      recursive('regras_gerais.json','PARÂMETROS COMPLEMENTARES', ['matchmaking']);
   if(this.tab==='pokemon'){
@@ -133,6 +171,9 @@ export class Configurator {
   const total=Math.round(stageStats.hp/5+stageStats.atk+stageStats.def+stageStats.spa+stageStats.spd+stageStats.speed);
   const moveId=stage.move||s.attack;
   const move=documentOf('ataques.json').moves[moveId];
+  const stageKeys=Object.keys(move).filter(key=>Array.isArray(move[key])&&move[key].length===s.names.length&&move[key].every((n:unknown)=>typeof n==='number'));
+  const otherMove={...move};for(const key of stageKeys)delete otherMove[key];
+  const stageMatrix=stageKeys.length?`<div class="cfg-stage-scroll"><table class="cfg-stage-table"><thead><tr><th>EVOLUÇÃO</th>${stageKeys.map(key=>`<th>${safe(pretty(key))}</th>`).join('')}</tr></thead><tbody>${s.names.map((name:string,i:number)=>`<tr><th>${safe(name)}</th>${stageKeys.map(key=>`<td>${field('ataques.json',['moves',moveId,key,i],pretty(key))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'';
   const size=s.physicalSizes?.[e.stage]??1;
   const moved=modifications().some(c=>c.file==='pokemons.json' && c.path[0]==='species' && c.path[1]===e.family);
   const types=Array.from(new Set(Object.values(pokemon.species).flatMap((v:any)=>v.elements))).sort() as string[];
@@ -143,8 +184,8 @@ export class Configurator {
      ${moved?'<span class="cfg-changed-chip">MODIFICADO</span>':''}
    </div>
    ${section('ATRIBUTOS BÁSICOS',`<div class="cfg-fields">${stats.map(key=>field('pokemons.json',statPath(key),{hp:'VIDA',atk:'ATK',def:'DEF',spa:'SpA',spd:'SpD',speed:'VEL'}[key])).join('')}</div>`,'Valores consumidos pelo motor de combate, separados por evolução.')}
-   ${section('ATAQUE REGULAR',`<div class="cfg-kv"><span>Atributo</span><strong>${safe(stage.basic?.stat||s.basic?.stat||'atk').toUpperCase()}</strong><span>Tipo de golpe</span><strong>${safe(stage.basic?.category||s.basic?.category||'physical')}</strong></div><div class="cfg-fields">${fields('ataques.json',['basic'],documentOf('ataques.json').basic)}</div>`,'Parâmetros compartilhados entre as espécies.')}
-   ${section('HABILIDADE · '+move.name,`<p class="cfg-context">${safe(moveId)} · Valores utilizados diretamente pelo servidor.</p><div class="cfg-fields">${fields('ataques.json',['moves',moveId],move)}</div>`,'Se outra forma usar a mesma habilidade, seus valores também serão afetados.')}
+   ${section('ATAQUE REGULAR',`<div class="cfg-kv"><span>Atributo</span><strong>${safe(stage.basic?.stat||s.basic?.stat||'atk').toUpperCase()}</strong><span>Tipo de golpe</span><strong>${safe((stage.basic?.category||s.basic?.category)==='special'?'Especial':'Físico')}</strong></div><div class="cfg-fields">${fields('ataques.json',['basic'],documentOf('ataques.json').basic)}</div>`,'Parâmetros compartilhados entre as espécies.')}
+   ${section('HABILIDADE · '+move.name,`<p class="cfg-context">${safe(moveId)} · Valores utilizados diretamente pelo servidor.</p>${stageMatrix}<div class="cfg-fields">${fields('ataques.json',['moves',moveId],otherMove)}</div>`,'Se outra forma usar a mesma habilidade, seus valores também serão afetados.')}
    ${section('ENERGIA E ALCANCE',`<div class="cfg-fields">${typeof stage.energy==='number'?field('pokemons.json',['species',e.family,'stages',e.stage,'energy'],'CUSTO DE ENERGIA'):field('pokemons.json',['species',e.family,'energy'],'CUSTO DE ENERGIA')}</div><p class="cfg-context">CLASSE: ${safe(stage.rangeClass||s.rangeClass)} · Os valores efetivos são editáveis na aba Alcances.</p>`)}
    ${section('EVOLUÇÃO, RARIDADE E TAMANHO',`<div class="cfg-fields">
       ${e.stage<s.names.length-1?field('pokemons.json',['species',e.family,'evolutionCopies',e.stage],'CÓPIAS PARA EVOLUIR'):''}
@@ -154,7 +195,7 @@ export class Configurator {
   </div>`;
   return `<div class="cfg-poke-layout"><aside class="cfg-poke-list"><div class="cfg-poke-filter"><input data-cfg-search placeholder="⌕ Buscar Pokémon..." value="${safe(this.search)}" />
     <div class="cfg-filter-line"><select data-cfg-rarity><option value="all">Todas raridades</option>${rarities.map((name,i)=>`<option value="${i+1}" ${this.rarity===String(i+1)?'selected':''}>${name}</option>`).join('')}</select>
-    <select data-cfg-type><option value="all">Todos tipos</option>${types.map(t=>`<option ${t===this.type?'selected':''} value="${safe(t)}">${safe(t)}</option>`).join('')}</select></div>
+    <select data-cfg-type><option value="all">Todos tipos</option>${types.map(t=>`<option ${t===this.type?'selected':''} value="${safe(t)}">${safe(({normal:'Normal',water:'Água',ice:'Gelo',fire:'Fogo',grass:'Planta',poison:'Venenoso',steel:'Aço',fighting:'Lutador',rock:'Pedra',psychic:'Psíquico',electric:'Elétrico',ground:'Terrestre',fairy:'Fada',dark:'Sombrio',ghost:'Fantasma',bug:'Inseto',dragon:'Dragão',flying:'Voador'} as Record<string,string>)[t]||t)}</option>`).join('')}</select></div>
     <label class="cfg-shop-toggle"><input type="checkbox" data-cfg-shoponly ${this.onlyShop?'checked':''}/> Apenas loja</label>
     <span class="cfg-context">${list.length} de ${entries.length} formas</span></div>
     <div class="cfg-poke-cards">${list.map(a=>{const sp=pokemon.species[a.family];return `<button class="cfg-poke-card ${a===this.entry?'active':''}" data-cfg-pokemon="${entries.indexOf(a)}" style="--rarity:${['#758492','#8fcd9c','#77b8f1','#cf91ec','#ffc96c'][sp.rarity-1]}">
@@ -246,7 +287,7 @@ export class Configurator {
   if(errors.length){alert('Não é possível exportar configurações inválidas:\n\n'+errors.slice(0,18).join('\n'));return;}
   const files=Object.fromEntries(filenames().map(file=>[`config/${file}`,outputJSON(file)]));
   const zip=zipFiles(files),url=URL.createObjectURL(zip);
-  const a=document.createElement('a');a.href=url;a.download='PokeTactics-config-V20.zip';document.body.append(a);a.click();a.remove();
+  const a=document.createElement('a');a.href=url;a.download='PokeTactics-config-V20.5.zip';document.body.append(a);a.click();a.remove();
   window.setTimeout(()=>URL.revokeObjectURL(url),2000);
  }
  attachGlobals():void {
@@ -257,7 +298,7 @@ export class Configurator {
   });
   this.el.querySelector('[data-cfg-restore-section]')!.addEventListener('click',()=>{
    if(!confirm('Restaurar os valores da seção atual?'))return;
-   const files:Record<Tab,string[]>={pokemon:['pokemons.json','ataques.json'],shop:[],augments:['augments.json'],items:['itens.json'],synergies:['sinergias.json'],loot:['espolios.json'],rules:[],phases:['fases.json'],ranges:['alcances.json'],visual:['animacoes.json','renderizacao.json'],other:[]};
+   const files:Record<Tab,string[]>={pokemon:['pokemons.json','ataques.json'],shop:[],augments:['augments.json'],items:['itens.json'],synergies:['sinergias.json'],loot:['espolios.json'],rules:[],phases:['fases.json'],ranges:['alcances.json'],other:[]};
    for(const file of files[this.tab])restore(file);
    const ruleKeys=Object.keys(documentOf('regras_gerais.json'));
    if(this.tab==='shop')for(const key of ruleKeys.filter(k=>['shopOddsByLevel','rerollCost','shopSize','typeShopBias'].includes(k)))restorePrefix('regras_gerais.json',[key]);

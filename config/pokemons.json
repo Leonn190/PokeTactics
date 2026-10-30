@@ -139,6 +139,12 @@
     "spearow": [
       "./sprites/21.png",
       "./sprites/22.png"
+    ],
+    "lapras": [
+      "./sprites/131.png"
+    ],
+    "ditto": [
+      "./sprites/132.png"
     ]
   },
   "species": {
@@ -171,8 +177,8 @@
         "bug"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Shoot",
         "projectile": "seed"
       },
@@ -381,8 +387,8 @@
         "poison"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Shoot",
         "projectile": "seed"
       },
@@ -663,8 +669,8 @@
         "electric"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Shoot",
         "projectile": "lightning"
       },
@@ -1119,8 +1125,8 @@
       "bossRange": 3,
       "bossEnergy": 65,
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Shoot"
       },
       "rangeClass": "Muito Alto",
@@ -1583,8 +1589,8 @@
         "water"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Attack",
         "projectile": "spell"
       },
@@ -1709,8 +1715,8 @@
         "electric"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Attack",
         "projectile": "spell"
       },
@@ -1772,8 +1778,8 @@
         "dark"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Attack",
         "projectile": "spell"
       },
@@ -1835,8 +1841,8 @@
         "fairy"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Attack",
         "projectile": "spell"
       },
@@ -1961,8 +1967,8 @@
         "ice"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Attack",
         "projectile": "spell"
       },
@@ -2024,8 +2030,8 @@
         "psychic"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Attack",
         "projectile": "spell"
       },
@@ -2204,8 +2210,8 @@
         "fire"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Shoot",
         "projectile": "spell"
       },
@@ -2271,8 +2277,8 @@
         "dragon"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Shoot"
       },
       "stageBases": [
@@ -2311,8 +2317,8 @@
           "move": "dragon-breath",
           "chargedAnimation": "Shoot",
           "basic": {
-            "stat": "spa",
-            "category": "special",
+            "stat": "atk",
+            "category": "physical",
             "animation": "Shoot"
           },
           "rangeClass": "Alto"
@@ -2326,8 +2332,8 @@
           "move": "dragon-cyclone",
           "chargedAnimation": "Shoot",
           "basic": {
-            "stat": "spa",
-            "category": "special",
+            "stat": "atk",
+            "category": "physical",
             "animation": "Shoot"
           },
           "rangeClass": "Médio Alto"
@@ -2546,8 +2552,8 @@
         "poison"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Shoot"
       },
       "stageBases": [
@@ -2847,8 +2853,8 @@
         "water"
       ],
       "basic": {
-        "stat": "spa",
-        "category": "special",
+        "stat": "atk",
+        "category": "physical",
         "animation": "Shoot"
       },
       "stages": [
@@ -3212,6 +3218,119 @@
       ],
       "evolutionCopies": [
         4
+      ]
+    },
+    "lapras": {
+      "names": [
+        "Lapras"
+      ],
+      "pokedexIds": [
+        131
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#81cfe1",
+      "base": {
+        "hp": 590,
+        "atk": 81,
+        "def": 80,
+        "spa": 120,
+        "spd": 102,
+        "speed": 49
+      },
+      "stageBases": [
+        {
+          "hp": 590,
+          "atk": 81,
+          "def": 80,
+          "spa": 120,
+          "spd": 102,
+          "speed": 49
+        }
+      ],
+      "range": 2,
+      "rangeClass": "Médio Alto",
+      "energy": 80,
+      "attack": "lapras-surf",
+      "elements": [
+        "water",
+        "ice"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "move": "lapras-surf",
+          "energy": 80,
+          "rangeClass": "Médio Alto",
+          "chargedAnimation": "Charge",
+          "chargedType": "water"
+        }
+      ],
+      "physicalSizes": [
+        1.21
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "ditto": {
+      "names": [
+        "Ditto"
+      ],
+      "pokedexIds": [
+        132
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#d2a0ed",
+      "base": {
+        "hp": 485,
+        "atk": 68,
+        "def": 84,
+        "spa": 76,
+        "spd": 83,
+        "speed": 59
+      },
+      "stageBases": [
+        {
+          "hp": 485,
+          "atk": 68,
+          "def": 84,
+          "spa": 76,
+          "spd": 83,
+          "speed": 59
+        }
+      ],
+      "range": 0.6,
+      "rangeClass": "Curto",
+      "energy": 0,
+      "attack": "ditto-transform",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "move": "ditto-transform",
+          "energy": 0,
+          "rangeClass": "Curto",
+          "chargedAnimation": "Attack",
+          "chargedType": "normal"
+        }
+      ],
+      "physicalSizes": [
+        0.96
+      ],
+      "evolutionCopies": [
+        3
       ]
     }
   }

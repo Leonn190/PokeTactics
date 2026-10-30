@@ -34,7 +34,10 @@
         1.55,
         1.65,
         1.75
-      ]
+      ],
+      "dotBase": 5,
+      "dotRatio": 0.12,
+      "dotDuration": 3
     },
     "aqua-spin": {
       "name": "Giro Aquático",
@@ -109,7 +112,10 @@
       "effect": "sting",
       "baseDamage": 18,
       "attackRatio": 0.95,
-      "specialRatio": 0
+      "specialRatio": 0,
+      "dotBase": 3,
+      "dotRatio": 0.1,
+      "dotDuration": 3
     },
     "firm-cocoon": {
       "name": "Casulo Firme",
@@ -118,7 +124,8 @@
       "specialRatio": 0,
       "shieldBase": 60,
       "shieldDefenseRatio": 0.85,
-      "shieldDuration": 4
+      "shieldDuration": 4,
+      "shieldSpaRatio": 0.5
     },
     "multi-jab": {
       "name": "Multistrike",
@@ -127,7 +134,9 @@
       "attackRatio": 0.4,
       "specialRatio": 0,
       "hits": 4,
-      "seconds": 0.9
+      "seconds": 0.9,
+      "finalVenomBase": 8,
+      "finalVenomSpaRatio": 0.65
     },
     "gas-cloud": {
       "name": "Nuvem de Gás",
@@ -145,7 +154,14 @@
       "radiusByStage": [
         1.85,
         2.05
-      ]
+      ],
+      "shieldBase": 35,
+      "shieldSpaRatio": 0.85,
+      "shieldDuration": 3.5,
+      "chargeMaxDuration": 3.5,
+      "gasTimeRatio": 22,
+      "gasAttackRatio": 0.25,
+      "gasReleaseDelay": 0.15
     },
     "heavy-stomp": {
       "name": "Pancada Sonolenta",
@@ -155,7 +171,11 @@
       "specialRatio": 0,
       "splashRange": 1.75,
       "jumpRange": 3,
-      "stunDuration": 1
+      "stunDuration": 2,
+      "sleepDuration": 3,
+      "sleepTicks": 5,
+      "sleepHealBase": 7,
+      "sleepHealSpaRatio": 0.28
     },
     "legendary-ice": {
       "name": "Nevasca",
@@ -214,7 +234,7 @@
       "effect": "eevee-ball",
       "baseDamage": 22,
       "attackRatio": 1,
-      "specialRatio": 0,
+      "specialRatio": 0.28,
       "splashRange": 1.65,
       "splashMultiplier": 0.85,
       "conversion": {
@@ -233,7 +253,8 @@
         "kind": "stat_buff",
         "stat": "spd",
         "points_per_damage_per_ally": 0.07,
-        "duration_seconds": 6
+        "duration_seconds": 6,
+        "spaRatio": 0.065
       }
     },
     "ball-flareon": {
@@ -248,7 +269,8 @@
         "kind": "stat_buff",
         "stat": "atk",
         "points_per_damage_per_ally": 0.065,
-        "duration_seconds": 6
+        "duration_seconds": 6,
+        "spaRatio": 0.055
       }
     },
     "ball-jolteon": {
@@ -263,7 +285,8 @@
         "kind": "stat_buff",
         "stat": "speed",
         "points_per_damage_per_ally": 0.045,
-        "duration_seconds": 4.5
+        "duration_seconds": 4.5,
+        "spaRatio": 0.05
       }
     },
     "ball-umbreon": {
@@ -278,7 +301,8 @@
         "kind": "stat_buff",
         "stat": "def",
         "points_per_damage_per_ally": 0.07,
-        "duration_seconds": 6
+        "duration_seconds": 6,
+        "spaRatio": 0.065
       }
     },
     "ball-sylveon": {
@@ -293,7 +317,8 @@
         "kind": "heal",
         "healing_pool_per_damage": 0.4,
         "distribution": "equal_split_among_actual_recipients",
-        "overheal": "discard"
+        "overheal": "discard",
+        "spaRatio": 0.24
       }
     },
     "ball-leafeon": {
@@ -309,7 +334,8 @@
         "shield_pool_per_damage": 0.34,
         "duration_seconds": 7,
         "distribution": "equal_split_among_actual_recipients",
-        "max_barrier_fraction_of_target_max_hp": 0.25
+        "max_barrier_fraction_of_target_max_hp": 0.25,
+        "spaRatio": 0.3
       }
     },
     "ball-glaceon": {
@@ -325,7 +351,8 @@
         "shield_pool_per_damage": 0.42,
         "duration_seconds": 5,
         "distribution": "equal_split_among_actual_recipients",
-        "max_barrier_fraction_of_target_max_hp": 0.3
+        "max_barrier_fraction_of_target_max_hp": 0.3,
+        "spaRatio": 0.35
       }
     },
     "ball-espeon": {
@@ -340,7 +367,8 @@
         "kind": "stat_buff",
         "stat": "spa",
         "points_per_damage_per_ally": 0.065,
-        "duration_seconds": 6
+        "duration_seconds": 6,
+        "spaRatio": 0.065
       }
     },
     "bone-cubone": {
@@ -369,7 +397,9 @@
       "baseDamage": 32,
       "attackRatio": 1.15,
       "specialRatio": 0,
-      "controlDuration": 0.75
+      "controlDuration": 0.75,
+      "controlSpaRatio": 0.0045,
+      "controlMax": 2
     },
     "rise-steelix": {
       "name": "Cauda de Ferro Ascendente",
@@ -377,7 +407,9 @@
       "baseDamage": 42,
       "attackRatio": 1.3,
       "specialRatio": 0,
-      "controlDuration": 0.95
+      "controlDuration": 0.95,
+      "controlSpaRatio": 0.006,
+      "controlMax": 2.5
     },
     "rock-geodude": {
       "name": "Golpe Rochoso",
@@ -385,7 +417,9 @@
       "baseDamage": 28,
       "specialRatio": 0,
       "attackRatio": 1.2,
-      "skillRange": 3.2
+      "skillRange": 3.2,
+      "durabilitySpaRatio": 0.00016,
+      "durabilityMax": 0.35
     },
     "rock-graveler": {
       "name": "Golpe Rochoso Pesado",
@@ -393,7 +427,9 @@
       "baseDamage": 38,
       "specialRatio": 0,
       "attackRatio": 1.35,
-      "skillRange": 3.2
+      "skillRange": 3.2,
+      "durabilitySpaRatio": 0.0002,
+      "durabilityMax": 0.35
     },
     "golem-withdraw": {
       "name": "Withdraw — Casca Fortificada",
@@ -403,7 +439,9 @@
       "attackRatio": 0,
       "skillRange": 3.2,
       "guardDuration": 4.5,
-      "guardReduction": 0.6
+      "guardReduction": 0.35,
+      "guardSpaRatio": 0.001,
+      "guardMaxReduction": 0.75
     },
     "egg-chansey": {
       "name": "Ovo Revigorante",
@@ -432,7 +470,7 @@
       "effect": "rock-charge",
       "baseDamage": 28,
       "attackRatio": 0.8,
-      "specialRatio": 0,
+      "specialRatio": 0.18,
       "controlDuration": 0.4
     },
     "charge-rhydon": {
@@ -440,7 +478,7 @@
       "effect": "rock-charge",
       "baseDamage": 36,
       "attackRatio": 0.9,
-      "specialRatio": 0,
+      "specialRatio": 0.22,
       "controlDuration": 0.5
     },
     "charge-rhyperior": {
@@ -448,7 +486,7 @@
       "effect": "rock-charge",
       "baseDamage": 44,
       "attackRatio": 1,
-      "specialRatio": 0,
+      "specialRatio": 0.28,
       "controlDuration": 0.6
     },
     "pierce-vulpix": {
@@ -577,7 +615,7 @@
       "effect": "brutal-kick",
       "baseDamage": 22,
       "attackRatio": 0.8,
-      "specialRatio": 0,
+      "specialRatio": 0.2,
       "push": 1,
       "wallDamage": 25,
       "stunDuration": 0.5
@@ -587,7 +625,7 @@
       "effect": "brutal-kick",
       "baseDamage": 35,
       "attackRatio": 1.05,
-      "specialRatio": 0,
+      "specialRatio": 0.24,
       "push": 2,
       "wallDamage": 40,
       "stunDuration": 0.8
@@ -597,7 +635,7 @@
       "effect": "brutal-kick",
       "baseDamage": 52,
       "attackRatio": 1.35,
-      "specialRatio": 0,
+      "specialRatio": 0.3,
       "push": 3,
       "wallDamage": 65,
       "stunDuration": 1.1
@@ -618,7 +656,7 @@
       "effect": "fang-tail",
       "baseDamage": 70,
       "attackRatio": 1.45,
-      "specialRatio": 0,
+      "specialRatio": 0.24,
       "tailBase": 38,
       "tailRatio": 0.65,
       "tailRadius": 2,
@@ -628,7 +666,7 @@
       "name": "Refração Estelar",
       "effect": "star-refraction",
       "baseDamage": 0,
-      "specialRatio": 0,
+      "specialRatio": 0.75,
       "seconds": 3,
       "secondaryTargetsByStage": [
         2,
@@ -746,6 +784,26 @@
       "defBonusPercent": 0.25,
       "spdBonusPercent": 0.25,
       "maxDuration": 0
+    },
+    "lapras-surf": {
+      "name": "Surfe",
+      "effect": "lapras-surf",
+      "baseDamage": 34,
+      "specialRatio": 0.92,
+      "surfSteps": 2,
+      "waveMaxDistance": 11,
+      "waveRadius": 0.6,
+      "waveSpeed": 5.8,
+      "shieldSpaRatio": 0.22,
+      "continuationMultiplier": 0.5
+    },
+    "ditto-transform": {
+      "name": "Transformação",
+      "effect": "ditto-transform",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "levelBonusCap": 6,
+      "revertHealthRatio": 0.3
     }
   }
 }

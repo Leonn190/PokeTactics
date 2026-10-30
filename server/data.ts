@@ -37,7 +37,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -50,7 +50,7 @@ export type MoveData = {
   shieldDuration?: number; hits?: number; attackRatioByStage?: number[]; radiusByStage?: number[];
   jumpRange?: number; stunDuration?: number;
   splashMultiplier?: number;
-  conversion?: { kind: 'none' | 'stat_buff' | 'heal' | 'barrier'; stat?: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; points_per_damage_per_ally?: number; duration_seconds?: number; healing_pool_per_damage?: number; shield_pool_per_damage?: number; max_barrier_fraction_of_target_max_hp?: number };
+  conversion?: { kind: 'none' | 'stat_buff' | 'heal' | 'barrier'; stat?: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; points_per_damage_per_ally?: number; duration_seconds?: number; healing_pool_per_damage?: number; shield_pool_per_damage?: number; spaRatio?: number; max_barrier_fraction_of_target_max_hp?: number };
   shredBase?: number; shredRatio?: number; shredDuration?: number; controlDuration?: number;
   skillRange?: number; selfHpCost?: number; guardDuration?: number; guardReduction?: number;
   chance?: number; push?: number; wallDamage?: number; tailBase?: number; tailRatio?: number; tailRadius?: number;
@@ -60,6 +60,14 @@ export type MoveData = {
   orbCount?: number; orbitRadius?: number; rotationSpeed?: number; orbRadius?: number;
   impactsBase?: number; spaPerExtraImpact?: number; maxImpacts?: number; reimpactSeconds?: number;
   speedBonusPercent?: number; defBonusPercent?: number; spdBonusPercent?: number; maxDuration?: number;
+  finalVenomBase?: number; finalVenomSpaRatio?: number;
+  chargeMaxDuration?: number; gasTimeRatio?: number; gasAttackRatio?: number; gasReleaseDelay?: number;
+  sleepDuration?: number; sleepTicks?: number; sleepHealBase?: number; sleepHealSpaRatio?: number;
+  controlSpaRatio?: number; controlMax?: number;
+  durabilitySpaRatio?: number; durabilityMax?: number;
+  guardSpaRatio?: number; guardMaxReduction?: number;
+  surfSteps?: number; waveMaxDistance?: number; waveRadius?: number; waveSpeed?: number;
+  continuationMultiplier?: number; levelBonusCap?: number; revertHealthRatio?: number;
 };
 
 export const ATTACKS = movesConfig as unknown as {
@@ -111,8 +119,8 @@ export function getStageData(family: Family, stage: number): StageData {
   // The old range number must never silently convert a melee attacker into a gunner.
   const ranged = !!basicOriginal?.projectile || basicOriginal?.animation === 'Shoot' || basicOriginal?.animation === 'SpAttack';
   const basic: BasicAttackData = {
-    stat: basicOriginal?.stat || 'atk',
-    category: basicOriginal?.category || 'physical',
+    stat: 'atk', // authoritative universal rule; visual element stays unchanged
+    category: 'physical',
     animation: basicOriginal?.animation || (ranged ? ANIMATIONS.basic.rangedAnimation : ANIMATIONS.basic.meleeAnimation),
     ...(ranged ? { projectile: 'basic-projectile' as const } : {})
   };

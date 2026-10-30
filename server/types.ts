@@ -85,7 +85,7 @@ export interface FearState { fromX: number; fromY: number; toX: number; toY: num
 export interface DigState { phase: 'sink' | 'travel' | 'rise'; time: number; duration: number; fromX: number; fromY: number; toX: number; toY: number; targetId: string; trailClock: number }
 export interface StormState { x: number; y: number; nextWave: number; waves: number; targetIds: string[]; elapsed: number }
 export interface TimedStatEffect { sourceId: string; stat: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; amount: number; until: number }
-export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' | 'item' | 'synergy' }
+export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' | 'item' | 'synergy' | 'surf' }
 
 /** Snapshot-owned combat modifiers; never written back to the Pokemon roster. */
 export interface SynergyUnitState {
@@ -174,6 +174,11 @@ export interface CombatUnit {
     fromX:number;fromY:number;toX:number;toY:number;elapsed:number;duration:number;remaining:number;hitDone:boolean} | null;
   combo: { targetId: string; hits: number; time: number; interval: number } | null;
   gasTime: number;
+  gasCharge: { startedAt: number; maxDuration: number } | null;
+  sleep: { time: number; healed: number } | null;
+  surf: { dx: number; dy: number; travelled: number; waveTravel: number; maxTravel: number; maxWave: number; waveX: number; waveY: number; hitIds: string[]; shieldIds: string[]; fxId: string; } | null;
+  ditto: { used: boolean; active: boolean; original: { family: Family; stage: number; stats: Stats; iv: Stats; level: number; range: number; energyNeeded: number; hp: number; maxHp: number } } | null;
+  guardReductionEffective?: number;
   support: { time: number; moveId: string } | null;
   leap: { fromX: number; fromY: number; toX: number; toY: number; time: number; duration: number } | null;
   charge: { fromX: number; fromY: number; toX: number; toY: number; time: number; duration: number;
@@ -200,7 +205,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform';
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;
