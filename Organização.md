@@ -1,4 +1,4 @@
-# Organização — manual de desenvolvimento do PokéTactics (v20.3)
+# Organização — manual de desenvolvimento do PokéTactics (V20.7)
 
 > **Leitura obrigatória para agentes e desenvolvedores.** Este manual descreve a arquitetura efetiva da V20.3. Leia também `AGENTS.md`. Antes de seguir um caminho mencionado aqui, confira se a implementação ainda existe: o código prevalece sobre descrições históricas.
 
@@ -114,3 +114,36 @@ O nome `server/` significa **motor de regras**, não um servidor HTTP ativo. O W
 ## 11. Critérios mínimos de aceitação
 
 Uma atualização está pronta quando suas responsabilidades ficam claras, não há duplicação intencional, os dados continuam íntegros, as regras e visuais não solicitados permanecem equivalentes, `npm run validate:config`, `npm run check` e `npm run build` passam e a documentação aponta para o código efetivo. Não atribuir percentuais de melhora de FPS/CPU sem benchmarks equivalentes antes e depois; alterações técnicas relevantes devem indicar onde economizam trabalho e como são invalidadas.
+
+## V20.5 preservada na V20.7: contratos de compatibilidade
+
+- **Ataque regular:** `server/data.ts#getStageData` define `atk`/`physical`; `server/systems/combat.ts` consome ATK. Tipo visual de projétil não é dano especial.
+- **Alcances:** `server/combat/basic-range.ts` agora concentra `basicInRange`, `basicApproachDistance` e cálculo de alcance efetivo, respeitando a escala do mundo. Tamanhos visuais e colisões não ampliam alcance.
+- **Lapras:** `lapras-surf` continua no loop lógico `server/systems/combat.ts`; reutiliza colisão física, `deal`, `shieldMultiplier` e `server/combat/effects.ts`. `src/client/render/effects.ts` só desenha a onda. Estado `surf` está em `server/types.ts`.
+- **Ditto:** estado de cópia por `CombatUnit`, atributos por `calculateStats` e itens do próprio Ditto; transformações não modificam elenco persistente.
+- **Editor técnico:** `src/client/configurator/editor.ts`, `state.ts`, `preview.ts` e `zip.ts` preservam senha, exportação ZIP, preview e parâmetros originais. Não recriar aba de animações; `config/animacoes.json` continua presente.
+- **Performance herdada:** preservar `server/combat/flame-orbits.ts`, `server/combat/targeting.ts`, caches e o carregamento tardio do editor.
+- **Assets:** o ZIP V20.5 fornecido contém `config/`, `server/` e `src/`, mas não contém `public/`; nunca substituir nem remover assets do repositório com base no ZIP.
+
+## V20.7: novas responsabilidades e como atualizar
+
+| Funcionalidade | Arquivo proprietário | Regras de evolução |
+| --- | --- | --- |
+| Preferências pessoais | `src/client/player-settings.ts` | Volume 0–100, FPS 30–120 (padrão 75); armazenamento local `poketactics.player-settings.v1`; **não** incluir em `config/` nem no ZIP do editor |
+| Áudio | `src/client/audio.ts` | Web Audio com sintetização original após gesto do usuário. Não instanciar outros AudioContexts em cada tela |
+| Limite de desenho | `src/client/performance/frame-scheduler.ts`, `src/client/arena.ts#setFrameRate` | Ajuste instantâneo; só RAF/renderização; nunca vincular combate, bots, cooldowns ou ticks a FPS |
+| Acesso às telas | `src/client/menus.ts`, `src/client/main.ts`, `src/pages/index.astro` | Preferências abrem do menu e da arena; editor técnico é opção separada e lazy-loaded |
+| Alcance de ataques regulares | `server/combat/basic-range.ts` | Reutilize `basicInRange` e `basicApproachDistance`; não duplique métricas nem altere limites sem solicitação de balanceamento |
+| Arena e renderização | `src/client/arena.ts` | Reutilize `orientationIds`, `enemyIntroOrder` e `renderMarkers` sem alterar/ordenar buffers cacheados de preparação |
+| Snapshots | `server/engine.ts#snapshot`, `server/sim.worker.ts` | A vista retornada compartilha referências temporárias com o motor até o `postMessage` fazer structured clone. **Nunca reter ou modificar o retorno antes de enviar.** Outro consumidor que precisar reter a vista deverá clonar explicitamente |
+
+### Invariantes de desempenho e extensibilidade
+
+1. Antes de extrair função de `combat.ts`, identifique estado, efeitos colaterais, consumo de aleatoriedade, critério de desempate e ordem de execução. Extraia por **mecânica compartilhável**, nunca um arquivo por Pokémon.
+2. Caches entre frames podem reter buffers visuais; caches entre ticks de combate exigem invalidação sempre que posição, equipamento, buffs ou estado de morte mudarem.
+3. O cliente não implementa dano; o Worker não conhece DOM ou Canvas. As preferências pessoais são exclusivamente locais e não alteram JSONs globais.
+4. Evite `filter`+`sort`+`map` em caminhos desenhados a cada quadro quando puder reaproveitar buffers sem alterar semântica; preserve visuais PMD, sombras e efeitos.
+5. O CSS usa cascata histórica: **não** eliminar regras semelhantes sem verificar precedência e aparência em todas as telas.
+6. Não crie infraestrutura, pastas ou arquivos de testes. Execute `npm run validate:config`, `npm run check` e `npm run build`, faça verificações manuais e relate limitações/medições reais (F3) sem inventar percentuais.
+7. Ao adicionar Pokémon ou habilidade, parta de `config/pokemons.json`, `config/ataques.json`, `server/data.ts` e o despachante existente. Para PMD, use `src/client/animation/` e manifesto; nunca apague `public/`.
+
