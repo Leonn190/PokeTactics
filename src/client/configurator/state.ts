@@ -8,6 +8,10 @@ const readJSON=(text:string):any=>JSON.parse(text);
 const clone=<T>(obj:T):T=>structuredClone(obj);
 const original:Record<string,any>=Object.fromEntries(Object.entries(originalRaw).map(([name,text])=>[name,readJSON(text)]));
 let active:Record<string,any>=clone(original);
+// Every editor mutation invalidates derived diff results; renders may reuse them.
+let revision=0, changedRevision=-1, modificationsRevision=-1;
+let changesCache:string[]=[];
+let modificationsCache:Change[]=[];
 const at=(root:any,path:PathPart[])=>path.reduce((v,k)=>v?.[k],root);
 export const filenames=()=>Object.keys(active).sort((a,b)=>a.localeCompare(b,'pt-BR'));
 export const documentOf=(name:string):any=>active[name];
@@ -19,11 +23,16 @@ export function setValue(file:string,path:PathPart[],value:unknown):void {
  const container=at(active[file],path.slice(0,-1));
  if(container==null || !(path.at(-1)! in container))throw Error('Campo inexistente');
  container[path.at(-1)!]=value;
+ revision++;
 }
 export function setSeveral(file:string,entries:Array<{path:PathPart[];value:unknown}>):void {for(const entry of entries)setValue(file,entry.path,entry.value);}
-export function changedFiles():string[]{return filenames().filter(file=>JSON.stringify(original[file])!==JSON.stringify(active[file]));}
+export function changedFiles():string[]{
+ if(changedRevision!==revision){changesCache=filenames().filter(file=>JSON.stringify(original[file])!==JSON.stringify(active[file]));changedRevision=revision;}
+ return changesCache;
+}
 export type Change={file:string;path:PathPart[];before:unknown;after:unknown};
 export function modifications():Change[]{
+ if(modificationsRevision===revision)return modificationsCache;
  const changes:Change[]=[];
  const inspect=(file:string,a:any,b:any,path:PathPart[])=>{
   if(Object.is(a,b))return;
@@ -33,11 +42,12 @@ export function modifications():Change[]{
   for(const key of Object.keys(b))inspect(file,a[key],b[key],path.concat(Array.isArray(b)?Number(key):key));
  };
  for(const file of filenames())inspect(file,original[file],active[file],[]);
+ modificationsRevision=revision;modificationsCache=changes;
  return changes;
 }
 export function restore(file?:string):void {
- if(file){active[file]=clone(original[file]);return;}
- active=clone(original);
+ if(file){active[file]=clone(original[file]);revision++;return;}
+ active=clone(original);revision++;
 }
 export function restorePrefix(file:string,prefix:PathPart[]):void {
  if(!prefix.length){restore(file);return;}
