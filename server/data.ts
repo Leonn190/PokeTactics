@@ -11,6 +11,8 @@ import type { Element, Family, Rarity, StageType, Stats } from './types';
 export type BasicAttackData = { stat: 'atk' | 'spa'; category: 'physical' | 'special'; animation: string; projectile?: string };
 export const ANIMATIONS = animationConfig;
 export const RENDER_SETTINGS = renderConfig;
+/** Physical item platform, shared by canvas projection and authoritative trainer collision. */
+export const ITEM_RACK_WORLD = {x:-6.25,y:4.12,radiusX:1.40,radiusY:.86} as const;
 export type StageData = { elements: Element[]; rangeClass: RangeClass; range: number; energy: number; move: string; chargedType: Element; chargedAnimation: string; basic: BasicAttackData };
 export interface SpeciesData {
   names: string[];
