@@ -147,3 +147,9 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 6. Não crie infraestrutura, pastas ou arquivos de testes. Execute `npm run validate:config`, `npm run check` e `npm run build`, faça verificações manuais e relate limitações/medições reais (F3) sem inventar percentuais.
 7. Ao adicionar Pokémon ou habilidade, parta de `config/pokemons.json`, `config/ataques.json`, `server/data.ts` e o despachante existente. Para PMD, use `src/client/animation/` e manifesto; nunca apague `public/`.
 
+## V22.5: consistência entre loja, inventário e evolução
+
+- Loja: `server/engine.ts` atualiza ofertas na preparação (exceto loja travada); `src/client/main.ts` renderiza o HUD imediatamente quando muda a sequência dos IDs das ofertas. `GameCommand.buy.offerId` deve corresponder à oferta mostrada em `data-shop-offer`; nunca comprar apenas pelo índice visual antigo.
+- Arraste: `src/client/main.ts` captura o ponteiro no contêiner estável `inventoryContents`. Cliques com ponteiro não ativam seleção persistente; soltar fora de alvo válido encerra o gesto sem enviar comando. A ativação via teclado permanece disponível, com Escape para cancelar.
+- Evolução: `server/engine.ts#merge` limpa escolhas pendentes de Scyther quando a quantidade fica insuficiente; escolhas pendentes de outras famílias não devem disparar evolução aleatória de Eevee humano.
+- Revisão manual: loja travada e destravada, reroll, início de etapa, cliques rápidos e compras consecutivas, soltar item em Pokémon/slot/vazio, saída de janela, Pokébola, escolhas simultâneas Eevee/Scyther/Tyrogue. Não adicionar arquivos de testes.
