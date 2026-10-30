@@ -1,5 +1,5 @@
 import { beginCombatAugments, onAugmentBasic, onAugmentCast, onAugmentDamage, onAugmentDeath, tickCombatAugments } from './augments';
-import { ANIMATIONS, ATTACKS, calculateStats, getStageData, gridXY, SPECIES } from '../data';
+import { ANIMATIONS, ATTACKS, calculateStats, getStageData, gridXY, SPECIES, steppedRange } from '../data';
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
@@ -28,6 +28,21 @@ function stat(unit: CombatUnit, key: StatKey): number {
   const synergySpeed=key==='speed'?base*(unit.synergy?.speedBonus||0):0;
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
   return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='speed' ? 1-(unit.windSlow||0) : 1);
+}
+
+/** Attack range is measured to a target's near edge for melee combatants.
+ * Projectile attackers still use exact center distance. This lets 0.6-range units
+ * hit an adjacent 1.04-spaced slot without overlapping sprites. */
+function effectiveBasicRange(unit:CombatUnit,now:number):number {
+ const base=getStageData(unit.family,unit.stage);
+ const bonus=unit.range-base.range;
+ const advanced=unit.family==='staryu' && unit.stage===1 && unit.refractionUntil>now
+   ? steppedRange(base.rangeClass,1) : base.range;
+ return advanced+bonus;
+}
+function basicInRange(unit:CombatUnit,enemy:CombatUnit,now:number):boolean {
+ const melee=!getStageData(unit.family,unit.stage).basic.projectile;
+ return distance(unit,enemy)<=effectiveBasicRange(unit,now)+(melee?.52:0)+.08;
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -75,7 +90,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
-    dig: null, ghost: null, ghostCasts: 0, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, attackSpeedDebuffUntil: 0,
+    dig: null, ghost: null, ghostCasts: 0, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
     gasTime: 0, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
@@ -372,6 +387,7 @@ function landProjectiles(battle: Battle, dt: number): void {
       const amount = (move.dotBase || 0) + caster.stats.spa * (move.dotRatio || 0);
       if (!target.poison || amount >= target.poison.amount) {
         target.poison = { amount, time: move.dotDuration || 3, sourceId: caster.id, accumulator: 0 };
+        target.itemTimers.poison_tick=0;
       } else target.poison.time = move.dotDuration || 3;
       effect(battle, caster, target, 'poison', 0);
     }
@@ -461,6 +477,10 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   target.metrics.taken += damage;
   const hpBefore=target.hp;
   target.hp -= damage;
+  // Exactly one energy point per *effective damage event*, not per damage amount.
+  // Barrier absorption counts; a fully prevented hit does not. No further events are emitted.
+  if (damage + absorbedTotal > 0)
+    target.energy = Math.min(target.energyNeeded,target.energy+1);
   if (damage > 0) floatingDamage(battle, target, damage, magical ? 'special' : 'physical');
   target.flash = 0.19;
   if (damage > target.maxHp * .2 && target.hp > 0 && !target.leap && !target.combo) animate(target, 'Hurt', .28, target.spinTime > 0 ? 'Withdraw' : undefined);
@@ -533,6 +553,128 @@ function supportTick(battle: Battle, source: CombatUnit, dt: number): void {
   }
 }
 
+/** One shared movement/strike timeline for the Hitmons; animations and damage use
+ * the same simulation clock. Paths and landing points never cross occupied units. */
+function validHitmonLanding(battle:Battle,source:CombatUnit,x:number,y:number):boolean {
+ const bounds=arenaBoundary(battle);
+ if(x<bounds.minX||x>bounds.maxX||y<bounds.minY||y>bounds.maxY)return false;
+ for(const unit of battle.units) if(unit!==source&&unit.hp>0) {
+  if(Math.hypot(unit.x-x,unit.y-y)<.67)return false;
+  if(segmentDistanceSq(source.x,source.y,x,y,unit.x,unit.y)<.55**2)return false;
+ }
+ return true;
+}
+function hitmonLocations(battle:Battle,source:CombatUnit,dash:number):Array<{x:number;y:number}> {
+ const points=[{x:source.x,y:source.y}];
+ // Finite, deterministic candidates, including the original point and short steps.
+ for (let i=0;i<24;i++) for(const fraction of [.5,1]){
+  const angle=i*Math.PI/12,dist=dash*fraction;
+  const x=source.x+Math.cos(angle)*dist,y=source.y+Math.sin(angle)*dist;
+  if(validHitmonLanding(battle,source,x,y))points.push({x,y});
+ }
+ return points;
+}
+function hitmonChoice(battle:Battle,source:CombatUnit,moveId:string):{x:number;y:number;target:CombatUnit}|null {
+ const move=ATTACKS.moves[moveId],radius=move.hitRadius||1;
+ const positions=hitmonLocations(battle,source,move.dashRange||1);
+ const enemies=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u));
+ if(move.effect==='hitmonchan-uppercut') {
+  return enemies.flatMap(enemy=>positions.filter(point=>distance(point,enemy)<=radius+.01)
+    .map(point=>({...point,target:enemy}))).sort((a,b)=>b.target.hp-a.target.hp
+      ||distance(a,source)-distance(b,source)||a.target.id.localeCompare(b.target.id)||a.x-b.x||a.y-b.y)[0]||null;
+ }
+ const choices=positions.map(point=>{
+  const hits=enemies.filter(enemy=>distance(point,enemy)<=(move.splashRange||1.25));
+  return {...point,hits,hpTotal:hits.reduce((sum,u)=>sum+u.hp,0)};
+ }).filter(c=>c.hits.length).sort((a,b)=>b.hits.length-a.hits.length||b.hpTotal-a.hpTotal
+   ||distance(a,source)-distance(b,source)||a.x-b.x||a.y-b.y);
+ const best=choices[0];
+ if(!best)return null;
+ return {x:best.x,y:best.y,target:best.hits.sort((a,b)=>a.id.localeCompare(b.id))[0]};
+}
+function activateHitmon(battle:Battle,source:CombatUnit,moveId:string):boolean {
+ const move=ATTACKS.moves[moveId];
+ if(move.effect==='hitmonlee-spin-kick'&&!source.hitmonGuaranteed) {
+  // Same seed and cast sequence => same 50/50 sequence, no Math.random.
+  const bits=(battle.seed^Math.imul(++source.hitSerial+source.metrics.casts,0x9e3779b9))>>>0;
+  let x=bits^(bits>>>16);x=Math.imul(x,0x7feb352d);x^=x>>>15;
+  if((x>>>0)/4294967296<(move.chance??.5)) {
+   const spa=stat(source,'spa');
+   const shield=(move.shieldBase||0)+spa*(move.shieldSpaRatio||0);
+   const key='hitmonlee:guard:'+source.id;
+   const cap=Math.max(0,source.maxHp*.35-source.barriers.filter(b=>b.sourceId!==key).reduce((v,b)=>v+b.hp,0));
+   const old=source.barriers.find(b=>b.sourceId===key);
+   if(old){old.hp=Math.max(old.hp,Math.min(shield*shieldMultiplier(source),cap));old.until=battle.elapsed+(move.shieldDuration||5);}
+   else source.barriers.push({sourceId:key,kind:'item',hp:Math.min(shield*shieldMultiplier(source),cap),until:battle.elapsed+(move.shieldDuration||5)});
+   const buffKey='hitmonlee:speed:'+source.id;
+   const amount=(move.bonusBase||0)+spa*(move.bonusSpaRatio||0);
+   const prev=source.buffs.find(b=>b.sourceId===buffKey&&b.stat==='speed');
+   if(prev){prev.amount=amount;prev.until=battle.elapsed+(move.buffDuration||5);}
+   else source.buffs.push({sourceId:buffKey,stat:'speed',amount,until:battle.elapsed+(move.buffDuration||5)});
+   source.hitmonGuaranteed=true;
+   animate(source,'Charge',.48);
+   effect(battle,source,source,'shield',shield);
+   return true;
+  }
+ }
+ const choice=hitmonChoice(battle,source,moveId);
+ if(!choice)return false;
+ const moves=distance(source,choice)>.06;
+ const action:NonNullable<CombatUnit['hitmonAction']>={phase:moves?'move':'strike',kind:move.effect==='hitmonchan-uppercut'?'uppercut':'kick',
+  moveId,targetId:choice.target.id,fromX:source.x,fromY:source.y,toX:choice.x,toY:choice.y,
+  elapsed:0,duration:moves?.27:.52,remaining:source.hitmonGuaranteed?2:1,hitDone:false};
+ source.hitmonGuaranteed=false;
+ source.hitmonAction=action;
+ source.facingX=choice.target.x-source.x;source.facingY=choice.target.y-source.y;
+ animate(source,moves?'Walk':getStageData(source.family,source.stage).chargedAnimation,action.duration);
+ return true;
+}
+function tickHitmonAction(battle:Battle,source:CombatUnit,dt:number):void {
+ const action=source.hitmonAction;if(!action)return;
+ const move=ATTACKS.moves[action.moveId];
+ action.elapsed=Math.min(action.duration,action.elapsed+dt);
+ if(action.phase==='move'){
+  const t=action.elapsed/action.duration;
+  source.x=action.fromX+(action.toX-action.fromX)*t;
+  source.y=action.fromY+(action.toY-action.fromY)*t;
+  source.moving=true;
+  if(t>=1){action.phase='strike';action.elapsed=0;action.duration=.52;animate(source,getStageData(source.family,source.stage).chargedAnimation,.52);}
+  return;
+ }
+ if(action.phase==='pause'){
+  if(action.elapsed>=action.duration){action.phase='strike';action.elapsed=0;action.duration=.52;action.hitDone=false;
+   animate(source,'Kick',.52);}
+  return;
+ }
+ if(!action.hitDone && action.elapsed>=(move.impactDelay||.25)){
+  action.hitDone=true;
+  const old=battle.units.find(u=>u.id===action.targetId);
+  if(action.kind==='uppercut'){
+   if(old&&isTargetable(old)&&distance(source,old)<=(move.hitRadius||1)+.14){
+    const hp=old.hp;
+    deal(battle,source,old,move.baseDamage+stat(source,'atk')*(move.attackRatio||0),false,true,'fighting');
+    const seconds=Math.max(move.stunMin||.45,Math.min(move.stunMax||1.8,(move.stunBase||.65)+stat(source,'spa')*(move.stunSpaRatio||.008)-hp*(move.stunHpRatio||.0007)));
+    if(old.hp>0&&!old.controlImmune && !(effectCount(old,'opening_immunity')&&battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))){
+     source.metrics.controlSeconds+=Math.max(0,battle.elapsed+seconds-Math.max(battle.elapsed,old.stunUntil));
+     old.stunUntil=Math.max(old.stunUntil,battle.elapsed+seconds);
+     old.stunTime=Math.max(0,old.stunUntil-battle.elapsed);
+    }
+    effect(battle,source,old,'kick-impact',.7);
+   }
+  }else{
+   const victims=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u)&&distance(u,source)<=(move.splashRange||1.25))
+     .sort((a,b)=>a.id.localeCompare(b.id));
+   for(const victim of victims)deal(battle,source,victim,move.baseDamage+stat(source,'atk')*(move.attackRatio||0),false,true,'fighting');
+   effect(battle,source,source,'hitmon-spin',move.splashRange||1.25);
+  }
+ }
+ if(action.elapsed>=action.duration){
+  action.remaining--;
+  if(action.remaining>0){action.phase='pause';action.elapsed=0;action.duration=.12;}
+  else source.hitmonAction=null;
+ }
+}
+
 function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): void {
   const stage = getStageData(source.family, source.stage);
   const moveId = moveIdOf(source), move = ATTACKS.moves[moveId];
@@ -548,6 +690,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='hitmonchan-uppercut'||move.effect==='hitmonlee-spin-kick'){activateHitmon(battle,source,moveId);return;}
   if(move.effect==='bite-shred'&&target){
     animate(source,stage.chargedAnimation,.4);
     projectile(battle,source,target,'bite-impact',move.baseDamage+a*(move.attackRatio||0),false,true,.3,
@@ -1311,9 +1454,14 @@ export function tickBattle(battle: Battle, dt: number): void {
         effect(battle,unit,target,'flame',0);
       }
     }
-    if (unit.itemBurn && unit.itemBurn.until>battle.elapsed && unit.hp>0) {
+    if (unit.itemBurn && unit.itemBurn.until>battle.elapsed-dt && unit.hp>0) {
       const burner=battle.units.find(e=>e.id===unit.itemBurn!.sourceId);
-      if (burner) deal(battle,burner,unit,unit.itemBurn.dps*dt,true,true,undefined,'dot');
+      const burn=unit.itemBurn, portion=Math.min(dt,Math.max(0,burn.until-(battle.elapsed-dt)));
+      burn.accumulator=(burn.accumulator||0)+burn.dps*portion;
+      burn.tickTime=(burn.tickTime||0)+portion;
+      if(burner && (burn.tickTime>=.5-1e-7||burn.until<=battle.elapsed)){
+        deal(battle,burner,unit,burn.accumulator,true,true,undefined,'dot');burn.accumulator=0;burn.tickTime=0;
+      }
     }
     if (unit.itemBurn && unit.itemBurn.until<=battle.elapsed) unit.itemBurn=null;
   }
@@ -1352,16 +1500,27 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.damageOverTime) {
       const dot = unit.damageOverTime;
       const source = battle.units.find(other => other.id === dot.sourceId);
-      if (source) deal(battle, source, unit, dot.amount * Math.min(dt, dot.time), true, true,undefined,'dot');
-      dot.time -= dt;
-      if (dot.time <= 0) unit.damageOverTime = null;
+      const portion=Math.min(dt,dot.time);
+      dot.accumulator=(dot.accumulator||0)+dot.amount*portion;
+      dot.tickTime=(dot.tickTime||0)+portion;
+      dot.time-=portion;
+      if(source && (dot.tickTime>=.5-1e-7 || dot.time<=0)){
+        deal(battle,source,unit,dot.accumulator,true,true,undefined,'dot');dot.accumulator=0;dot.tickTime=0;
+      }
+      if(dot.time<=0)unit.damageOverTime=null;
     }
     if (unit.poison && unit.hp > 0) {
       const dot = unit.poison;
       const source = battle.units.find(other => other.id === dot.sourceId);
-      if (source) deal(battle, source, unit, dot.amount * Math.min(dt, dot.time), true, true, 'poison','dot');
-      dot.time -= dt;
-      if (dot.time <= 0) unit.poison = null;
+      const portion=Math.min(dt,dot.time);
+      dot.accumulator+=dot.amount*portion;
+      dot.time-=portion;
+      // A separate clock for poison; no energy proc per rendering/simulation frame.
+      const tickKey='poison_tick';unit.itemTimers[tickKey]=(unit.itemTimers[tickKey]||0)+portion;
+      if(source && (unit.itemTimers[tickKey]>=.5-1e-7||dot.time<=0)){
+        deal(battle,source,unit,dot.accumulator,true,true,'poison','dot');dot.accumulator=0;unit.itemTimers[tickKey]=0;
+      }
+      if(dot.time<=0){unit.poison=null;unit.itemTimers[tickKey]=0;}
     }
     if (unit.hp <= 0) continue;
     unit.stunTime = Math.max(0, unit.stunUntil - battle.elapsed);
@@ -1371,6 +1530,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.dig) { digTick(battle,unit,dt); continue; }
     if (unit.storm) { stormTick(battle,unit,dt); continue; }
     if(pendingSkillTick(battle,unit))continue;
+    if(unit.hitmonAction){tickHitmonAction(battle,unit,dt);continue;}
     if(unit.synergy?.flight || (unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil>battle.elapsed))continue;
     if (unit.charge) { chargeTick(battle,unit,dt); continue; }
     if (unit.stunTime > 0 && !(effectCount(unit,'opening_immunity') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) {
@@ -1418,17 +1578,36 @@ export function tickBattle(battle: Battle, dt: number): void {
     const d = Math.sqrt(distanceSq);
     unit.facingX = target.x - unit.x;
     unit.facingY = target.y - unit.y;
+    if(unit.attackClock<=0 && unit.energy>=unit.energyNeeded &&
+       (move.effect==='hitmonchan-uppercut'||move.effect==='hitmonlee-spin-kick') &&
+       !!hitmonChoice(battle,unit,moveIdOf(unit))){
+      unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown*(unit.slow?1.3:1);continue;
+    }
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded && move.effect === 'stomp' && d <= (move.jumpRange || 3)) {
       unit.energy = 0;
       spell(battle, unit, target);
       unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);
       continue;
     }
-    if (d > unit.range + 0.08) {
-      const travel = Math.min(d - unit.range, dt * (0.68 + stat(unit,'speed') / 180) * (unit.slow ? 0.65 : 1));
-      unit.x += (target.x - unit.x) / d * travel;
-      unit.y += (target.y - unit.y) / d * travel;
-      unit.moving = travel > .001;
+    if (!basicInRange(unit,target,battle.elapsed)) {
+      const stageBasic=getStageData(unit.family,unit.stage);
+      const reach=effectiveBasicRange(unit,battle.elapsed)+(!stageBasic.basic.projectile ? .52 : 0)+.04;
+      let travel=Math.min(Math.max(0,d-reach),dt*(.68+stat(unit,'speed')/180)*(unit.slow?.65:1));
+      const bounds=arenaBoundary(battle);
+      const dx=(target.x-unit.x)/d,dy=(target.y-unit.y)/d;
+      // Local steering around nearby units; never move into another body.
+      // Stable order + deterministic angles keeps replays identical across clients.
+      let next:{x:number;y:number}|null=null;
+      for(const angle of [0,.45,-.45,.9,-.9,1.35,-1.35]){
+        const vx=dx*Math.cos(angle)-dy*Math.sin(angle);
+        const vy=dx*Math.sin(angle)+dy*Math.cos(angle);
+        const nx=unit.x+vx*travel,ny=unit.y+vy*travel;
+        if(nx<bounds.minX||nx>bounds.maxX||ny<bounds.minY||ny>bounds.maxY)continue;
+        if(battle.units.some(u=>u!==unit&&u!==target&&u.hp>0&&Math.hypot(u.x-nx,u.y-ny)<.58))continue;
+        next={x:nx,y:ny};break;
+      }
+      if(next){unit.x=next.x;unit.y=next.y;}
+      unit.moving=!!next&&travel>.001;
       continue;
     }
     if (unit.attackClock > 0) continue;
@@ -1450,7 +1629,7 @@ export function tickBattle(battle: Battle, dt: number): void {
         ? Math.min(3, 2 + unit.stage) : 1;
       const extras = multi > 1 ? battle.units.filter(enemy => enemy.id !== target!.id
         && enemy.playerId !== unit.playerId && isTargetable(enemy)
-        && distance(unit, enemy) <= unit.range + .08)
+        && basicInRange(unit,enemy,battle.elapsed))
         .sort((a,b) => distance(a,target!) - distance(b,target!) || a.id.localeCompare(b.id))
         .slice(0,multi-1) : [];
       for (const victim of [target,...extras]) {

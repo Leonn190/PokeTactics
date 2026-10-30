@@ -133,7 +133,7 @@ export interface CombatUnit {
   itemNow: number;
   hitSerial: number;
   focusCount: number;
-  itemBurn?: { sourceId: string; dps: number; until: number } | null;
+  itemBurn?: { sourceId: string; dps: number; until: number; accumulator?: number; tickTime?: number } | null;
   cooldown: number;
   attackClock: number;
   moving: boolean;
@@ -147,7 +147,7 @@ export interface CombatUnit {
   pendingPollen: { targetId: string; x: number; y: number; remaining: number; launched: boolean } | null;
   flash: number;
   effects: { kind: string; time: number }[];
-  damageOverTime: { amount: number; time: number; sourceId: string } | null;
+  damageOverTime: { amount: number; time: number; sourceId: string; accumulator?: number; tickTime?: number } | null;
   poison: { amount: number; time: number; sourceId: string; accumulator: number } | null;
   barrier: { hp: number; time: number; maxHp: number } | null;
   barriers: TimedBarrier[];
@@ -163,6 +163,9 @@ export interface CombatUnit {
   storm: StormState | null;
   psychicImbuement: PsychicImbuement | null;
   refractionUntil: number; // absolute simulated combat time, Staryu/Starmie
+  hitmonGuaranteed: boolean;
+  hitmonAction: {phase:'move'|'strike'|'pause';kind:'uppercut'|'kick';moveId:string;targetId:string;
+    fromX:number;fromY:number;toX:number;toY:number;elapsed:number;duration:number;remaining:number;hitDone:boolean} | null;
   combo: { targetId: string; hits: number; time: number; interval: number } | null;
   gasTime: number;
   support: { time: number; moveId: string } | null;
@@ -191,7 +194,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin';
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;

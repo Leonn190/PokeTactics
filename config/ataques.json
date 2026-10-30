@@ -676,6 +676,40 @@
       "tornadoRadius": 0.53,
       "tornadoSlow": 0.5,
       "tornadoSpeedReduction": 0.8
+    },
+    "hitmonchan-uppercut": {
+      "name": "Soco Ascendente",
+      "effect": "hitmonchan-uppercut",
+      "baseDamage": 28,
+      "attackRatio": 0.9,
+      "specialRatio": 0,
+      "skillRange": 1,
+      "dashRange": 1,
+      "hitRadius": 1,
+      "impactDelay": 0.27,
+      "stunBase": 0.65,
+      "stunSpaRatio": 0.008,
+      "stunHpRatio": 0.0007,
+      "stunMin": 0.45,
+      "stunMax": 1.8
+    },
+    "hitmonlee-spin-kick": {
+      "name": "Chute Giratório",
+      "effect": "hitmonlee-spin-kick",
+      "baseDamage": 25,
+      "attackRatio": 0.65,
+      "specialRatio": 0,
+      "skillRange": 1,
+      "dashRange": 1,
+      "splashRange": 1.25,
+      "chance": 0.5,
+      "impactDelay": 0.25,
+      "shieldBase": 25,
+      "shieldSpaRatio": 0.7,
+      "bonusBase": 10,
+      "bonusSpaRatio": 0.2,
+      "buffDuration": 5,
+      "shieldDuration": 5
     }
   }
 }

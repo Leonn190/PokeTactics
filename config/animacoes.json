@@ -1228,6 +1228,46 @@
           }
         }
       }
-    ]
+    ],
+    "hitmonchan": {
+      "launch": "core",
+      "shadow": {
+        "scale": 0.8,
+        "opacity": 0.77
+      },
+      "actions": {
+        "basic": {
+          "lunge": 0.08
+        },
+        "charged": {
+          "pulse": 0.02
+        }
+      },
+      "named": {
+        "Uppercut": {
+          "lunge": 0.1,
+          "pulse": 0.06
+        },
+        "Walk": {}
+      }
+    },
+    "hitmonlee": {
+      "launch": "core",
+      "shadow": {
+        "scale": 0.75,
+        "opacity": 0.78
+      },
+      "actions": {
+        "basic": {
+          "lunge": 0.08
+        }
+      },
+      "named": {
+        "Kick": {
+          "pulse": 0.05,
+          "sway": 0.04
+        }
+      }
+    }
   }
 }

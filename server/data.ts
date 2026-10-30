@@ -4,12 +4,13 @@ import phaseConfig from '../config/fases.json';
 import rulesConfig from '../config/regras_gerais.json';
 import animationConfig from '../config/animacoes.json';
 import renderConfig from '../config/renderizacao.json';
+import rangeConfig from '../config/alcances.json';
 import type { Element, Family, Rarity, StageType, Stats } from './types';
 
-export type BasicAttackData = { stat: 'atk' | 'spa'; category: 'physical' | 'special'; animation: string; projectile?: 'basic-projectile' };
+export type BasicAttackData = { stat: 'atk' | 'spa'; category: 'physical' | 'special'; animation: string; projectile?: string };
 export const ANIMATIONS = animationConfig;
 export const RENDER_SETTINGS = renderConfig;
-export type StageData = { elements: Element[]; range: number; energy: number; move: string; chargedType: Element; chargedAnimation: string; basic: BasicAttackData };
+export type StageData = { elements: Element[]; rangeClass: RangeClass; range: number; energy: number; move: string; chargedType: Element; chargedAnimation: string; basic: BasicAttackData };
 export interface SpeciesData {
   names: string[];
   pokedexIds: number[];
@@ -18,6 +19,7 @@ export interface SpeciesData {
   glow: string;
   base: Stats;
   range: number;
+  rangeClass: RangeClass;
   energy: number;
   attack: string;
   ability: string;
@@ -32,7 +34,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -51,12 +53,24 @@ export type MoveData = {
   chance?: number; push?: number; wallDamage?: number; tailBase?: number; tailRatio?: number; tailRadius?: number;
   tornadoSpeed?: number; tornadoDistance?: number; tornadoRadius?: number; tornadoSlow?: number; tornadoSpeedReduction?: number;
   speedReduction?: number; shieldSpaRatio?: number; bonusBase?: number; bonusSpaRatio?: number; buffDuration?: number;
+  dashRange?: number; hitRadius?: number; impactDelay?: number; stunBase?: number; stunSpaRatio?: number; stunHpRatio?: number; stunMin?: number; stunMax?: number;
 };
 
 export const ATTACKS = movesConfig as unknown as {
   basic: { name: string; offensiveRatio: number; energyGain: number };
   moves: Record<string, MoveData>;
 };
+export type RangeClass = 'Curto' | 'Médio' | 'Médio Alto' | 'Alto' | 'Muito Alto' | 'Extremo';
+export const RANGES = rangeConfig.levels as Array<{name:RangeClass;value:number}>;
+export function rangeValue(name:RangeClass):number {const entry=RANGES.find(r=>r.name===name);if(!entry)throw Error(`Unknown range class: ${name}`);return entry.value;}
+export function steppedRange(name:RangeClass,steps:number):number {
+ const index=RANGES.findIndex(r=>r.name===name);
+ return RANGES[Math.min(RANGES.length-1,Math.max(0,index+steps))].value;
+}
+export function rangeLabel(value:number, rangeClass?:RangeClass):string {
+ const level=rangeClass||RANGES.find(r=>r.value===value)?.name;
+ return level?`${level} (${value.toFixed(1)} casas)`:`${value.toFixed(1)} casas`;
+}
 export const RULES = rulesConfig;
 export const PHASES = phaseConfig as unknown as {
   stagesPerChapter: number;
@@ -74,7 +88,7 @@ export const SPECIES = Object.fromEntries(Object.entries(pokemonConfig.species).
 ])) as Record<Family, SpeciesData>;
 
 /** One immutable stage configuration per family/form. Data is shared by client and server.
- * Range selects a melee (no projectile) or ranged basic (same visual for each type).
+ * Range classifications are authoritative; projectile identity is independent of range.
  * Explicit stats/category remain authoritative to preserve existing balance. */
 const stageCache = new Map<string, StageData>();
 export function getStageData(family: Family, stage: number): StageData {
@@ -85,9 +99,11 @@ export function getStageData(family: Family, stage: number): StageData {
   if (cached) return cached;
   const override = species.stages?.[index] || {};
   const elements = override.elements || species.elements;
-  const range = override.range ?? species.range;
+  const rangeClass = (override.rangeClass || species.rangeClass) as RangeClass;
+  const range = rangeValue(rangeClass);
   const basicOriginal = override.basic || species.basic;
-  const ranged = range > ANIMATIONS.basic.meleeMaxRange;
+  // The old range number must never silently convert a melee attacker into a gunner.
+  const ranged = !!basicOriginal?.projectile || basicOriginal?.animation === 'Shoot' || basicOriginal?.animation === 'SpAttack';
   const basic: BasicAttackData = {
     stat: basicOriginal?.stat || 'atk',
     category: basicOriginal?.category || 'physical',
@@ -95,7 +111,7 @@ export function getStageData(family: Family, stage: number): StageData {
     ...(ranged ? { projectile: 'basic-projectile' as const } : {})
   };
   const result: StageData = {
-    elements, range, energy: override.energy ?? species.energy,
+    elements, range, rangeClass, energy: override.energy ?? species.energy,
     move: override.move || species.attack,
     chargedType: override.chargedType || elements[0],
     chargedAnimation: override.chargedAnimation || 'Attack',

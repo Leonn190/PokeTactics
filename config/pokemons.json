@@ -164,7 +164,7 @@
         "spd": 30,
         "speed": 45
       },
-      "range": 2.7,
+      "range": 3.8,
       "energy": 45,
       "attack": "toxic-thread",
       "elements": [
@@ -182,27 +182,31 @@
           "chargedType": "poison",
           "elements": [
             "bug"
-          ]
+          ],
+          "rangeClass": "Alto",
+          "range": 3.8
         },
         {
           "move": "toxic-shell",
           "chargedType": "poison",
           "energy": 50,
-          "range": 2.05,
+          "range": 1.2,
           "chargedAnimation": "SpAttack",
           "elements": [
             "bug"
-          ]
+          ],
+          "rangeClass": "Médio"
         },
         {
           "move": "healing-powder",
           "energy": 60,
-          "range": 3.15,
+          "range": 3.8,
           "elements": [
             "bug",
             "flying"
           ],
-          "chargedAnimation": "FlapAround"
+          "chargedAnimation": "FlapAround",
+          "rangeClass": "Alto"
         }
       ],
       "stageBases": [
@@ -230,7 +234,8 @@
           "spd": 91,
           "speed": 88
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "weedle": {
       "names": [
@@ -254,7 +259,7 @@
         "spd": 26,
         "speed": 56
       },
-      "range": 1.05,
+      "range": 0.6,
       "energy": 40,
       "attack": "stinger",
       "elements": [
@@ -273,27 +278,31 @@
           "elements": [
             "bug",
             "poison"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "move": "firm-cocoon",
           "energy": 50,
-          "range": 1,
+          "range": 0.6,
           "chargedAnimation": "Twirl",
           "elements": [
             "bug",
             "poison"
-          ]
+          ],
+          "rangeClass": "Curto"
         },
         {
           "move": "multi-jab",
           "energy": 65,
-          "range": 1.25,
+          "range": 1.2,
           "chargedAnimation": "Jab",
           "elements": [
             "bug",
             "poison"
-          ]
+          ],
+          "rangeClass": "Médio"
         }
       ],
       "stageBases": [
@@ -321,7 +330,8 @@
           "spd": 66,
           "speed": 112
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "bulbasaur": {
       "names": [
@@ -345,7 +355,7 @@
         "spd": 64,
         "speed": 43
       },
-      "range": 2.8,
+      "range": 3.8,
       "energy": 50,
       "attack": "pollen-mortar",
       "elements": [
@@ -389,21 +399,28 @@
           "elements": [
             "grass",
             "poison"
-          ]
+          ],
+          "rangeClass": "Alto",
+          "range": 3.8
         },
         {
           "elements": [
             "grass",
             "poison"
-          ]
+          ],
+          "rangeClass": "Alto",
+          "range": 3.8
         },
         {
           "elements": [
             "grass",
             "poison"
-          ]
+          ],
+          "rangeClass": "Alto",
+          "range": 3.8
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "charmander": {
       "names": [
@@ -427,7 +444,7 @@
         "spd": 48,
         "speed": 72
       },
-      "range": 1.05,
+      "range": 0.6,
       "energy": 40,
       "attack": "flaming-strike",
       "elements": [
@@ -442,18 +459,24 @@
         {
           "elements": [
             "fire"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "elements": [
             "fire"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "elements": [
             "fire",
             "flying"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         }
       ],
       "stageBases": [
@@ -481,7 +504,8 @@
           "spd": 84,
           "speed": 110
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "squirtle": {
       "names": [
@@ -505,7 +529,7 @@
         "spd": 66,
         "speed": 39
       },
-      "range": 1,
+      "range": 0.6,
       "energy": 50,
       "attack": "aqua-spin",
       "elements": [
@@ -546,19 +570,26 @@
         {
           "elements": [
             "water"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "elements": [
             "water"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "elements": [
             "water"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "pikachu": {
       "names": [
@@ -580,7 +611,7 @@
         "spd": 47,
         "speed": 106
       },
-      "range": 2.35,
+      "range": 2,
       "energy": 50,
       "attack": "thunder-shock",
       "elements": [
@@ -615,15 +646,20 @@
           "elements": [
             "electric"
           ],
-          "chargedAnimation": "Shock"
+          "chargedAnimation": "Shock",
+          "rangeClass": "Médio Alto",
+          "range": 2
         },
         {
           "elements": [
             "electric"
           ],
-          "chargedAnimation": "Shock"
+          "chargedAnimation": "Shock",
+          "rangeClass": "Médio Alto",
+          "range": 2
         }
-      ]
+      ],
+      "rangeClass": "Médio Alto"
     },
     "koffing": {
       "names": [
@@ -645,7 +681,7 @@
         "spd": 68,
         "speed": 27
       },
-      "range": 1.05,
+      "range": 0.6,
       "energy": 60,
       "attack": "gas-cloud",
       "elements": [
@@ -661,13 +697,17 @@
           "chargedAnimation": "Gas",
           "elements": [
             "poison"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "chargedAnimation": "Gas",
           "elements": [
             "poison"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         }
       ],
       "stageBases": [
@@ -687,7 +727,8 @@
           "spd": 105,
           "speed": 37
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "snorlax": {
       "names": [
@@ -707,7 +748,7 @@
         "spd": 120,
         "speed": 25
       },
-      "range": 1,
+      "range": 0.6,
       "energy": 70,
       "attack": "heavy-stomp",
       "elements": [
@@ -723,7 +764,9 @@
           "chargedAnimation": "Hop",
           "elements": [
             "normal"
-          ]
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
         }
       ],
       "stageBases": [
@@ -735,7 +778,8 @@
           "spd": 120,
           "speed": 25
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "articuno": {
       "names": [
@@ -755,7 +799,7 @@
         "spd": 120,
         "speed": 88
       },
-      "range": 3.2,
+      "range": 3.8,
       "energy": 70,
       "attack": "legendary-ice",
       "elements": [
@@ -778,9 +822,12 @@
           "elements": [
             "ice",
             "flying"
-          ]
+          ],
+          "rangeClass": "Alto",
+          "range": 3.8
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "zapdos": {
       "names": [
@@ -800,7 +847,7 @@
         "spd": 107,
         "speed": 113
       },
-      "range": 3.2,
+      "range": 3.8,
       "energy": 70,
       "attack": "legendary-electric",
       "elements": [
@@ -823,9 +870,12 @@
           "elements": [
             "electric",
             "flying"
-          ]
+          ],
+          "rangeClass": "Alto",
+          "range": 3.8
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "moltres": {
       "names": [
@@ -845,7 +895,7 @@
         "spd": 99,
         "speed": 101
       },
-      "range": 3.1,
+      "range": 3.8,
       "energy": 70,
       "attack": "legendary-fire",
       "elements": [
@@ -868,9 +918,12 @@
           "elements": [
             "fire",
             "flying"
-          ]
+          ],
+          "rangeClass": "Alto",
+          "range": 3.8
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "mewtwo": {
       "names": [
@@ -890,7 +943,7 @@
         "spd": 108,
         "speed": 120
       },
-      "range": 3.3,
+      "range": 5,
       "energy": 75,
       "attack": "legendary-psychic",
       "elements": [
@@ -911,9 +964,12 @@
         {
           "elements": [
             "psychic"
-          ]
+          ],
+          "rangeClass": "Muito Alto",
+          "range": 5
         }
-      ]
+      ],
+      "rangeClass": "Muito Alto"
     },
     "mew": {
       "names": [
@@ -958,7 +1014,8 @@
           "range": 5,
           "energy": 80,
           "move": "mew-blessing",
-          "chargedAnimation": "Charge"
+          "chargedAnimation": "Charge",
+          "rangeClass": "Muito Alto"
         }
       ],
       "bossBase": {
@@ -976,7 +1033,8 @@
         "stat": "spa",
         "category": "special",
         "animation": "Shoot"
-      }
+      },
+      "rangeClass": "Muito Alto"
     },
     "cubone": {
       "names": [
@@ -1016,7 +1074,7 @@
           "speed": 75
         }
       ],
-      "range": 3,
+      "range": 3.8,
       "energy": 35,
       "attack": "bone-cubone",
       "elements": [
@@ -1025,28 +1083,32 @@
       "basic": {
         "stat": "atk",
         "category": "physical",
-        "animation": "Attack"
+        "animation": "Attack",
+        "projectile": "spell"
       },
       "stages": [
         {
           "elements": [
             "ground"
           ],
-          "range": 3,
+          "range": 3.8,
           "move": "bone-cubone",
           "energy": 35,
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Shoot",
+          "rangeClass": "Alto"
         },
         {
           "elements": [
             "ground"
           ],
-          "range": 3.2,
+          "range": 3.8,
           "move": "bone-marowak",
           "energy": 35,
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Shoot",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "onix": {
       "names": [
@@ -1086,7 +1148,7 @@
           "speed": 38
         }
       ],
-      "range": 1,
+      "range": 1.2,
       "energy": 50,
       "attack": "rise-onix",
       "elements": [
@@ -1104,24 +1166,27 @@
             "rock",
             "ground"
           ],
-          "range": 1,
+          "range": 1.2,
           "move": "rise-onix",
           "energy": 50,
           "chargedAnimation": "Slam",
-          "chargedType": "rock"
+          "chargedType": "rock",
+          "rangeClass": "Médio"
         },
         {
           "elements": [
             "steel",
             "ground"
           ],
-          "range": 1,
+          "range": 1.2,
           "move": "rise-steelix",
           "energy": 50,
           "chargedAnimation": "Strike",
-          "chargedType": "steel"
+          "chargedType": "steel",
+          "rangeClass": "Médio"
         }
-      ]
+      ],
+      "rangeClass": "Médio"
     },
     "geodude": {
       "names": [
@@ -1171,7 +1236,7 @@
           "speed": 40
         }
       ],
-      "range": 1,
+      "range": 0.6,
       "energy": 55,
       "attack": "rock-geodude",
       "elements": [
@@ -1189,32 +1254,36 @@
             "rock",
             "ground"
           ],
-          "range": 1,
+          "range": 0.6,
           "move": "rock-geodude",
           "energy": 55,
-          "chargedAnimation": "Punch"
+          "chargedAnimation": "Punch",
+          "rangeClass": "Curto"
         },
         {
           "elements": [
             "rock",
             "ground"
           ],
-          "range": 1,
+          "range": 0.6,
           "move": "rock-graveler",
           "energy": 55,
-          "chargedAnimation": "Slam"
+          "chargedAnimation": "Slam",
+          "rangeClass": "Curto"
         },
         {
           "elements": [
             "rock",
             "ground"
           ],
-          "range": 1,
+          "range": 0.6,
           "move": "golem-withdraw",
           "energy": 60,
-          "chargedAnimation": "Withdraw"
+          "chargedAnimation": "Withdraw",
+          "rangeClass": "Curto"
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "chansey": {
       "names": [
@@ -1254,7 +1323,7 @@
           "speed": 55
         }
       ],
-      "range": 1,
+      "range": 0.6,
       "energy": 55,
       "attack": "egg-chansey",
       "elements": [
@@ -1270,21 +1339,24 @@
           "elements": [
             "normal"
           ],
-          "range": 1,
+          "range": 0.6,
           "move": "egg-chansey",
           "energy": 55,
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "SpAttack",
+          "rangeClass": "Curto"
         },
         {
           "elements": [
             "normal"
           ],
-          "range": 1,
+          "range": 0.6,
           "move": "egg-blissey",
           "energy": 60,
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Shoot",
+          "rangeClass": "Curto"
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "eevee": {
       "names": [
@@ -1316,7 +1388,7 @@
           "speed": 61
         }
       ],
-      "range": 3,
+      "range": 3.8,
       "energy": 55,
       "attack": "ball-eevee",
       "elements": [
@@ -1333,13 +1405,15 @@
           "elements": [
             "normal"
           ],
-          "range": 3,
+          "range": 3.8,
           "energy": 55,
           "move": "ball-eevee",
           "chargedType": "normal",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Shoot",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "vaporeon": {
       "names": [
@@ -1371,7 +1445,7 @@
           "speed": 55
         }
       ],
-      "range": 3.5,
+      "range": 3.8,
       "energy": 60,
       "attack": "ball-vaporeon",
       "elements": [
@@ -1388,13 +1462,15 @@
           "elements": [
             "water"
           ],
-          "range": 3.5,
+          "range": 3.8,
           "energy": 60,
           "move": "ball-vaporeon",
           "chargedType": "water",
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "SpAttack",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "flareon": {
       "names": [
@@ -1426,7 +1502,7 @@
           "speed": 59
         }
       ],
-      "range": 3.1,
+      "range": 3.8,
       "energy": 60,
       "attack": "ball-flareon",
       "elements": [
@@ -1443,13 +1519,15 @@
           "elements": [
             "fire"
           ],
-          "range": 3.1,
+          "range": 3.8,
           "energy": 60,
           "move": "ball-flareon",
           "chargedType": "fire",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Shoot",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "jolteon": {
       "names": [
@@ -1481,7 +1559,7 @@
           "speed": 120
         }
       ],
-      "range": 3.5,
+      "range": 3.8,
       "energy": 60,
       "attack": "ball-jolteon",
       "elements": [
@@ -1498,13 +1576,15 @@
           "elements": [
             "electric"
           ],
-          "range": 3.5,
+          "range": 3.8,
           "energy": 60,
           "move": "ball-jolteon",
           "chargedType": "electric",
-          "chargedAnimation": "Shock"
+          "chargedAnimation": "Shock",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "umbreon": {
       "names": [
@@ -1536,7 +1616,7 @@
           "speed": 55
         }
       ],
-      "range": 3.2,
+      "range": 3.8,
       "energy": 60,
       "attack": "ball-umbreon",
       "elements": [
@@ -1553,13 +1633,15 @@
           "elements": [
             "dark"
           ],
-          "range": 3.2,
+          "range": 3.8,
           "energy": 60,
           "move": "ball-umbreon",
           "chargedType": "dark",
-          "chargedAnimation": "Emit"
+          "chargedAnimation": "Emit",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "sylveon": {
       "names": [
@@ -1591,7 +1673,7 @@
           "speed": 60
         }
       ],
-      "range": 3.6,
+      "range": 3.8,
       "energy": 60,
       "attack": "ball-sylveon",
       "elements": [
@@ -1608,13 +1690,15 @@
           "elements": [
             "fairy"
           ],
-          "range": 3.6,
+          "range": 3.8,
           "energy": 60,
           "move": "ball-sylveon",
           "chargedType": "fairy",
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "SpAttack",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "leafeon": {
       "names": [
@@ -1646,7 +1730,7 @@
           "speed": 92
         }
       ],
-      "range": 3.4,
+      "range": 3.8,
       "energy": 60,
       "attack": "ball-leafeon",
       "elements": [
@@ -1663,13 +1747,15 @@
           "elements": [
             "grass"
           ],
-          "range": 3.4,
+          "range": 3.8,
           "energy": 60,
           "move": "ball-leafeon",
           "chargedType": "grass",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Shoot",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "glaceon": {
       "names": [
@@ -1701,7 +1787,7 @@
           "speed": 45
         }
       ],
-      "range": 3.7,
+      "range": 3.8,
       "energy": 60,
       "attack": "ball-glaceon",
       "elements": [
@@ -1718,13 +1804,15 @@
           "elements": [
             "ice"
           ],
-          "range": 3.7,
+          "range": 3.8,
           "energy": 60,
           "move": "ball-glaceon",
           "chargedType": "ice",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Shoot",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "espeon": {
       "names": [
@@ -1777,9 +1865,11 @@
           "energy": 60,
           "move": "ball-espeon",
           "chargedType": "psychic",
-          "chargedAnimation": "Twirl"
+          "chargedAnimation": "Twirl",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "rhyhorn": {
       "names": [
@@ -1829,7 +1919,7 @@
           "speed": 35
         }
       ],
-      "range": 1,
+      "range": 0.6,
       "energy": 70,
       "attack": "charge-rhyhorn",
       "elements": [
@@ -1847,35 +1937,39 @@
             "ground",
             "rock"
           ],
-          "range": 1,
+          "range": 0.6,
           "energy": 70,
           "move": "charge-rhyhorn",
           "chargedType": "rock",
-          "chargedAnimation": "Walk"
+          "chargedAnimation": "Walk",
+          "rangeClass": "Curto"
         },
         {
           "elements": [
             "ground",
             "rock"
           ],
-          "range": 1,
+          "range": 0.6,
           "energy": 70,
           "move": "charge-rhydon",
           "chargedType": "rock",
-          "chargedAnimation": "Walk"
+          "chargedAnimation": "Walk",
+          "rangeClass": "Curto"
         },
         {
           "elements": [
             "ground",
             "rock"
           ],
-          "range": 1,
+          "range": 0.6,
           "energy": 70,
           "move": "charge-rhyperior",
           "chargedType": "rock",
-          "chargedAnimation": "Walk"
+          "chargedAnimation": "Walk",
+          "rangeClass": "Curto"
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "vulpix": {
       "names": [
@@ -1915,7 +2009,7 @@
           "speed": 78
         }
       ],
-      "range": 3,
+      "range": 3.8,
       "energy": 65,
       "attack": "pierce-vulpix",
       "elements": [
@@ -1932,23 +2026,26 @@
           "elements": [
             "fire"
           ],
-          "range": 3,
+          "range": 3.8,
           "energy": 65,
           "move": "pierce-vulpix",
           "chargedType": "fire",
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "SpAttack",
+          "rangeClass": "Alto"
         },
         {
           "elements": [
             "fire"
           ],
-          "range": 4,
+          "range": 5,
           "energy": 70,
           "move": "pierce-ninetales",
           "chargedType": "fire",
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "SpAttack",
+          "rangeClass": "Muito Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "dratini": {
       "names": [
@@ -1972,7 +2069,7 @@
         "spd": 63,
         "speed": 56
       },
-      "range": 4,
+      "range": 3.8,
       "energy": 60,
       "attack": "dragon-breath",
       "elements": [
@@ -2014,7 +2111,7 @@
           "elements": [
             "dragon"
           ],
-          "range": 4,
+          "range": 3.8,
           "energy": 60,
           "move": "dragon-breath",
           "chargedAnimation": "Shoot",
@@ -2022,7 +2119,8 @@
             "stat": "spa",
             "category": "special",
             "animation": "Shoot"
-          }
+          },
+          "rangeClass": "Alto"
         },
         {
           "elements": [
@@ -2036,14 +2134,15 @@
             "stat": "spa",
             "category": "special",
             "animation": "Shoot"
-          }
+          },
+          "rangeClass": "Médio Alto"
         },
         {
           "elements": [
             "dragon",
             "flying"
           ],
-          "range": 1,
+          "range": 0.6,
           "energy": 90,
           "move": "dragon-storm",
           "chargedAnimation": "Hop",
@@ -2051,9 +2150,11 @@
             "stat": "atk",
             "category": "physical",
             "animation": "Attack"
-          }
+          },
+          "rangeClass": "Curto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "diglett": {
       "names": [
@@ -2075,7 +2176,7 @@
         "spd": 46,
         "speed": 78
       },
-      "range": 1,
+      "range": 0.6,
       "energy": 60,
       "attack": "diglett-burrow",
       "elements": [
@@ -2109,21 +2210,24 @@
           "elements": [
             "ground"
           ],
-          "range": 1,
+          "range": 0.6,
           "energy": 60,
           "move": "diglett-burrow",
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "Attack",
+          "rangeClass": "Curto"
         },
         {
           "elements": [
             "ground"
           ],
-          "range": 1,
+          "range": 0.6,
           "energy": 65,
           "move": "dugtrio-burrow",
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "Attack",
+          "rangeClass": "Curto"
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "voltorb": {
       "names": [
@@ -2163,7 +2267,7 @@
           "speed": 125
         }
       ],
-      "range": 1,
+      "range": 0.6,
       "energy": 70,
       "attack": "voltorb-explosion",
       "elements": [
@@ -2176,20 +2280,23 @@
       },
       "stages": [
         {
-          "range": 1,
+          "range": 0.6,
           "energy": 70,
           "move": "voltorb-explosion",
           "chargedType": "electric",
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "Attack",
+          "rangeClass": "Curto"
         },
         {
-          "range": 1,
+          "range": 0.6,
           "energy": 70,
           "move": "electrode-explosion",
           "chargedType": "electric",
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "Attack",
+          "rangeClass": "Curto"
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "gastly": {
       "names": [
@@ -2260,29 +2367,33 @@
           "range": 2,
           "energy": 65,
           "move": "gastly-phantom",
-          "chargedAnimation": "Lick"
+          "chargedAnimation": "Lick",
+          "rangeClass": "Médio Alto"
         },
         {
           "elements": [
             "ghost",
             "poison"
           ],
-          "range": 1,
+          "range": 0.6,
           "energy": 70,
           "move": "haunter-phantom",
-          "chargedAnimation": "MultiStrike"
+          "chargedAnimation": "MultiStrike",
+          "rangeClass": "Curto"
         },
         {
           "elements": [
             "ghost",
             "poison"
           ],
-          "range": 1,
+          "range": 0.6,
           "energy": 80,
           "move": "gengar-phantom",
-          "chargedAnimation": "Strike"
+          "chargedAnimation": "Strike",
+          "rangeClass": "Curto"
         }
-      ]
+      ],
+      "rangeClass": "Médio Alto"
     },
     "machop": {
       "names": [
@@ -2332,7 +2443,7 @@
           "speed": 65
         }
       ],
-      "range": 1,
+      "range": 0.6,
       "energy": 60,
       "attack": "machop-kick",
       "elements": [
@@ -2349,23 +2460,30 @@
             "fighting"
           ],
           "move": "machop-kick",
-          "chargedAnimation": "Kick"
+          "chargedAnimation": "Kick",
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "elements": [
             "fighting"
           ],
           "move": "machoke-kick",
-          "chargedAnimation": "Kick"
+          "chargedAnimation": "Kick",
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "elements": [
             "fighting"
           ],
           "move": "machamp-kick",
-          "chargedAnimation": "Kick"
+          "chargedAnimation": "Kick",
+          "rangeClass": "Curto",
+          "range": 0.6
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "magikarp": {
       "names": [
@@ -2405,7 +2523,7 @@
           "speed": 86
         }
       ],
-      "range": 1,
+      "range": 0.6,
       "energy": 45,
       "attack": "magikarp-splash",
       "elements": [
@@ -2423,7 +2541,9 @@
           ],
           "move": "magikarp-splash",
           "energy": 45,
-          "chargedAnimation": "Hop"
+          "chargedAnimation": "Hop",
+          "rangeClass": "Curto",
+          "range": 0.6
         },
         {
           "elements": [
@@ -2432,9 +2552,12 @@
           ],
           "move": "gyarados-fang-tail",
           "energy": 75,
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "Attack",
+          "rangeClass": "Curto",
+          "range": 0.6
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "staryu": {
       "names": [
@@ -2445,7 +2568,7 @@
         120,
         121
       ],
-      "rarity": 2,
+      "rarity": 1,
       "shop": true,
       "glow": "#83c9ed",
       "base": {
@@ -2474,7 +2597,7 @@
           "speed": 103
         }
       ],
-      "range": 3,
+      "range": 3.8,
       "energy": 60,
       "attack": "star-refraction",
       "elements": [
@@ -2487,17 +2610,18 @@
       },
       "stages": [
         {
-          "range": 3,
+          "range": 3.8,
           "elements": [
             "water"
           ],
           "move": "star-refraction",
           "energy": 60,
           "chargedAnimation": "Twirl",
-          "chargedType": "water"
+          "chargedType": "water",
+          "rangeClass": "Alto"
         },
         {
-          "range": 3.5,
+          "range": 3.8,
           "elements": [
             "water",
             "psychic"
@@ -2505,9 +2629,11 @@
           "move": "star-refraction",
           "energy": 65,
           "chargedAnimation": "Twirl",
-          "chargedType": "psychic"
+          "chargedType": "psychic",
+          "rangeClass": "Alto"
         }
-      ]
+      ],
+      "rangeClass": "Alto"
     },
     "rattata": {
       "names": [
@@ -2547,7 +2673,7 @@
           "speed": 112
         }
       ],
-      "range": 1,
+      "range": 0.6,
       "energy": 55,
       "attack": "rattata-bite",
       "elements": [
@@ -2563,21 +2689,24 @@
           "elements": [
             "normal"
           ],
-          "range": 1,
+          "range": 0.6,
           "move": "rattata-bite",
           "energy": 55,
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "Attack",
+          "rangeClass": "Curto"
         },
         {
           "elements": [
             "normal"
           ],
-          "range": 1,
+          "range": 0.6,
           "move": "raticate-bite",
           "energy": 60,
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "Attack",
+          "rangeClass": "Curto"
         }
-      ]
+      ],
+      "rangeClass": "Curto"
     },
     "spearow": {
       "names": [
@@ -2639,18 +2768,101 @@
           "move": "spearow-tornado",
           "energy": 65,
           "chargedAnimation": "Shoot",
-          "chargedType": "flying"
+          "chargedType": "flying",
+          "rangeClass": "Médio Alto"
         },
         {
           "elements": [
             "normal",
             "flying"
           ],
-          "range": 3,
+          "range": 3.8,
           "move": "fearow-tornado",
           "energy": 70,
           "chargedAnimation": "Shoot",
-          "chargedType": "flying"
+          "chargedType": "flying",
+          "rangeClass": "Alto"
+        }
+      ],
+      "rangeClass": "Médio Alto"
+    },
+    "hitmonchan": {
+      "names": [
+        "Hitmonchan"
+      ],
+      "pokedexIds": [
+        107
+      ],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#87acf0",
+      "base": {
+        "hp": 385,
+        "atk": 95,
+        "def": 86,
+        "spa": 65,
+        "spd": 72,
+        "speed": 71
+      },
+      "rangeClass": "Curto",
+      "range": 0.6,
+      "energy": 65,
+      "attack": "hitmonchan-uppercut",
+      "elements": [
+        "fighting"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "rangeClass": "Curto",
+          "range": 0.6,
+          "move": "hitmonchan-uppercut",
+          "chargedType": "fighting",
+          "chargedAnimation": "Uppercut"
+        }
+      ]
+    },
+    "hitmonlee": {
+      "names": [
+        "Hitmonlee"
+      ],
+      "pokedexIds": [
+        106
+      ],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#87acf0",
+      "base": {
+        "hp": 325,
+        "atk": 106,
+        "def": 62,
+        "spa": 73,
+        "spd": 55,
+        "speed": 107
+      },
+      "rangeClass": "Curto",
+      "range": 0.6,
+      "energy": 70,
+      "attack": "hitmonlee-spin-kick",
+      "elements": [
+        "fighting"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "rangeClass": "Curto",
+          "range": 0.6,
+          "move": "hitmonlee-spin-kick",
+          "chargedType": "fighting",
+          "chargedAnimation": "Kick"
         }
       ]
     }

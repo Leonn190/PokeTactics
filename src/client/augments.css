@@ -37,3 +37,20 @@
 @media(max-width:510px){.augment-cards{grid-template-columns:1fr}.augment-card{min-height:180px}.augment-card-choose{min-height:180px}.augment-card .augment-symbol{margin:0;width:52px;height:52px;font-size:28px}.augment-card-roll{height:28px}}
 
 .arena-augment-icons.many{display:grid;grid-template-columns:repeat(2,33px);gap:3px;max-height:none}
+
+/* V19.5 — browser-native title removed: focusable, camera-independent tooltip. */
+.arena-augment-icon:focus-visible{outline:2px solid #e8fbff;outline-offset:3px}
+.arena-augment-tooltip{position:fixed;z-index:150;max-width:min(290px,calc(100vw - 20px));width:270px;
+  display:flex;gap:10px;align-items:flex-start;pointer-events:none;visibility:hidden;opacity:0;
+  border:1px solid var(--tooltip-edge,#d5ae7b);border-radius:9px;padding:13px;
+  background:linear-gradient(135deg,#19283af7,#080e1df7);box-shadow:0 12px 35px #000b;
+  color:#eaf4ff;transform:translateY(6px);transition:opacity .16s ease,transform .16s ease,visibility .16s}
+.arena-augment-tooltip.active{visibility:visible;opacity:1;transform:translateY(0)}
+.arena-augment-tooltip.rarity-silver{--tooltip-edge:#cbddec}
+.arena-augment-tooltip.rarity-gold{--tooltip-edge:#f5ce7a}
+.arena-augment-tooltip.rarity-prismatic{--tooltip-edge:#b29bf9}
+.arena-augment-tip-symbol{display:grid;place-items:center;flex:none;width:38px;height:38px;background:#203247;
+  border:1px solid var(--tooltip-edge,#d5ae7b);border-radius:7px;font-size:24px}
+.arena-augment-tooltip strong{font-size:15px;font-weight:900;display:block;line-height:1.1;color:#fff}
+.arena-augment-tooltip span{display:block;font-size:10px;letter-spacing:.13em;color:var(--tooltip-edge,#d5ae7b);font-weight:900;margin:4px 0 6px}
+.arena-augment-tooltip p{font-size:12px;line-height:1.45;color:#dce6f2;margin:0;white-space:normal}

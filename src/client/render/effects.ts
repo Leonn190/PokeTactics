@@ -22,7 +22,17 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
       if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();
-      if (fx.kind === 'ghost-trail') {
+      if (fx.kind === 'hitmon-spin') {
+        const radius=Math.max(.5,fx.value)*cellScale;
+        ctx.translate(from.x,from.y-12);
+        ctx.globalAlpha=(1-t)*.75;
+        ctx.strokeStyle='#ffe6a4';ctx.shadowColor='#f5ba66';ctx.shadowBlur=10;
+        ctx.lineWidth=Math.max(1.5,5*(1-t));ctx.lineCap='round';
+        for(let i=0;i<2;i++){
+          const angle=(t*.7+i*.13)*Math.PI*2;
+          ctx.beginPath();ctx.arc(0,0,radius*(.67+.2*t),angle,angle+Math.PI*1.04);ctx.stroke();
+        }
+      } else if (fx.kind === 'ghost-trail') {
         ctx.globalAlpha=.46*(1-t);ctx.shadowColor='#be84ff';ctx.shadowBlur=12;
         for(let i=0;i<6;i++){
           const a=i*2.3999+time*1.4, r=(4+i%3*4)+t*14;

@@ -10,6 +10,8 @@ export class AugmentView {
  private cards:HTMLElement;
  private reopen:HTMLButtonElement;
  private stacks:HTMLElement;
+ private tooltip:HTMLElement;
+ private tipId='';
  private latestChoice='';
  private lastChapter=0;
  private preview=false;
@@ -29,6 +31,21 @@ export class AugmentView {
   document.getElementById('app')!.append(this.reopen);
   this.stacks=document.createElement('div');this.stacks.className='arena-augment-stacks';
   document.getElementById('app')!.append(this.stacks);
+  this.tooltip=document.createElement('div');this.tooltip.className='arena-augment-tooltip';
+  this.tooltip.id='arenaAugmentTooltip';this.tooltip.setAttribute('role','tooltip');
+  this.tooltip.setAttribute('aria-hidden','true');document.body.append(this.tooltip);
+  this.stacks.addEventListener('pointerover',event=>this.showTooltip(event.target as HTMLElement));
+  this.stacks.addEventListener('pointerout',event=>{
+    const next=(event as PointerEvent).relatedTarget as HTMLElement|null;
+    if(!next?.closest('.arena-augment-icon'))this.hideTooltip();
+  });
+  this.stacks.addEventListener('focusin',event=>this.showTooltip(event.target as HTMLElement));
+  this.stacks.addEventListener('focusout',event=>{
+    const next=(event as FocusEvent).relatedTarget as HTMLElement|null;
+    if(!next?.closest('.arena-augment-icon'))this.hideTooltip();
+  });
+  window.addEventListener('scroll',()=>this.hideTooltip(),true);
+  window.addEventListener('resize',()=>this.hideTooltip());
   this.overlay.querySelector<HTMLButtonElement>('.augment-watch')!.addEventListener('click',()=>{this.preview=true;this.draw();});
   this.reopen.addEventListener('click',()=>{this.preview=false;this.draw();});
   this.cards.addEventListener('click',event=>{
@@ -38,7 +55,7 @@ export class AugmentView {
     this.send(reroll?{kind:'augment-reroll',slot}:{kind:'augment-choose',slot});
   });
  }
- reset():void {this.current=null;this.latestChoice='';this.lastChapter=0;this.preview=false;this.stacks.innerHTML='';delete this.stacks.dataset.owners;this.draw();}
+ reset():void {this.hideTooltip();this.current=null;this.latestChoice='';this.lastChapter=0;this.preview=false;this.stacks.innerHTML='';delete this.stacks.dataset.owners;this.draw();}
  render(snapshot:GameSnapshot,arena:Arena):void {this.current=snapshot;this.draw();this.positionStacks(arena);}
  private draw():void {
   const state=this.current,choice=state?.players[0].augmentChoice;
@@ -66,20 +83,21 @@ export class AugmentView {
  }
  positionStacks(arena:Arena):void {
   const state=this.current;
-  if(!state || state.phase==='finished'){this.stacks.innerHTML='';return;}
+  if(!state || state.phase==='finished'){this.hideTooltip();this.stacks.innerHTML='';return;}
   const battle=state.visibleBattle;
   const participants=battle?.participants || [state.observedId];
   const quad=participants.length>2;
   const ids=participants.filter(id=>state.players.some(p=>p.id===id));
   const key=ids.map(id=>`${id}:${state.players.find(p=>p.id===id)?.augments?.join(',')||''}`).join('|');
   if(this.stacks.dataset.owners!==key){
+   this.hideTooltip();
    this.stacks.dataset.owners=key;
    this.stacks.innerHTML=ids.map((id,i)=>{
      const player=state.players.find(p=>p.id===id)!;
      return `<section class="arena-augment-owner" data-augment-owner="${id}" aria-label="Augments de ${safe(player.name)}">
        <strong>${safe(player.name)}</strong><div class="arena-augment-icons ${(player.augments||[]).length>5?'many':''}">${(player.augments||[]).map(augmentId=>{
          const a=byId.get(augmentId);if(!a)return '';
-         return `<span class="arena-augment-icon rarity-${a.rarity}" tabindex="0" title="${safe(a.name)}: ${safe(a.description)}" aria-label="${safe(a.name)}: ${safe(a.description)}">${safe((a as any).symbol||'✦')}</span>`;
+         return `<span class="arena-augment-icon rarity-${a.rarity}" tabindex="0" data-augment-id="${safe(a.id)}" aria-describedby="arenaAugmentTooltip" aria-label="${safe(a.name)}: ${safe(a.description)}">${safe((a as any).symbol||'✦')}</span>`;
        }).join('')}</div></section>`;
    }).join('');
   }
@@ -89,9 +107,9 @@ export class AugmentView {
   ids.forEach((id,i)=>{
     const el=this.stacks.querySelector<HTMLElement>(`[data-augment-owner="${id}"]`);if(!el)return;
     const slot=participants.indexOf(id),pos=trainerSpot(slot,quad);
-    // The right-hand edge of each participant's *own* board, including quadruplicates.
-    const edgeX=quad?(slot<2?-.2:8.5):4.55;
-    const edgeY=pos.y>0?2.0:-2.0;
+    // World coordinates: each player's own LEFT edge, also in 14x8 quadruples.
+    const edgeX=quad?(slot<2?-8.65:-.55):-4.65;
+    const edgeY=pos.y>0?1.15:-1.15;
     const point=arena.toScreen(edgeX,edgeY);
     el.style.left=`${canvas.left-app.left+point.x}px`;
     el.style.top=`${canvas.top-app.top+point.y}px`;
@@ -99,5 +117,31 @@ export class AugmentView {
     el.classList.toggle('left-owner',pos.x<0);
     el.classList.toggle('top-owner',pos.y<0);
   });
+  if(this.tooltip.classList.contains('active')){
+   const active=document.activeElement;
+   const hovered=this.stacks.querySelector<HTMLElement>('.arena-augment-icon:hover');
+   this.showTooltip(hovered || (active instanceof HTMLElement ? active : null));
+  }
+ }
+ private showTooltip(target:HTMLElement|null):void {
+  const icon=target?.closest<HTMLElement>('.arena-augment-icon');
+  const info=byId.get(icon?.dataset.augmentId||'');
+  if(!icon||!info){this.hideTooltip();return;}
+  const rarity:{[key:string]:string}={bronze:'BRONZE',silver:'PRATA',gold:'OURO',prismatic:'PRISMÁTICO'};
+  if(this.tipId!==info.id){
+   this.tipId=info.id;
+   this.tooltip.className=`arena-augment-tooltip rarity-${info.rarity} active`;
+   this.tooltip.innerHTML=`<div class="arena-augment-tip-symbol">${safe((info as any).symbol||'✦')}</div>
+     <div><strong>${safe(info.name)}</strong><span>${rarity[info.rarity]||safe(info.rarity)}</span>
+     <p>${safe(info.description)}</p></div>`;
+  }
+  this.tooltip.setAttribute('aria-hidden','false');
+  const rect=icon.getBoundingClientRect(),w=this.tooltip.offsetWidth,h=this.tooltip.offsetHeight;
+  const left=Math.max(10,Math.min(window.innerWidth-w-10,rect.right+12));
+  const top=Math.max(10,Math.min(window.innerHeight-h-10,rect.top+(rect.height-h)/2));
+  this.tooltip.style.left=`${left}px`;this.tooltip.style.top=`${top}px`;
+ }
+ private hideTooltip():void {
+  this.tipId='';this.tooltip?.classList.remove('active');this.tooltip?.setAttribute('aria-hidden','true');
  }
 }

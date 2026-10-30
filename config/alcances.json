@@ -1,0 +1,28 @@
+{
+  "levels": [
+    {
+      "name": "Curto",
+      "value": 0.6
+    },
+    {
+      "name": "Médio",
+      "value": 1.2
+    },
+    {
+      "name": "Médio Alto",
+      "value": 2
+    },
+    {
+      "name": "Alto",
+      "value": 3.8
+    },
+    {
+      "name": "Muito Alto",
+      "value": 5
+    },
+    {
+      "name": "Extremo",
+      "value": 6.5
+    }
+  ]
+}
