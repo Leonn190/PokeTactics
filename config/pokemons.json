@@ -408,7 +408,7 @@
       "physicalSizes": [
         0.95,
         0.95,
-        1.0
+        1
       ],
       "evolutionCopies": [
         3,
@@ -600,7 +600,7 @@
       "physicalSizes": [
         0.95,
         1.04,
-        1.0
+        1
       ],
       "evolutionCopies": [
         3,
@@ -3200,7 +3200,7 @@
         }
       ],
       "physicalSizes": [
-        1.0
+        1
       ],
       "evolutionCopies": [
         3
@@ -4856,6 +4856,109 @@
       ],
       "bossOnly": false,
       "babyEvolution": "magmar"
+    },
+    "abra": {
+      "names": [
+        "Abra",
+        "Kadabra",
+        "Alakazam"
+      ],
+      "pokedexIds": [
+        63,
+        64,
+        65
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#d6a4fc",
+      "base": {
+        "hp": 235,
+        "atk": 32,
+        "def": 33,
+        "spa": 82,
+        "spd": 59,
+        "speed": 86
+      },
+      "stageBases": [
+        {
+          "hp": 235,
+          "atk": 32,
+          "def": 33,
+          "spa": 82,
+          "spd": 59,
+          "speed": 86
+        },
+        {
+          "hp": 340,
+          "atk": 47,
+          "def": 46,
+          "spa": 115,
+          "spd": 78,
+          "speed": 104
+        },
+        {
+          "hp": 475,
+          "atk": 62,
+          "def": 63,
+          "spa": 153,
+          "spd": 106,
+          "speed": 125
+        }
+      ],
+      "rangeClass": "Alto",
+      "range": 3.8,
+      "energy": 65,
+      "attack": "psychic-teleport",
+      "elements": [
+        "psychic"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "psychic"
+      },
+      "stages": [
+        {
+          "elements": [
+            "psychic"
+          ],
+          "rangeClass": "Alto",
+          "energy": 65,
+          "move": "psychic-teleport",
+          "chargedType": "psychic",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "psychic"
+          ],
+          "rangeClass": "Alto",
+          "energy": 75,
+          "move": "psychic-teleport",
+          "chargedType": "psychic",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "psychic"
+          ],
+          "rangeClass": "Alto",
+          "energy": 85,
+          "move": "psychic-teleport",
+          "chargedType": "psychic",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        0.83,
+        1.02,
+        1.15
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     }
   }
 }
