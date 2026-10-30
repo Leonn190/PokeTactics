@@ -6,13 +6,15 @@ type Actor = Pick<CombatUnit,'family'|'stage'> & {animation?: CombatUnit['animat
 const PI2 = Math.PI * 2;
 const quiet = new Set(['Idle','Walk','Hover','Sleep','Rotate']);
 export function drawCastingGlints(ctx: CanvasRenderingContext2D, x: number, y: number, unit: Actor,
-  cell: number, time: number): void {
+  cell: number, time: number, hitFraction = .5): void {
   const a=unit.animation;
   if (!a || a.role !== 'charged' || quiet.has(a.name) || a.elapsed >= a.duration) return;
   const type = getStageData(unit.family,unit.stage).chargedType;
   const shade = ELEMENTS[type].color;
   const t=Math.min(1,a.elapsed/Math.max(.01,a.duration));
-  const pulse=Math.sin(t*Math.PI);
+  // HitFrame controls only the presentation highlight, never server damage timing.
+  const impact=Math.max(0,1-Math.abs(t-hitFraction)/.105);
+  const pulse=Math.min(1,Math.sin(t*Math.PI)*.65+impact*.35);
   if(pulse<.03) return;
   const kind=unit.family;
   const count=kind==='pikachu'||kind==='jolteon'||kind==='voltorb'?7:kind==='mew'||kind==='eevee'||kind==='staryu'?6:4;

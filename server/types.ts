@@ -174,6 +174,7 @@ export interface CombatUnit {
 
 export interface CombatEffect {
   id: string;
+  sourceId?: string; // Presentation-only link to PMD body anchors; never controls damage.
   targetId?: string;
   x: number;
   y: number;

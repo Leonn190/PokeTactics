@@ -3,7 +3,7 @@ import type { Battle, CombatEffect, CombatUnit } from '../types';
 /** Canonical effect emission and deduplicated floating damage indicators. */
 export function effect(battle: Battle, source: CombatUnit, target: { x: number; y: number }, kind: CombatEffect['kind'], value: number): void {
   battle.effects.push({
-    id: `${battle.id}:${battle.elapsed}:${battle.effects.length}`,
+    id: `${battle.id}:${battle.elapsed}:${battle.effects.length}`, sourceId: source.id,
     x: source.x, y: source.y, targetX: target.x, targetY: target.y,
     family: source.family, stage: source.stage, kind, value: ['pollen','water','earth-trail','earth-burst','dragon-tornado','dragon-wave','explosion','ghost-slash','ghost-scare','earthquake','tail-sweep'].includes(kind) ? value : Math.round(value), time: 0,
     duration: kind === 'ghost-trail' ? .3 : kind === 'ghost-slash' ? .42 : kind === 'ghost-scare' ? .7 : kind === 'earth-trail' ? .35 : kind === 'earth-burst' ? .45 : kind === 'dragon-tornado' || kind === 'dragon-wave' ? .45 : kind === 'psychic-spark' ? .5 : kind === 'ko' ? .9 : kind === 'basic-projectile' ? ANIMATIONS.basic.projectileDuration : kind === 'pollen' || kind === 'lightning' ? .52 : kind === 'water' ? .3 : .6

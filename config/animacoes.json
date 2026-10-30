@@ -118,344 +118,1114 @@
   },
   "visualProfiles": {
     "default": {
-      "lunge": 0.12,
-      "recoil": 0.06,
       "launch": "front",
       "shadow": {
         "scale": 1,
-        "opacity": 1
+        "opacity": 0.8
+      },
+      "actions": {
+        "basic": {},
+        "charged": {}
       }
     },
-    "magikarp": [
-      {
-        "lunge": 0.19,
-        "hop": 0.65,
-        "launch": "front"
-      },
-      {
-        "lunge": 0.19,
-        "recoil": 0.1,
-        "launch": "mouth",
-        "shadow": {
-          "scale": 1.25
-        }
-      }
-    ],
-    "diglett": [
-      {
-        "lunge": 0.1,
-        "shadow": {
-          "mode": "earth",
-          "scale": 0.8
-        }
-      },
-      {
-        "lunge": 0.1,
-        "shadow": {
-          "mode": "earth",
-          "scale": 1.12
-        }
-      }
-    ],
-    "machop": [
-      {
-        "lunge": 0.34,
-        "shadow": {
-          "scale": 0.85
-        }
-      },
-      {
-        "lunge": 0.47
-      },
-      {
-        "lunge": 0.6,
-        "shadow": {
-          "scale": 1.15
-        }
-      }
-    ],
-    "gastly": [
-      {
-        "lunge": 0.12,
-        "shadow": {
-          "scale": 0.6,
-          "opacity": 0.48
-        }
-      },
-      {
-        "lunge": 0.19,
-        "shadow": {
-          "scale": 0.65,
-          "opacity": 0.48
-        }
-      },
-      {
-        "lunge": 0.24,
-        "shadow": {
-          "scale": 0.75,
-          "opacity": 0.5
-        }
-      }
-    ],
-    "pikachu": [
-      {
-        "lunge": 0.07,
-        "recoil": 0.1,
-        "launch": "front"
-      },
-      {
-        "lunge": 0.07,
-        "recoil": 0.13,
-        "launch": "front"
-      }
-    ],
-    "onix": [
-      {
-        "lunge": 0.22,
-        "shadow": {
-          "scale": 1.5
-        }
-      },
-      {
-        "lunge": 0.32,
-        "shadow": {
-          "scale": 1.7
-        }
-      }
-    ],
-    "geodude": [
-      {
-        "lunge": 0.24
-      },
-      {
-        "lunge": 0.33
-      },
-      {
-        "lunge": 0.12
-      }
-    ],
-    "chansey": [
-      {
-        "launch": "hands",
-        "recoil": 0.06
-      },
-      {
-        "launch": "hands",
-        "recoil": 0.06
-      }
-    ],
-    "voltorb": [
-      {
-        "pulse": 0.2,
-        "launch": "body"
-      },
-      {
-        "pulse": 0.27,
-        "launch": "body"
-      }
-    ],
-    "rhyhorn": [
-      {
-        "lunge": 0.18,
-        "shadow": {
-          "scale": 1.1
-        }
-      },
-      {
-        "lunge": 0.22,
-        "shadow": {
-          "scale": 1.3
-        }
-      },
-      {
-        "lunge": 0.24,
-        "shadow": {
-          "scale": 1.4
-        }
-      }
-    ],
-    "snorlax": [
-      {
-        "hop": 0.25,
-        "pulse": 0.09,
-        "shadow": {
-          "scale": 1.45
-        }
-      }
-    ],
-    "dratini": [
+    "caterpie": [
       {
         "launch": "mouth",
-        "recoil": 0.09
-      },
-      {
-        "launch": "mouth",
-        "recoil": 0.09
-      },
-      {
-        "hop": 0.35,
-        "pulse": 0.07
-      }
-    ],
-    "koffing": [
-      {
-        "launch": "body",
         "shadow": {
-          "scale": 0.68,
-          "offsetY": 10
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.02
+          },
+          "charged": {
+            "recoil": 0.08
+          }
         }
       },
       {
         "launch": "body",
         "shadow": {
-          "scale": 0.8,
-          "offsetY": 12
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "pulse": 0.02
+          },
+          "charged": {
+            "pulse": 0.035
+          }
         }
-      }
-    ],
-    "cubone": [
-      {
-        "launch": "hands",
-        "lunge": 0.12
       },
-      {
-        "launch": "hands",
-        "lunge": 0.13
-      }
-    ],
-    "butterfree": [
       {
         "launch": "wings",
         "shadow": {
-          "scale": 0.62,
-          "offsetY": 5
+          "scale": 0.61,
+          "opacity": 0.55,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.02
+          },
+          "charged": {
+            "pulse": 0.035
+          }
         }
       }
     ],
-    "vulpix": [
+    "weedle": [
       {
         "launch": "mouth",
-        "recoil": 0.1
-      },
-      {
-        "launch": "mouth",
-        "recoil": 0.12
-      }
-    ],
-    "squirtle": [
-      {
-        "pulse": 0.08
-      },
-      {
-        "pulse": 0.08
-      },
-      {
-        "pulse": 0.1
-      }
-    ],
-    "mew": [
-      {
-        "hop": 0.15,
-        "launch": "front",
         "shadow": {
-          "scale": 0.48,
-          "opacity": 0.38
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.1
+          },
+          "charged": {
+            "lunge": 0.15
+          }
+        }
+      },
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "pulse": 0.01
+          },
+          "charged": {
+            "pulse": 0.02
+          }
+        }
+      },
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 0.67,
+          "opacity": 0.62,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.13
+          },
+          "charged": {
+            "lunge": 0.24
+          }
+        }
+      }
+    ],
+    "bulbasaur": [
+      {
+        "launch": "back",
+        "shadow": {
+          "scale": 0.88,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "recoil": 0.06
+          }
+        }
+      },
+      {
+        "launch": "back",
+        "shadow": {
+          "scale": 1.05,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "recoil": 0.06
+          }
+        }
+      },
+      {
+        "launch": "back",
+        "shadow": {
+          "scale": 1.25,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.03
+          },
+          "charged": {
+            "recoil": 0.07
+          }
         }
       }
     ],
     "charmander": [
       {
         "launch": "mouth",
-        "lunge": 0.14
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.13
+          },
+          "charged": {
+            "recoil": 0.09
+          }
+        }
       },
       {
         "launch": "mouth",
-        "lunge": 0.18
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.14
+          },
+          "charged": {
+            "recoil": 0.1
+          }
+        }
       },
       {
         "launch": "mouth",
-        "lunge": 0.21
+        "shadow": {
+          "scale": 1.02,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.12
+          },
+          "charged": {
+            "recoil": 0.12
+          }
+        }
       }
     ],
-    "weedle": [
+    "squirtle": [
       {
-        "lunge": 0.14
+        "launch": "mouth",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "pulse": 0.025
+          }
+        }
       },
       {
-        "lunge": 0.1
+        "launch": "mouth",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "pulse": 0.025
+          }
+        }
       },
       {
-        "lunge": 0.3
+        "launch": "mouth",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "pulse": 0.035
+          }
+        }
+      }
+    ],
+    "pikachu": [
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "pulse": 0.055
+          }
+        }
+      },
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.06
+          },
+          "charged": {
+            "pulse": 0.07
+          }
+        }
+      }
+    ],
+    "koffing": [
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 0.6,
+          "opacity": 0.44,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.025
+          },
+          "charged": {
+            "pulse": 0.045
+          }
+        }
+      },
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 0.68,
+          "opacity": 0.47,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.03
+          },
+          "charged": {
+            "pulse": 0.055
+          }
+        }
+      }
+    ],
+    "snorlax": [
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 1.25,
+          "opacity": 0.8,
+          "aspect": 0.3
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.06
+          },
+          "charged": {
+            "hop": 0.29,
+            "pulse": 0.035
+          }
+        }
+      }
+    ],
+    "articuno": [
+      {
+        "launch": "wings",
+        "shadow": {
+          "scale": 0.7,
+          "opacity": 0.52,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.035
+          },
+          "charged": {
+            "pulse": 0.025
+          }
+        }
+      }
+    ],
+    "zapdos": [
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 0.75,
+          "opacity": 0.54,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.045
+          },
+          "charged": {
+            "pulse": 0.035
+          }
+        }
+      }
+    ],
+    "moltres": [
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 0.78,
+          "opacity": 0.54,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.045
+          },
+          "charged": {
+            "pulse": 0.03
+          }
+        }
+      }
+    ],
+    "mewtwo": [
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.03
+          },
+          "charged": {
+            "pulse": 0.035
+          }
+        }
+      }
+    ],
+    "mew": [
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 0.43,
+          "opacity": 0.4,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.025
+          },
+          "charged": {
+            "pulse": 0.025
+          }
+        }
+      }
+    ],
+    "cubone": [
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.075
+          },
+          "charged": {
+            "recoil": 0.08
+          }
+        }
+      },
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.09
+          },
+          "charged": {
+            "recoil": 0.1
+          }
+        }
+      }
+    ],
+    "onix": [
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.45,
+          "opacity": 0.8,
+          "aspect": 0.3
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.105
+          },
+          "charged": {
+            "lunge": 0.22
+          }
+        },
+        "named": {
+          "Slam": {
+            "lunge": 0.22
+          }
+        }
+      },
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.58,
+          "opacity": 0.8,
+          "aspect": 0.3
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.11
+          },
+          "charged": {
+            "lunge": 0.21
+          }
+        }
+      }
+    ],
+    "geodude": [
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 0.75,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.11
+          },
+          "charged": {
+            "lunge": 0.24
+          }
+        }
+      },
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 1.1,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.12
+          },
+          "charged": {
+            "lunge": 0.2
+          }
+        }
+      },
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 1.25,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.065
+          },
+          "charged": {
+            "pulse": 0.035
+          }
+        }
+      }
+    ],
+    "chansey": [
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.035
+          },
+          "charged": {
+            "recoil": 0.055
+          }
+        }
+      },
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.035
+          },
+          "charged": {
+            "recoil": 0.045
+          }
+        }
       }
     ],
     "eevee": [
       {
-        "lunge": 0.09
+        "launch": "front",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.085
+          },
+          "charged": {
+            "recoil": 0.055
+          }
+        }
       }
     ],
     "vaporeon": [
       {
         "launch": "mouth",
-        "recoil": 0.08
-      }
-    ],
-    "jolteon": [
-      {
-        "launch": "front",
-        "recoil": 0.07
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "recoil": 0.075
+          }
+        }
       }
     ],
     "flareon": [
       {
         "launch": "mouth",
-        "recoil": 0.11
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.06
+          },
+          "charged": {
+            "recoil": 0.075
+          }
+        }
+      }
+    ],
+    "jolteon": [
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.05
+          },
+          "charged": {
+            "pulse": 0.045
+          }
+        }
       }
     ],
     "umbreon": [
       {
-        "launch": "front",
-        "hop": 0.04
-      }
-    ],
-    "espeon": [
-      {
-        "launch": "front",
-        "hop": 0.07
-      }
-    ],
-    "leafeon": [
-      {
-        "launch": "front",
-        "recoil": 0.04
-      }
-    ],
-    "glaceon": [
-      {
-        "launch": "front",
-        "recoil": 0.05
+        "launch": "body",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.065
+          },
+          "charged": {
+            "pulse": 0.03
+          }
+        }
       }
     ],
     "sylveon": [
       {
-        "launch": "front",
-        "recoil": 0.06
+        "launch": "hands",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.035
+          },
+          "charged": {
+            "pulse": 0.035
+          }
+        }
       }
     ],
-    "staryu": [
+    "leafeon": [
       {
-        "launch": "body",
-        "recoil": 0.1,
-        "pulse": 0.08,
+        "launch": "back",
         "shadow": {
-          "scale": 0.55
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.075
+          },
+          "charged": {
+            "recoil": 0.045
+          }
+        }
+      }
+    ],
+    "glaceon": [
+      {
+        "launch": "mouth",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.035
+          },
+          "charged": {
+            "recoil": 0.06
+          }
+        }
+      }
+    ],
+    "espeon": [
+      {
+        "launch": "head",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.03
+          },
+          "charged": {
+            "pulse": 0.035
+          }
+        }
+      }
+    ],
+    "rhyhorn": [
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.13,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.11
+          },
+          "charged": {
+            "lunge": 0.19
+          }
+        }
+      },
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.25,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.13
+          },
+          "charged": {
+            "lunge": 0.24
+          }
+        }
+      },
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.35,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.16
+          },
+          "charged": {
+            "lunge": 0.27
+          }
+        }
+      }
+    ],
+    "vulpix": [
+      {
+        "launch": "mouth",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.05
+          },
+          "charged": {
+            "recoil": 0.085
+          }
+        }
+      },
+      {
+        "launch": "mouth",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.05
+          },
+          "charged": {
+            "recoil": 0.09
+          }
+        }
+      }
+    ],
+    "dratini": [
+      {
+        "launch": "mouth",
+        "shadow": {
+          "scale": 0.77,
+          "opacity": 0.8,
+          "aspect": 0.29
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "recoil": 0.09
+          }
+        }
+      },
+      {
+        "launch": "mouth",
+        "shadow": {
+          "scale": 0.86,
+          "opacity": 0.8,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.03
+          },
+          "charged": {
+            "pulse": 0.03
+          }
         }
       },
       {
         "launch": "body",
-        "recoil": 0.12,
-        "pulse": 0.1,
         "shadow": {
-          "scale": 0.64
+          "scale": 1.05,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.065
+          },
+          "charged": {
+            "pulse": 0.045
+          }
+        }
+      }
+    ],
+    "diglett": [
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8,
+          "mode": "embedded"
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.025
+          },
+          "charged": {
+            "lunge": 0.055
+          }
+        },
+        "named": {
+          "Attack": {
+            "lunge": 0.02
+          }
+        }
+      },
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8,
+          "mode": "embedded"
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.025
+          },
+          "charged": {
+            "lunge": 0.065
+          }
+        },
+        "named": {
+          "Attack": {
+            "lunge": 0.035
+          }
+        }
+      }
+    ],
+    "voltorb": [
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 0.77,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.04
+          },
+          "charged": {
+            "pulse": 0.095
+          }
+        }
+      },
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.02,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.045
+          },
+          "charged": {
+            "pulse": 0.12
+          }
+        }
+      }
+    ],
+    "gastly": [
+      {
+        "launch": "mouth",
+        "shadow": {
+          "scale": 0.55,
+          "opacity": 0.4,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.025
+          },
+          "charged": {
+            "lunge": 0.055
+          }
+        }
+      },
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 0.6,
+          "opacity": 0.44,
+          "airborne": true
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.065
+          },
+          "charged": {
+            "lunge": 0.11
+          }
+        }
+      },
+      {
+        "launch": "hands",
+        "shadow": {
+          "scale": 0.76,
+          "opacity": 0.62
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.08
+          },
+          "charged": {
+            "pulse": 0.07
+          }
+        }
+      }
+    ],
+    "machop": [
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 0.83,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.11
+          },
+          "charged": {
+            "lunge": 0.27
+          }
+        }
+      },
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.13
+          },
+          "charged": {
+            "lunge": 0.33
+          }
+        }
+      },
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.15,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.14
+          },
+          "charged": {
+            "lunge": 0.37
+          }
+        }
+      }
+    ],
+    "magikarp": [
+      {
+        "launch": "front",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.23
+          },
+          "charged": {
+            "hop": 0.57
+          }
+        }
+      },
+      {
+        "launch": "mouth",
+        "shadow": {
+          "scale": 1.0,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "lunge": 0.11
+          },
+          "charged": {
+            "lunge": 0.17,
+            "recoil": 0.07
+          }
+        },
+        "named": {
+          "RearUp": {
+            "pulse": 0.04
+          },
+          "Rumble": {
+            "sway": 0.2,
+            "lunge": 0.06
+          },
+          "Attack": {
+            "lunge": 0.11
+          }
+        }
+      }
+    ],
+    "staryu": [
+      {
+        "launch": "core",
+        "shadow": {
+          "scale": 0.64,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.04
+          },
+          "charged": {
+            "pulse": 0.04
+          }
+        },
+        "named": {
+          "Twirl": {
+            "pulse": 0.045
+          }
+        }
+      },
+      {
+        "launch": "core",
+        "shadow": {
+          "scale": 0.69,
+          "opacity": 0.8
+        },
+        "actions": {
+          "basic": {
+            "recoil": 0.045
+          },
+          "charged": {
+            "pulse": 0.05
+          }
+        },
+        "named": {
+          "Twirl": {
+            "pulse": 0.06
+          }
         }
       }
     ]

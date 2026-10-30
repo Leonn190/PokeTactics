@@ -18,6 +18,8 @@ import { renderCombatEffects } from './render/effects';
 import { SpriteBoundsCache } from './render/sprite-bounds';
 import { drawContactShadow } from './render/shadows';
 import { visualProfile, cosmeticMotion } from './animation/visual-profiles';
+import { markerAt, frameAt, impactFraction, type PmdSheet, type PmdEntry } from './animation/pmd-metadata';
+import type { BodyPoints } from './render/projectile-origin';
 import { drawBurrowMound } from './render/burrow';
 import { tierFor } from '../../server/systems/synergies/registry';
 import { randomIndex } from '../../server/systems/synergies/positioning';
@@ -39,8 +41,6 @@ export interface ClientView {
 }
 
 type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy'] };
-type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number; hitFrame?: number };
-type PmdEntry = Record<string, PmdSheet>;
 const PMD = pmdManifest as Record<string, PmdEntry>;
 const PI2 = Math.PI * 2;
 const BENCH_Y = 4.38;
@@ -71,6 +71,7 @@ export class Arena {
   private planningCache: { serial: number; scout: string; markers: Marker[] } | null = null;
   private unitEventLookup = new Map<string, NonNullable<GameSnapshot['visualEvents']>[number]>();
   private animationTicks = new WeakMap<PmdSheet, number>();
+  private spriteParts = new Map<string, BodyPoints>();
   private grassCanvas: HTMLCanvasElement | null = null;
   private grassKey = '';
   private lastFrame = 0;
@@ -107,7 +108,7 @@ export class Arena {
       for (const unit of snapshot.visibleBattle.units) {
         const dex = SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
         const anims = PMD[String(dex)];
-        if (anims && !this.warmedSpecies.has(dex)) this.warmAnimationSheets(dex, anims);
+        if (anims && !this.warmedSpecies.has(dex)) this.warmAnimationSheets(dex, anims, unit.family, unit.stage);
       }
     }
     else this.unitInterpolator.reset();
@@ -258,10 +259,17 @@ export class Arena {
     return this.spriteManager.get(url);
   }
 
-  private warmAnimationSheets(dex: number, anims: PmdEntry): void {
+  private warmAnimationSheets(dex: number, anims: PmdEntry, family: Family, stage: number): void {
     if (this.warmedSpecies.has(dex)) return;
     this.warmedSpecies.add(dex);
-    for (const action of [...RENDER_SETTINGS.idleSpritePreload, 'Rotate']) {
+    const moves=getStageData(family,stage);
+    const extras=family==='magikarp' && stage===1?['RearUp','Rumble']
+      :family==='staryu'?['Twirl']
+      :family==='machop'?['Kick']
+      :family==='gastly'?['Lick','MultiStrike','Strike']
+      :[];
+    for (const action of new Set([...RENDER_SETTINGS.idleSpritePreload,'Rotate',
+      moves.basic.animation,moves.chargedAnimation,...extras])) {
       if (anims[action]) this.image(`${import.meta.env.BASE_URL}sprite/${String(dex).padStart(4, '0')}/${anims[action].file}`);
     }
   }
@@ -277,7 +285,7 @@ export class Arena {
     const id = SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
     const anims = PMD[String(id)];
     if (anims) {
-      this.warmAnimationSheets(id, anims);
+      this.warmAnimationSheets(id, anims, unit.family, unit.stage);
       const action = unit.bench ? 'Sleep' : this.snapshot?.phase === 'planning' ? 'Idle'
         : unit.animation?.name || (unit.moving ? (anims.Hover ? 'Hover' : 'Walk') : 'Idle');
       const battle = this.snapshot?.visibleBattle;
@@ -325,14 +333,25 @@ export class Arena {
           : (selectedAction === 'Rotate' && orientation.rotate ? orientation.rotate.row : dir) % animation.directions;
         // Tamanho baseado em pixels dos próprios sprites; sem formas geométricas.
         const sizeScale = this.cellScale / 48 * (unit.bench ? .95 : 1.13);
-        const bounds = this.spriteBounds.get(sprite, `${url}:${frame}:${row}`, frame * animation.width, row * animation.height, animation.width, animation.height);
-        const drawX = Math.round(x - ((bounds.left + bounds.right) / 2) * sizeScale);
-        const drawY = Math.round(y - bounds.bottom * sizeScale);
-        ctx.save(); ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(sprite, frame * animation.width, row * animation.height,
-          animation.width, animation.height, drawX, drawY, animation.width * sizeScale, animation.height * sizeScale);
+        const rowMarker=markerAt(animation,'shadow',row,frame);
+        // PMD sheets are frame-centered; the white Shadow marker is the true ground
+        // reference. Never center on changing visible pixels (arms, tails, leaps).
+        const anchorX=rowMarker?.ground?.[0]??animation.width/2;
+        const anchorY=rowMarker?.ground?.[1]??animation.height*.80;
+        const drawX=Math.round(x-anchorX*sizeScale);
+        const drawY=Math.round(y-anchorY*sizeScale);
+        const body=markerAt(animation,'body',row,frame);
+        if(body && !unit.bench) {
+          const toPt=(p?:number[])=>p?{x:drawX+p[0]*sizeScale,y:drawY+p[1]*sizeScale}:undefined;
+          this.spriteParts.set(unit.id,{body:toPt(body.body),head:toPt(body.head),
+            leftHand:toPt(body.leftHand),rightHand:toPt(body.rightHand)});
+        }
+        const bounds=this.spriteBounds.get(sprite,`${url}:${frame}:${row}`,frame*animation.width,row*animation.height,animation.width,animation.height);
+        ctx.save();ctx.imageSmoothingEnabled=false;
+        ctx.drawImage(sprite,frame*animation.width,row*animation.height,
+          animation.width,animation.height,drawX,drawY,animation.width*sizeScale,animation.height*sizeScale);
         ctx.restore();
-        return y - (bounds.bottom - bounds.top) * sizeScale;
+        return drawY+bounds.top*sizeScale;
       }
       // Nunca renderizar sprites PNG estáticos quando uma animação PMD ainda carrega.
       return y - this.cellScale * .85;
@@ -570,15 +589,26 @@ export class Arena {
     if (dig?.phase === 'travel') { drawBurrowMound(ctx,p.x,p.y,radius,unit.stage,time); return; }
     if (dig?.phase === 'rise' || dig?.phase === 'sink') {
       const exposed = dig.phase === 'sink' ? 1 - dig.time/dig.duration : dig.time/dig.duration;
-      drawBurrowMound(ctx,p.x,p.y,radius,unit.stage,time);
+      // No second mound: the PMD Diglett/Dugtrio art already contains its hole.
       ctx.save();
       ctx.beginPath(); ctx.rect(p.x-radius*3,p.y-radius*5,radius*6,radius*5+2); ctx.clip();
       this.drawPokemonSprite(p.x,p.y+Math.max(0,1-exposed)*this.cellScale*1.25,unit,time);
       ctx.restore();
       return;
     }
-    // Sombra encostada nos pés; nenhum bob/flutuação artificial.
-    drawContactShadow(ctx, p.x, p.y, radius, visualProfile(unit.family,unit.stage).shadow, unit.jumpHeight || 0);
+    // The PMD sprite itself already contains the ground under Diglett/Dugtrio.
+    // Shadow markers are metadata, never an additional soil decal.
+    const dex=SPECIES[unit.family].pokedexIds[Math.min(unit.stage,SPECIES[unit.family].pokedexIds.length-1)];
+    const sheetSet=PMD[String(dex)];
+    const action=unit.animation?.name || (unit.moving?'Walk':'Idle');
+    const sheet=sheetSet?.[action] || sheetSet?.Idle;
+    const currentFrame=sheet&&unit.animation?.duration
+      ? frameAt(sheet,unit.animation.elapsed/unit.animation.duration) : 0;
+    const row=sheet?.directions===1?0:this.direction(unit.facingX||0,unit.facingY||0);
+    const marker=sheet?markerAt(sheet,'shadow',row,currentFrame):null;
+    const shade=marker?.size??sheet?.shadowSize;
+    const liftForShadow=(unit.jumpHeight||0)+(unit.knockUpTime?.3:0);
+    drawContactShadow(ctx,p.x,p.y,radius,visualProfile(unit.family,unit.stage).shadow,liftForShadow,shade);
     const battle=this.snapshot?.visibleBattle;
     if(battle&&this.snapshot?.phase!=='planning'&&unit.synergy){
       const elements=getStageData(unit.family,unit.stage).elements;
@@ -597,16 +627,23 @@ export class Arena {
     if (unit.flash > 0) {
       ctx.fillStyle = '#fff4d454'; ctx.beginPath(); ctx.arc(p.x, p.y - 2, radius * 1.7, 0, PI2); ctx.fill();
     }
-    const lift = (unit.jumpHeight || 0) + (unit.knockUpTime ? .55 * Math.sin(Math.PI * (1 - Math.min(1, unit.knockUpTime / (unit.knockUpDuration || .35)))) : 0);
+    // With ground markers, Hop art already describes vertical body travel.
+    // Do not stack the physics jump on top of the sprite's built-in jump.
+    const bakedHop=unit.animation?.name==='Hop' && !!PMD[String(dex)]?.Hop?.shadowMarkers;
+    const lift = (bakedHop?0:(unit.jumpHeight || 0)) +
+      (unit.knockUpTime ? .55 * Math.sin(Math.PI * (1 - Math.min(1, unit.knockUpTime / (unit.knockUpDuration || .35)))) : 0);
     if(ghost?.phase==='appear'){ctx.save();ctx.globalAlpha=.38+.62*ghost.time/ghost.duration;ctx.shadowColor='#c99dff';ctx.shadowBlur=16;}
     const motion = cosmeticMotion({family:unit.family,stage:unit.stage,animation:unit.animation||null,
-      facingX:unit.facingX||0,facingY:unit.facingY||0,leap:unit.leap||null,jumpHeight:unit.jumpHeight||0},this.cellScale);
+      facingX:unit.facingX||0,facingY:unit.facingY||0,leap:unit.leap||null,jumpHeight:unit.jumpHeight||0},
+      this.cellScale,unit.animation?.name==='Hop'&&!!PMD[String(dex)]?.Hop);
     const spriteX = p.x + motion.dx, spriteY = p.y - lift * this.cellScale + motion.dy;
     ctx.save();
     if (motion.scale !== 1) { ctx.translate(spriteX,spriteY);ctx.scale(motion.scale,motion.scale);ctx.translate(-spriteX,-spriteY); }
     const spriteTop = this.drawPokemonSprite(spriteX,spriteY,unit,time) - this.cellScale*(motion.scale-1)*.6;
     ctx.restore();
-    drawCastingGlints(ctx,spriteX,spriteY,unit,this.cellScale,time);
+    const activeSheet=sheetSet?.[unit.animation?.name||''];
+    drawCastingGlints(ctx,spriteX,spriteY,unit,this.cellScale,time,
+      activeSheet?impactFraction(activeSheet):.5);
     // A jewel glows while Refração Estelar is active. Drawn on the unit, not in a HUD.
     const starSeconds = (unit.refractionUntil || 0) - (battle?.elapsed || 0);
     if (starSeconds > 0 && unit.family === 'staryu') {
@@ -810,6 +847,7 @@ export class Arena {
       this.drawBench(false, 0, this.view.scoutId === 'p0');
       if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) this.drawBench(true);
     }
+    this.spriteParts.clear();
     const markers = this.markers();
     const battle = this.snapshot?.visibleBattle;
     const intro = this.snapshot?.phase === 'combat' && battle && !battle.resolved && battle.introElapsed < 1.5;
@@ -834,7 +872,8 @@ export class Arena {
       renderCombatEffects(this.context, this.snapshot.visibleBattle.effects,
         this.snapshot.visibleBattle.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId,
         (x, y) => this.toScreen(x, y), this.cellScale, this.frame,
-        fx => this.effectTimeline.time(fx, this.renderLead));
+        fx => this.effectTimeline.time(fx, this.renderLead),
+        fx => fx.sourceId?this.spriteParts.get(fx.sourceId):undefined);
     }
     if (battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(dt, this.frame, battle);
     else this.drawTrainers(dt, this.frame);

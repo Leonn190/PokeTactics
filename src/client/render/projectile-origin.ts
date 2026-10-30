@@ -1,12 +1,26 @@
 import type { CombatEffect } from '../../../server/types';
-import { visualProfile } from '../animation/visual-profiles';
-type Point = {x:number;y:number};
-/** World unit remains untouched; only the Canvas path begins at a body anchor. */
-export function projectileOrigin(fx: CombatEffect, from: Point, to: Point, scale: number): Point {
-  const shape = visualProfile(fx.family,fx.stage || 0).launch || 'front';
+import { visualProfile, type Launch } from '../animation/visual-profiles';
+type Point={x:number;y:number};
+export type BodyPoints={body?:Point;head?:Point;leftHand?:Point;rightHand?:Point};
+/** Origin is visual only. Use PMD body markers when present; otherwise a direction-aware profile. */
+export function projectileOrigin(fx:CombatEffect,from:Point,to:Point,scale:number,points?:BodyPoints):Point {
+  const shape:Launch=visualProfile(fx.family,fx.stage||0).launch||'front';
   const dx=to.x-from.x,dy=to.y-from.y,n=Math.hypot(dx,dy)||1;
-  const x=dx/n,y=dy/n;
-  const anchors = {mouth:[.24,-.57],hands:[.25,-.38],wings:[.32,-.52],body:[0,-.46],front:[.19,-.43]} as const;
-  const [ahead,up] = anchors[shape];
-  return {x:from.x+x*ahead*scale, y:from.y+up*scale+y*ahead*scale*.45};
+  const ux=dx/n,uy=dy/n;
+  if(points) {
+    if(shape==='head'||shape==='mouth') {
+      if(points.head)return {x:points.head.x+ux*scale*(shape==='mouth'?.065:0),y:points.head.y+uy*scale*.045};
+    }
+    if(shape==='hands') {
+      const hands=[points.leftHand,points.rightHand].filter((p):p is Point=>!!p);
+      if(hands.length)return hands.length===1?hands[0]:hands.sort((a,b)=>(b.x-a.x)*ux+(b.y-a.y)*uy)[0];
+    }
+    if(shape==='back'&&points.body)return {x:points.body.x-ux*scale*.10,y:points.body.y-scale*.17};
+    if((shape==='body'||shape==='core')&&points.body)return points.body;
+  }
+  // Back/bulb and Staryu core are anatomical anchors, not the generic frontal muzzle.
+  const offsets:Record<Launch,[number,number]>={mouth:[.22,-.60],hands:[.21,-.42],wings:[.26,-.58],
+    body:[0,-.48],front:[.21,-.44],back:[-.09,-.68],head:[.10,-.70],core:[0,-.52]};
+  const [ahead,up]=offsets[shape];
+  return {x:from.x+ux*ahead*scale,y:from.y+up*scale+uy*ahead*scale*.35};
 }

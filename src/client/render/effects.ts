@@ -2,21 +2,21 @@
 import { SPECIES } from '../../../server/data';
 import type { CombatEffect } from '../../../server/types';
 import { renderTravelEffects } from '../vfx/travel-effects';
-import { projectileOrigin } from './projectile-origin';
+import { projectileOrigin, type BodyPoints } from './projectile-origin';
 import { renderImpactEffects } from '../vfx/impact-effects';
 import { renderFloatingNumber } from '../vfx/floating-numbers';
 import { renderV16Effect } from '../vfx/v16-effects';
 import { renderSynergyEffect } from './synergy-effects';
 const PI2 = Math.PI * 2;
 
-export function renderCombatEffects(context: CanvasRenderingContext2D, effects: CombatEffect[], flipY: boolean, toScreen: (x:number,y:number)=>{x:number;y:number}, cellScale: number, time: number, resolveTime?: (effect: CombatEffect) => number): void {
+export function renderCombatEffects(context: CanvasRenderingContext2D, effects: CombatEffect[], flipY: boolean, toScreen: (x:number,y:number)=>{x:number;y:number}, cellScale: number, time: number, resolveTime?: (effect: CombatEffect) => number, parts?: (effect: CombatEffect) => BodyPoints | undefined): void {
     const ctx = context;
     for (const fx of effects) {
       const t = Math.max(0, Math.min(1, (resolveTime ? resolveTime(fx) : fx.time) / fx.duration));
       const baseFrom = toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
       const from = ['basic-projectile','dragon-orb','bone','egg','ball','psychic-blessing','piercing-flame','lightning','poison','spell']
-        .includes(fx.kind) ? projectileOrigin(fx,baseFrom,to,cellScale) : baseFrom;
+        .includes(fx.kind) ? projectileOrigin(fx,baseFrom,to,cellScale,parts?.(fx)) : baseFrom;
       if (renderSynergyEffect(ctx, fx, from, to, t, cellScale, time)) continue;
       if (renderV16Effect(ctx, fx, from, to, t, cellScale, time)) continue;
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;

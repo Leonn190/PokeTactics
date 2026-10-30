@@ -9,7 +9,12 @@
     "playable_forms": 38,
     "boss_forms": 11,
     "eevee_family_forms": 9,
-    "new_families": ["cubone", "onix", "geodude", "chansey"],
+    "new_families": [
+      "cubone",
+      "onix",
+      "geodude",
+      "chansey"
+    ],
     "hp_locked_by_user": 24,
     "hp_proposed": 25
   },
@@ -156,7 +161,11 @@
       "shop": true,
       "merge_copies": 3,
       "evolves_to": "graveler",
-      "evolution_chain": ["geodude", "graveler", "golem"],
+      "evolution_chain": [
+        "geodude",
+        "graveler",
+        "golem"
+      ],
       "rarity_status": "assistant_proposal"
     },
     "chansey": {
@@ -194,30 +203,6 @@
       "shop": false
     },
     "mew": {
-      "rarity": 5,
-      "shop": false
-    },
-    "raikou": {
-      "rarity": 5,
-      "shop": false
-    },
-    "entei": {
-      "rarity": 5,
-      "shop": false
-    },
-    "suicune": {
-      "rarity": 5,
-      "shop": false
-    },
-    "lugia": {
-      "rarity": 5,
-      "shop": false
-    },
-    "ho-oh": {
-      "rarity": 5,
-      "shop": false
-    },
-    "celebi": {
       "rarity": 5,
       "shop": false
     }
@@ -615,11 +600,20 @@
       "name": "Cubone",
       "family": "cubone",
       "stage": 0,
-      "types": ["ground"],
+      "types": [
+        "ground"
+      ],
       "availability": "playable",
       "combat_role": "ranged_debuffer",
       "ability_id": "bone_throw",
-      "base_stats": {"hp": 300, "atk": 66, "def": 58, "spa": 64, "spd": 57, "speed": 56},
+      "base_stats": {
+        "hp": 300,
+        "atk": 66,
+        "def": 58,
+        "spa": 64,
+        "spd": 57,
+        "speed": 56
+      },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
     },
@@ -627,11 +621,20 @@
       "name": "Marowak",
       "family": "cubone",
       "stage": 1,
-      "types": ["ground"],
+      "types": [
+        "ground"
+      ],
       "availability": "playable",
       "combat_role": "ranged_debuffer",
       "ability_id": "bone_throw",
-      "base_stats": {"hp": 425, "atk": 97, "def": 85, "spa": 82, "spd": 74, "speed": 75},
+      "base_stats": {
+        "hp": 425,
+        "atk": 97,
+        "def": 85,
+        "spa": 82,
+        "spd": 74,
+        "speed": 75
+      },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
     },
@@ -639,11 +642,21 @@
       "name": "Onix",
       "family": "onix",
       "stage": 0,
-      "types": ["rock", "ground"],
+      "types": [
+        "rock",
+        "ground"
+      ],
       "availability": "playable",
       "combat_role": "melee_tank_disruptor",
       "ability_id": "single_target_knockup",
-      "base_stats": {"hp": 540, "atk": 82, "def": 120, "spa": 30, "spd": 60, "speed": 31},
+      "base_stats": {
+        "hp": 540,
+        "atk": 82,
+        "def": 120,
+        "spa": 30,
+        "spd": 60,
+        "speed": 31
+      },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
     },
@@ -651,11 +664,21 @@
       "name": "Steelix",
       "family": "onix",
       "stage": 1,
-      "types": ["steel", "ground"],
+      "types": [
+        "steel",
+        "ground"
+      ],
       "availability": "playable",
       "combat_role": "melee_tank_disruptor",
       "ability_id": "single_target_knockup",
-      "base_stats": {"hp": 650, "atk": 103, "def": 120, "spa": 43, "spd": 96, "speed": 38},
+      "base_stats": {
+        "hp": 650,
+        "atk": 103,
+        "def": 120,
+        "spa": 43,
+        "spd": 96,
+        "speed": 38
+      },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
     },
@@ -663,11 +686,21 @@
       "name": "Geodude",
       "family": "geodude",
       "stage": 0,
-      "types": ["rock", "ground"],
+      "types": [
+        "rock",
+        "ground"
+      ],
       "availability": "playable",
       "combat_role": "melee_rock_bruiser",
       "ability_id": "rock_strike",
-      "base_stats": {"hp": 330, "atk": 70, "def": 100, "spa": 24, "spd": 41, "speed": 26},
+      "base_stats": {
+        "hp": 330,
+        "atk": 70,
+        "def": 100,
+        "spa": 24,
+        "spd": 41,
+        "speed": 26
+      },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
     },
@@ -675,11 +708,21 @@
       "name": "Graveler",
       "family": "geodude",
       "stage": 1,
-      "types": ["rock", "ground"],
+      "types": [
+        "rock",
+        "ground"
+      ],
       "availability": "playable",
       "combat_role": "melee_rock_bruiser",
       "ability_id": "rock_strike",
-      "base_stats": {"hp": 480, "atk": 97, "def": 116, "spa": 31, "spd": 66, "speed": 34},
+      "base_stats": {
+        "hp": 480,
+        "atk": 97,
+        "def": 116,
+        "spa": 31,
+        "spd": 66,
+        "speed": 34
+      },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
     },
@@ -687,11 +730,21 @@
       "name": "Golem",
       "family": "geodude",
       "stage": 2,
-      "types": ["rock", "ground"],
+      "types": [
+        "rock",
+        "ground"
+      ],
       "availability": "playable",
       "combat_role": "melee_defensive_tank",
       "ability_id": "withdraw_guard",
-      "base_stats": {"hp": 610, "atk": 110, "def": 120, "spa": 40, "spd": 89, "speed": 40},
+      "base_stats": {
+        "hp": 610,
+        "atk": 110,
+        "def": 120,
+        "spa": 40,
+        "spd": 89,
+        "speed": 40
+      },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
     },
@@ -699,11 +752,20 @@
       "name": "Chansey",
       "family": "chansey",
       "stage": 0,
-      "types": ["normal"],
+      "types": [
+        "normal"
+      ],
       "availability": "playable",
       "combat_role": "melee_aoe_healer",
       "ability_id": "healing_egg",
-      "base_stats": {"hp": 670, "atk": 22, "def": 28, "spa": 88, "spd": 110, "speed": 46},
+      "base_stats": {
+        "hp": 670,
+        "atk": 22,
+        "def": 28,
+        "spa": 88,
+        "spd": 110,
+        "speed": 46
+      },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
     },
@@ -711,11 +773,20 @@
       "name": "Blissey",
       "family": "chansey",
       "stage": 1,
-      "types": ["normal"],
+      "types": [
+        "normal"
+      ],
       "availability": "playable",
       "combat_role": "melee_aoe_healer",
       "ability_id": "healing_egg",
-      "base_stats": {"hp": 700, "atk": 30, "def": 38, "spa": 109, "spd": 120, "speed": 55},
+      "base_stats": {
+        "hp": 700,
+        "atk": 30,
+        "def": 38,
+        "spa": 109,
+        "spd": 120,
+        "speed": 55
+      },
       "hp_source": "user_locked",
       "other_stats_source": "assistant_proposal"
     },
@@ -987,123 +1058,6 @@
       },
       "hp_source": "assistant_proposal",
       "other_stats_source": "assistant_proposal"
-    },
-    "raikou": {
-      "name": "Raikou",
-      "family": "raikou",
-      "stage": 0,
-      "types": [
-        "electric"
-      ],
-      "availability": "boss_only",
-      "base_stats": {
-        "hp": 560,
-        "atk": 85,
-        "def": 80,
-        "spa": 120,
-        "spd": 108,
-        "speed": 120
-      },
-      "hp_source": "assistant_proposal",
-      "other_stats_source": "assistant_proposal"
-    },
-    "entei": {
-      "name": "Entei",
-      "family": "entei",
-      "stage": 0,
-      "types": [
-        "fire"
-      ],
-      "availability": "boss_only",
-      "base_stats": {
-        "hp": 640,
-        "atk": 120,
-        "def": 94,
-        "spa": 93,
-        "spd": 85,
-        "speed": 108
-      },
-      "hp_source": "assistant_proposal",
-      "other_stats_source": "assistant_proposal"
-    },
-    "suicune": {
-      "name": "Suicune",
-      "family": "suicune",
-      "stage": 0,
-      "types": [
-        "water"
-      ],
-      "availability": "boss_only",
-      "base_stats": {
-        "hp": 650,
-        "atk": 72,
-        "def": 120,
-        "spa": 105,
-        "spd": 120,
-        "speed": 91
-      },
-      "hp_source": "assistant_proposal",
-      "other_stats_source": "assistant_proposal"
-    },
-    "lugia": {
-      "name": "Lugia",
-      "family": "lugia",
-      "stage": 0,
-      "types": [
-        "psychic",
-        "flying"
-      ],
-      "availability": "boss_only",
-      "base_stats": {
-        "hp": 670,
-        "atk": 95,
-        "def": 120,
-        "spa": 109,
-        "spd": 120,
-        "speed": 105
-      },
-      "hp_source": "assistant_proposal",
-      "other_stats_source": "assistant_proposal"
-    },
-    "ho-oh": {
-      "name": "Ho-Oh",
-      "family": "ho-oh",
-      "stage": 0,
-      "types": [
-        "fire",
-        "flying"
-      ],
-      "availability": "boss_only",
-      "base_stats": {
-        "hp": 670,
-        "atk": 120,
-        "def": 96,
-        "spa": 114,
-        "spd": 120,
-        "speed": 98
-      },
-      "hp_source": "assistant_proposal",
-      "other_stats_source": "assistant_proposal"
-    },
-    "celebi": {
-      "name": "Celebi",
-      "family": "celebi",
-      "stage": 0,
-      "types": [
-        "psychic",
-        "grass"
-      ],
-      "availability": "boss_only",
-      "base_stats": {
-        "hp": 600,
-        "atk": 90,
-        "def": 108,
-        "spa": 116,
-        "spd": 116,
-        "speed": 103
-      },
-      "hp_source": "assistant_proposal",
-      "other_stats_source": "assistant_proposal"
     }
   },
   "new_family_ability_system": {
@@ -1132,14 +1086,23 @@
     },
     "knockup_event": {
       "name": "combat:knockup_applied",
-      "required_fields": ["battle_id", "target_unit_id", "source_unit_id", "knockup_instance_id", "start_time"],
+      "required_fields": [
+        "battle_id",
+        "target_unit_id",
+        "source_unit_id",
+        "knockup_instance_id",
+        "start_time"
+      ],
       "emit": "UMA vez quando começar um novo levantamento efetivo de cada alvo; não por frame nem por renovação da duração do mesmo arremesso.",
       "snorlax_integration": "O arremesso em área do Snorlax emite uma instância distinta por CADA inimigo realmente levantado; manter todos os demais números e regras do Snorlax.",
       "onix_steelix_integration": "O carregado de Onix/Steelix emite o mesmo evento para seu ÚNICO alvo caso o knockup seja aplicado.",
       "not_knockup": "Stun isolado, empurrão sem airborne, tentativa em alvo imune ou morto e evento duplicado não devem disparar os ossos."
     },
     "reactive_bone_throw": {
-      "owners": ["cubone", "marowak"],
+      "owners": [
+        "cubone",
+        "marowak"
+      ],
       "trigger": "Para CADA evento combat:knockup_applied sobre inimigo, CADA Cubone ou Marowak aliado vivo lança automaticamente UM osso naquele alvo. Ex.: Snorlax levanta 3 inimigos = 3 ossos por Cubone/Marowak aliado vivo.",
       "use_same_charged_skill": true,
       "same_full_damage_and_def_shred": true,
@@ -1150,7 +1113,12 @@
       "does_not_reset_regular_attack_timer": true,
       "does_not_consume_manual_charged_energy": true,
       "cast_mechanic": "Disparo reativo independente da ação regular/carregada e da barra de energia; não cancelar ataques em andamento. Se lançador morrer antes de disparar, não lançar. Se já lançou, projétil permanece.",
-      "dedup_key": ["battle_id", "caster_unit_id", "target_unit_id", "knockup_instance_id"],
+      "dedup_key": [
+        "battle_id",
+        "caster_unit_id",
+        "target_unit_id",
+        "knockup_instance_id"
+      ],
       "dead_target_at_impact": "Se alvo morreu antes do impacto, cancelar projétil sem redirecionamento ou debuff.",
       "non_recursive": "Osso não levanta inimigos e nunca emite combat:knockup_applied; um mesmo evento só pode provocar um disparo por lançador e alvo."
     },
@@ -1172,8 +1140,17 @@
         "projectile_key": "cubone_bone",
         "element": "ground",
         "damage_category": "physical",
-        "charged_attack": {"base_damage": 24, "atk_ratio": 0.8, "energy_cost": 35, "target_count": 1},
-        "defense_shred": {"shred_base": 7, "shred_spa_ratio": 0.12, "duration_seconds": 5},
+        "charged_attack": {
+          "base_damage": 24,
+          "atk_ratio": 0.8,
+          "energy_cost": 35,
+          "target_count": 1
+        },
+        "defense_shred": {
+          "shred_base": 7,
+          "shred_spa_ratio": 0.12,
+          "duration_seconds": 5
+        },
         "reacts_to_knockup": true
       },
       "marowak": {
@@ -1181,23 +1158,50 @@
         "projectile_key": "marowak_bone",
         "element": "ground",
         "damage_category": "physical",
-        "charged_attack": {"base_damage": 32, "atk_ratio": 0.95, "energy_cost": 35, "target_count": 1},
-        "defense_shred": {"shred_base": 9, "shred_spa_ratio": 0.14, "duration_seconds": 5},
+        "charged_attack": {
+          "base_damage": 32,
+          "atk_ratio": 0.95,
+          "energy_cost": 35,
+          "target_count": 1
+        },
+        "defense_shred": {
+          "shred_base": 9,
+          "shred_spa_ratio": 0.14,
+          "duration_seconds": 5
+        },
         "reacts_to_knockup": true
       },
       "onix": {
         "ability_name": "Investida Ascendente",
         "element": "rock",
         "damage_category": "physical",
-        "charged_attack": {"base_damage": 32, "atk_ratio": 1.15, "energy_cost": 50, "target_count": 1},
-        "control": {"kind": "knockup_and_stun", "duration_seconds": 0.75, "target_count": 1}
+        "charged_attack": {
+          "base_damage": 32,
+          "atk_ratio": 1.15,
+          "energy_cost": 50,
+          "target_count": 1
+        },
+        "control": {
+          "kind": "knockup_and_stun",
+          "duration_seconds": 0.75,
+          "target_count": 1
+        }
       },
       "steelix": {
         "ability_name": "Cauda de Ferro Ascendente",
         "element": "steel",
         "damage_category": "physical",
-        "charged_attack": {"base_damage": 42, "atk_ratio": 1.3, "energy_cost": 50, "target_count": 1},
-        "control": {"kind": "knockup_and_stun", "duration_seconds": 0.95, "target_count": 1}
+        "charged_attack": {
+          "base_damage": 42,
+          "atk_ratio": 1.3,
+          "energy_cost": 50,
+          "target_count": 1
+        },
+        "control": {
+          "kind": "knockup_and_stun",
+          "duration_seconds": 0.95,
+          "target_count": 1
+        }
       }
     },
     "animation_policy": "Usar PMD e assets já presentes: Onix/Steelix erguem somente o alvo, Cubone/Marowak lançam um projétil de osso por alvo (incluindo os simultâneos), dano sincronizado com impacto. Não baixar assets novamente."
@@ -1205,7 +1209,13 @@
   "geodude_chansey_ability_system": {
     "scope": "Especificação de combate, efeitos e animação a implementar depois no motor do jogo; não representa código executável atual.",
     "standard_melee_basics": {
-      "applies_to": ["geodude", "graveler", "golem", "chansey", "blissey"],
+      "applies_to": [
+        "geodude",
+        "graveler",
+        "golem",
+        "chansey",
+        "blissey"
+      ],
       "range_tiles": 1,
       "targeting": "Ataque REGULAR TFT: um inimigo adjacente, sem área, cura, bônus ou efeito secundário.",
       "raw_damage": "0.5 * ATK_efetivo; dano físico mitigado normalmente",
@@ -1213,10 +1223,17 @@
       "charged_skills_only": "Rock Strike, Withdraw e Healing Egg são os ataques CARREGADOS e não substituem o básico melee."
     },
     "geodude_lineage": {
-      "forms": ["geodude", "graveler", "golem"],
+      "forms": [
+        "geodude",
+        "graveler",
+        "golem"
+      ],
       "roles": "Geodude e Graveler: melee de golpes rochosos fortes em alvo único. Golem: tanque melee que sacrifica o golpe especial ofensivo por mitigação pessoal temporária.",
       "rock_strike": {
-        "applies_to": ["geodude", "graveler"],
+        "applies_to": [
+          "geodude",
+          "graveler"
+        ],
         "damage_category": "physical",
         "element": "rock",
         "targeting": "Um único inimigo vivo adjacente; sem área, projétil, knockup, stun ou empurrão.",
@@ -1226,11 +1243,13 @@
         "does_not_emit_knockup": true
       },
       "withdraw_guard": {
-        "applies_to": ["golem"],
+        "applies_to": [
+          "golem"
+        ],
         "replaces_rock_strike_completely": true,
         "effect_kind": "self_incoming_damage_reduction",
-        "damage_reduction_fraction": 0.60,
-        "damage_received_multiplier": 0.40,
+        "damage_reduction_fraction": 0.6,
+        "damage_received_multiplier": 0.4,
         "duration_seconds": 4.5,
         "energy_cost": 60,
         "target": "self",
@@ -1247,7 +1266,10 @@
       }
     },
     "chansey_lineage": {
-      "forms": ["chansey", "blissey"],
+      "forms": [
+        "chansey",
+        "blissey"
+      ],
       "roles": "Healers melee de HP extremo: golpe básico corpo a corpo com ATK baixo; habilidade é o ÚNICO disparo de ovo, somente para cura.",
       "blissey_hp_locked": 700,
       "healing_egg": {
@@ -1261,7 +1283,13 @@
         "eligible_center": "Qualquer aliado vivo da mesma equipe dentro de skill_range_from_caster_tiles; o próprio lançador pode ser centro se ferido.",
         "eligible_heal_targets": "TODOS os aliados vivos da mesma equipe dentro do raio da explosão, incluindo a própria Chansey/Blissey se estiver no raio; excluir mortos, banco e inimigos.",
         "target_group_algorithm": "Para cada centro candidato, contar os aliados vivos no raio. Considerar centros cujo raio contenha ao menos um aliado ferido. Selecionar centro que contenha o MAIOR NÚMERO de aliados; não dividir nem limitar artificialmente a quantidade de atingidos.",
-        "tie_breaks": ["maior número de aliados vivos no raio", "maior número de aliados com HP abaixo do máximo", "maior soma de HP faltante", "menor distância do lançador ao centro", "menor id estável do centro"],
+        "tie_breaks": [
+          "maior número de aliados vivos no raio",
+          "maior número de aliados com HP abaixo do máximo",
+          "maior soma de HP faltante",
+          "menor distância do lançador ao centro",
+          "menor id estável do centro"
+        ],
         "no_injured_allies": "Preservar a energia e aguardar um alvo para curar, sem desperdiçar ovo em vida cheia.",
         "heal_formula_per_target": "base_heal + SPA_efetiva_do_lancador * spa_ratio; cada aliado no raio recebe sua cura própria, limitada pelo HP faltante",
         "heal_overflow": "Descartar excesso acima do HP máximo; não converter cura em dano, buffs ou barreira.",
@@ -1277,33 +1305,59 @@
       "geodude": {
         "ability_name": "Golpe Rochoso",
         "ability_id": "rock_strike",
-        "charged_attack": {"base_damage": 28, "atk_ratio": 1.20, "energy_cost": 55, "target_count": 1},
+        "charged_attack": {
+          "base_damage": 28,
+          "atk_ratio": 1.2,
+          "energy_cost": 55,
+          "target_count": 1
+        },
         "animation_key": "strike"
       },
       "graveler": {
         "ability_name": "Golpe Rochoso Pesado",
         "ability_id": "rock_strike",
-        "charged_attack": {"base_damage": 38, "atk_ratio": 1.35, "energy_cost": 55, "target_count": 1},
+        "charged_attack": {
+          "base_damage": 38,
+          "atk_ratio": 1.35,
+          "energy_cost": 55,
+          "target_count": 1
+        },
         "animation_key": "strike"
       },
       "golem": {
         "ability_name": "Withdraw — Casca Fortificada",
         "ability_id": "withdraw_guard",
-        "charged_attack": {"damage": 0, "energy_cost": 60, "self_only": true},
-        "damage_reduction_fraction": 0.60,
+        "charged_attack": {
+          "damage": 0,
+          "energy_cost": 60,
+          "self_only": true
+        },
+        "damage_reduction_fraction": 0.6,
         "duration_seconds": 4.5,
         "animation_key": "withdraw"
       },
       "chansey": {
         "ability_name": "Ovo Revigorante",
         "ability_id": "healing_egg",
-        "charged_attack": {"base_heal": 24, "spa_ratio": 0.75, "energy_cost": 55, "aoe_radius_tiles": 1.65, "damage": 0},
+        "charged_attack": {
+          "base_heal": 24,
+          "spa_ratio": 0.75,
+          "energy_cost": 55,
+          "aoe_radius_tiles": 1.65,
+          "damage": 0
+        },
         "animation_key": "special_or_attack"
       },
       "blissey": {
         "ability_name": "Ovo Milagroso",
         "ability_id": "healing_egg",
-        "charged_attack": {"base_heal": 36, "spa_ratio": 0.90, "energy_cost": 60, "aoe_radius_tiles": 1.65, "damage": 0},
+        "charged_attack": {
+          "base_heal": 36,
+          "spa_ratio": 0.9,
+          "energy_cost": 60,
+          "aoe_radius_tiles": 1.65,
+          "damage": 0
+        },
         "animation_key": "special_or_attack"
       }
     }
@@ -1717,7 +1771,10 @@
     },
     {
       "topic": "geodude_and_chansey_rarity",
-      "recommended": {"geodude": 2, "chansey": 4},
+      "recommended": {
+        "geodude": 2,
+        "chansey": 4
+      },
       "status": "assistant_proposal",
       "note": "O usuário não especificou essas raridades. Propostas: Geodude incomum e Chansey épico."
     },
