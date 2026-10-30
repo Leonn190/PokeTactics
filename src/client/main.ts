@@ -63,9 +63,29 @@ let state: GameSnapshot | null = null;
 let dragStarted = false;
 let pointerStart = { x: 0, y: 0 };
 let lastHudRender = 0;
-let lastHudPhase = '';
-let lastHudGold = -1;
-let lastShopRevision = '';
+let lastHudRevision = '';
+
+/** Structural snapshot signature: update stateful HUD parts on the FIRST matching
+ * Worker snapshot, not after the 190ms animation/performance throttle.
+ * Exclude the combat clock and VFX, which are refreshed separately. */
+function hudRevision(snapshot:GameSnapshot):string {
+  const human=snapshot.players[0];
+  return JSON.stringify([
+    snapshot.phase,snapshot.round,snapshot.chapter,snapshot.stage,snapshot.stageType,
+    snapshot.stageName,snapshot.accelerated,snapshot.winnerId,snapshot.lootMessageId,
+    snapshot.observedId,snapshot.battleStatuses,snapshot.possibleOpponents,
+    view.scoutId,view.selectedId,view.inventoryItemId,view.selectedBall,
+    snapshot.players.map(p=>[
+      p.id,p.name,p.health,p.gold,p.level,p.locked,p.eliminated,p.streak,
+      p.roundVictory,p.history,p.placement,p.augments,p.augmentChoice?.status,
+      p.augmentCounters,p.units.map(u=>[u.id,u.family,u.stage,u.level,u.xp,u.iv,u.position,u.equipment])
+    ]),
+    human.shop,human.itemInventory,human.pendingItems,human.consumables,
+    human.pendingEvolution,human.pendingEvolutionKind,
+    snapshot.visibleBattle?.id,snapshot.visibleBattle?.resolved,
+    snapshot.visibleBattle?.goldDrops.map(drop=>[drop.id,drop.claimed])
+  ]);
+}
 
 function send(command: GameCommand): void {
   if (!state || !worker || (view.scoutId!=='p0' && command.kind!=='augment-choose' && command.kind!=='augment-reroll') || state.phase === 'finished' || state.players[0].eliminated) return;
@@ -83,7 +103,7 @@ function launchMatch(): void {
   view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
   framesDrawn=0;windowStart=performance.now();smoothedFps=75;fpsReadout.textContent='FPS: —';
-  lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0; lastShopRevision = '';
+  lastHudRevision = '';lastHudRender = 0;
   augments.reset();
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
   const currentWorker = worker;
@@ -98,12 +118,13 @@ function launchMatch(): void {
     if (view.inventoryItemId && !state.players[0].itemInventory?.some(item=>item.id===view.inventoryItemId)) view.inventoryItemId=null;
     if (view.selectedBall && !(state.players[0].consumables?.[view.selectedBall]||0)) view.selectedBall=null;
     const now = performance.now();
-    // Render the authoritative shop immediately whenever offers change, even within the regular HUD throttle.
-    const shopRevision = state.players[0].shop.map(offer=>offer?.id||'-').join('|');
+    // Full state transitions (purchases, rerolls, items, selection, stage and
+    // evolution) bypass the timed visual refresh; the Worker owns all values.
+    const revision = hudRevision(state);
     hud.renderClock(state);
-    if (now - lastHudRender > RENDER_SETTINGS.hudRefreshMs || state.phase !== lastHudPhase || state.players[0].gold !== lastHudGold || shopRevision !== lastShopRevision) {
-      hud.render(state, view);
-      lastHudRender = now; lastHudPhase = state.phase; lastHudGold = state.players[0].gold; lastShopRevision = shopRevision;
+    if (revision !== lastHudRevision || now-lastHudRender >= RENDER_SETTINGS.hudRefreshMs) {
+      hud.render(state,view);
+      lastHudRender=now;lastHudRevision=revision;
     }
   });
   currentWorker.addEventListener('error', () => hud.toast('Erro ao iniciar a simulação'));
@@ -230,11 +251,6 @@ document.getElementById('shopCards')!.addEventListener('click', event => {
 });
 document.getElementById('rerollButton')!.addEventListener('click', () => send({ kind: 'reroll' }));
 document.getElementById('lockButton')!.addEventListener('click', () => send({ kind: 'lock' }));
-document.getElementById('eeveeBranches')!.addEventListener('click', event => {
-  const button = (event.target as HTMLElement).closest<HTMLElement>('[data-eevee-branch]');
-  if (button) send({ kind:'choose-eevee', branch:button.dataset.eeveeBranch as keyof typeof SPECIES });
-});
-
 document.getElementById('rankRows')!.addEventListener('click', event => {
   if (!state) return;
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-scout]');
