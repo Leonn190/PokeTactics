@@ -1,7 +1,7 @@
 import { firstObstacle, expireObstacles, summonPreparedPillars, summonWalls, routeAround } from '../combat/obstacles';
 import { active, apply as applyStatus, incapacitated, blocksEnergy, expire as expireStatus, wakeFromBasic, STATUS_RULES } from '../combat/statuses';
 import { beginCombatAugments, onAugmentBasic, onAugmentCast, onAugmentDamage, onAugmentDeath, tickCombatAugments } from './augments';
-import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gridXY, SPECIES } from '../data';
+import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gridXY, SPECIES, RULES } from '../data';
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
@@ -21,7 +21,10 @@ import { basicInRange, basicApproachDistance } from '../combat/basic-range';
 import { meteorCenters, withinCone } from '../combat/field-skills';
 export { trainerSpot } from '../combat/trainer-position';
 
-const moveIdOf = (unit: CombatUnit): string => unit.bossMove || getStageData(unit.family, unit.stage).move;
+const baby = (unit: CombatUnit): boolean => !!SPECIES[unit.family].babyEvolution;
+const fleeing = (unit: CombatUnit): boolean => baby(unit) && unit.hp>0 && unit.hp < unit.maxHp * RULES.baby.fleeHpFraction;
+const movementSpeed = (unit: CombatUnit):number => RULES.movement.unitsPerSecond * (baby(unit)?RULES.baby.moveSpeedMultiplier:1) * (unit.slow?.65:1);
+const moveIdOf = (unit: CombatUnit): string => unit.bossMove || (unit.family==='tyrogue' ? (unit.metrics.casts%2===0?'hitmonchan-uppercut':'hitmonlee-spin-kick') : getStageData(unit.family, unit.stage).move);
 const combatCooldown = (unit: CombatUnit, now: number): number =>
   attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
 const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !(unit.family==='diglett' && unit.moving) && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow);
@@ -42,7 +45,7 @@ function stat(unit: CombatUnit, key: StatKey): number {
   }
   const synergySpeed=key==='speed'?base*(unit.synergy?.speedBonus||0):0;
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
-  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
+  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -90,7 +93,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
-    persianPursuit: undefined, dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], statuses:{}, lullaby:null, starWard:null, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
+    babyFlee:false,flameJet:undefined,persianPursuit: undefined, dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], statuses:{}, lullaby:null, starWard:null, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
     gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range + equipment.filter(i=>i.recipe==='red+red').length*numberParam('longbow','range'),energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
@@ -128,6 +131,14 @@ function projectile(battle: Battle, caster: CombatUnit, target: CombatUnit,
   moveId?: string, attackType?: Element, special?: NonNullable<CombatEffect['pendingHit']>['special']): void {
   effect(battle, origin, target, kind, 0);
   const fx=battle.effects[battle.effects.length-1];
+  // All conventional shots move at a shared world-space velocity. No per-type arrival multiplier.
+  if(kind!=='physical' && kind!=='falling-star'){
+    fx.duration=Math.max(.06,Math.hypot(target.x-origin.x,target.y-origin.y)/Math.max(.1,RULES.projectiles.unitsPerSecond));
+    arrival=1;
+  }else if(kind==='physical'){
+    fx.duration=Math.max(.06,RULES.projectiles.meleeImpactSeconds);
+    arrival=1;
+  }
   const obstructed=firstObstacle(battle,caster.playerId,origin.x,origin.y,target.x,target.y);
   if(obstructed){fx.targetX=origin.x+(target.x-origin.x)*obstructed.t;fx.targetY=origin.y+(target.y-origin.y)*obstructed.t;fx.obstacleImpact=true;}
   battle.effects[battle.effects.length - 1].pendingHit = {
@@ -397,6 +408,7 @@ function pursuePersian(battle:Battle,unit:CombatUnit,dt:number):void {
  pursuit.elapsed+=dt;
  if(pursuit.elapsed>= (move.pursuitTimeout!)||pursuit.stuck>1.5){unit.persianPursuit=undefined;return;}
  const waypoint=firstObstacle(battle,unit.playerId,unit.x,unit.y,target.x,target.y)?routeAround(battle,unit,target):target;
+ if(!waypoint){pursuit.stuck+=dt;unit.moving=false;return;}
  const d=Math.hypot(waypoint.x-unit.x,waypoint.y-unit.y)||1;
  const stride=Math.min(d,dt*(move.pursuitSpeed!)*(unit.slow?.65:1));
  const dx=(waypoint.x-unit.x)/d,dy=(waypoint.y-unit.y)/d,bounds=arenaBoundary(battle);
@@ -530,11 +542,20 @@ function landProjectiles(battle: Battle, dt: number): void {
         if(magnetizeProjectile(battle,fx,owner,ax,ay,bx,by))continue;
       }
     }
+    if(hit && fx.kind!=='physical' && fx.kind!=='falling-star' && fx.kind!=='meteor-fall' && !fx.magnetPull){
+      const fromT=Math.max(0,Math.min(1,oldTime/fx.duration));
+      const toT=Math.max(0,Math.min(1,fx.time/fx.duration));
+      const ax=fx.x+(fx.targetX-fx.x)*fromT,ay=fx.y+(fx.targetY-fx.y)*fromT;
+      const bx=fx.x+(fx.targetX-fx.x)*toT,by=fx.y+(fx.targetY-fx.y)*toT;
+      const victim=battle.units.find(u=>u.id===hit.targetId&&isTargetable(u));
+      if(victim && segmentDistanceSq(ax,ay,bx,by,victim.x,victim.y)<=RULES.projectiles.collisionRadius**2)
+        fx.time=fx.duration;
+    }
     if (!hit || fx.time < fx.duration * hit.arrival) continue;
     fx.pendingHit = undefined; // impacto único, inclusive em simulações aceleradas
     const caster = battle.units.find(u => u.id === hit.sourceId);
     const target = battle.units.find(u => u.id === hit.targetId);
-    if (!caster || !target) continue;
+    if (!caster || !target || fleeing(caster)) continue;
     if(fx.obstacleImpact){effect(battle,caster,{x:fx.targetX,y:fx.targetY},'wall-impact',0);continue;}
     const move = ATTACKS.moves[hit.moveId || moveIdOf(caster)];
 
@@ -614,7 +635,7 @@ function landProjectiles(battle: Battle, dt: number): void {
         .sort((a,b)=>distance(a,target)-distance(b,target)||a.id.localeCompare(b.id))[0];
       if(near)applyStatus(battle,near,'frozen',caster,freeze*(move.adjacentFreezeRatio??.45),fx.id+':adjacent');
     }
-    if(fx.kind!=='falling-star' && !hit.charged && caster.family==='mr-mime' && target.hp>0){
+    if(fx.kind!=='falling-star' && !hit.charged && (caster.family==='mr-mime'||caster.family==='mime-jr') && target.hp>0){
       const allWalls=battle.obstacles.filter(o=>o.kind==='wall'&&o.sourceId===caster.id&&o.until>battle.elapsed);
       const special=firstObstacle({...battle,obstacles:allWalls},'opponent',caster.x,caster.y,target.x,target.y);
       if(special){const wall=ATTACKS.moves['mime-wall'];deal(battle,caster,target,stat(caster,'spa')*(wall.wallBonusRatio??.48),true,false,'psychic');effect(battle,caster,target,'psychic-spark',0);}
@@ -676,7 +697,7 @@ function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage
 /** Damage is resolved only on the simulation thread. DOT/reflect/extra hits cannot proc themselves. */
 function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, magical: boolean, charged = false, attackType?: Element,
   mode: 'normal' | 'dot' | 'reflect' | 'extra' = 'normal'): number {
-  if (!isTargetable(target)) return 0;
+  if (!isTargetable(target) || fleeing(source)) return 0;
   const beedrill=source.family==='weedle'&&source.stage===2;
   const stinger=ATTACKS.moves['multi-jab'];
   const pierce=beedrill?Math.max(0,Math.min(stinger.pierceMax??.7,(stinger.pierceBase??0)+stat(source,'spa')*(stinger.pierceSpaRatio??0))):0;
@@ -685,6 +706,8 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   const typeFactor = charged ? chargedEffectiveness(element, getStageData(target.family, target.stage).elements) : 1;
   const attacker=effectivePercents(source,battle.elapsed);
   const defender=effectivePercents(target,battle.elapsed);
+  if(target.flameJet && target.family==='magmar' && target.stage>0)
+    defender.durability=Math.min(.95,defender.durability+(ATTACKS.moves['flame-jet'].durabilityByStage?.[target.stage]??0));
   // Hit serial participates in a deterministic seeded 32-bit roll. No Math.random in combat.
   source.hitSerial++;
   let bits = (battle.seed ^ Math.imul(source.hitSerial, 0x9e3779b9)) >>> 0;
@@ -909,7 +932,7 @@ function activateHitmon(battle:Battle,source:CombatUnit,moveId:string):boolean {
    const spa=stat(source,'spa');
    const shield=(move.shieldBase||0)+spa*(move.shieldSpaRatio||0);
    const key='hitmonlee:guard:'+source.id;
-   const cap=Math.max(0,source.maxHp*.35-source.barriers.filter(b=>b.sourceId!==key).reduce((v,b)=>v+b.hp,0));
+   const cap=Math.max(0,source.maxHp*(move.shieldMaxHpFraction??.35)-source.barriers.filter(b=>b.sourceId!==key).reduce((v,b)=>v+b.hp,0));
    const old=source.barriers.find(b=>b.sourceId===key);
    if(old){old.hp=Math.max(old.hp,Math.min(shield*shieldMultiplier(source),cap));old.until=battle.elapsed+(move.shieldDuration||5);}
    else source.barriers.push({sourceId:key,kind:'item',hp:Math.min(shield*shieldMultiplier(source),cap),until:battle.elapsed+(move.shieldDuration||5)});
@@ -933,7 +956,7 @@ function activateHitmon(battle:Battle,source:CombatUnit,moveId:string):boolean {
  source.hitmonGuaranteed=false;
  source.hitmonAction=action;
  source.facingX=choice.target.x-source.x;source.facingY=choice.target.y-source.y;
- animate(source,moves?'Walk':getStageData(source.family,source.stage).chargedAnimation,action.duration);
+ animate(source,moves?'Walk':move.effect==='hitmonlee-spin-kick'?'Kick':'Uppercut',action.duration);
  return true;
 }
 function tickHitmonAction(battle:Battle,source:CombatUnit,dt:number):void {
@@ -945,7 +968,7 @@ function tickHitmonAction(battle:Battle,source:CombatUnit,dt:number):void {
   source.x=action.fromX+(action.toX-action.fromX)*t;
   source.y=action.fromY+(action.toY-action.fromY)*t;
   source.moving=true;
-  if(t>=1){action.phase='strike';action.elapsed=0;action.duration=.52;animate(source,getStageData(source.family,source.stage).chargedAnimation,.52);}
+  if(t>=1){action.phase='strike';action.elapsed=0;action.duration=.52;animate(source,action.kind==='kick'?'Kick':'Uppercut',.52);}
   return;
  }
  if(action.phase==='pause'){
@@ -982,6 +1005,55 @@ function tickHitmonAction(battle:Battle,source:CombatUnit,dt:number):void {
  }
 }
 
+
+/** A dedicated continuous cast in the existing fixed-tick combat simulation. */
+function tickFlameJet(battle:Battle,source:CombatUnit,dt:number):void {
+ const state=source.flameJet;if(!state)return;
+ if(source.hp<=0||fleeing(source)||incapacitated(source,battle.elapsed)){
+   source.flameJet=undefined;source.animation=null;return;
+ }
+ const move=ATTACKS.moves['flame-jet'];
+ const step=Math.min(dt,state.remaining);state.remaining-=step;
+ state.accumulator+=step;state.visualClock+=step;
+ // No fixed-frame DPS; every completed damage interval produces one authoritative hit.
+ const interval=Math.max(.05,move.damageInterval??.25);
+ while(state.accumulator+1e-8>=interval){
+   state.accumulator-=interval;
+   const aim={x:source.x+state.dx,y:source.y+state.dy};
+   for(const enemy of battle.units){
+     if(enemy.playerId===source.playerId||!isTargetable(enemy))continue;
+     if(!withinCone(source,aim,enemy,move.coneRange??3.3,move.coneAngle??42))continue;
+     if(firstObstacle(battle,source.playerId,source.x,source.y,enemy.x,enemy.y))continue;
+     deal(battle,source,enemy,(move.baseDamage||0)+stat(source,'spa')*move.specialRatio,true,true,'fire');
+   }
+ }
+ if(state.visualClock>=Math.max(.06,move.visualInterval??.1)){
+   state.visualClock%=Math.max(.06,move.visualInterval??.1);
+   battle.effects.push({id:`${battle.id}:jet:${source.id}:${battle.elapsed}`,sourceId:source.id,
+     kind:'flame-jet',family:source.family,x:source.x,y:source.y,
+     targetX:source.x+state.dx*(move.coneRange??3.3),targetY:source.y+state.dy*(move.coneRange??3.3),
+     time:0,duration:Math.max(.13,move.visualInterval??.1)*1.8,value:move.coneAngle??42});
+ }
+ source.facingX=state.dx;source.facingY=state.dy;
+ if(state.remaining<=0){source.flameJet=undefined;source.animation=null;}
+}
+
+function fleeBaby(battle:Battle,source:CombatUnit,dt:number):void {
+ const enemies=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u));
+ if(!enemies.length){source.moving=false;return;}
+ const bounds=arenaBoundary(battle),step=dt*movementSpeed(source);
+ let chosen:{x:number;y:number;score:number}|null=null;
+ for(let i=0;i<24;i++){
+   const a=i*2*Math.PI/24,x=source.x+Math.cos(a)*step,y=source.y+Math.sin(a)*step;
+   if(x<bounds.minX||x>bounds.maxX||y<bounds.minY||y>bounds.maxY)continue;
+   if(!clearStep(battle,source,x,y))continue;
+   let minDist=Infinity;for(const enemy of enemies){const d=Math.hypot(x-enemy.x,y-enemy.y);if(d<minDist)minDist=d;}
+   if(!chosen||minDist>chosen.score+1e-7)chosen={x,y,score:minDist};
+ }
+ if(chosen){source.facingX=chosen.x-source.x;source.facingY=chosen.y-source.y;source.x=chosen.x;source.y=chosen.y;source.moving=true;}
+ else source.moving=false;
+}
+
 function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): void {
   const stage = getStageData(source.family, source.stage);
   const moveId = moveIdOf(source), move = ATTACKS.moves[moveId];
@@ -997,6 +1069,39 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='flame-jet' && target){
+    const d=Math.max(.001,distance(source,target));
+    const duration=baby(source)?(move.babyDuration??2):(move.durationByStage?.[source.stage]??3);
+    source.flameJet={remaining:duration,duration,accumulator:0,visualClock:1,dx:(target.x-source.x)/d,dy:(target.y-source.y)/d};
+    animate(source,'SpAttack',duration);
+    return;
+  }
+  if(move.effect==='electric-punch' && target){
+    const isLittle=baby(source);
+    const primary=isLittle?(move.babyEnergyDrainPrimary??.6):(move.energyDrainPrimaryByStage?.[source.stage]??.7);
+    const secondary=isLittle?(move.babyEnergyDrainAdjacent??.3):(move.energyDrainAdjacentByStage?.[source.stage]??.4);
+    let drained=0;
+    for(const enemy of battle.units){
+      if(!isTargetable(enemy)||enemy.playerId===source.playerId)continue;
+      if(enemy!==target && distance(enemy,target)>(move.adjacentRadius??1.15))continue;
+      const lost=Math.max(0,enemy.energy)* (enemy===target?primary:secondary);
+      enemy.energy=Math.max(0,enemy.energy-lost);drained+=lost;
+    }
+    const raw=(move.baseDamage||0)+s*move.specialRatio;
+    deal(battle,source,target,raw,true,true,'electric');
+    if(!isLittle&&source.stage>0){
+      for(const enemy of battle.units)if(enemy!==target&&enemy.playerId!==source.playerId&&isTargetable(enemy)&&distance(enemy,target)<=(move.adjacentRadius??1.15))
+        deal(battle,source,enemy,raw*(move.secondaryRatioByStage?.[source.stage]??.15),true,true,'electric');
+      const value=((move.shieldBase||0)+s*(move.shieldSpaRatio||0)+drained*(move.shieldEnergyRatio||0))*shieldMultiplier(source);
+      const key=`electivire:${source.id}`,old=source.barriers.find(b=>b.sourceId===key);
+      const cap=Math.max(0,source.maxHp*(move.shieldMaxHpFraction??.35)-source.barriers.filter(b=>b.sourceId!==key).reduce((sum,b)=>sum+b.hp,0));
+      if(old){old.hp=Math.min(cap,Math.max(value,old.hp));old.until=battle.elapsed+(move.shieldDuration??4);}
+      else source.barriers.push({sourceId:key,kind:'item',hp:Math.min(cap,value),until:battle.elapsed+(move.shieldDuration??4)});
+      effect(battle,source,source,'shield',value);
+    }
+    effect(battle,source,target,'electric-punch',move.adjacentRadius??1.15);
+    animate(source,stage.chargedAnimation,.5);return;
+  }
   if(move.effect==='claw-strip'){
     if((move.pursuitByStage?.[source.stage]??0)>0){
       const farthest=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u))
@@ -1008,10 +1113,8 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     return;
   }
   if(move.effect==='electromagnetic-ball' && target){
-    const travel=distance(source,target)/Math.max(.1,move.orbSpeed!);
     projectile(battle,source,target,'electro-shot',move.baseDamage+s*move.specialRatio,true,true,1,
       undefined,source,moveId,'electric','magnet-impact');
-    battle.effects[battle.effects.length-1].duration=Math.max(.08,travel);
     animate(source,stage.chargedAnimation,.46);return;
   }
   if(move.effect==='meteor-rain'){
@@ -1877,6 +1980,17 @@ export function tickBattle(battle: Battle, dt: number): void {
   if (battle.resolved) { tickOutcome(battle, dt); return; }
   battle.elapsed += dt;
   battle.introElapsed += dt;
+  for(const unit of battle.units){
+    const now=fleeing(unit);
+    if(now&&!unit.babyFlee){
+      unit.flameJet=undefined;unit.lullaby=null;unit.starWard=null;unit.orbitFlames=[];
+      unit.hitmonAction=null;unit.pendingPollen=null;unit.persianPursuit=undefined;
+      unit.charge=null;unit.gasCharge=null;unit.support=null;unit.combo=null;
+      unit.scizorAction=undefined;unit.animation=null;
+      for(const fx of battle.effects)if(fx.sourceId===unit.id && fx.pendingHit)fx.pendingHit=undefined;
+    }
+    unit.babyFlee=now;
+  }
   // O treinador lança as Pokébolas antes de começar a luta.
   if (battle.introElapsed < ITEMS.combatIntroSeconds) return;
   summonPreparedPillars(battle,deal);
@@ -2016,6 +2130,8 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.stunTime = Math.max(0, unit.stunUntil - battle.elapsed);
     unit.knockUpTime = Math.max(0, unit.knockUpUntil - battle.elapsed);
     if (incapacitated(unit,battle.elapsed)||unit.lullaby){unit.moving=false;continue;}
+    if(fleeing(unit)){fleeBaby(battle,unit,dt);continue;}
+    if(unit.flameJet){tickFlameJet(battle,unit,dt);continue;}
     if (unit.fear) { fearTick(unit,dt); continue; }
     if (unit.ghost) { ghostTick(battle,unit,dt); continue; }
     if(unit.scizorAction){tickScizor(battle,unit,dt);continue;}
@@ -2109,12 +2225,12 @@ export function tickBattle(battle: Battle, dt: number): void {
     const obstruction=firstObstacle(battle,unit.playerId,unit.x,unit.y,target.x,target.y);
     if (!basicInRange(unit,target,battle.elapsed) || obstruction) {
       const reach=basicApproachDistance(unit,target,battle.elapsed);
-      let travel=Math.min(Math.max(0,d-reach),dt*(.68+stat(unit,'speed')/180)*(unit.slow?.65:1));
+      let travel=Math.min(Math.max(0,d-reach),dt*movementSpeed(unit));
       const bounds=arenaBoundary(battle);
       const waypoint=obstruction ? routeAround(battle,unit,target) : null;
       const moveTarget=waypoint||target;
       const movingDistance=Math.hypot(moveTarget.x-unit.x,moveTarget.y-unit.y)||.001;
-      if(waypoint)travel=Math.min(dt*(.68+stat(unit,'speed')/180)*(unit.slow?.65:1),movingDistance);
+      if(waypoint)travel=Math.min(dt*movementSpeed(unit),movingDistance);
       const dx=(moveTarget.x-unit.x)/movingDistance,dy=(moveTarget.y-unit.y)/movingDistance;
       // Local steering around nearby units; never move into another body.
       // Stable order + deterministic angles keeps replays identical across clients.

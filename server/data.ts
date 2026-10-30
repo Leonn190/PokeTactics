@@ -34,10 +34,12 @@ export interface SpeciesData {
   stages?: Partial<StageData>[];
   physicalSizes?: number[];
   evolutionCopies?: number[];
+  babyEvolution?: Family;
+  babyEvolutionOptions?: Family[];
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -77,6 +79,9 @@ export type MoveData = {
   durabilitySpaRatio?: number; durabilityMax?: number;
   guardSpaRatio?: number; guardMaxReduction?: number;
   surfSteps?: number; waveMaxDistance?: number; waveRadius?: number; waveSpeed?: number;
+  damageInterval?: number; visualInterval?: number; babyDuration?: number;
+  durabilityByStage?: number[]; energyDrainPrimaryByStage?: number[]; energyDrainAdjacentByStage?: number[];
+  babyEnergyDrainPrimary?: number; babyEnergyDrainAdjacent?: number; shieldEnergyRatio?: number; shieldMaxHpFraction?: number;
   continuationMultiplier?: number; levelBonusCap?: number; revertHealthRatio?: number;
 };
 
@@ -100,6 +105,7 @@ export const PHASES = phaseConfig as unknown as {
   stagesPerChapter: number;
   stages: Array<{ type: StageType; name: string }>;
   bot: { baseLevel: number; levelsPerChapter: number; extraUnitsEveryChapter: number; maxUnits: number; iv: number };
+  firstBattleItem: { enabled: boolean; chapter: number; stage: number; color: import('./types').ItemColor; grantToBots: boolean };
   boss: { levelPerChapter: number; firstChapterIv: number; secondChapterIv: number; laterChapterIv: number };
 };
 

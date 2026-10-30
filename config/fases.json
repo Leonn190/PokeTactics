@@ -2,8 +2,8 @@
   "stagesPerChapter": 10,
   "stages": [
     {
-      "type": "battle",
-      "name": "Batalha"
+      "type": "bot",
+      "name": "Primeira batalha PvE"
     },
     {
       "type": "gold",
@@ -54,5 +54,12 @@
     "firstChapterIv": 50,
     "secondChapterIv": 75,
     "laterChapterIv": 100
+  },
+  "firstBattleItem": {
+    "enabled": true,
+    "chapter": 1,
+    "stage": 1,
+    "color": "green",
+    "grantToBots": true
   }
 }

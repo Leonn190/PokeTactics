@@ -206,6 +206,15 @@ export class GameEngine {
           }
           continue;
         }
+        if (family === 'tyrogue') {
+          const babies=player.units.filter(u=>u.family==='tyrogue' && u.stage===0);
+          const needed=evolutionCopies('tyrogue',0,hasAugment(player,'P11'));
+          if(babies.length>=needed){
+            if(player.id==='p0' && !player.pendingEvolution){player.pendingEvolution=babies.slice(0,needed).map(u=>u.id);player.pendingEvolutionKind='tyrogue';}
+            else if(player.id!=='p0'){this.chooseEevee(player,this.rng.pick(['hitmonchan','hitmonlee']));changed=true;}
+          }else if(player.pendingEvolutionKind==='tyrogue'){player.pendingEvolution=undefined;player.pendingEvolutionKind=undefined;}
+          continue;
+        }
         if (family === 'eevee') {
           const eevees = player.units.filter(u => u.family === 'eevee');
           const needed=evolutionCopies('eevee',0,hasAugment(player,'P11'));
@@ -214,6 +223,31 @@ export class GameEngine {
             else this.chooseEevee(player, this.rng.pick(EEVEE_BRANCHES));
             if (player.id !== 'p0') changed = true;
           } else if(player.pendingEvolutionKind==='eevee'){player.pendingEvolution=undefined;player.pendingEvolutionKind=undefined;}
+          continue;
+        }
+        const babyDestination=SPECIES[family].babyEvolution;
+        if(babyDestination){
+          const matches=player.units.filter(u=>u.family===family&&u.stage===0);
+          const required=evolutionCopies(family,0,hasAugment(player,'P11'));
+          if(matches.length>=required){
+            const sources=matches.slice(0,required);
+            const anchor=sources.find(u=>u.position.area==='board')||sources[0];
+            player.units=player.units.filter(u=>!sources.includes(u));
+            const iv=Object.fromEntries((Object.keys(anchor.iv) as Array<keyof Stats>).map(stat=>[stat,RULES.baby.perfectEvolutionIV])) as Stats;
+            const evolved:Pokemon={id:this.id(),family:babyDestination,stage:0,iv,
+              level:Math.max(...sources.map(u=>u.level)),xp:Math.max(...sources.map(u=>u.xp)),position:{...anchor.position}};
+            evolved.equipment=this.preserveEquipment(player,sources);
+            evolved.acquiredChapter=Math.min(...sources.map(u=>u.acquiredChapter||1));
+            evolved.appliedAugments=[...new Set(sources.flatMap(u=>u.appliedAugments||[]))];
+            applyEvolutionAugments(player,evolved,chapterForRound(this.round));
+            player.units.push(evolved);
+            this.visualEvents.push({id:this.id(),unitId:evolved.id,ownerId:player.id,kind:'evolve',age:0,
+              sources:sources.map(u=>({id:u.id,family:u.family,stage:u.stage,level:u.level,position:{...u.position}})),
+              pokemon:{family:evolved.family,stage:0,level:evolved.level,position:{...evolved.position}}});
+            if(player.id==='p0')this.log=`${SPECIES[babyDestination].names[0]} nasceu com IV 100!`;
+            changed=true;
+          }
+          if(changed)break;
           continue;
         }
         const maxStage = SPECIES[family].names.length - 1;
@@ -253,15 +287,15 @@ export class GameEngine {
   }
 
   private chooseEevee(player: Player, branch: Family): void {
-    const family=branch==='scizor'||branch==='kleavor'?'scyther':'eevee';
+    const family=branch==='hitmonchan'||branch==='hitmonlee'?'tyrogue':branch==='scizor'||branch==='kleavor'?'scyther':'eevee';
     const needed=evolutionCopies(family,0,hasAugment(player,'P11'));
     const four = player.units.filter(u => u.family === family).slice(0, needed);
     if (four.length !== needed) return;
     const anchor = four.find(u => u.position.area === 'board') || four[0];
     const iv = Object.fromEntries((Object.keys(anchor.iv) as Array<keyof Stats>).map(key =>
-      [key, Math.max(...four.map(unit => unit.iv[key]))])) as Stats;
+      [key, family==='tyrogue' ? RULES.baby.perfectEvolutionIV : Math.max(...four.map(unit => unit.iv[key]))])) as Stats;
     player.units = player.units.filter(unit => !four.includes(unit));
-    const evolved: Pokemon = { id:this.id(), family:branch, stage:family==='scyther'?0:1, iv,
+    const evolved: Pokemon = { id:this.id(), family:branch, stage:family==='scyther'||family==='tyrogue'?0:1, iv,
       level:Math.max(...four.map(u => u.level)), xp:Math.max(...four.map(u => u.xp)), position:{...anchor.position} };
     evolved.equipment = this.preserveEquipment(player,four);
     evolved.acquiredChapter=Math.min(...four.map(u=>u.acquiredChapter||1));
@@ -490,13 +524,13 @@ export class GameEngine {
     }
     if (command.kind === 'mime-pillar') {
       if(this.phase !== 'planning')return 'Os pilares só podem ser reposicionados na preparação';
-      const mime=human.units.find(u=>u.id===command.unitId&&u.family==='mr-mime'&&u.position.area==='board');
+      const mime=human.units.find(u=>u.id===command.unitId&&(u.family==='mr-mime'||u.family==='mime-jr')&&u.position.area==='board');
       if(!mime)return 'Mr. Mime precisa estar no campo';
       if(!Number.isInteger(command.index)||command.index<0||command.index>1||!Number.isInteger(command.col)||!Number.isInteger(command.row)
        ||command.col<0||command.col>=BOARD_COLUMNS||command.row<0||command.row>=BOARD_ROWS)return 'Posição inválida';
       const marks=mime.mimePillars?.map(p=>({...p}))||[{col:2,row:1},{col:4,row:2}];
       if(marks.some((p,i)=>i!==command.index&&p.col===command.col&&p.row===command.row))return 'Os pilares não podem se sobrepor';
-      if(human.units.some(other=>other.id!==mime.id&&other.family==='mr-mime'&&other.position.area==='board'&&
+      if(human.units.some(other=>other.id!==mime.id&&(other.family==='mr-mime'||other.family==='mime-jr')&&other.position.area==='board'&&
         (other.mimePillars||[{col:2,row:1},{col:4,row:2}]).some(p=>p.col===command.col&&p.row===command.row)))return 'Outra estrutura já ocupa a casa';
       marks[command.index]={col:command.col,row:command.row};mime.mimePillars=marks;
       return null;
@@ -509,9 +543,10 @@ export class GameEngine {
     }
     if (command.kind === 'choose-eevee') {
       const scytherChoice=human.pendingEvolutionKind==='scyther';
-      if(!(scytherChoice ? (command.branch==='scizor'||command.branch==='kleavor') : EEVEE_BRANCHES.includes(command.branch))) return 'Evolução inválida';
+      const tyrogueChoice=human.pendingEvolutionKind==='tyrogue';
+      if(!(tyrogueChoice ? (command.branch==='hitmonchan'||command.branch==='hitmonlee') : scytherChoice ? (command.branch==='scizor'||command.branch==='kleavor') : EEVEE_BRANCHES.includes(command.branch))) return 'Evolução inválida';
       const ids = human.pendingEvolution;
-      const family=scytherChoice?'scyther':'eevee';
+      const family=tyrogueChoice?'tyrogue':scytherChoice?'scyther':'eevee';
       if(!ids || ids.length!==evolutionCopies(family,0,hasAugment(human,'P11')) || ids.some(id=>!human.units.some(u=>u.id===id&&u.family===family)))return 'Reúna as cópias para evoluir';
       this.chooseEevee(human, command.branch);
       this.merge(human);
@@ -639,7 +674,7 @@ export class GameEngine {
       const front = u.family === 'bulbasaur' || u.family === 'squirtle';
       u.position = { area: 'board', col: [3, 2, 4, 1, 5, 0, 6, 2, 4][i], row: i<7?(front ? 0 : Math.min(3, 2 + Math.floor(i / 4))):3 };
     });
-    fielded.filter(u=>u.family==='mr-mime').forEach((mime,index)=>{
+    fielded.filter(u=>(u.family==='mr-mime'||u.family==='mime-jr')).forEach((mime,index)=>{
       const colA=(2+index*2)%7,colB=(4+index*2)%7;
       mime.mimePillars=[{col:colA,row:1},{col:colB,row:2}];
     });
@@ -672,8 +707,25 @@ export class GameEngine {
     };
   }
 
+  private deployAvailableBench(player:Player):void {
+    const occupied=new Set(player.units.filter(u=>u.position.area==='board').map(u=>u.position.area==='board'?`${u.position.col}:${u.position.row}`:''));
+    const onBoard=occupied.size;
+    if(onBoard>=player.level)return;
+    const free:Array<{col:number;row:number}>=[];
+    for(let row=BOARD_ROWS-1;row>=0;row--)for(let col=0;col<BOARD_COLUMNS;col++){
+      if(!occupied.has(`${col}:${row}`))free.push({col,row});
+    }
+    const bank=player.units.filter(u=>u.position.area==='bench').sort((a,b)=>
+      (a.position.area==='bench'?a.position.index:0)-(b.position.area==='bench'?b.position.index:0)||a.id.localeCompare(b.id));
+    for(const unit of bank.slice(0,Math.max(0,player.level-onBoard))){
+      const pos=free.shift();if(!pos)break;
+      unit.position={area:'board',...pos};
+    }
+  }
+
   private startCombat(): void {
     for(const p of this.players){
+      if(!p.eliminated)this.deployAvailableBench(p);
       if(p.augmentChoice?.status==='pending'&&!p.eliminated)this.chooseAugment(p,this.rng.int(3));
       if(p.augmentCounters)p.augmentCounters['B02:free']=0;
     }
@@ -759,6 +811,17 @@ export class GameEngine {
         if (cpu && !coin.claimed) { cpu.gold += RULES.goldDropPerKnockout; coin.claimed = true; }
       }
     }
+    const starter=PHASES.firstBattleItem;
+    if(starter.enabled && chapterForRound(this.round)===starter.chapter && ((this.round-1)%PHASES.stagesPerChapter)+1===starter.stage){
+      for(const player of this.players){
+        if(player.firstBattleItemGranted || (player.id!=='p0'&&!starter.grantToBots))continue;
+        const item=makeComponent(this.id(),starter.color);
+        if(canReceive(player,1))(player.itemInventory||=[]).push(item);
+        else (player.pendingItems||=[]).push(item);
+        player.firstBattleItemGranted=true;
+        if(player.id==='p0'){this.lootMessage=`Primeiro combate: ${ITEMS.components[starter.color].name} garantido!`;this.lootMessageId=this.id();}
+      }
+    }
     this.spawnLoot();
     // Simultaneous eliminations should not erase the match champion.
     if (this.players.every(p => p.eliminated || p.health <= 0)) {
@@ -780,8 +843,9 @@ export class GameEngine {
     for (const p of eliminated) p.placement = this.players.filter(q => q.placement === null).length;
     for (const p of this.players) {
       for (const unit of p.units) {
-        unit.xp += battleExperience(p,unit);
-        unit.level = Math.min(RULES.maxPokemonLevel, 1 + unit.xp);
+        const cap=SPECIES[unit.family].babyEvolution ? RULES.baby.levelCap : RULES.maxPokemonLevel;
+        unit.xp = Math.min(cap - 1,unit.xp + battleExperience(p,unit));
+        unit.level = Math.min(cap, 1 + unit.xp);
       }
     }
     const surviving = this.players.filter(p => !p.eliminated);

@@ -3,8 +3,10 @@
     "meleeMaxRange": 1.5,
     "rangedAnimation": "Shoot",
     "meleeAnimation": "Attack",
-    "projectileArrival": 0.83,
-    "projectileDuration": 0.6
+    "projectileArrival": 1,
+    "projectileDuration": 0.6,
+    "projectileSpeed": 6.8,
+    "meleeImpactSeconds": 0.14
   },
   "projectilesByType": {
     "grass": {
@@ -17,43 +19,43 @@
       "color": "#c795f9",
       "trail": "#8350b8",
       "shape": "orb",
-      "arrival": 0.83
+      "arrival": 1
     },
     "fire": {
       "color": "#ffac58",
       "trail": "#ef5526",
       "shape": "flame",
-      "arrival": 0.83
+      "arrival": 1
     },
     "water": {
       "color": "#8adfff",
       "trail": "#438fd8",
       "shape": "drop",
-      "arrival": 0.83
+      "arrival": 1
     },
     "electric": {
       "color": "#fcea71",
       "trail": "#caa028",
       "shape": "spark",
-      "arrival": 0.3333333333333333
+      "arrival": 1
     },
     "ice": {
       "color": "#b9f5ff",
       "trail": "#63b8da",
       "shape": "diamond",
-      "arrival": 0.83
+      "arrival": 1
     },
     "flying": {
       "color": "#d2ecff",
       "trail": "#83b6e3",
       "shape": "orb",
-      "arrival": 0.83
+      "arrival": 1
     },
     "psychic": {
       "color": "#f1b1e9",
       "trail": "#bd71b1",
       "shape": "orb",
-      "arrival": 0.83
+      "arrival": 1
     },
     "bug": {
       "color": "#c9ea80",
@@ -65,55 +67,55 @@
       "color": "#ede7d7",
       "trail": "#98a7aa",
       "shape": "orb",
-      "arrival": 0.83
+      "arrival": 1
     },
     "ground": {
       "color": "#d5b17c",
       "trail": "#987044",
       "shape": "diamond",
-      "arrival": 0.83
+      "arrival": 1
     },
     "rock": {
       "color": "#d6c29b",
       "trail": "#91795b",
       "shape": "diamond",
-      "arrival": 0.83
+      "arrival": 1
     },
     "steel": {
       "color": "#e7ebef",
       "trail": "#859daa",
       "shape": "diamond",
-      "arrival": 0.83
+      "arrival": 1
     },
     "dark": {
       "color": "#bcadd7",
       "trail": "#766e9f",
       "shape": "orb",
-      "arrival": 0.83
+      "arrival": 1
     },
     "fairy": {
       "color": "#ffc0eb",
       "trail": "#b47bbd",
       "shape": "spark",
-      "arrival": 0.83
+      "arrival": 1
     },
     "dragon": {
       "color": "#b9a0fc",
       "trail": "#605bd4",
       "shape": "orb",
-      "arrival": 0.83
+      "arrival": 1
     },
     "ghost": {
       "color": "#d5a9ff",
       "trail": "#8754be",
       "shape": "orb",
-      "arrival": 0.83
+      "arrival": 1
     },
     "fighting": {
       "color": "#d39777",
       "trail": "#8c5140",
       "shape": "diamond",
-      "arrival": 0.83
+      "arrival": 1
     }
   },
   "visualProfiles": {

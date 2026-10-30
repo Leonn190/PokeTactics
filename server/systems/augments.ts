@@ -3,7 +3,7 @@ import { blocksEnergy } from '../combat/statuses';
 import config from '../../config/augments.json';
 import { ITEM_COLORS, ITEMS, makeComponent, RECIPES } from './items';
 import type { Battle, CombatUnit, Element, Player, Pokemon, StatKey, Stats, AugmentChoice } from '../types';
-import { RULES } from '../data';
+import { RULES, SPECIES } from '../data';
 
 export const AUGMENTS = config.augments;
 export type Augment = (typeof AUGMENTS)[number];
@@ -53,7 +53,7 @@ export function bonusTraits(base:Partial<Record<Element,number>>,ids:readonly st
 function addIv(pokemon:Pokemon,value:number,keys:StatKey[]=stats):void {for(const key of keys)pokemon.iv[key]=Math.min(100,pokemon.iv[key]+value);}
 function floorIv(pokemon:Pokemon,value:number):void {for(const key of stats)pokemon.iv[key]=Math.max(pokemon.iv[key],value);}
 function lowest(pokemon:Pokemon,count:number):StatKey[] {return [...stats].sort((a,b)=>pokemon.iv[a]-pokemon.iv[b]||stats.indexOf(a)-stats.indexOf(b)).slice(0,count);}
-export function addLevels(pokemon:Pokemon,levels:number):void {pokemon.xp=Math.max(pokemon.xp,pokemon.level-1);pokemon.xp=Math.min(RULES.maxPokemonLevel-1,pokemon.xp+levels);pokemon.level=Math.min(RULES.maxPokemonLevel,1+pokemon.xp);}
+export function addLevels(pokemon:Pokemon,levels:number):void {const cap=SPECIES[pokemon.family].babyEvolution ? RULES.baby.levelCap : RULES.maxPokemonLevel;pokemon.xp=Math.max(pokemon.xp,pokemon.level-1);pokemon.xp=Math.min(cap-1,pokemon.xp+levels);pokemon.level=Math.min(cap,1+pokemon.xp);}
 export function evolveIv(pokemon:Pokemon):void {pokemon.appliedAugments ||= [];pokemon.acquiredChapter ||= 1;}
 /** Runs for an acquired Pokémon, not for each render/snapshot; markers survive merger. */
 export function applyPokemonAugments(player:Player,pokemon:Pokemon,chapter:number):void {

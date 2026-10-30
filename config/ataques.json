@@ -940,6 +940,51 @@
       "absorptionRadius": 0.22,
       "orbSpeed": 6.8,
       "pullSpeed": 4.7
+    },
+    "flame-jet": {
+      "name": "Jato de Fogo",
+      "effect": "flame-jet",
+      "baseDamage": 12,
+      "specialRatio": 0.3,
+      "damageInterval": 0.25,
+      "durationByStage": [
+        3,
+        3.5
+      ],
+      "babyDuration": 2,
+      "coneRange": 3.3,
+      "coneAngle": 42,
+      "durabilityByStage": [
+        0,
+        0.26
+      ],
+      "visualInterval": 0.1
+    },
+    "electric-punch": {
+      "name": "Pancada Elétrica",
+      "effect": "electric-punch",
+      "baseDamage": 65,
+      "specialRatio": 1.15,
+      "energyDrainPrimaryByStage": [
+        0.7,
+        0.75
+      ],
+      "energyDrainAdjacentByStage": [
+        0.4,
+        0.45
+      ],
+      "babyEnergyDrainPrimary": 0.6,
+      "babyEnergyDrainAdjacent": 0.3,
+      "adjacentRadius": 1.15,
+      "secondaryRatioByStage": [
+        0,
+        0.15
+      ],
+      "shieldBase": 18,
+      "shieldSpaRatio": 0.42,
+      "shieldEnergyRatio": 0.58,
+      "shieldDuration": 4,
+      "shieldMaxHpFraction": 0.35
     }
   }
 }

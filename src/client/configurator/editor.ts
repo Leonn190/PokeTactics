@@ -45,7 +45,7 @@ const pt:Record<string,string>={
  hpPercent:'Porcentagem de vida',receivedHealShield:'Cura e barreira recebidas',barrierFraction:'Porção de barreira',healingShare:'Cura compartilhada',burnPercent:'Porcentagem de queimadura',healReduction:'Redução de cura',specialReduction:'Redução de dano especial',cooldown:'Intervalo entre usos',perTarget:'Por alvo',maxTargets:'Máximo de alvos',energy:'Energia',spaPercent:'Porcentagem de SpA',shieldBonus:'Bônus contra barreira',casts:'Usos de habilidade',atkPercent:'Porcentagem de ATK',criticalExtraReduction:'Redução de crítico adicional',reflect:'Reflexão',ampPerStack:'Amplificação por acúmulo',durPerStack:'Durabilidade por acúmulo',maxStacks:'Limite de acúmulos',combatIntroSeconds:'Tempo de entrada no combate',inventorySlots:'Espaços de inventário',
  gold:'Ouro',benchXp:'XP do banco',fraction:'Fração',bronze:'Bronze',silver:'Prata',prismatic:'Prismático',levels:'Níveis',level:'Nível',activeXp:'XP das unidades ativas',floor:'Limite inferior',top:'Limite superior',bonus:'Bônus',items:'Itens',rounds:'Rodadas',components:'Componentes',interestCap:'Limite de juros',xp:'Experiência',preparations:'Preparações',rolls:'Atualizações de loja',every:'A cada',count:'Quantidade',smallest:'Menor valor',stacks:'Acúmulos',eeveeCopies:'Cópias de Eevee',
  durabilityReduction:'Redução da Durabilidade',maxSpeed:'Velocidade máxima',energyPerSecond:'Energia por segundo',regen:'Regeneração',damage:'Dano',landingSpeed:'Velocidade de aterrissagem',healingShieldAmp:'Amplificação de cura e barreira',emergencyShield:'Barreira emergencial',share:'Compartilhamento',reviveHp:'Vida ao reviver',inherit:'Herança',dragonIv:'IV de Dragão',dot:'Dano periódico',deathHeal:'Cura ao abater',hpThreshold:'Limite de vida',version:'Versão',flightDuration:'Duração do voo',maxReceived:'Máximo recebido',intangibility:'Intangibilidade',maxInherited:'Máximo herdado',waveSpacing:'Espaçamento das ondas',maxDurability:'Durabilidade máxima',minDurability:'Durabilidade mínima',
- hpCompareDivisor:'Divisor da vida',attackSpeed:'Velocidade de ataque',duration:'Duração',shield:'Barreira'
+ hpCompareDivisor:'Divisor da vida',attackSpeed:'Velocidade de ataque',duration:'Duração', shield:'Barreira',baby:'Pokémon babies',fleeHpFraction:'Vida para entrar em fuga',moveSpeedMultiplier:'Multiplicador de movimento dos babies',levelCap:'Nível máximo de baby',perfectEvolutionIV:'IV da evolução baby',abilitySpaMultiplier:'Multiplicador de SpA do baby',movement:'Movimentação',unitsPerSecond:'Casas do mundo por segundo',projectiles:'Projéteis',collisionRadius:'Raio de colisão de projéteis',meleeImpactSeconds:'Instante do contato corpo a corpo',projectileSpeed:'Velocidade global dos projéteis',firstBattleItem:'Item do primeiro combate',grantToBots:'Conceder também aos bots',damageInterval:'Intervalo entre instâncias de dano',visualInterval:'Intervalo de partículas',babyDuration:'Duração da habilidade baby',durabilityByStage:'Durabilidade por evolução',energyDrainPrimaryByStage:'Energia retirada do alvo',energyDrainAdjacentByStage:'Energia retirada de adjacentes',babyEnergyDrainPrimary:'Energia retirada por Elekid (alvo)',babyEnergyDrainAdjacent:'Energia retirada por Elekid (adjacentes)',shieldEnergyRatio:'Barreira por energia retirada',shieldMaxHpFraction:'Máximo da barreira (fração da vida)',itemWorldScale:'Tamanho dos itens físicos'
 };
 const pretty=(s:string)=>pt[s]||s.replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ').replaceAll(/\bspa\b/gi,'SpA').replaceAll(/\bspd\b/gi,'SpD');
 const number=(value:number)=>Number.isInteger(value)?String(value):String(+value.toFixed(4));
@@ -66,8 +66,8 @@ const entries:PokemonEntry[]=Object.entries(documentOf('pokemons.json').species 
 function portrait(id:number,name:string){return `<img src="${import.meta.env.BASE_URL}portrait/${String(id).padStart(4,'0')}/Normal.png" alt="${safe(name)}" loading="lazy" />`;}
 function same(a:any,b:any){return JSON.stringify(a)===JSON.stringify(b);}
 // Percent values are displayed as percentages, while stored JSON values remain fractions.
-const percentKeys=new Set(['fragmentRatio','executeThreshold','pierceBase','pierceMax','adjacentFreezeRatio','healingReduction','durabilityBonus','speedBonusPercent','defBonusPercent','spdBonusPercent']);
-const isPercent=(path:PathPart[])=>percentKeys.has(String(path.at(-1)));
+const percentKeys=new Set(['fragmentRatio','executeThreshold','pierceBase','pierceMax','adjacentFreezeRatio','fleeHpFraction','moveSpeedMultiplier','abilitySpaMultiplier','energyDrainPrimaryByStage','energyDrainAdjacentByStage','babyEnergyDrainPrimary','babyEnergyDrainAdjacent','durabilityByStage','shieldMaxHpFraction','secondaryRatioByStage','healingReduction','durabilityBonus','speedBonusPercent','defBonusPercent','spdBonusPercent']);
+const isPercent=(path:PathPart[])=>percentKeys.has(String(path.at(-1))) || (typeof path.at(-1)==='number' && percentKeys.has(String(path.at(-2))));
 const formattedNumber=(value:number,path:PathPart[])=>isPercent(path)?number(value*100):number(value);
 function field(file:string,path:PathPart[],label?:string,help=''){
  const current=get(file,path),before=originalValue(file,path);
@@ -158,10 +158,12 @@ export class Configurator {
   target.innerHTML= this.tab==='pokemon'?this.pokemon():this.tab==='shop'?this.shop():this.tab==='augments'?this.augments():
    this.tab==='items'?this.items():this.tab==='effects'?this.effects():this.tab==='synergies'?this.synergies():this.tab==='loot'?recursive('espolios.json','ESPÓLIOS E RECOMPENSAS'):
    this.tab==='rules'?recursive('regras_gerais.json','REGRAS GERAIS E ECONOMIA',Object.keys(documentOf('regras_gerais.json')).filter(k=>k!=='shopOddsByLevel')):
-   this.tab==='phases'?recursive('fases.json','CAPÍTULOS, FASES E ADVERSÁRIOS'):
+   this.tab==='phases'?recursive('fases.json','CAPÍTULOS, FASES E ADVERSÁRIOS')+section('ITEM INICIAL GARANTIDO',choose('fases.json',['firstBattleItem','color'],[['green','Verde'],['blue','Azul'],['purple','Roxo'],['orange','Laranja'],['yellow','Amarelo'],['red','Vermelho']])):
    this.tab==='ranges'?recursive('alcances.json','CLASSES DE ALCANCE'):
    recursive('ataques.json','ATAQUES REGULARES', ['basic'])+recursive('pokemons.json','REFERÊNCIAS GLOBAIS', ['other'])+
-     recursive('regras_gerais.json','PARÂMETROS COMPLEMENTARES', ['matchmaking']);
+     recursive('regras_gerais.json','PARÂMETROS COMPLEMENTARES', ['matchmaking'])+
+     recursive('renderizacao.json','RENDERIZAÇÃO E ITENS FÍSICOS',['itemWorldScale'])+
+     recursive('animacoes.json','PARÂMETROS DE ANIMAÇÃO',['basic']);
   if(this.tab==='pokemon'){
    const cv=target.querySelector<HTMLCanvasElement>('#cfgPhysicalPreview');
    if(cv){this.preview=new PhysicalPreview(cv);this.preview.setZoom(this.previewZoom);this.refreshPreview();}

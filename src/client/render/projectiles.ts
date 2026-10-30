@@ -7,12 +7,13 @@ const PI2 = Math.PI * 2;
 export function paintBasicProjectile(ctx: CanvasRenderingContext2D, type: Element, from: Point,
   to: Point, normalizedTime: number, cellScale: number): void {
   const profile = ANIMATIONS.projectilesByType[type];
-  const progress = Math.min(1, normalizedTime / profile.arrival);
+  // The projectile travels for the entire authoritative server travel time.
+  const progress = Math.max(0, Math.min(1, normalizedTime));
   const x = from.x + (to.x - from.x) * progress;
   const y = from.y + (to.y - from.y) * progress - cellScale * .2 - Math.sin(progress * Math.PI) * cellScale * .16;
   const r = Math.max(4, cellScale * .105);
   ctx.save();
-  ctx.globalAlpha = profile.arrival >= 1 ? 1 : progress >= 1 ? Math.max(0, (1 - normalizedTime) / (1 - profile.arrival)) : 1;
+  ctx.globalAlpha = 1;
   ctx.fillStyle = profile.color;
   ctx.strokeStyle = profile.trail;
   ctx.lineWidth = 2;

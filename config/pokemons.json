@@ -165,6 +165,44 @@
       "./sprites/81.png",
       "./sprites/82.png",
       "./sprites/462.png"
+    ],
+    "pichu": [
+      "./sprites/172.png"
+    ],
+    "igglybuff": [
+      "./sprites/174.png"
+    ],
+    "cleffa": [
+      "./sprites/173.png"
+    ],
+    "mime-jr": [
+      "./sprites/439.png"
+    ],
+    "munchlax": [
+      "./sprites/446.png"
+    ],
+    "smoochum": [
+      "./sprites/238.png"
+    ],
+    "happiny": [
+      "./sprites/440.png"
+    ],
+    "tyrogue": [
+      "./sprites/236.png"
+    ],
+    "elekid": [
+      "./sprites/239.png"
+    ],
+    "magby": [
+      "./sprites/240.png"
+    ],
+    "magmar": [
+      "./sprites/126.png",
+      "./sprites/467.png"
+    ],
+    "electabuzz": [
+      "./sprites/125.png",
+      "./sprites/466.png"
     ]
   },
   "species": {
@@ -4050,6 +4088,774 @@
         3,
         3
       ]
+    },
+    "magmar": {
+      "names": [
+        "Magmar",
+        "Magmortar"
+      ],
+      "pokedexIds": [
+        126,
+        467
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#fa7f55",
+      "base": {
+        "hp": 445,
+        "atk": 79,
+        "def": 70,
+        "spa": 128,
+        "spd": 86,
+        "speed": 72
+      },
+      "stageBases": [
+        {
+          "hp": 445,
+          "atk": 79,
+          "def": 70,
+          "spa": 128,
+          "spd": 86,
+          "speed": 72
+        },
+        {
+          "hp": 580,
+          "atk": 103,
+          "def": 90,
+          "spa": 166,
+          "spd": 112,
+          "speed": 78
+        }
+      ],
+      "rangeClass": "Médio Alto",
+      "energy": 85,
+      "attack": "flame-jet",
+      "elements": [
+        "fire"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "fire"
+      },
+      "stages": [
+        {
+          "elements": [
+            "fire"
+          ],
+          "rangeClass": "Médio Alto",
+          "energy": 85,
+          "move": "flame-jet",
+          "chargedType": "fire",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "fire"
+          ],
+          "rangeClass": "Médio Alto",
+          "energy": 90,
+          "move": "flame-jet",
+          "chargedType": "fire",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        1.11,
+        1.28
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "electabuzz": {
+      "names": [
+        "Electabuzz",
+        "Electivire"
+      ],
+      "pokedexIds": [
+        125,
+        466
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#f7ce59",
+      "base": {
+        "hp": 405,
+        "atk": 98,
+        "def": 64,
+        "spa": 121,
+        "spd": 74,
+        "speed": 95
+      },
+      "stageBases": [
+        {
+          "hp": 405,
+          "atk": 98,
+          "def": 64,
+          "spa": 121,
+          "spd": 74,
+          "speed": 95
+        },
+        {
+          "hp": 550,
+          "atk": 129,
+          "def": 90,
+          "spa": 151,
+          "spd": 93,
+          "speed": 103
+        }
+      ],
+      "rangeClass": "Curto",
+      "energy": 75,
+      "attack": "electric-punch",
+      "elements": [
+        "electric"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "electric"
+          ],
+          "rangeClass": "Curto",
+          "energy": 75,
+          "move": "electric-punch",
+          "chargedType": "electric",
+          "chargedAnimation": "Attack"
+        },
+        {
+          "elements": [
+            "electric"
+          ],
+          "rangeClass": "Curto",
+          "energy": 85,
+          "move": "electric-punch",
+          "chargedType": "electric",
+          "chargedAnimation": "Attack"
+        }
+      ],
+      "physicalSizes": [
+        1.08,
+        1.32
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "pichu": {
+      "names": [
+        "Pichu"
+      ],
+      "pokedexIds": [
+        172
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#f8cb4d",
+      "base": {
+        "hp": 166,
+        "atk": 44,
+        "def": 27,
+        "spa": 70,
+        "spd": 36,
+        "speed": 89
+      },
+      "range": 2,
+      "energy": 50,
+      "attack": "thunder-shock",
+      "elements": [
+        "electric"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "lightning"
+      },
+      "stageBases": [
+        {
+          "hp": 166,
+          "atk": 44,
+          "def": 27,
+          "spa": 70,
+          "spd": 36,
+          "speed": 89
+        }
+      ],
+      "stages": [
+        {
+          "elements": [
+            "electric"
+          ],
+          "chargedAnimation": "Shock",
+          "rangeClass": "Médio Alto",
+          "range": 2
+        }
+      ],
+      "rangeClass": "Médio Alto",
+      "physicalSizes": [
+        0.85
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "pikachu"
+    },
+    "igglybuff": {
+      "names": [
+        "Igglybuff"
+      ],
+      "pokedexIds": [
+        174
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#f9b7d8",
+      "base": {
+        "hp": 243,
+        "atk": 24,
+        "def": 28,
+        "spa": 51,
+        "spd": 37,
+        "speed": 32
+      },
+      "stageBases": [
+        {
+          "hp": 243,
+          "atk": 24,
+          "def": 28,
+          "spa": 51,
+          "spd": 37,
+          "speed": 32
+        }
+      ],
+      "rangeClass": "Médio Alto",
+      "energy": 65,
+      "attack": "lullaby",
+      "elements": [
+        "normal",
+        "fairy"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal",
+            "fairy"
+          ],
+          "rangeClass": "Médio Alto",
+          "energy": 65,
+          "move": "lullaby",
+          "chargedType": "fairy",
+          "chargedAnimation": "Withdraw"
+        }
+      ],
+      "physicalSizes": [
+        0.76
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "jigglypuff"
+    },
+    "cleffa": {
+      "names": [
+        "Cleffa"
+      ],
+      "pokedexIds": [
+        173
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#ffbedb",
+      "base": {
+        "hp": 216,
+        "atk": 28,
+        "def": 34,
+        "spa": 56,
+        "spd": 48,
+        "speed": 36
+      },
+      "stageBases": [
+        {
+          "hp": 216,
+          "atk": 28,
+          "def": 34,
+          "spa": 56,
+          "spd": 48,
+          "speed": 36
+        }
+      ],
+      "rangeClass": "Alto",
+      "energy": 70,
+      "attack": "star-ward",
+      "elements": [
+        "fairy"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "fairy"
+          ],
+          "rangeClass": "Alto",
+          "energy": 70,
+          "move": "star-ward",
+          "chargedType": "fairy",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        0.77
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "clefairy"
+    },
+    "mime-jr": {
+      "names": [
+        "Mime Jr."
+      ],
+      "pokedexIds": [
+        439
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#c29af1",
+      "base": {
+        "hp": 270,
+        "atk": 38,
+        "def": 55,
+        "spa": 102,
+        "spd": 89,
+        "speed": 73
+      },
+      "stageBases": [
+        {
+          "hp": 270,
+          "atk": 38,
+          "def": 55,
+          "spa": 102,
+          "spd": 89,
+          "speed": 73
+        }
+      ],
+      "rangeClass": "Médio Alto",
+      "energy": 80,
+      "attack": "mime-wall",
+      "elements": [
+        "psychic",
+        "fairy"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "psychic",
+            "fairy"
+          ],
+          "rangeClass": "Médio Alto",
+          "energy": 80,
+          "move": "mime-wall",
+          "chargedType": "fairy",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        0.83
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "mr-mime"
+    },
+    "munchlax": {
+      "names": [
+        "Munchlax"
+      ],
+      "pokedexIds": [
+        446
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#d4b382",
+      "base": {
+        "hp": 470,
+        "atk": 91,
+        "def": 86,
+        "spa": 32,
+        "spd": 92,
+        "speed": 21
+      },
+      "range": 0.6,
+      "energy": 70,
+      "attack": "heavy-stomp",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "chargedAnimation": "Hop",
+          "elements": [
+            "normal"
+          ],
+          "rangeClass": "Curto",
+          "range": 0.6
+        }
+      ],
+      "stageBases": [
+        {
+          "hp": 470,
+          "atk": 91,
+          "def": 86,
+          "spa": 32,
+          "spd": 92,
+          "speed": 21
+        }
+      ],
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.89
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "snorlax"
+    },
+    "smoochum": {
+      "names": [
+        "Smoochum"
+      ],
+      "pokedexIds": [
+        238
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#8ebdf8",
+      "base": {
+        "hp": 262,
+        "atk": 43,
+        "def": 38,
+        "spa": 88,
+        "spd": 76,
+        "speed": 77
+      },
+      "stageBases": [
+        {
+          "hp": 262,
+          "atk": 43,
+          "def": 38,
+          "spa": 88,
+          "spd": 76,
+          "speed": 77
+        }
+      ],
+      "rangeClass": "Médio",
+      "energy": 70,
+      "attack": "jynx-kiss",
+      "elements": [
+        "ice",
+        "psychic"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "ice",
+            "psychic"
+          ],
+          "rangeClass": "Médio",
+          "energy": 70,
+          "move": "jynx-kiss",
+          "chargedType": "ice",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        0.85
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "jynx"
+    },
+    "happiny": {
+      "names": [
+        "Happiny"
+      ],
+      "pokedexIds": [
+        440
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#ffafc4",
+      "base": {
+        "hp": 516,
+        "atk": 18,
+        "def": 22,
+        "spa": 74,
+        "spd": 85,
+        "speed": 39
+      },
+      "stageBases": [
+        {
+          "hp": 516,
+          "atk": 18,
+          "def": 22,
+          "spa": 74,
+          "spd": 85,
+          "speed": 39
+        }
+      ],
+      "range": 0.6,
+      "energy": 55,
+      "attack": "egg-chansey",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal"
+          ],
+          "range": 0.6,
+          "move": "egg-chansey",
+          "energy": 55,
+          "chargedAnimation": "SpAttack",
+          "rangeClass": "Curto"
+        }
+      ],
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.78
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "chansey"
+    },
+    "tyrogue": {
+      "names": [
+        "Tyrogue"
+      ],
+      "pokedexIds": [
+        236
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#87acf0",
+      "base": {
+        "hp": 296,
+        "atk": 80,
+        "def": 66,
+        "spa": 55,
+        "spd": 55,
+        "speed": 60
+      },
+      "rangeClass": "Curto",
+      "range": 0.6,
+      "energy": 65,
+      "attack": "hitmonchan-uppercut",
+      "elements": [
+        "fighting"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "rangeClass": "Curto",
+          "range": 0.6,
+          "move": "hitmonchan-uppercut",
+          "chargedType": "fighting",
+          "chargedAnimation": "Uppercut"
+        }
+      ],
+      "physicalSizes": [
+        0.85
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "stageBases": [
+        {
+          "hp": 296,
+          "atk": 80,
+          "def": 66,
+          "spa": 55,
+          "spd": 55,
+          "speed": 60
+        }
+      ],
+      "babyEvolution": "hitmonchan",
+      "babyEvolutionOptions": [
+        "hitmonchan",
+        "hitmonlee"
+      ]
+    },
+    "elekid": {
+      "names": [
+        "Elekid"
+      ],
+      "pokedexIds": [
+        239
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#f7ce59",
+      "base": {
+        "hp": 312,
+        "atk": 82,
+        "def": 49,
+        "spa": 102,
+        "spd": 57,
+        "speed": 80
+      },
+      "stageBases": [
+        {
+          "hp": 312,
+          "atk": 82,
+          "def": 49,
+          "spa": 102,
+          "spd": 57,
+          "speed": 80
+        }
+      ],
+      "rangeClass": "Curto",
+      "energy": 75,
+      "attack": "electric-punch",
+      "elements": [
+        "electric"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "electric"
+          ],
+          "rangeClass": "Curto",
+          "energy": 75,
+          "move": "electric-punch",
+          "chargedType": "electric",
+          "chargedAnimation": "Attack"
+        }
+      ],
+      "physicalSizes": [
+        0.89
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "electabuzz"
+    },
+    "magby": {
+      "names": [
+        "Magby"
+      ],
+      "pokedexIds": [
+        240
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#fa7f55",
+      "base": {
+        "hp": 343,
+        "atk": 66,
+        "def": 54,
+        "spa": 108,
+        "spd": 66,
+        "speed": 60
+      },
+      "stageBases": [
+        {
+          "hp": 343,
+          "atk": 66,
+          "def": 54,
+          "spa": 108,
+          "spd": 66,
+          "speed": 60
+        }
+      ],
+      "rangeClass": "Médio Alto",
+      "energy": 85,
+      "attack": "flame-jet",
+      "elements": [
+        "fire"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "fire"
+      },
+      "stages": [
+        {
+          "elements": [
+            "fire"
+          ],
+          "rangeClass": "Médio Alto",
+          "energy": 85,
+          "move": "flame-jet",
+          "chargedType": "fire",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        0.91
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "bossOnly": false,
+      "babyEvolution": "magmar"
     }
   }
 }

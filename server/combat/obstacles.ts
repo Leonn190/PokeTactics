@@ -59,7 +59,7 @@ export function summonPreparedPillars(battle:Battle,deal:(battle:Battle,source:C
  battle.pillarsSpawned=true;
  const multi=battle.participants.length>2;
  for(const mime of battle.units){
-  if(mime.family!=='mr-mime'||mime.hp<=0)continue;
+  if(!['mr-mime','mime-jr'].includes(mime.family)||mime.hp<=0)continue;
   const slot=battle.participants.indexOf(mime.playerId);
   const enemyTop=multi ? slot===0||slot===3 : slot===0;
   const offset=multi?(slot<2?-4.35:4.35):0;

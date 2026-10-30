@@ -4,13 +4,13 @@ import { interestCap,hasAugment } from '../../server/systems/augments';
 import { inventoryUsed,BALLS } from '../../server/systems/inventory';
 import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, evolutionCopies, getStageData, ATTACKS, rangeLabel, steppedRange } from '../../server/data';
 import { totalPower } from '../../server/formulas';
-import { bonusStats, effectivePercents, itemTooltip, ITEM_COLORS, ITEMS, RECIPES, numberParam } from '../../server/systems/items';
+import { bonusStats, bonusStat, effectivePercents, itemTooltip, ITEM_COLORS, ITEMS, RECIPES, numberParam } from '../../server/systems/items';
 import { LOOT } from '../../server/systems/loot';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
 import { moveDescription } from './menus';
 import { previewAbility, previewBasic } from '../../server/damage-preview';
 import { damageHtml, damageRows } from './damage-labels';
-import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats, EquippedItem, BallKind } from '../../server/types';
+import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats, EquippedItem, BallKind, Player } from '../../server/types';
 import type { ClientView } from './arena';
 
 const element = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -122,13 +122,13 @@ export class Hud {
     while(cells.length<ITEMS.inventorySlots)cells.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
     this.updateHTML('inventoryContents',`<div class="inventory-grid" role="group" aria-label="Itens no chão">${cells.join('')}</div>${balls.length?`<div class="ball-ground" role="group" aria-label="Pokébolas no chão">${balls.join('')}</div>`:''}`);
     element('inventoryCounter').textContent=`${inventoryUsed(player)}/${ITEMS.inventorySlots}`;
-    const evolvingFamily=player.pendingEvolutionKind==='scyther'?'scyther':'eevee';
+    const evolvingFamily=player.pendingEvolutionKind==='tyrogue'?'tyrogue':player.pendingEvolutionKind==='scyther'?'scyther':'eevee';
     const choosing=(player.pendingEvolution?.length||0)===evolutionCopies(evolvingFamily,0,hasAugment(player,'P11'));
     element('eeveeEvolution').classList.toggle('hidden', !choosing);
     if (choosing){
-      element('eeveeEvolution').querySelector<HTMLElement>('.evolution-kicker')!.textContent=evolvingFamily==='scyther'?'SCYTHER · EVOLUÇÃO ALTERNATIVA':'EEVEE · ESCOLHA SUA EVOLUÇÃO';
-      element('eeveeEvolution').querySelector<HTMLElement>('p')!.textContent=evolvingFamily==='scyther'?'Escolha entre Scizor e Kleavor. A forma manterá os IVs, nível, itens e experiência.':'As cópias serão fundidas. A forma escolhida mantém os maiores IVs, nível e experiência.';
-      this.updateHTML('eeveeBranches', (evolvingFamily==='scyther'?(['scizor','kleavor'] as const):EEVEE_BRANCHES).map(branch => {
+      element('eeveeEvolution').querySelector<HTMLElement>('.evolution-kicker')!.textContent=evolvingFamily==='tyrogue'?'TYROGUE · ESCOLHA O HITMON':evolvingFamily==='scyther'?'SCYTHER · EVOLUÇÃO ALTERNATIVA':'EEVEE · ESCOLHA SUA EVOLUÇÃO';
+      element('eeveeEvolution').querySelector<HTMLElement>('p')!.textContent=evolvingFamily==='tyrogue'?'Hitmonchan ou Hitmonlee: qualquer evolução de Tyrogue terá IV 100 em todos os atributos.':evolvingFamily==='scyther'?'Escolha entre Scizor e Kleavor. A forma manterá os IVs, nível, itens e experiência.':'As cópias serão fundidas. A forma escolhida mantém os maiores IVs, nível e experiência.';
+      this.updateHTML('eeveeBranches', (evolvingFamily==='tyrogue'?(['hitmonchan','hitmonlee'] as const):evolvingFamily==='scyther'?(['scizor','kleavor'] as const):EEVEE_BRANCHES).map(branch => {
       const s = SPECIES[branch], move = ATTACKS.moves[s.attack];
       return `<button class="evolution-choice" data-eevee-branch="${branch}" style="--evo-glow:${s.glow}">
         ${portrait(branch,70)}<strong>${s.names[0]}</strong><small>${s.elements.map(t=>typeIcon(t,16)).join('')} ${safe(move.name)}</small></button>`;
@@ -201,10 +201,11 @@ export class Hud {
       ? 'Batalhando<span class="rank-dots"><i>.</i><i>.</i><i>.</i></span>'
       : snapshot.battleStatuses[id] === 'victorious' ? 'Vitorioso'
       : snapshot.battleStatuses[id] === 'defeated' ? 'Derrotado' : '';
+    const shownHp=(p:Player):number => {const evt=snapshot.visualEvents.find(e=>e.kind==='trainer-damage'&&e.ownerId===p.id&&e.age<1.03);return Math.min(RULES.startingHealth,p.health+(evt?.value||0));};
     const rowHpClass = (health: number): string => health === 0 ? 'dead' : health < 30 ? 'low' : '';
     if (this.lastRank !== rankOrder) {
       const ranks = ranked.map((p,i)=>`<button class="rank-row ${p.id==='p0'?'you':''} ${view.scoutId===p.id&&p.id!=='p0'?'scouting':''} ${p.eliminated?'out':''}" data-scout="${p.id}" title="${p.id==='p0'?'Sua arena':`Inspecionar arena de ${safe(p.name)}`}" >
-        <span class="rank-position">${p.placement||i+1}</span><span class="rank-token"></span><span class="rank-name">${safe(p.name)}</span><span class="rank-combat-status ${snapshot.battleStatuses[p.id]||''}">${rankStatus(p.id)}</span>${likely.has(p.id)?'<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>':''}<span class="rank-hp ${rowHpClass(p.health)}">${p.health}</span></button>`).join('');
+        <span class="rank-position">${p.placement||i+1}</span><span class="rank-token"></span><span class="rank-name">${safe(p.name)}</span><span class="rank-combat-status ${snapshot.battleStatuses[p.id]||''}">${rankStatus(p.id)}</span>${likely.has(p.id)?'<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>':''}<span class="rank-hp ${rowHpClass(shownHp(p))}">${shownHp(p)}</span></button>`).join('');
       element('rankRows').innerHTML = ranks;
       this.lastRank = rankOrder;
     } else {
@@ -214,8 +215,8 @@ export class Hud {
         const hp = row.querySelector<HTMLElement>('.rank-hp');
         const status = row.querySelector<HTMLElement>('.rank-combat-status');
         if (hp) {
-          if (hp.textContent !== String(p.health)) hp.textContent = String(p.health);
-          const color = rowHpClass(p.health);
+          if (hp.textContent !== String(shownHp(p))) hp.textContent = String(shownHp(p));
+          const color = rowHpClass(shownHp(p));
           if (hp.className !== `rank-hp ${color}`) hp.className = `rank-hp ${color}`;
         }
         if (status) {
@@ -294,7 +295,8 @@ export class Hud {
     const inspectOwner = inspected?.owner || (battleInspected ? snapshot.players.find(p => p.id === battleInspected.playerId)?.name || 'BOT' : '');
     const inspector = inspectedPokemon ? this.inspector(inspectedPokemon, inspectOwner, battleInspected) : '';
     element('unitInspector').classList.toggle('hidden', !inspectedPokemon);
-    if (inspector !== this.lastInspector) { element('unitInspector').innerHTML = inspector; this.lastInspector = inspector; }
+    // The inspector may have been removed/hidden by a screen transition despite an unchanged HTML cache.
+    if (inspector !== this.lastInspector || (inspector && !element('unitInspector').querySelector('.inspector-top'))) { element('unitInspector').innerHTML = inspector; this.lastInspector = inspector; }
     if (inspectedPokemon) this.renderInspectorResources(battleInspected, inspectedPokemon);
 
     const final = snapshot.phase === 'finished';
@@ -344,7 +346,8 @@ export class Hud {
     const power = totalPower(stats);
     const move = ATTACKS.moves[stage.move];
     const description = moveDescription(move);
-    const basic = previewBasic(displayFamily,displayStage,stats);
+    const battleStats=combatant ? {...stats,atk:Math.max(0,stats.atk+Math.min(stats.atk*.3,combatant.buffs.filter(b=>b.stat==='atk'&&b.until>combatant.itemNow).reduce((sum,b)=>sum+b.amount,0))+bonusStat(combatant,'atk',combatant.itemNow,combatant.focusCount)+(combatant.synergy?.inherit.atk||0))}:stats;
+    const basic = previewBasic(displayFamily,displayStage,battleStats);
     const preview = previewAbility(displayFamily,displayStage,stats);
     const hp = combatant?.hp??stats.hp;
     const maxHp = Math.max(1,combatant?.maxHp??stats.hp);
@@ -361,15 +364,14 @@ export class Hud {
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
         <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>
       </div>
-      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span></div>
+      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span>${data.babyEvolution?`<span>BABY · NÍVEL MÁX. ${RULES.baby.levelCap} · IV 100 APÓS EVOLUÇÃO</span>`:''}${Object.values(pokemon.iv).every(v=>v===100)?'<span>✦ IV PERFEITO</span>':''}</div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
       <div class="inspector-percentages">${([['vampirism','VAMP'],['critChance','CRÍT'],['critDamage','DANO CRÍT'],['durability','DURAB'],['amplification','AMPLIF']] as const).map(([key,label])=>`<div class="inspector-percent"><small>${label}</small><b data-percent="${key}">0%</b></div>`).join('')}</div>
-      <div class="inspector-equipment"><span>EQUIPAMENTO</span>${Array.from({length:ITEMS.maxSlots},(_,index)=>{
+      <div class="inspector-equipment"><span>EQUIPAMENTOS E ATAQUE</span><div class="inspector-equipment-row">${Array.from({length:ITEMS.maxSlots},(_,index)=>{
         const item=pokemon.equipment?.[index];
         return `<button class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Slot livre'}" ${owner==='VOCÊ'?'':'disabled'}>${item?icon(item):'+'}</button>`;
-      }).join('')}<small>${owner==='VOCÊ'?'Clique para remover • use a mochila para equipar':''}</small></div>
-      <div class="inspector-basic">ATAQUE REGULAR <b>${damageHtml(basic)} <small>de dano ${basic.kind === 'special' ? 'especial' : 'físico'}</small></b></div>
+      }).join('')}<div class="inspector-slot inspector-basic-tile" title="Ataque regular físico (ATK) · valor bruto após atributos e equipamentos, antes da defesa do alvo"><span>⚔</span><b>${basic.value}</b></div></div><small>${owner==='VOCÊ'?'Clique para remover • use a mochila para equipar':''}</small></div>
       <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range,stage.rangeClass)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
-      ${displayStage<data.names.length-1 ? `<div class="inspector-evolution">Evolução: ${this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.units.filter(u=>u.family===pokemon.family&&u.stage===pokemon.stage).length||1} / ${evolutionCopies(displayFamily,displayStage,!!this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.augments?.includes('P11'))} cópias</div>`:''}<div class="inspector-footer"><div class="inspector-types">${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
+      ${(displayStage<data.names.length-1||!!data.babyEvolution) ? `<div class="inspector-evolution">Evolução: ${this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.units.filter(u=>u.family===pokemon.family&&u.stage===pokemon.stage).length||1} / ${evolutionCopies(displayFamily,displayStage,!!this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.augments?.includes('P11'))} cópias</div>`:''}<div class="inspector-footer"><div class="inspector-types">${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }
 }

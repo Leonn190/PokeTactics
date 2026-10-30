@@ -542,3 +542,10 @@
 .inspector-ability-tooltip{z-index:100;max-width:min(370px,calc(100vw - 28px));width:max-content;min-width:235px;left:auto;right:0;bottom:calc(100% + 8px);top:auto}
 
 .game-fps-counter{pointer-events:none;min-width:70px;text-align:center;border-color:#79bfb96b;color:#c7f1e6;background:#0f2632e8;font-variant-numeric:tabular-nums;font-size:11px;letter-spacing:.045em}
+
+/* V22: two equipped items and a third read-only basic-attack tile. */
+.inspector-equipment{display:block}
+.inspector-equipment-row{display:flex;align-items:center;gap:5px;padding:4px 0}
+.inspector-equipment-row .inspector-slot{width:43px;min-width:43px;height:38px;display:flex;align-items:center;justify-content:center}
+.inspector-basic-tile{border-style:solid;background:linear-gradient(140deg,#3c4438,#253d39);color:#f0d49e;cursor:default;gap:3px;flex-direction:column;font-size:11px}
+.inspector-basic-tile span{font-size:15px;line-height:13px}.inspector-basic-tile b{font-size:11px}

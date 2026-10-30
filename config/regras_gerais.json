@@ -140,5 +140,20 @@
     "ivPerPoint": 0.004,
     "levelPerPoint": 0.01
   },
-  "fusionLevels": 5
+  "fusionLevels": 5,
+  "baby": {
+    "fleeHpFraction": 0.2,
+    "moveSpeedMultiplier": 0.8,
+    "levelCap": 5,
+    "perfectEvolutionIV": 100,
+    "abilitySpaMultiplier": 0.9
+  },
+  "movement": {
+    "unitsPerSecond": 1.16
+  },
+  "projectiles": {
+    "unitsPerSecond": 6.8,
+    "collisionRadius": 0.22,
+    "meleeImpactSeconds": 0.14
+  }
 }

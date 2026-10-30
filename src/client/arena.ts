@@ -11,6 +11,7 @@ import { drawUnitVisualEvent } from './animation/unit-visuals';
 import { paintArenaBackground } from './scene/background';
 import { drawCoin } from './scene/coin-renderer';
 import { bonusStats } from '../../server/systems/items';
+import { itemSprite } from './item-sprites';
 import { renderTrainerAvatar } from './scene/trainer-renderer';
 import { renderFloatingNumber } from './vfx/floating-numbers';
 import { drawCastingGlints } from './vfx/casting-glints';
@@ -39,7 +40,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy']; orbitFlames?: CombatUnit['orbitFlames']; statuses?: CombatUnit['statuses']; lullaby?: CombatUnit['lullaby']; starWard?: CombatUnit['starWard']; stunUntil?: number; itemBurn?: CombatUnit['itemBurn'] };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy']; orbitFlames?: CombatUnit['orbitFlames']; equipment?: CombatUnit['equipment']; babyFlee?: boolean; statuses?: CombatUnit['statuses']; lullaby?: CombatUnit['lullaby']; starWard?: CombatUnit['starWard']; stunUntil?: number; itemBurn?: CombatUnit['itemBurn'] };
 const PMD = pmdManifest as Record<string, PmdEntry>;
 const PI2 = Math.PI * 2;
 const BENCH_Y = 4.38;
@@ -81,6 +82,7 @@ export class Arena {
   private orientationIds = new Set<string>();
   private enemyIntroOrder = new Map<string, number>();
   private renderMarkers: Marker[] = [];
+  private itemImageCache=new Map<string,HTMLImageElement>();
   private animationTicks = new WeakMap<PmdSheet, number>();
   private spriteParts = new Map<string, BodyPoints>();
   private grassCanvas: HTMLCanvasElement | null = null;
@@ -214,7 +216,7 @@ export class Arena {
     const point=this.toScreen(x,y), rect=this.canvas.getBoundingClientRect(), app=document.getElementById('app')!.getBoundingClientRect();
     node.style.left=`${rect.left-app.left+point.x}px`;
     node.style.top=`${rect.top-app.top+point.y}px`;
-    node.style.setProperty('--rack-world-scale',String(this.worldScale()));
+    node.style.setProperty('--rack-world-scale',String(this.worldScale()*RENDER_SETTINGS.itemWorldScale));
   }
 
   // Mesmo fator aplicado ao Pokémon que aparece fisicamente sobre a arena.
@@ -236,7 +238,7 @@ export class Arena {
     const rect = this.canvas.getBoundingClientRect();
     const pointerX = clientX - rect.left, pointerY = clientY - rect.top;
     const focalPoint = this.fromScreen(pointerX, pointerY);
-    this.zoom = Math.max(.72, Math.min(1.38, this.zoom + (delta > 0 ? -.09 : .09)));
+    this.zoom = Math.max(.45, Math.min(1.38, this.zoom + (delta > 0 ? -.09 : .09)));
     const projected = this.toScreen(focalPoint.x, focalPoint.y);
     this.cameraOffset.x += pointerX - projected.x;
     this.cameraOffset.y += pointerY - projected.y;
@@ -270,7 +272,7 @@ export class Arena {
     if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0')return null;
     const world=this.pointerWorld(clientX,clientY);
     for(const mime of this.snapshot.players[0].units){
-      if(mime.family!=='mr-mime'||mime.position.area!=='board')continue;
+      if(!['mr-mime','mime-jr'].includes(mime.family)||mime.position.area!=='board')continue;
       const marks=mime.mimePillars||[{col:2,row:1},{col:4,row:2}];
       for(let index=0;index<marks.length;index++){
         const p=gridXY(marks[index].col,marks[index].row);
@@ -283,7 +285,7 @@ export class Arena {
     if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0')return;
     const ctx=this.context;
     for(const mime of this.snapshot.players[0].units){
-      if(mime.family!=='mr-mime'||mime.position.area!=='board')continue;
+      if(!['mr-mime','mime-jr'].includes(mime.family)||mime.position.area!=='board')continue;
       for(const [index,mark] of (mime.mimePillars||[{col:2,row:1},{col:4,row:2}]).entries()){
         const shown=this.pillarPreview?.unitId===mime.id&&this.pillarPreview.index===index?this.pillarPreview:mark;
         const p=gridXY(shown.col,shown.row),at=this.toScreen(p.x,p.y),r=this.cellScale*.33;
@@ -549,7 +551,7 @@ export class Arena {
     const benchUnits = (units: Pokemon[], ownerId: string, own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
       const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index, enemy, offset);
       return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
-        own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0, bench: true } as Marker;
+        own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, equipment:u.equipment||[], flash: 0, bench: true } as Marker;
     });
     const liveUnits=watched.units.map(u=>this.pendingMove.has(u.id)?{...u,position:this.pendingMove.get(u.id)!.position}:u);
     const bench = benchUnits(liveUnits, watched.id, true, false, 0);
@@ -582,7 +584,7 @@ export class Arena {
       const row = own ? 4 + pos.row : 3 - pos.row;
       const p = gridXY(pos.col, row);
       return { id: u.id, sourceId: u.id, ownerId: friendly.id, x: p.x, y: p.y, family: u.family, stage: u.stage,
-        level: u.level, own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0 };
+        level: u.level, own, equipment:u.equipment||[],hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
     const prepared = [...convert(liveUnits, true), ...bench];
@@ -673,6 +675,35 @@ export class Arena {
     }ctx.closePath();ctx.fill();ctx.stroke();
     ctx.font=`900 ${Math.max(12,r*.62)}px Inter`;ctx.textAlign='center';ctx.fillStyle='#e7cafa';ctx.fillText('✦',0,5);
     ctx.restore();
+  }
+
+  private drawCapacityOnGround():void {
+    if(this.snapshot?.phase!=='planning')return;
+    const player=this.snapshot.players.find(p=>p.id===this.view.scoutId);
+    if(!player)return;
+    const count=player.units.filter(u=>u.position.area==='board').length;
+    const pos=this.toScreen(-2.55,2.9),ctx=this.context;
+    ctx.save();ctx.font=`900 ${Math.max(17,this.cellScale*.39)}px 'Barlow Condensed',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.globalAlpha=.57;ctx.fillStyle='#103d2e';ctx.strokeStyle='#c9f6bf';ctx.lineWidth=1.7;
+    ctx.strokeText(`${count} / ${player.level}`,pos.x,pos.y);
+    ctx.fillText(`${count} / ${player.level}`,pos.x,pos.y);ctx.restore();
+  }
+
+  private drawEquipmentIcons(unit:Marker,x:number,y:number):void {
+    const gear=unit.equipment||[];if(!gear.length)return;
+    const scale=Math.max(13,Math.min(20,this.cellScale*.27));
+    const total=Math.min(2,gear.length),ctx=this.context;
+    for(let i=0;i<total;i++){
+      const raw=itemSprite(gear[i]);if(!raw)continue;
+      const url=`${import.meta.env.BASE_URL}${raw.replace(/^\//,'')}`;
+      let img=this.itemImageCache.get(url);
+      if(!img){img=new Image();img.src=url;this.itemImageCache.set(url,img);}
+      const left=x+(i-(total-1)/2)*scale*1.07-scale/2;
+      ctx.fillStyle='#173029e5';ctx.strokeStyle='#e4cca4';ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(left-1,y-1,scale+2,scale+2,3);ctx.fill();ctx.stroke();
+      if(img.complete&&img.naturalWidth)ctx.drawImage(img,left,y,scale,scale);
+    }
   }
 
   private drawUnit(unit: Marker, time: number): void {
@@ -804,13 +835,17 @@ export class Arena {
     const barWidth = Math.max(35, radius * 2.35);
     const bx = p.x - barWidth / 2;
     const baseY = spriteTop - (this.snapshot?.phase === 'planning' ? 7 : 10);
+    this.drawEquipmentIcons(unit,p.x,baseY-Math.max(15,this.cellScale*.29));
     if (this.snapshot?.phase !== 'planning') {
       ctx.fillStyle = '#101f20d9'; ctx.fillRect(bx - 1, baseY - 1, barWidth + 2, 7);
       const scale=Math.max(1,unit.maxHp);
       const green=Math.max(0,Math.min(1,unit.hp/scale));
       const shield = (unit.barrier?.hp || 0) + (unit.barriers || []).reduce((total,b) => total+b.hp,0);
       const white=Math.max(0,Math.min(1-green,shield/scale));
-      ctx.fillStyle = unit.own ? '#74e6a9' : '#ff947d'; ctx.fillRect(bx, baseY, barWidth*green, 5);
+      const participants=this.snapshot?.visibleBattle?.participants||[];
+      const rivalIndex=participants.filter(id=>id!==this.view.scoutId).indexOf(unit.ownerId);
+      const teamColor=unit.own?'#74e6a9':(['#ff766a','#f4df70','#ffa34b'][Math.max(0,rivalIndex)]||'#ff947d');
+      ctx.fillStyle = teamColor; ctx.fillRect(bx, baseY, barWidth*green, 5);
       if (white>0) {ctx.fillStyle='#f1f9ff';ctx.fillRect(bx+barWidth*green,baseY,barWidth*white,5);}
       if (shield>Math.max(0,scale-unit.hp)) {
         ctx.fillStyle='#f1f9ff';ctx.fillRect(bx,baseY-2,barWidth,1);
@@ -830,6 +865,8 @@ export class Arena {
       if(unit.synergy?.chilled && unit.synergy.chilled.until>(this.snapshot?.visibleBattle?.elapsed||0)){ctx.fillStyle='#b3f1ff';ctx.fillRect(bx+barWidth+2,baseY-6,4,4);}
       ctx.fillStyle = '#132a31c9'; ctx.fillRect(bx, baseY + 7, barWidth, 3);
       ctx.fillStyle = '#80ccfa'; ctx.fillRect(bx, baseY + 7, barWidth * Math.min(1, unit.energy / unit.required), 3);
+      if(unit.babyFlee){ctx.fillStyle='#ffe9bd';ctx.font=`800 ${Math.max(9,this.cellScale*.12)}px sans-serif`;ctx.textAlign='center';ctx.fillText('FUGINDO',p.x,baseY-4);}
+
       const statuses = [
         ...(unit.buffs || []).map(b => `${b.stat.toUpperCase()}↑ ${Math.ceil(b.until-(this.snapshot?.visibleBattle?.elapsed || 0))}s`),
         ...(unit.defenseShreds || []).map(b => `DEF↓ ${Math.ceil(b.until-(this.snapshot?.visibleBattle?.elapsed || 0))}s`),
@@ -952,8 +989,23 @@ export class Arena {
       const actual = event.ownerId === 'p0' && this.view.scoutId === 'p0'
         ? this.trainer : { x: spot.x, y: flip ? -spot.y : spot.y };
       const p = this.toScreen(actual.x, actual.y);
-      renderFloatingNumber(this.context, p.x, p.y - this.cellScale * .65,
-        event.value, Math.min(1, this.visualEvents.age(event, now) / 1.25), 'trainer');
+      const elapsed=this.visualEvents.age(event,now),arrival=1.03,flight=Math.min(1,Math.max(0,elapsed/arrival));
+      const origin=this.toScreen(0,0),ctx=this.context;
+      // Present one impact corresponding to the authoritative HP change already resolved by the engine.
+      ctx.save();
+      if(elapsed<arrival){
+        const bend=Math.sin(flight*Math.PI)*this.cellScale*.58;
+        const x=origin.x+(p.x-origin.x)*flight;
+        const y=origin.y+(p.y-origin.y)*flight-bend;
+        ctx.fillStyle='#fff5cc';ctx.strokeStyle='#ff9b73';ctx.shadowColor='#ff7440';ctx.shadowBlur=15;
+        ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-this.cellScale*.48,Math.max(3,this.cellScale*.075),0,PI2);ctx.fill();ctx.stroke();
+      }else{
+        const blast=Math.min(1,(elapsed-arrival)/.48);
+        ctx.globalAlpha=1-blast;ctx.strokeStyle='#ffcb89';ctx.fillStyle='#ffad3f2b';ctx.shadowColor='#ff8b4b';ctx.shadowBlur=20;
+        ctx.lineWidth=3*(1-blast)+1;ctx.beginPath();ctx.arc(p.x,p.y-this.cellScale*.48,this.cellScale*(.18+.56*blast),0,PI2);ctx.fill();ctx.stroke();
+        renderFloatingNumber(ctx,p.x,p.y-this.cellScale*.65,event.value,Math.min(1,blast),'trainer');
+      }
+      ctx.restore();
     }
   }
 
@@ -995,6 +1047,7 @@ export class Arena {
       this.drawBench(false, 0, this.view.scoutId === 'p0');
       if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) this.drawBench(true);
     }
+    this.drawCapacityOnGround();
     this.spriteParts.clear();
     const markers = this.markers();
     const battle = this.snapshot?.visibleBattle;

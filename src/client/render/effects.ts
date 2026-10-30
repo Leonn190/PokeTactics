@@ -31,6 +31,36 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
         ctx.quadraticCurveTo(start.x+ux*.6-uy/normal*cellScale*.3,start.y+uy*.6+ux/normal*cellScale*.3-cellScale*.22,x,y);ctx.stroke();
         ctx.beginPath();ctx.arc(x,y,Math.max(3,cellScale*.08),0,PI2);ctx.fill();ctx.restore();continue;
       }
+      if(fx.kind==='flame-jet' || fx.kind==='electric-punch'){
+        ctx.save();
+        if(fx.kind==='flame-jet'){
+          const angle=Math.atan2(to.y-from.y,to.x-from.x),length=Math.hypot(to.x-from.x,to.y-from.y);
+          const spread=(fx.value||42)*Math.PI/360;
+          ctx.globalAlpha=(1-t)*.65;
+          const gradient=ctx.createRadialGradient(from.x,from.y,cellScale*.13,from.x,from.y,length);
+          gradient.addColorStop(0,'#fff0a7b5');gradient.addColorStop(.45,'#ff9b3b8c');gradient.addColorStop(1,'#ee402400');
+          ctx.fillStyle=gradient;ctx.shadowBlur=18;ctx.shadowColor='#ff642b';
+          ctx.beginPath();ctx.moveTo(from.x,from.y-cellScale*.3);
+          ctx.arc(from.x,from.y-cellScale*.3,length,angle-spread,angle+spread);
+          ctx.closePath();ctx.fill();
+          for(let i=0;i<7;i++){
+            const a=angle+(i-3)*spread/4,dist=length*(.25+((i*13+time*1.9)%7)/10);
+            ctx.fillStyle=i%2?'#ffcc63':'#ff5e30';ctx.beginPath();
+            ctx.arc(from.x+Math.cos(a)*dist,from.y-cellScale*.3+Math.sin(a)*dist,Math.max(2,cellScale*(.04+(1-t)*.035)),0,PI2);ctx.fill();
+          }
+        }else{
+          ctx.globalAlpha=(1-t)*.92;ctx.strokeStyle='#fff4a3';ctx.fillStyle='#edc7294b';
+          ctx.shadowColor='#e7d742';ctx.shadowBlur=20;ctx.lineWidth=4;
+          for(let i=0;i<6;i++){
+            const a=i*PI2/6+time*3.5,R=cellScale*(.12+.42*t);
+            ctx.beginPath();ctx.moveTo(to.x,to.y-cellScale*.3);
+            ctx.lineTo(to.x+Math.cos(a)*R*.65,to.y-cellScale*.3+Math.sin(a)*R*.65);
+            ctx.lineTo(to.x+Math.cos(a+.28)*R,to.y-cellScale*.3+Math.sin(a+.28)*R);ctx.stroke();
+          }
+          ctx.beginPath();ctx.arc(to.x,to.y-cellScale*.3,cellScale*(.09+.35*t),0,PI2);ctx.fill();
+        }
+        ctx.restore();continue;
+      }
       if(fx.kind==='electro-shot'||fx.kind==='electro-field'||fx.kind==='electro-pulse'||fx.kind==='electro-absorb'||fx.kind==='claw-strip'){
         ctx.save();
         if(fx.kind==='claw-strip'&&fx.claw){
