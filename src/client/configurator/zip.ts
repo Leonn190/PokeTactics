@@ -27,5 +27,13 @@ export function zipFiles(files:Record<string,string>):Blob {
  const end=new Uint8Array(22),e=new DataView(end.buffer);
  u32(e,0,0x06054b50);u16(e,8,paths.length);u16(e,10,paths.length);
  u32(e,12,centralSize);u32(e,16,cursor);
- return new Blob([...local,...central,end],{type:'application/zip'});
+ // Use um ArrayBuffer proprio: BlobPart nao aceita Uint8Array<ArrayBufferLike> no TS 5.9.
+ const buffer=new ArrayBuffer(cursor+centralSize+end.byteLength);
+ const bytes=new Uint8Array(buffer);
+ let offset=0;
+ for(const block of [...local,...central,end]){
+  bytes.set(block,offset);
+  offset+=block.byteLength;
+ }
+ return new Blob([buffer],{type:'application/zip'});
 }
