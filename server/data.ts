@@ -32,7 +32,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -48,6 +48,7 @@ export type MoveData = {
   conversion?: { kind: 'none' | 'stat_buff' | 'heal' | 'barrier'; stat?: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; points_per_damage_per_ally?: number; duration_seconds?: number; healing_pool_per_damage?: number; shield_pool_per_damage?: number; max_barrier_fraction_of_target_max_hp?: number };
   shredBase?: number; shredRatio?: number; shredDuration?: number; controlDuration?: number;
   skillRange?: number; selfHpCost?: number; guardDuration?: number; guardReduction?: number;
+  chance?: number; push?: number; wallDamage?: number; tailBase?: number; tailRatio?: number; tailRadius?: number;
   speedReduction?: number; shieldSpaRatio?: number; bonusBase?: number; bonusSpaRatio?: number; buffDuration?: number;
 };
 
@@ -117,6 +118,7 @@ export const ELEMENTS: Record<Element, { name: string; color: string; descriptio
   electric: { name: 'Elétrico', color: '#f9d769', description: 'Sem bônus de sinergia por enquanto' },
   ice: { name: 'Gelo', color: '#a7edff', description: 'Tipo de chefe lendário' },
   flying: { name: 'Voador', color: '#a9d1fa', description: 'Tipo de chefe lendário' },
+  fighting: { name: 'Lutador', color: '#d39777', description: 'ATK e DEF adicionais' },
   psychic: { name: 'Psíquico', color: '#f2b4e5', description: 'Tipo de chefe lendário' }
   ,bug: { name: 'Inseto', color: '#a8c75b', description: 'Sem bônus de sinergia por enquanto' }
   ,normal: { name: 'Normal', color: '#b4bab5', description: 'Sem bônus de sinergia por enquanto' },
@@ -134,13 +136,13 @@ export const BOARD_COLUMNS = RULES.boardColumns;
 export const BOARD_ROWS = RULES.boardRows;
 
 /** Níveis além de 100 são intencionais: chefes PvE continuam escalando a cada capítulo. */
-export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false): Stats {
+export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false, effectiveIv = false): Stats {
   const species = SPECIES[family];
   const base = (boss && species.bossBase) || species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
   const formula = RULES.statFormula;
   const levelScale = 1 + Math.max(0, level - 1) * formula.levelPerPoint;
   return Object.fromEntries((Object.keys(base) as Array<keyof Stats>).map(key => [
-    key, Math.round(base[key] * (formula.ivBase + Math.max(0, Math.min(100, iv[key])) * formula.ivPerPoint) * levelScale)
+    key, Math.round(base[key] * (formula.ivBase + Math.max(0, effectiveIv ? iv[key] : Math.min(100, iv[key])) * formula.ivPerPoint) * levelScale)
   ])) as unknown as Stats;
 }
 

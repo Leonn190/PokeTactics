@@ -1,3 +1,4 @@
+@import '../client/synergies/synergies.css';
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root{font-family:Inter,system-ui,sans-serif;color:#ebf3f7;background:#0a1118;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}*{box-sizing:border-box}html,body,#app{width:100%;height:100%;min-height:700px;margin:0;overflow:hidden}button{font:inherit;cursor:pointer;color:inherit;border:0}button:focus-visible{outline:2px solid #9dedcd;outline-offset:2px}#app{position:relative;background:radial-gradient(circle at 50% 40%,#1d3940,#0a121a 75%)}#battlefield{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}.vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 190px 60px #080d16ab;background:linear-gradient(180deg,#071017a6 0%,transparent 20%,transparent 58%,#091016bc 82%,#091019 100%)}.glass{background:linear-gradient(145deg,rgba(20,32,42,.96),rgba(11,20,30,.96));border:1px solid #41606b73;box-shadow:0 10px 44px #0008, inset 0 1px #b6ddd71a;backdrop-filter:blur(12px)}
@@ -440,3 +441,15 @@
  .unit-inspector{right:calc(314px + 27px);top:clamp(165px,24vh,290px);bottom:auto;
    max-height:calc(100vh - 335px);overflow-y:auto}
 }
+
+/* V18: every consumable occupies a physical cell in the same 3×3 board rack. */
+.inventory-grid .inventory-ball{width:100%;height:39px;padding:2px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;background:linear-gradient(145deg,#102e2a,#215246);position:relative;border:1px solid #729f87}
+.inventory-grid .inventory-ball img{height:29px;width:29px;max-width:90%;object-fit:contain;image-rendering:auto;filter:drop-shadow(0 2px 3px #000a)}
+.inventory-grid .inventory-ball small{position:absolute;right:2px;bottom:1px;padding:1px 3px;background:#051a1beb;border-radius:3px;color:#f9e1b2;font:800 10px 'Barlow Condensed'}
+.inventory-grid .inventory-ball.selected{border-color:#ffdf96;box-shadow:0 0 0 2px #f9d07e8c,0 0 14px #ffd68e69}
+.item-drag-ghost img{width:40px;height:40px;object-fit:contain}
+@media(max-width:980px){.inventory-grid .inventory-ball{height:34px}.inventory-grid .inventory-ball img{height:27px;width:27px}}
+
+/* Override legacy panel clipping; tooltip is attached to document.body. */
+.traits-panel{overflow:visible;z-index:23;max-height:calc(100% - 350px)}
+.trait-rows{max-height:calc(100vh - 370px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#7b9c8b transparent}

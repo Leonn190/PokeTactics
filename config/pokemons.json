@@ -136,6 +136,15 @@
       "portrait/0092/Normal.png",
       "portrait/0093/Normal.png",
       "portrait/0094/Normal.png"
+    ],
+    "machop": [
+      "./sprites/66.png",
+      "./sprites/67.png",
+      "./sprites/68.png"
+    ],
+    "magikarp": [
+      "./sprites/129.png",
+      "./sprites/130.png"
     ]
   },
   "species": {
@@ -2539,6 +2548,158 @@
           "range": 1,
           "energy": 80,
           "move": "gengar-phantom",
+          "chargedAnimation": "Attack"
+        }
+      ]
+    },
+    "machop": {
+      "names": [
+        "Machop",
+        "Machoke",
+        "Machamp"
+      ],
+      "pokedexIds": [
+        66,
+        67,
+        68
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#cf987f",
+      "base": {
+        "hp": 330,
+        "atk": 76,
+        "def": 51,
+        "spa": 33,
+        "spd": 36,
+        "speed": 38
+      },
+      "stageBases": [
+        {
+          "hp": 330,
+          "atk": 76,
+          "def": 51,
+          "spa": 33,
+          "spd": 36,
+          "speed": 38
+        },
+        {
+          "hp": 455,
+          "atk": 105,
+          "def": 71,
+          "spa": 45,
+          "spd": 55,
+          "speed": 51
+        },
+        {
+          "hp": 620,
+          "atk": 142,
+          "def": 92,
+          "spa": 61,
+          "spd": 76,
+          "speed": 65
+        }
+      ],
+      "range": 1,
+      "energy": 60,
+      "attack": "machop-kick",
+      "elements": [
+        "fighting"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "fighting"
+          ],
+          "move": "machop-kick",
+          "chargedAnimation": "Kick"
+        },
+        {
+          "elements": [
+            "fighting"
+          ],
+          "move": "machoke-kick",
+          "chargedAnimation": "Kick"
+        },
+        {
+          "elements": [
+            "fighting"
+          ],
+          "move": "machamp-kick",
+          "chargedAnimation": "Kick"
+        }
+      ]
+    },
+    "magikarp": {
+      "names": [
+        "Magikarp",
+        "Gyarados"
+      ],
+      "pokedexIds": [
+        129,
+        130
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#68aecc",
+      "base": {
+        "hp": 185,
+        "atk": 17,
+        "def": 39,
+        "spa": 19,
+        "spd": 30,
+        "speed": 52
+      },
+      "stageBases": [
+        {
+          "hp": 185,
+          "atk": 17,
+          "def": 39,
+          "spa": 19,
+          "spd": 30,
+          "speed": 52
+        },
+        {
+          "hp": 565,
+          "atk": 128,
+          "def": 78,
+          "spa": 66,
+          "spd": 92,
+          "speed": 86
+        }
+      ],
+      "range": 1,
+      "energy": 45,
+      "attack": "magikarp-splash",
+      "elements": [
+        "water"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "water"
+          ],
+          "move": "magikarp-splash",
+          "energy": 45,
+          "chargedAnimation": "Splash"
+        },
+        {
+          "elements": [
+            "water",
+            "flying"
+          ],
+          "move": "gyarados-fang-tail",
+          "energy": 75,
           "chargedAnimation": "Attack"
         }
       ]

@@ -50,6 +50,9 @@ export function moveDescription(move: MoveData): string {
     'dragon-storm':'Invoca três ondas dracônicas e levanta inimigos na primeira.',
     burrow:'Escava até o inimigo mais distante. Diglett fere só o alvo; Dugtrio atinge todos os inimigos ao redor ao emergir.',
     'ghost-ambush':'Atravessa obstáculos em forma espectral até as costas do inimigo com menos Vida a até 2 casas. Gastly acerta só ele; Haunter arranha até 3 próximos; Gengar alterna arranhada e um susto que afasta os inimigos ao redor em até 1 casa.',
+    'brutal-kick':'Chuta o inimigo, causando dano físico e empurrando até três casas. Colisão com a parede causa dano e atordoamento.',
+    'desperate-splash':'Há 50% de chance de curar HP e fortalecer o próximo ataque regular com dano especial.',
+    'fang-tail':'Morde o inimigo à frente e golpeia com a cauda os inimigos atrás, afastando-os até três casas.',
     'self-explosion':'Explode causando dano especial aos inimigos ao redor e perde 20% da própria Vida máxima.',
     'mew-blessing':'Cura e protege o aliado com menor porcentagem de vida; seus ataques básicos causam dano especial extra por 3 segundos.'
   };

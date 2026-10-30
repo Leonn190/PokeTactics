@@ -571,6 +571,58 @@
       "skillRange": 2,
       "splashRange": 1.12,
       "controlDuration": 0.65
+    },
+    "machop-kick": {
+      "name": "Chute Brutal",
+      "effect": "brutal-kick",
+      "baseDamage": 22,
+      "attackRatio": 0.8,
+      "specialRatio": 0,
+      "push": 1,
+      "wallDamage": 25,
+      "stunDuration": 0.5
+    },
+    "machoke-kick": {
+      "name": "Chute Brutal",
+      "effect": "brutal-kick",
+      "baseDamage": 35,
+      "attackRatio": 1.05,
+      "specialRatio": 0,
+      "push": 2,
+      "wallDamage": 40,
+      "stunDuration": 0.8
+    },
+    "machamp-kick": {
+      "name": "Chute Brutal",
+      "effect": "brutal-kick",
+      "baseDamage": 52,
+      "attackRatio": 1.35,
+      "specialRatio": 0,
+      "push": 3,
+      "wallDamage": 65,
+      "stunDuration": 1.1
+    },
+    "magikarp-splash": {
+      "name": "Esforço Desesperado",
+      "effect": "desperate-splash",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "chance": 0.5,
+      "healBase": 22,
+      "healRatio": 0.45,
+      "bonusBase": 15,
+      "bonusSpaRatio": 0.35
+    },
+    "gyarados-fang-tail": {
+      "name": "Mordida e Cauda Devastadora",
+      "effect": "fang-tail",
+      "baseDamage": 70,
+      "attackRatio": 1.45,
+      "specialRatio": 0,
+      "tailBase": 38,
+      "tailRatio": 0.65,
+      "tailRadius": 2,
+      "push": 3
     }
   }
 }

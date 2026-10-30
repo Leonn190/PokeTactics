@@ -1,3 +1,4 @@
+import { inventoryUsed,canReceive } from './systems/inventory';
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
 import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
@@ -226,11 +227,21 @@ export class GameEngine {
     if (player.id === 'p0') this.log = `${SPECIES[branch].names[0]} evoluiu!`;
   }
 
+  private releasePendingItems(player:Player):void {
+    const pending=player.pendingItems;
+    if(!pending?.length)return;
+    player.itemInventory ||= [];
+    while(pending.length&&canReceive(player,1))player.itemInventory.push(pending.shift()!);
+  }
+
   private preserveEquipment(player: Player, sources: Pokemon[]): Pokemon['equipment'] {
     const items = sources.flatMap(source => source.equipment || []);
     const kept = items.slice(0, ITEMS.maxSlots);
     player.itemInventory ||= [];
-    player.itemInventory.push(...items.slice(ITEMS.maxSlots));
+    for(const item of items.slice(ITEMS.maxSlots)){
+      if(canReceive(player,1))player.itemInventory.push(item);
+      else (player.pendingItems ||= []).push(item);
+    }
     return kept;
   }
 
@@ -246,6 +257,7 @@ export class GameEngine {
     const player = this.players.find(p=>p.id === drop.ownerId);
     if (!player || player.eliminated) return false;
     const reward = drop.reward;
+    if(!canReceive(player,reward.kind==='component'?1:0,reward.bonusBall)){drop.pending=true;return false;}
     if (reward.kind === 'pokemon') {
       if (!reward.family) return false;
       const pos = this.freePlaceForReward(player);
@@ -262,7 +274,6 @@ export class GameEngine {
       this.lootMessage = `Espólio: +${reward.amount} ouro`;
     } else {
       player.itemInventory ||= [];
-      if(player.itemInventory.length>=ITEMS.inventorySlots){drop.pending=true;return false;}
       player.itemInventory.push(makeComponent(this.id(),reward.color || ITEM_COLORS[0]));
       this.lootMessage = `Espólio: componente ${(ITEMS.components[reward.color || ITEM_COLORS[0]]).name}`;
     }
@@ -449,6 +460,7 @@ export class GameEngine {
         equipped.push(item);
       }
       human.itemInventory=human.itemInventory!.filter(i=>i.id!==item.id);
+      this.releasePendingItems(human);
       return null;
     }
     if (command.kind === 'unequip-item') {
@@ -456,7 +468,7 @@ export class GameEngine {
       if (!unit || !Number.isInteger(command.slot) || command.slot<0 || command.slot>=(unit.equipment?.length||0)) return 'Equipamento inválido';
       if (this.phase !== 'planning' && unit.position.area==='board') return 'Equipamentos travados durante combate';
       human.itemInventory ||= [];
-      if(human.itemInventory.length>=ITEMS.inventorySlots)return `Mochila cheia (${ITEMS.inventorySlots} itens)`;
+      if(!canReceive(human,1))return `Mochila cheia (${ITEMS.inventorySlots} itens)`;
       human.itemInventory.push(unit.equipment!.splice(command.slot,1)[0]);
       return null;
     }
@@ -470,6 +482,7 @@ export class GameEngine {
       const clone:Pokemon={ ...target,id:this.id(),iv:{...target.iv},position:pos,equipment:[] };
       human.units.push(clone);
       human.consumables![command.ball]--;
+      this.releasePendingItems(human);
       this.visualEvents.push({id:this.id(),unitId:clone.id,ownerId:human.id,kind:'summon',age:0,
         pokemon:{family:clone.family,stage:clone.stage,level:clone.level,position:{...clone.position}}});
       this.merge(human);
@@ -491,7 +504,7 @@ export class GameEngine {
     if (!unit) return 'Pokémon não encontrado';
     if (this.phase !== 'planning' && unit.position.area === 'board') return 'Pokémon em campo não pode ser movido durante o combate';
     if (command.kind === 'sell') {
-      if((human.itemInventory?.length||0)+(unit.equipment?.length||0)>ITEMS.inventorySlots)return `Mochila cheia: libere espaço para recuperar equipamentos`;
+      if(!canReceive(human,unit.equipment?.length||0))return `Mochila cheia: libere espaço para recuperar equipamentos`;
       human.gold += SPECIES[unit.family].rarity * (SPECIES[unit.family].eeveeBranch ? 4 : 3 ** unit.stage);
       human.units = human.units.filter(u => u.id !== unit.id);
       human.itemInventory ||= []; human.itemInventory.push(...(unit.equipment || []));
@@ -544,7 +557,7 @@ export class GameEngine {
     const remaining = favorites.slice(player.level);
     fielded.forEach((u, i) => {
       const front = u.family === 'bulbasaur' || u.family === 'squirtle';
-      u.position = { area: 'board', col: [3, 2, 4, 1, 5, 0, 6][i], row: front ? 0 : Math.min(3, 2 + Math.floor(i / 4)) };
+      u.position = { area: 'board', col: [3, 2, 4, 1, 5, 0, 6, 2, 4][i], row: i<7?(front ? 0 : Math.min(3, 2 + Math.floor(i / 4))):3 };
     });
     remaining.slice(0, BENCH_SIZE).forEach((u, index) => { u.position = { area: 'bench', index }; });
     this.equipCPU(player);
@@ -563,7 +576,7 @@ export class GameEngine {
     const ivValue = isBoss ? chapter === 1 ? PHASES.boss.firstChapterIv : chapter === 2 ? PHASES.boss.secondChapterIv : PHASES.boss.laterChapterIv : PHASES.bot.iv;
     const units = Array.from({ length: size }, (_, i) => {
       const family = isBoss ? legendary! : this.rng.pick(FAMILIES);
-      const pokemon = this.makePokemon(family, { area: 'board', col: [3, 2, 4, 1, 5, 0][i], row: i % 2 });
+      const pokemon = this.makePokemon(family, { area: 'board', col: [3, 2, 4, 1, 5, 0, 6, 2, 4][i], row: i < 7 ? i % 2 : 2 });
       pokemon.level = level;
       pokemon.iv = Object.fromEntries(Object.keys(pokemon.iv).map(stat => [stat, ivValue])) as Stats;
       return pokemon;

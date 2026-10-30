@@ -42,7 +42,7 @@ export function bonusStats(stats: Stats, equipment: EquippedItem[] = []): Stats 
   if (equipment.some(item => RECIPES[item.recipe || '']?.effect === 'longbow')) copy.speed *= 1 + numberParam('longbow','speedPercent');
   return Object.fromEntries(Object.entries(copy).map(([key,value])=>[key,Math.round(value)])) as Stats;
 }
-export function effectivePercents(unit?: Pick<CombatUnit,'equipment'|'itemStacks'|'itemTimers'>, elapsed=0): PercentStats {
+export function effectivePercents(unit?: Pick<CombatUnit,'equipment'|'itemStacks'|'itemTimers'> & Partial<Pick<CombatUnit,'synergy'>>, elapsed=0): PercentStats {
   const result: PercentStats = { ...ITEMS.defaults };
   if (!unit) return result;
   const has = (effect: string) => (unit.equipment || []).some(item => RECIPES[item.recipe || '']?.effect === effect);
@@ -61,6 +61,20 @@ export function effectivePercents(unit?: Pick<CombatUnit,'equipment'|'itemStacks
   result.critChance = Math.min(ITEMS.limits.critChance,Math.max(0,result.critChance));
   result.durability = Math.min(ITEMS.limits.durability,Math.max(0,result.durability));
   result.amplification = Math.min(ITEMS.limits.amplification,Math.max(0,result.amplification));
+  const synergy=unit.synergy;
+  if(synergy){
+    for(const key of ['vampirism','critChance','critDamage','durability','amplification'] as const)
+      result[key] += synergy.percents[key] || 0;
+    if(synergy.chilled&&synergy.chilled.until>elapsed)result.durability-=synergy.chilled.durability;
+    if(synergy.poisoned&&synergy.poisoned.until>elapsed){
+      // Poison can make durability negative down to -20%.
+      result.durability=Math.max(-.2,result.durability-(synergy.poisonDurabilityReduction||0));
+    }
+    result.vampirism=Math.min(ITEMS.limits.vampirism,Math.max(0,result.vampirism));
+    result.critChance=Math.min(ITEMS.limits.critChance,Math.max(0,result.critChance));
+    result.durability=Math.min(ITEMS.limits.durability,Math.max(-.2,result.durability));
+    result.amplification=Math.min(ITEMS.limits.amplification,Math.max(0,result.amplification));
+  }
   return result;
 }
 export function bumpStack(unit: CombatUnit, effect: string, value=1): void {

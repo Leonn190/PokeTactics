@@ -94,30 +94,33 @@ document.getElementById('unitInspector')!.addEventListener('click',event=>{
 });
 // The board rack offers the same point-and-drag behavior as the Pokémon themselves.
 let trayDragId:string|null=null;
+let trayDragBall:import('../../server/types').BallKind|null=null;
 let trayPointer=-1;
 let trayStart={x:0,y:0};
 let trayDragging=false;
 let suppressTrayClick=false;
 const itemGhost=document.getElementById('itemDragGhost')!;
 function clearItemDrag():void{
-  trayDragId=null;trayPointer=-1;trayDragging=false;
+  trayDragId=null;trayDragBall=null;trayPointer=-1;trayDragging=false;
   itemGhost.classList.add('hidden');itemGhost.classList.remove('valid-target');itemGhost.innerHTML='';
 }
 document.getElementById('inventoryContents')!.addEventListener('pointerdown',event=>{
   if(event.button!==0 || view.scoutId!=='p0'||!state)return;
   const item=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-item]');
-  if(!item)return;
-  trayDragId=item.dataset.inventoryItem||null;
+  const ball=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-ball]');
+  if(!item&&!ball)return;
+  trayDragId=item?.dataset.inventoryItem||null;
+  trayDragBall=(ball?.dataset.inventoryBall as typeof trayDragBall)||null;
   trayPointer=event.pointerId;
   trayStart={x:event.clientX,y:event.clientY};
   trayDragging=false;
 });
 document.addEventListener('pointermove',event=>{
-  if(!trayDragId||event.pointerId!==trayPointer)return;
+  if((!trayDragId&&!trayDragBall)||event.pointerId!==trayPointer)return;
   if(!trayDragging&&Math.hypot(event.clientX-trayStart.x,event.clientY-trayStart.y)>6){
     const item=state?.players[0].itemInventory?.find(i=>i.id===trayDragId);
-    if(!item){clearItemDrag();return;}
-    const source=document.querySelector<HTMLElement>(`[data-inventory-item="${trayDragId}"] .gear-icon`);
+    if(!item&&!trayDragBall){clearItemDrag();return;}
+    const source=trayDragBall ? document.querySelector<HTMLElement>(`[data-inventory-ball="${trayDragBall}"] img`) : document.querySelector<HTMLElement>(`[data-inventory-item="${trayDragId}"] .gear-icon`);
     itemGhost.innerHTML=source?.outerHTML||'';
     itemGhost.classList.remove('hidden');trayDragging=true;
   }
@@ -127,8 +130,8 @@ document.addEventListener('pointermove',event=>{
   }
 });
 document.addEventListener('pointerup',event=>{
-  if(!trayDragId||event.pointerId!==trayPointer)return;
-  const id=trayDragId;
+  if((!trayDragId&&!trayDragBall)||event.pointerId!==trayPointer)return;
+  const id=trayDragId,ball=trayDragBall;
   if(trayDragging){
     // Suppress only the synthesized click generated at the rack after a drag.
     // Canvas drops must not suppress the user's *next* independent rack click.
@@ -140,9 +143,10 @@ document.addEventListener('pointerup',event=>{
       const target=document.elementFromPoint(event.clientX,event.clientY);
       const unitId=(target===canvas)?arena.pickOwnUnit(event.clientX,event.clientY):null;
       const slot=target?.closest<HTMLElement>('[data-gear-slot]');
-      if(unitId)send({kind:'equip-item',itemId:id,unitId});
-      else if(slot)send({kind:'equip-item',itemId:id,unitId:slot.dataset.gearUnit!,ontoSlot:Number(slot.dataset.gearSlot)});
-      view.inventoryItemId=null;
+      if(unitId&&ball)send({kind:'use-ball',ball,unitId});
+      else if(unitId&&id)send({kind:'equip-item',itemId:id,unitId});
+      else if(slot&&id)send({kind:'equip-item',itemId:id,unitId:slot.dataset.gearUnit!,ontoSlot:Number(slot.dataset.gearSlot)});
+      view.inventoryItemId=null;view.selectedBall=null;
       hud.render(state,view);
     }
   }

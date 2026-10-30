@@ -17,6 +17,8 @@ import { renderCombatEffects } from './render/effects';
 import { SpriteBoundsCache } from './render/sprite-bounds';
 import { drawContactShadow } from './render/shadows';
 import { drawBurrowMound } from './render/burrow';
+import { tierFor } from '../../server/systems/synergies/registry';
+import { randomIndex } from '../../server/systems/synergies/positioning';
 import type { CombatUnit, Family, GameSnapshot, Pokemon, UnitPosition } from '../../server/types';
 import { trainerSpot } from '../../server/combat/trainer-position';
 import pmdManifest from './pmd-manifest.json';
@@ -34,7 +36,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; attackSpeedDebuffUntil?: number };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy'] };
 type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number; hitFrame?: number };
 type PmdEntry = Record<string, PmdSheet>;
 const PMD = pmdManifest as Record<string, PmdEntry>;
@@ -521,6 +523,33 @@ export class Arena {
     }
   }
 
+  private drawSacredTile(time:number):void {
+    if(!this.snapshot)return;
+    const snapshot=this.snapshot,watched=snapshot.players.find(p=>p.id===this.view.scoutId);
+    if(!watched)return;
+    const count=new Set(watched.units.filter(u=>u.position.area==='board'&&getStageData(u.family,u.stage).elements.includes('dragon')).map(u=>`${u.family}:${u.stage}`)).size;
+    if(!tierFor('dragon',count))return;
+    const salt=[...watched.id].reduce((n,c)=>n+c.charCodeAt(0),0);
+    const fixed=snapshot.visibleBattle?.sacredTiles?.[watched.id];
+    const index=fixed?fixed.row*7+fixed.col:randomIndex(snapshot.round,28,salt);
+    const col=index%7,row=Math.floor(index/7);
+    const battle=snapshot.visibleBattle;
+    const quad=battle&&battle.participants.length>2;
+    const slot=quad?battle.participants.indexOf(watched.id):0;
+    const worldRow=quad&&(slot===1||slot===2)?3-row:row+4;
+    const offset=quad?(slot<2?-QUAD_OFFSET:QUAD_OFFSET):0;
+    const p=gridXY(col,worldRow),point=this.toScreen(p.x+offset,p.y);
+    const ctx=this.context,r=this.cellScale*.46;
+    ctx.save();ctx.translate(point.x,point.y);
+    ctx.globalAlpha=.53+.14*Math.sin(time*2.4);
+    ctx.fillStyle='#b78ad12b';ctx.strokeStyle='#d8b2fa';ctx.shadowColor='#ab6ff0';ctx.shadowBlur=11;ctx.lineWidth=2;
+    ctx.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3+Math.PI/6;
+      if(!i)ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r*.65);else ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r*.65);
+    }ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.font=`900 ${Math.max(12,r*.62)}px Inter`;ctx.textAlign='center';ctx.fillStyle='#e7cafa';ctx.fillText('✦',0,5);
+    ctx.restore();
+  }
+
   private drawUnit(unit: Marker, time: number): void {
     const ctx = this.context;
     const p = this.toScreen(unit.x, unit.y);
@@ -546,6 +575,17 @@ export class Arena {
     }
     // Sombra encostada nos pés; nenhum bob/flutuação artificial.
     drawContactShadow(ctx, p.x, p.y, radius);
+    const battle=this.snapshot?.visibleBattle;
+    if(battle&&this.snapshot?.phase!=='planning'&&unit.synergy){
+      const elements=getStageData(unit.family,unit.stage).elements;
+      const tones:Record<string,string>={fire:'#ff9b5c',steel:'#c5e1e7',fighting:'#d98c63',psychic:'#f1b0f5',rock:'#cabb91',water:'#75d6ff',grass:'#8cec9c',electric:'#ffe580',flying:'#cde9ff',fairy:'#ffaaff',normal:'#d8ded0',ghost:'#bfa7ff',dark:'#8f85bd',bug:'#c9ef75',dragon:'#aba8ff',ground:'#d9ab81',poison:'#b777f2',ice:'#c7faff'};
+      const active=elements.filter(type=>tierFor(type,battle.traitsByPlayer[unit.ownerId]?.[type]||0));
+      active.slice(0,2).forEach((type,i)=>{
+        ctx.save();ctx.globalAlpha=.26+.09*Math.sin(time*2.5+i*2);
+        ctx.strokeStyle=tones[type];ctx.lineWidth=1.5;ctx.shadowColor=tones[type];ctx.shadowBlur=8;
+        ctx.beginPath();ctx.ellipse(p.x,p.y-3,radius*(1.22+i*.2),radius*(.44+i*.13),0,0,PI2);ctx.stroke();ctx.restore();
+      });
+    }
     if ((this.view.selectedId === unit.id || this.view.selectedId === unit.sourceId)) {
       ctx.beginPath(); ctx.ellipse(p.x, p.y + 3, radius * 1.7, radius * .5, 0, 0, PI2);
       ctx.strokeStyle = '#eed18d'; ctx.lineWidth = 3; ctx.stroke();
@@ -581,9 +621,10 @@ export class Arena {
         for(let i=0;i<4;i++) {const angle=i*PI2/4+time*1.7;ctx.fillStyle='#eea7ed';ctx.beginPath();ctx.arc(p.x+Math.cos(angle)*radius*1.3,p.y-this.cellScale*.35+Math.sin(angle)*radius*.9,2.2,0,PI2);ctx.fill();}
         ctx.restore();
       }
-      if (unit.poison) {
+      if (unit.poison || (unit.synergy?.poisoned && unit.synergy.poisoned.until>(this.snapshot?.visibleBattle?.elapsed||0))) {
         ctx.fillStyle = '#b76de4'; ctx.beginPath(); ctx.arc(bx + barWidth + 4, baseY + 2, 3.1, 0, PI2); ctx.fill();
       }
+      if(unit.synergy?.chilled && unit.synergy.chilled.until>(this.snapshot?.visibleBattle?.elapsed||0)){ctx.fillStyle='#b3f1ff';ctx.fillRect(bx+barWidth+2,baseY-6,4,4);}
       ctx.fillStyle = '#132a31c9'; ctx.fillRect(bx, baseY + 7, barWidth, 3);
       ctx.fillStyle = '#80ccfa'; ctx.fillRect(bx, baseY + 7, barWidth * Math.min(1, unit.energy / unit.required), 3);
       const statuses = [
@@ -737,6 +778,7 @@ export class Arena {
     ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     this.background();
     this.hexGrid(this.frame);
+    this.drawSacredTile(this.frame);
     if (this.quadActive) {
       const participants = this.snapshot!.visibleBattle!.participants;
       this.drawBench(false, -QUAD_OFFSET, participants[0] === 'p0');

@@ -6,15 +6,33 @@
   "interestEveryGold": 10,
   "maxInterest": 5,
   "victoryIncome": 1,
-  "streakBonuses": { "2": 1, "3": 2, "4": 3, "5": 4 },
+  "streakBonuses": {
+    "2": 1,
+    "3": 2,
+    "4": 3,
+    "5": 4
+  },
   "chapterBaseDamageOffset": 1,
   "survivingUnitDamage": 1,
   "doubleDamageMultiplier": 2,
-  "quadPlacementExtraDamage": { "2": 1, "3": 4, "4": 7 },
+  "quadPlacementExtraDamage": {
+    "2": 1,
+    "3": 4,
+    "4": 7
+  },
   "goldDropPerKnockout": 1,
   "goldRoundWinnerBonus": 4,
   "preparationSeconds": 25,
-  "chapterTimers": {"first":{"preparationSeconds":25,"combatSeconds":30},"later":{"preparationSeconds":35,"combatSeconds":35}},
+  "chapterTimers": {
+    "first": {
+      "preparationSeconds": 25,
+      "combatSeconds": 30
+    },
+    "later": {
+      "preparationSeconds": 35,
+      "combatSeconds": 35
+    }
+  },
   "combatSeconds": 30,
   "combatAcceleration": 3,
   "combatSafetySeconds": 65,
@@ -24,11 +42,102 @@
   "boardColumns": 7,
   "boardRows": 4,
   "rerollCost": 2,
-  "pokemonExperience": { "activePerBattle": 2, "benchPerBattle": 1 },
+  "pokemonExperience": {
+    "activePerBattle": 2,
+    "benchPerBattle": 1
+  },
   "maxPokemonLevel": 100,
-  "levelMilestones": [1, 3, 7, 12, 16, 21],
-  "shopOddsByLevel": [[38,33,29,0,0],[36,33,30,1,0],[32,34,31,3,0],[29,31,32,7,1],[26,29,34,10,2],[25,27,31,15,3]],
-  "typeShopBias": { "activePoints": 2, "benchPoints": 1, "shareBonusMultiplier": 0.5, "secondaryTypeMultiplier": 0.5, "maxShown": 5 },
-  "matchmaking": { "options": 3, "repeatPenalty": 100, "recentRepeatPenalty": 300 },
-  "statFormula": { "ivBase": 0.8, "ivPerPoint": 0.004, "levelPerPoint": 0.01 }
+  "levelMilestones": [
+    1,
+    3,
+    7,
+    12,
+    16,
+    21,
+    27,
+    34,
+    43
+  ],
+  "shopOddsByLevel": [
+    [
+      38,
+      33,
+      29,
+      0,
+      0
+    ],
+    [
+      36,
+      33,
+      30,
+      1,
+      0
+    ],
+    [
+      32,
+      34,
+      31,
+      3,
+      0
+    ],
+    [
+      29,
+      31,
+      32,
+      7,
+      1
+    ],
+    [
+      26,
+      29,
+      34,
+      10,
+      2
+    ],
+    [
+      25,
+      27,
+      31,
+      15,
+      3
+    ],
+    [
+      24,
+      25,
+      31,
+      16,
+      4
+    ],
+    [
+      23,
+      22,
+      29,
+      20,
+      6
+    ],
+    [
+      22,
+      19,
+      28,
+      22,
+      9
+    ]
+  ],
+  "typeShopBias": {
+    "activePoints": 2,
+    "benchPoints": 1,
+    "shareBonusMultiplier": 0.5,
+    "secondaryTypeMultiplier": 0.5,
+    "maxShown": 5
+  },
+  "matchmaking": {
+    "options": 3,
+    "repeatPenalty": 100,
+    "recentRepeatPenalty": 300
+  },
+  "statFormula": {
+    "ivBase": 0.8,
+    "ivPerPoint": 0.004,
+    "levelPerPoint": 0.01
+  }
 }

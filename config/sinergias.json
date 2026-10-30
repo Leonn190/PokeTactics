@@ -1,0 +1,559 @@
+{
+  "version": 18,
+  "synergies": {
+    "fire": {
+      "name": "Fogo",
+      "subtitle": "Amplificação",
+      "description": "Pokémon de Fogo amplificam todo o dano físico e especial.",
+      "tiers": [
+        {
+          "count": 2,
+          "amplification": 0.07
+        },
+        {
+          "count": 4,
+          "amplification": 0.17
+        },
+        {
+          "count": 6,
+          "amplification": 0.32
+        },
+        {
+          "count": 8,
+          "amplification": 0.54
+        }
+      ],
+      "params": {}
+    },
+    "steel": {
+      "name": "Aço",
+      "subtitle": "Durabilidade",
+      "description": "Pokémon de Aço resistem a parte do dano recebido.",
+      "tiers": [
+        {
+          "count": 2,
+          "durability": 0.04
+        },
+        {
+          "count": 3,
+          "durability": 0.1
+        },
+        {
+          "count": 4,
+          "durability": 0.19
+        },
+        {
+          "count": 6,
+          "durability": 0.34
+        }
+      ],
+      "params": {}
+    },
+    "fighting": {
+      "name": "Lutador",
+      "subtitle": "Força de combate",
+      "description": "Pokémon Lutadores recebem ATK e DEF adicionais.",
+      "tiers": [
+        {
+          "count": 2,
+          "atk": 0.08,
+          "def": 0.08
+        },
+        {
+          "count": 4,
+          "atk": 0.19,
+          "def": 0.19
+        },
+        {
+          "count": 6,
+          "atk": 0.34,
+          "def": 0.34
+        },
+        {
+          "count": 8,
+          "atk": 0.55,
+          "def": 0.55
+        }
+      ],
+      "params": {}
+    },
+    "psychic": {
+      "name": "Psíquico",
+      "subtitle": "Poder mental",
+      "description": "Pokémon Psíquicos recebem SpA e SpD adicionais.",
+      "tiers": [
+        {
+          "count": 2,
+          "spa": 0.08,
+          "spd": 0.08
+        },
+        {
+          "count": 4,
+          "spa": 0.19,
+          "spd": 0.19
+        },
+        {
+          "count": 6,
+          "spa": 0.34,
+          "spd": 0.34
+        },
+        {
+          "count": 8,
+          "spa": 0.55,
+          "spd": 0.55
+        }
+      ],
+      "params": {}
+    },
+    "rock": {
+      "name": "Pedra",
+      "subtitle": "Fortaleza rochosa",
+      "description": "Ganha DEF e barreiras no início, aos 60% e aos 20% de HP.",
+      "tiers": [
+        {
+          "count": 3,
+          "shield": 0.07,
+          "def": 0.05
+        },
+        {
+          "count": 4,
+          "shield": 0.16,
+          "def": 0.12
+        },
+        {
+          "count": 5,
+          "shield": 0.29,
+          "def": 0.23
+        },
+        {
+          "count": 7,
+          "shield": 0.47,
+          "def": 0.39
+        }
+      ],
+      "params": {
+        "hpThresholds": [
+          0.6,
+          0.2
+        ]
+      }
+    },
+    "water": {
+      "name": "Água",
+      "subtitle": "Fluxo de energia",
+      "description": "Regenera energia continuamente durante o combate.",
+      "tiers": [
+        {
+          "count": 2,
+          "energyPerSecond": 1.2
+        },
+        {
+          "count": 4,
+          "energyPerSecond": 2.8
+        },
+        {
+          "count": 6,
+          "energyPerSecond": 5.2
+        },
+        {
+          "count": 8,
+          "energyPerSecond": 9
+        }
+      ],
+      "params": {}
+    },
+    "grass": {
+      "name": "Planta",
+      "subtitle": "Regeneração natural",
+      "description": "Mais vida máxima e regeneração de HP por segundo.",
+      "tiers": [
+        {
+          "count": 2,
+          "hp": 0.06,
+          "regen": 0.004
+        },
+        {
+          "count": 4,
+          "hp": 0.15,
+          "regen": 0.01
+        },
+        {
+          "count": 6,
+          "hp": 0.28,
+          "regen": 0.019
+        },
+        {
+          "count": 8,
+          "hp": 0.48,
+          "regen": 0.033
+        }
+      ],
+      "params": {}
+    },
+    "electric": {
+      "name": "Elétrico",
+      "subtitle": "Energização",
+      "description": "Raios periódicos aumentam Velocidade e ferem inimigos próximos.",
+      "tiers": [
+        {
+          "count": 3,
+          "speed": 0.04,
+          "damage": 12,
+          "spaRatio": 0.2,
+          "maxSpeed": 0.4
+        },
+        {
+          "count": 4,
+          "speed": 0.09,
+          "damage": 26,
+          "spaRatio": 0.35,
+          "maxSpeed": 0.65
+        },
+        {
+          "count": 5,
+          "speed": 0.16,
+          "damage": 46,
+          "spaRatio": 0.55,
+          "maxSpeed": 0.95
+        },
+        {
+          "count": 7,
+          "speed": 0.27,
+          "damage": 80,
+          "spaRatio": 0.85,
+          "maxSpeed": 1.3
+        }
+      ],
+      "params": {
+        "interval": 3,
+        "radius": 1.5
+      }
+    },
+    "flying": {
+      "name": "Voador",
+      "subtitle": "Instinto aéreo",
+      "description": "Velocidade adicional. Sob 40% de HP, voa para casa livre e ganha mais Velocidade.",
+      "tiers": [
+        {
+          "count": 3,
+          "speed": 0.06,
+          "landingSpeed": 0.04
+        },
+        {
+          "count": 4,
+          "speed": 0.15,
+          "landingSpeed": 0.1
+        },
+        {
+          "count": 5,
+          "speed": 0.28,
+          "landingSpeed": 0.18
+        },
+        {
+          "count": 7,
+          "speed": 0.46,
+          "landingSpeed": 0.3
+        }
+      ],
+      "params": {
+        "hpThreshold": 0.4,
+        "flightDuration": 0.8
+      }
+    },
+    "fairy": {
+      "name": "Fada",
+      "subtitle": "Proteção encantada",
+      "description": "Amplifica curas e barreiras concedidas; abaixo de 50% de HP protege o aliado mais ferido.",
+      "tiers": [
+        {
+          "count": 2,
+          "healingShieldAmp": 0.1,
+          "emergencyShield": 0.06
+        },
+        {
+          "count": 4,
+          "healingShieldAmp": 0.24,
+          "emergencyShield": 0.14
+        },
+        {
+          "count": 6,
+          "healingShieldAmp": 0.43,
+          "emergencyShield": 0.25
+        },
+        {
+          "count": 8,
+          "healingShieldAmp": 0.72,
+          "emergencyShield": 0.42
+        }
+      ],
+      "params": {
+        "hpThreshold": 0.5
+      }
+    },
+    "normal": {
+      "name": "Normal",
+      "subtitle": "Compartilhamento",
+      "description": "Cada Normal doa parte de seu maior atributo-base aos outros Normais.",
+      "tiers": [
+        {
+          "count": 3,
+          "share": 0.03
+        },
+        {
+          "count": 5,
+          "share": 0.07
+        },
+        {
+          "count": 7,
+          "share": 0.12
+        },
+        {
+          "count": 9,
+          "share": 0.19
+        }
+      ],
+      "params": {
+        "maxReceived": 1,
+        "hpCompareDivisor": 5
+      }
+    },
+    "ghost": {
+      "name": "Fantasma",
+      "subtitle": "Retorno espectral",
+      "description": "Vampirismo; revive uma vez em uma casa livre da retaguarda.",
+      "tiers": [
+        {
+          "count": 3,
+          "vampirism": 0.06,
+          "reviveHp": 0.12
+        },
+        {
+          "count": 4,
+          "vampirism": 0.14,
+          "reviveHp": 0.27
+        },
+        {
+          "count": 5,
+          "vampirism": 0.25,
+          "reviveHp": 0.47
+        },
+        {
+          "count": 7,
+          "vampirism": 0.42,
+          "reviveHp": 0.75
+        }
+      ],
+      "params": {
+        "intangibility": 0.5
+      }
+    },
+    "dark": {
+      "name": "Sombrio",
+      "subtitle": "Golpes letais",
+      "description": "Crítico adicional e habilidades capazes de causar golpes críticos.",
+      "tiers": [
+        {
+          "count": 2,
+          "critChance": 0.07,
+          "critDamage": 0.12
+        },
+        {
+          "count": 3,
+          "critChance": 0.16,
+          "critDamage": 0.28
+        },
+        {
+          "count": 4,
+          "critChance": 0.3,
+          "critDamage": 0.52
+        },
+        {
+          "count": 6,
+          "critChance": 0.48,
+          "critDamage": 0.9
+        }
+      ],
+      "params": {}
+    },
+    "bug": {
+      "name": "Inseto",
+      "subtitle": "Herança do enxame",
+      "description": "Ao morrer definitivamente, concede parte dos atributos próprios ao Inseto aliado mais próximo.",
+      "tiers": [
+        {
+          "count": 3,
+          "inherit": 0.07
+        },
+        {
+          "count": 4,
+          "inherit": 0.16
+        },
+        {
+          "count": 5,
+          "inherit": 0.29
+        },
+        {
+          "count": 7,
+          "inherit": 0.49
+        }
+      ],
+      "params": {
+        "maxInherited": 1.2
+      }
+    },
+    "dragon": {
+      "name": "Dragão",
+      "subtitle": "Casa sagrada",
+      "description": "Uma casa aliada recebe IV temporário; Dragões recebem IV extra nela.",
+      "tiers": [
+        {
+          "count": 2,
+          "iv": 8,
+          "dragonIv": 6
+        },
+        {
+          "count": 3,
+          "iv": 19,
+          "dragonIv": 14
+        },
+        {
+          "count": 4,
+          "iv": 34,
+          "dragonIv": 25
+        },
+        {
+          "count": 6,
+          "iv": 56,
+          "dragonIv": 43
+        }
+      ],
+      "params": {}
+    },
+    "ground": {
+      "name": "Terrestre",
+      "subtitle": "Terremoto crescente",
+      "description": "Terremotos com três ondas crescentes a cada 12 s, seguidos de bônus de Velocidade e Durabilidade.",
+      "tiers": [
+        {
+          "count": 3,
+          "waves": [
+            6,
+            10,
+            16
+          ],
+          "durability": 0.02,
+          "speed": 0.03
+        },
+        {
+          "count": 4,
+          "waves": [
+            13,
+            22,
+            35
+          ],
+          "durability": 0.04,
+          "speed": 0.07
+        },
+        {
+          "count": 5,
+          "waves": [
+            23,
+            39,
+            62
+          ],
+          "durability": 0.07,
+          "speed": 0.12
+        },
+        {
+          "count": 7,
+          "waves": [
+            38,
+            65,
+            104
+          ],
+          "durability": 0.12,
+          "speed": 0.2
+        }
+      ],
+      "params": {
+        "interval": 12,
+        "waveSpacing": 1,
+        "maxDurability": 0.25,
+        "maxSpeed": 0.5
+      }
+    },
+    "poison": {
+      "name": "Venenoso",
+      "subtitle": "Contaminação",
+      "description": "Ataques aplicam veneno por quatro segundos. Mortes de envenenados curam Venenosos aliados.",
+      "tiers": [
+        {
+          "count": 3,
+          "dot": 0.005,
+          "deathHeal": 0.04,
+          "healReduction": 0,
+          "durabilityReduction": 0
+        },
+        {
+          "count": 5,
+          "dot": 0.012,
+          "deathHeal": 0.1,
+          "healReduction": 0.2,
+          "durabilityReduction": 0
+        },
+        {
+          "count": 7,
+          "dot": 0.021,
+          "deathHeal": 0.19,
+          "healReduction": 0.4,
+          "durabilityReduction": 0.06
+        },
+        {
+          "count": 9,
+          "dot": 0.035,
+          "deathHeal": 0.33,
+          "healReduction": 0.6,
+          "durabilityReduction": 0.15
+        }
+      ],
+      "params": {
+        "duration": 4,
+        "minDurability": -0.2
+      }
+    },
+    "ice": {
+      "name": "Gelo",
+      "subtitle": "Frio penetrante",
+      "description": "Ataques reduzem Velocidade e Durabilidade; Pokémon de Gelo recebem SpD.",
+      "tiers": [
+        {
+          "count": 2,
+          "durabilityReduction": 0.02,
+          "speedReduction": 0.06,
+          "spd": 0.06
+        },
+        {
+          "count": 3,
+          "durabilityReduction": 0.05,
+          "speedReduction": 0.13,
+          "spd": 0.14
+        },
+        {
+          "count": 4,
+          "durabilityReduction": 0.09,
+          "speedReduction": 0.23,
+          "spd": 0.26
+        },
+        {
+          "count": 6,
+          "durabilityReduction": 0.16,
+          "speedReduction": 0.38,
+          "spd": 0.45
+        }
+      ],
+      "params": {
+        "duration": 3
+      }
+    }
+  }
+}

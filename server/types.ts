@@ -9,7 +9,7 @@ export interface LootReward { kind: 'gold'|'pokemon'|'component'; amount?: numbe
 export interface LootDrop { id: string; ownerId: string; x: number; y: number; color: LootColor; claimed: boolean; reward: LootReward; pending?: boolean }
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
-export type Element = 'ghost' | 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'dragon' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy';
+export type Element = 'ghost' | 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'dragon' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy' | 'fighting';
 export type Rarity = 1 | 2 | 3 | 4 | 5;
 export type StageType = 'battle' | 'gold' | 'quad' | 'bot' | 'double' | 'boss';
 export type StageResult = 'win' | 'loss' | 'second' | 'third' | 'fourth' | null;
@@ -51,6 +51,7 @@ export interface Player {
   placement: number | null;
   pendingEvolution?: string[];
   itemInventory?: EquippedItem[];
+  pendingItems?: EquippedItem[];
   consumables?: Record<BallKind, number>;
 }
 
@@ -75,7 +76,29 @@ export interface FearState { fromX: number; fromY: number; toX: number; toY: num
 export interface DigState { phase: 'sink' | 'travel' | 'rise'; time: number; duration: number; fromX: number; fromY: number; toX: number; toY: number; targetId: string; trailClock: number }
 export interface StormState { x: number; y: number; nextWave: number; waves: number; targetIds: string[]; elapsed: number }
 export interface TimedStatEffect { sourceId: string; stat: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; amount: number; until: number }
-export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' | 'item' }
+export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' | 'item' | 'synergy' }
+
+/** Snapshot-owned combat modifiers; never written back to the Pokemon roster. */
+export interface SynergyUnitState {
+  originalStats?: Stats;
+  ownStats?: Stats;
+  statsPercent: Partial<Stats>;
+  percents: Partial<PercentStats> & { healingShieldAmp?: number };
+  speedBonus: number;
+  inherit: Stats;
+  revived: boolean;
+  intangibleUntil?: number;
+  sacredIv?: number;
+  flags: Record<string,boolean>;
+  timers: Record<string,number>;
+  poisoned?: { sourceId:string; playerId:string; until:number };
+  chilled?: { durability:number; speed:number; until:number };
+  flight?: { fromX:number; fromY:number; toX:number; toY:number; elapsed:number; duration:number };
+  splashBonus?: number;
+  pendingSkill?: {kind:'kick'|'fang-tail';targetId:string;until:number;moveId:string};
+  poisonDurabilityReduction?: number;
+  poisonHealReduction?: number;
+}
 
 export interface CombatUnit {
   id: string;
@@ -144,6 +167,7 @@ export interface CombatUnit {
   stunUntil: number;
   knockUpUntil: number;
   slow: number;
+  synergy?: SynergyUnitState;
   metrics: CombatMetrics;
 }
 
@@ -154,7 +178,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep';
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;
@@ -203,6 +227,8 @@ export interface Battle {
   winner: string | null;
   loser: string | null;
   traitsByPlayer: Record<string, Partial<Record<Element, number>>>;
+  sacredTiles?: Record<string,{col:number;row:number}>;
+  synergyTimers?: Record<string,number>;
   benches: Record<string, Pokemon[]>;
   knockupEvents: KnockupEvent[];
 }

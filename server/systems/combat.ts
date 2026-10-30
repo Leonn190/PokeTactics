@@ -7,19 +7,26 @@ import { effect, floatingDamage } from '../combat/effects';
 import { heal } from '../combat/healing';
 import { trainerSpot } from '../combat/trainer-position';
 import { bonusStats, effectivePercents, effectCount, numberParam, bumpStack, bonusStat, shieldMultiplier, ITEMS } from './items';
+import { countTraits } from './synergies/counting';
+import { initializeSynergies, updateSacredTiles, synergyTier } from './synergies/stats';
+import { onSynergyHit, onSynergyDeath, sourceShieldMultiplier } from './synergies/combat-events';
+import { tickSynergies } from './synergies/periodic';
+import { pushTarget } from './synergies/positioning';
 export { trainerSpot } from '../combat/trainer-position';
 
 const moveIdOf = (unit: CombatUnit): string => unit.bossMove || getStageData(unit.family, unit.stage).move;
 const combatCooldown = (unit: CombatUnit, now: number): number =>
   attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
-const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !unit.dig && !unit.ghost;
+const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow);
 const metrics = (): CombatMetrics => ({ casts: 0, controlSeconds: 0, dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0, blockedPhysical: 0, blockedSpecial: 0, barrierAbsorbed: 0, abilityMitigated: 0 });
 function stat(unit: CombatUnit, key: StatKey): number {
   const base = unit.stats[key];
   if (key === 'hp') return base;
   const increase = Math.min(base * .3, unit.buffs.filter(b => b.stat === key).reduce((sum,b) => sum + b.amount, 0));
   const decrease = (key === 'def' || key === 'spd') ? Math.min(base * .3, unit.defenseShreds.filter(b=>b.stat===key).reduce((sum,b) => sum + b.amount, 0)) : 0;
-  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount));
+  const synergySpeed=key==='speed'?base*(unit.synergy?.speedBonus||0):0;
+  const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
+  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed);
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -73,23 +80,11 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
   };
 }
 
-function countTraits(player: Player): Partial<Record<Element, number>> {
-  const unique = new Set<string>();
-  const count: Partial<Record<Element, number>> = {};
-  for (const u of player.units) {
-    if (u.position.area !== 'board') continue;
-    const key = `${u.family}:${u.stage}`;
-    if (unique.has(key)) continue;
-    unique.add(key);
-    for (const type of getStageData(u.family, u.stage).elements) count[type] = (count[type] || 0) + 1;
-  }
-  return count;
-}
 
 export function createBattleGroup(players: Player[], id: string, kind: StageType = 'battle'): Battle {
   if (players.length < 2) throw new Error('Batalha precisa de dois ou mais participantes');
   const multi = players.length > 2;
-  return {
+  const battle:Battle = {
     id, kind, goldRound: kind === 'gold', seed:[...id].reduce((n,c)=>Math.imul(n ^ c.charCodeAt(0),16777619) >>> 0,2166136261),
     playerA: players[0].id, playerB: players[1].id,
     participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
@@ -98,6 +93,8 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
     traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)]))
   };
+  initializeSynergies(battle);
+  return battle;
 }
 
 export function createBattle(playerA: Player, playerB: Player, id: string): Battle {
@@ -278,7 +275,7 @@ function landProjectiles(battle: Battle, dt: number): void {
       const ally = isTargetable(target) ? target : null;
       if (ally) {
         heal(battle,ally,(move.healBase || 0)+stat(caster,'spa')*(move.healRatio || 0),caster);
-        const value = ((move.shieldBase || 0)+stat(caster,'spa')*(move.shieldSpaRatio || 0))*shieldMultiplier(ally);
+        const value = ((move.shieldBase || 0)+stat(caster,'spa')*(move.shieldSpaRatio || 0))*shieldMultiplier(ally)*sourceShieldMultiplier(caster);
         const old = ally.barriers.find(b => b.kind === 'mew' && b.sourceId === caster.id);
         if (old) { old.hp = value; old.until = battle.elapsed + (move.shieldDuration || 3); }
         else ally.barriers.push({kind:'mew',sourceId:caster.id,hp:value,until:battle.elapsed+(move.shieldDuration || 3)});
@@ -371,7 +368,7 @@ function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage
 /** Damage is resolved only on the simulation thread. DOT/reflect/extra hits cannot proc themselves. */
 function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, magical: boolean, charged = false, attackType?: Element,
   mode: 'normal' | 'dot' | 'reflect' | 'extra' = 'normal'): number {
-  if (target.hp <= 0 || target.dig) return 0;
+  if (!isTargetable(target)) return 0;
   const defense = magical ? stat(target,'spd') : stat(target,'def');
   const element = attackType || getStageData(source.family, source.stage).chargedType;
   const typeFactor = charged ? chargedEffectiveness(element, getStageData(target.family, target.stage).elements) : 1;
@@ -382,7 +379,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   let bits = (battle.seed ^ Math.imul(source.hitSerial, 0x9e3779b9)) >>> 0;
   bits ^= bits >>> 16; bits = Math.imul(bits, 0x7feb352d); bits ^= bits >>> 15;
   bits = Math.imul(bits, 0x846ca68b); bits ^= bits >>> 16;
-  const critical = mode==='normal' && (!charged || effectCount(source,'spell_critical')>0)
+  const critical = mode==='normal' && (!charged || effectCount(source,'spell_critical')>0 || !!synergyTier(battle,source,'dark'))
     && (bits >>> 0)/4294967296 < attacker.critChance;
   let critFactor=critical ? attacker.critDamage : 1;
   if (critical && effectCount(target,'bramble')) critFactor=1+(critFactor-1)*(1-numberParam('bramble','criticalExtraReduction'));
@@ -427,14 +424,16 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (magical) source.metrics.specialDealt += damage;
   else source.metrics.physicalDealt += damage;
   target.metrics.taken += damage;
+  const hpBefore=target.hp;
   target.hp -= damage;
   if (damage > 0) floatingDamage(battle, target, damage, magical ? 'special' : 'physical');
   target.flash = 0.19;
   if (damage > target.maxHp * .2 && target.hp > 0 && !target.leap && !target.combo) animate(target, 'Hurt', .28, target.spinTime > 0 ? 'Withdraw' : undefined);
-  if (target.hp <= 0) knockout(battle, source, target, damage);
+  onSynergyHit(battle,source,target,hpBefore,damage+absorbedTotal,mode==='normal', {deal,heal,effect,stat});
+  if(target.hp<=0 && !onSynergyDeath(battle,source,target,{deal,heal,effect,stat}))knockout(battle,source,target,damage);
   const actual=damage+absorbedTotal;
   if (mode==='normal' && actual>0) {
-    if (attacker.vampirism>0 && source.hp>0) heal(battle,source,actual*attacker.vampirism,source);
+    if (attacker.vampirism>0 && source.hp>0) heal(battle,source,damage*attacker.vampirism,source);
     if (charged && effectCount(source,'ally_healing')) {
       const ally=battle.units.filter(u=>u.hp>0 && u.playerId===source.playerId)
         .sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp || a.id.localeCompare(b.id))[0];
@@ -478,7 +477,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
 
 function grantBarrier(battle: Battle, source: CombatUnit, moveId: string): void {
   const move = ATTACKS.moves[moveId];
-  const hp = ((move.shieldBase || 0) + (move.shieldDefenseRatio || 0) * source.stats.def) * shieldMultiplier(source);
+  const hp = ((move.shieldBase || 0) + (move.shieldDefenseRatio || 0) * source.stats.def) * shieldMultiplier(source)*sourceShieldMultiplier(source);
   source.barrier = { hp, maxHp: hp, time: move.shieldDuration || 4 }; // Renova; nunca empilha.
   effect(battle, source, source, 'shield', hp);
 }
@@ -516,6 +515,24 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     arrival: number, onHit?: 'drain' | 'burn' | 'slow' | 'poison') =>
     projectile(battle, source, victim, kind, raw, magical, true, arrival, onHit, source, moveId, stage.chargedType);
 
+  if(move.effect==='desperate-splash'){
+    animate(source, 'Splash', .65);
+    source.hitSerial++;
+    let bits=(battle.seed ^ Math.imul(source.hitSerial+211,0x9e3779b9))>>>0;
+    bits^=bits>>>16;bits=Math.imul(bits,0x7feb352d);bits^=bits>>>15;
+    if((bits>>>0)/4294967296<(move.chance||0)){
+      heal(battle,source,(move.healBase||0)+s*(move.healRatio||0),source);
+      source.synergy!.splashBonus=(move.bonusBase||0)+s*(move.bonusSpaRatio||0);
+      effect(battle,source,source,'water',1);
+    }
+    return;
+  }
+  if ((move.effect==='brutal-kick'||move.effect==='fang-tail')&&target){
+    // The hit lands on the contact frame, not immediately when the cast starts.
+    animate(source,move.effect==='brutal-kick'?'Kick':'Attack',move.effect==='brutal-kick'?.47:.7);
+    source.synergy!.pendingSkill={kind:move.effect==='brutal-kick'?'kick':'fang-tail',targetId:target.id,until:battle.elapsed+(move.effect==='brutal-kick'?.26:.38),moveId};
+    return;
+  }
   if (move.effect === 'self-explosion') {
     animate(source,'Attack',.45);
     effect(battle,source,source,'explosion',move.splashRange||1.45);
@@ -524,7 +541,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
     const hpCost=source.maxHp*(move.selfHpCost || 0);
     source.hp=Math.max(0,source.hp-hpCost); // true HP cost: ignores shields/durability/lifesteal
-    if (source.hp<=0) { source.hp=0; effect(battle,source,source,'ko',0); }
+    if (source.hp<=0) { source.hp=0; if(!onSynergyDeath(battle,source,source,{deal,heal,effect,stat}))knockout(battle,source,source,0); }
     return;
   }
   if (move.effect === 'mew-blessing') {
@@ -727,6 +744,42 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
       .sort((u, v) => distance(u, target) - distance(v, target))[0];
     if (chained) shot(chained, 'spell', (move.chainBase || 0) + s * (move.chainRatio || 0), true, 1);
   }
+}
+
+function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
+  const pending=source.synergy?.pendingSkill;
+  if(!pending)return false;
+  if(battle.elapsed<pending.until)return true;
+  source.synergy!.pendingSkill=undefined; // Execute exactly once, even when hit events recurse.
+  const target=battle.units.find(u=>u.id===pending.targetId);
+  const move=ATTACKS.moves[pending.moveId];
+  if(!target||!move)return true;
+  const a=stat(source,'atk');
+  if(pending.kind==='kick'){
+    if(!isTargetable(target))return true;
+    deal(battle,source,target,(move.baseDamage||0)+a*(move.attackRatio||0),false,true,'fighting');
+    if(target.hp>0){
+      const push=pushTarget(battle,source,target,move.push||1);
+      if(push.wall&&push.moved<(move.push||1)){
+        deal(battle,source,target,move.wallDamage||0,false,false,'fighting','extra');
+        if(target.hp>0)target.stunUntil=Math.max(target.stunUntil,battle.elapsed+(move.stunDuration||0));
+        effect(battle,source,target,'kick-impact',move.wallDamage||0);
+      }
+    }
+  } else {
+    const facing=Math.hypot(source.facingX,source.facingY)||1;
+    const vx=source.facingX/facing,vy=source.facingY/facing;
+    if(isTargetable(target))deal(battle,source,target,(move.baseDamage||0)+a*(move.attackRatio||0),false,true,'water');
+    for(const enemy of battle.units){
+      if(enemy.playerId===source.playerId||!isTargetable(enemy)||enemy===target)continue;
+      const dx=enemy.x-source.x,dy=enemy.y-source.y;
+      if(Math.hypot(dx,dy)>(move.tailRadius||2)||dx*vx+dy*vy>-.12)continue;
+      deal(battle,source,enemy,(move.tailBase||0)+a*(move.tailRatio||0),false,true,'water');
+      if(enemy.hp>0)pushTarget(battle,source,enemy,move.push||3);
+    }
+    effect(battle,source,source,'tail-sweep',move.tailRadius||2);
+  }
+  return true;
 }
 
 function pollenTick(battle: Battle, source: CombatUnit, dt: number): void {
@@ -1157,6 +1210,7 @@ export function tickBattle(battle: Battle, dt: number): void {
   battle.introElapsed += dt;
   // O treinador lança as Pokébolas antes de começar a luta.
   if (battle.introElapsed < ITEMS.combatIntroSeconds) return;
+  tickSynergies(battle,dt,{deal,heal,effect,stat});
   // Periodic item effects belong to simulation time and are deterministic.
   for (const unit of battle.units) {
     unit.itemNow=battle.elapsed;
@@ -1247,6 +1301,8 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.ghost) { ghostTick(battle,unit,dt); continue; }
     if (unit.dig) { digTick(battle,unit,dt); continue; }
     if (unit.storm) { stormTick(battle,unit,dt); continue; }
+    if(pendingSkillTick(battle,unit))continue;
+    if(unit.synergy?.flight || (unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil>battle.elapsed))continue;
     if (unit.charge) { chargeTick(battle,unit,dt); continue; }
     if (unit.stunTime > 0 && !(effectCount(unit,'opening_immunity') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) {
       continue;
@@ -1321,12 +1377,17 @@ export function tickBattle(battle: Battle, dt: number): void {
       projectile(battle, unit, target, projectileKind, raw, !unit.bossMove && stage.basic.category === 'special', false,
         ranged ? ANIMATIONS.projectilesByType[stage.elements[0]].arrival : .35);
       if (ranged) battle.effects[battle.effects.length - 1].basicType = stage.elements[0];
+      if(unit.synergy?.splashBonus){
+        projectile(battle,unit,target,'water',unit.synergy.splashBonus,true,false,ranged?ANIMATIONS.projectilesByType[stage.elements[0]].arrival:.35);
+        unit.synergy.splashBonus=0;
+      }
       unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain + (effectCount(unit,'bonus_energy') ? numberParam('bonus_energy','energy') : 0));
       bumpStack(unit,'guinsoo'); bumpStack(unit,'titan');
     }
     unit.cooldown=combatCooldown(unit,battle.elapsed);
     unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);
   }
+  updateSacredTiles(battle);
   resolve(battle);
 }
 

@@ -12,6 +12,7 @@ const matchup: Record<Element, { strong: Element[]; resisted: Element[] }> = {
   electric: { strong: ['water', 'flying'], resisted: ['electric', 'grass'] },
   ice: { strong: ['grass', 'flying'], resisted: ['fire', 'water', 'ice'] },
   flying: { strong: ['grass'], resisted: ['electric'] },
+  fighting: { strong: ['normal','rock','steel','ice','dark'], resisted: ['flying','poison','bug','psychic','fairy','ghost'] },
   psychic: { strong: ['poison'], resisted: ['psychic'] },
   bug: { strong: ['grass', 'psychic'], resisted: ['fire', 'flying', 'poison'] },
   normal: { strong: [], resisted: ['rock','steel'] },
