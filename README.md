@@ -1,206 +1,55 @@
-# PokéTactics — Astro v12.1 (interface de combate e ficha aprimoradas)
+# PokéTactics — V20.3 (organização)
 
-## Ajustes da v12.1
+PokéTactics é um jogo de estratégia com combates automáticos, Pokémon, loja, evoluções, itens, espólios, augments e sinergias. Ele usa **Astro + TypeScript**, Canvas e sprites/animações PMD. As partidas atuais são **simuladas localmente**, com adversários controlados por bots; ainda não existe multiplayer real nem backend de partidas online.
 
-- **Treinador:** só caminha com o botão direito do mouse; clique esquerdo seleciona/arrasta Pokémon e não movimenta o treinador. Clique direito em moedas direciona o treinador até elas, e a coleta continua dependendo da colisão.
-- **Ficha:** ampliada e reposicionada na lateral direita, abaixo de um painel de classificação mais compacto quando um Pokémon está selecionado. Status em maior destaque; Poder Total e IV Médio estão em formato discreto.
-- **Habilidade:** aparece apenas o nome do ataque no botão; ao passar o mouse ou focar pelo teclado, surge um tooltip com custo de energia, alcance e descrição. Vida em combate atualiza sem destruir o hover.
-- **Animação:** batalha inicia com Idle contínuo e combatentes orientados para o adversário, sem executar Rotate em todos. No encerramento, apenas sobreviventes vencedores fazem uma virada curta, pelo menor caminho, para olhar à câmera; ataques e animações próprias das habilidades permanecem.
-- **Assets:** continua sendo uma distribuição de código sem sprites, retratos ou ícones.
+## Executar o projeto
 
-## Novidades da v12
-
-- **Tela inicial** com identidade visual PokéTactics e botões **PROCURAR PARTIDA** e **VISUALIZAR ELENCO**. A fila simula o preenchimento de oito vagas (você + sete adversários) e inicia um novo motor de partida sem aguardar pessoas: todos os outros jogadores são **bots**, por enquanto. É possível cancelar a busca antes de entrar. Após terminar a partida, o botão **VOLTAR AO MENU** permite voltar e começar de novo.
-- **Elenco/Pokédex tática:** catálogo de todas as **54 formas cadastradas**, incluindo evoluções, ramos do Eevee e lendários PvE. Oferece busca, filtros, portraits, tipos, raridade, cadeia de evolução, descrição da habilidade carregada, ataque básico, custo/obtenção e os seis **atributos base sem IV e sem nível** (HP não é convertido no jogo; HP/5 vale apenas para a soma de poder).
-- **Treinador móvel e ouro físico:** clique em qualquer terreno vazio ou use o botão direito para caminhar mesmo durante o combate. Clique na moeda para mandar o personagem até ela; o ouro é creditado **somente ao encostar**. O servidor simulado controla o movimento e valida a colisão; não existe mais comando de coleta direta. Moedas que não foram buscadas permanecem disponíveis nas próximas etapas, inclusive durante a preparação.
-- **Fusão de formas finais:** solte um Pokémon final em cima de uma cópia idêntica (também funciona com Snorlax, lendários e Eeveelutions). A cópia de **maior nível é preservada**, ganha **+5 níveis** até o máximo de 100, e a outra desaparece. Em caso de empate, permanece a cópia que recebeu a unidade arrastada. O bônus fica gravado também na experiência e não desaparece após a batalha. **Eevee comum continua evoluindo por quatro cópias**, sem fusão final indevida; formas intermediárias continuam precisando das cópias normais para evoluir.
-- **Balanceamento:** o multiplicador dos atributos por nível caiu de **3% para 2%** por nível acima do 1. **Vulpix agora é incomum (raridade 2, custo 2)**; Rhyhorn continua raro. A habilidade e os demais atributos base não foram modificados.
-- **Testes:** `tests/v12.test.ts` valida custo, multiplicador, fusões, limites de nível, Eevee, caminhada até moedas e sua persistência. Os testes anteriores foram adaptados às novas regras.
-
-O ZIP continua **sem os assets binários** do repositório original, como nas entregas anteriores. Preserve os arquivos `public/` existentes quando mesclar o código.
-
-## IMPORTANTE: pacote de código SEM sprites PMD e portraits
-
-Este ZIP foi preparado para **atualizar o projeto existente no GitHub**,
-[Leonn190/PokeTactics](https://github.com/Leonn190/PokeTactics).
-**Não substitua nem apague as pastas de assets do repositório**. Elas já existem
-e são referenciadas diretamente pelo código:
-
-- `public/sprite/0001/Idle-Anim.png` e demais `public/sprite/<DEX>/...`
-- `public/portrait/0001/Normal.png` e demais `public/portrait/<DEX>/Normal.png`
-- `public/tipos/grass.svg`, `fire.svg`, `water.svg`, `electric.svg` etc.
-- `public/sprites/` para os lendários com miniaturas estáticas.
-
-O pacote contém apenas o manifesto de metadados de animação
-`src/client/pmd-manifest.json`. Não baixa nem distribui spritesheets, portraits
-ou SVGs. Extraia o ZIP e copie **o conteúdo da pasta `poke-tft/` para a raiz
-do checkout do GitHub**, mesclando os arquivos de código, sem usar opções de
-espelhamento que excluam pastas ausentes do ZIP.
-Caso teste o ZIP isoladamente, os assets visuais ficarão ausentes até que ele
-seja combinado com a árvore `public/` original.
-
-## Atualização v11.3 — Rhyhorn e Vulpix
-
-- **Rhyhorn → Rhydon → Rhyperior** (raro; Terra/Pedra, físico melee, 3 cópias por estágio) têm BSTs **320/430/540** e carregado de **70 de energia**. A Investida Rochosa é um avanço real de até três casas, causando dano físico nos inimigos das primeiras duas casas do corredor e levantando-os por **0,4/0,5/0,6 s**. Dano bruto: **28 + 0,8×ATK**, **36 + 0,9×ATK**, **44 + 1,0×ATK**. A IA busca a linha com mais vítimas, priorizando o alvo atual nos empates. O ponto final respeita bordas e ocupação e permite avanço mais curto. Cada levantamento aplicado usa o evento existente, ativando uma reação gratuita por Cubone/Marowak aliado e por vítima.
-- **Vulpix → Ninetales** (raridade 3 na v11.3; reclassificada como **incomum na v12**; Fogo, ranged especial, 3 cópias) têm BSTs **235/400**, alcance **3/4** e energia **65/70**. Chama Perfurante segue uma linha fixa da boca à borda da arena, causando dano especial integral a cada inimigo atravessado: **14 + 0,65×SpA** / **22 + 0,75×SpA**. Usa varredura de colisão entre frames, evita impactos duplicados e aplica dano apenas quando o projétil desenhado entra em contato. Não há explosão, burn, stun ou splash. O ataque regular continua sendo 50% do SpA contra um único alvo, gerando 10 de energia.
-- Na v11.3, a loja incluía **os dois Pokémon-base no tier raro** (a v12 moveu Vulpix ao tier incomum), sem alterar as tabelas de probabilidades, o sistema de evolução, os golpes existentes ou ativar efeitos de sinergia. O elenco total é de **54 formas**, sendo **43 jogáveis e 11 chefes**.
-- O código de animações seleciona `Walk` durante a investida e `Strike` no impacto; Vulpix usa `Shoot` no básico e `SpAttack` no carregado. O renderer aceita somente animações de fato presentes no manifesto PMD, com fallback `Attack`/`Shoot`/`Idle` quando necessário. O visual da carga move o sprite, a sombra e as barras em conjunto, e a chama tem um projétil próprio com ponto de impacto sincronizado.
-- **Sem assets no ZIP:** o manifesto incluído foi fornecido pela v11.2 e ainda não contém metadados PMD dos IDs **0037, 0038, 0111, 0112 e 0464**. Na cópia completa do repositório, `npm run dev` e `npm run build` executam `scripts/generate-pmd-manifest.mjs` para ler `AnimData.xml` e conferir as sheets realmente disponíveis, sem baixar ou inventar PNGs. A confirmação visual das cinco animações exige esse checkout completo.
-- Regressão: `tests/new-pokemon.test.ts` cobre BST, evolução, loja, investida, imunidade, bordas, reação dos ossos, dano por estágio e colisão perfurante. Consulte o resultado real de `npm test`, `npm run check` e `npm run build` no relatório de entrega.
-
-## Atualização v11.2 — modificações implementadas
-
-- **49 formas no elenco**: 38 jogáveis e 11 chefes; todas recebem seis atributos-base individuais dentro de HP 0–700 e demais atributos 0–120. A ficha de Blissey tem exatamente **700 HP-base**. Nenhum multiplicador de evolução 1,45/2,10 é aplicado: cada forma evoluída usa seus próprios atributos.
-- **Eevee** é incomum, exige **4 cópias** e abre uma janela de escolha para as 8 evoluções. Ela mantém posição, maior nível/XP e os maiores IVs. A compra não escolhe um ramo aleatório para o jogador; as CPUs escolhem automaticamente.
-- As nove formas da linhagem Eevee são atiradoras: **básico de alvo único** com 50% do atributo ofensivo e 10 de energia; **apenas o carregado** lança a bola específica em área, preferindo o maior grupo de inimigos dentro do alcance. O dano e o bônus só ocorrem na colisão. Até dois aliados mais próximos recebem, conforme a forma: Umbreon DEF, Sylveon cura, Jolteon VEL, Flareon ATK, Espeon SpA, Glaceon barreira, Vaporeon SpD e Leafeon barreira. Eevee não concede bônus.
-- **Cubone → Marowak** (incomum, 3 cópias) lançam um osso carregado físico e reduzem DEF temporariamente com escala de SpA. Cada Cubone/Marowak aliado lança **um osso adicional gratuito para cada inimigo levantado** pelo Snorlax, Onix ou Steelix, mesmo fora do alcance básico. Os ossos chegam antes do dano/debuff, não fazem splash e não alteram a barra de energia no disparo reativo.
-- **Onix → Steelix** (épico, 3 cópias) são tanques melee e lançam **um único inimigo ao ar** com seu carregado, além de causar dano e stun. O Snorlax mantém o stun original de 1 s e elevação de 0,35 s, agora com evento individual por alvo levantado.
-- **Geodude → Graveler → Golem** (incomum, 3 cópias por etapa): os dois primeiros usam `Strike` para o Golpe Rochoso carregado; Golem substitui esse carregado por `Withdraw` e recebe **60% menos dano pós-mitigação por 4,5 segundos**. O ataque melee básico continua disponível.
-- **Chansey → Blissey** (épico, 3 cópias) têm básico melee e um **ovo carregado exclusivamente curativo**: mira o maior grupo de aliados com feridos, cura todos no raio ao impactar, não atinge inimigos nem desperdiça energia sem aliados machucados.
-- Efeitos temporários de buffs, barreiras e redução de DEF têm duração, limites de acúmulo e feedback visual. Defesas e barreiras absorvidas, bem como mitigação do Golem, são computadas pelo motor. Os tipos **Terrestre, Pedra, Aço, Sombrio e Fada** têm cálculo de eficácia e indicação na interface, sem ativar sinergias de combate.
-- Valores de raridade **Eevee/Geodude: 2, Chansey: 4**, atributos não travados e coeficientes das novas habilidades seguem as *propostas iniciais* do JSON fornecido; permanecem passíveis de ajustes após playtests.
-- `config/v11-spec.json` contém a especificação integral recebida. `scripts/apply-v11-spec.mjs` permite regenerar os parâmetros e catálogo. O gerador de PMD procura **todos os IDs do elenco** antes de `npm run build` e `npm run dev`, sem baixar arquivos e preservando o manifesto existente quando o ZIP está sem assets. Confirme no checkout completo se os arquivos PMD de todas as novas formas existem.
-
-**Verificação:** `npm run check`, `npm test` (**56 testes**) e `ASTRO_TELEMETRY_DISABLED=1 npm run build`.
-
-Os dados da auditoria e seções de versões antigas abaixo são registros históricos e não substituem o balanceamento v11.
-
-## Histórico v10 — atributos, habilidades e oito famílias jogáveis
-
-- **O HP final é o HP real do combate.** Não há `HP × 5,2 + 60` nem outro multiplicador exclusivo do combate. Atributos-base dos onze chefes lendários PvE foram migrados uma vez para a mesma escala. O poder exibido usa `HP/5 + ATK + DEF + SpA + SpD + VEL`.
-- Básicos usam **50% do ATK ou SpA**, configurado por família e independente da categoria física/especial, animação e tipo. Concedem 10 de energia por execução; o carregado substitui o próximo básico e não concede energia básica.
-- Defesa física/especial: `bruto × 100/(100+DEF ou SpD)`. Velocidade final: `APS = 0,3 + 3,2 × (1 − 0,625^(VEL/100))`. Fórmulas compartilhadas em `server/formulas.ts`.
-- **Oito famílias / 20 formas**: Caterpie e Weedle (comuns), Bulbasaur, Charmander, Squirtle, Pikachu (incomuns), Koffing (raro), Snorlax (épico). Lendários continuam exclusivamente PvE.
-- `getStageData(família, estágio)` concentra tipagem, energia, alcance, básico, carregado e animação distintos por forma evolutiva. Butterfree cura; Metapod envenena e cria barreira; Kakuna se protege; Beedrill dá quatro golpes; Koffing expande uma nuvem física; Snorlax salta e aplica 1 segundo de incapacitação. Tipos Inseto e Normal são suportados.
-- Projéteis só causam dano no impacto; o motor acompanha alvos móveis. Área, veneno, barreira, cura, giro aquático e controle de movimento têm eventos e métricas reais. Absorção por barreira é exibida separadamente de DEF, SpD e cura.
-- O manifesto das nove novas formas PMD foi gerado dos `AnimData.xml` originais do repositório (incluindo aliases `CopyOf`) **sem baixar spritesheets**. O gerador reutilizável é `scripts/generate-pmd-manifest.mjs`.
-- Verificação: `npm run check`, `npm test`, `ASTRO_TELEMETRY_DISABLED=1 npm run build`. Benchmark repetível: `node --import tsx scripts/simulate-balance.ts`.
-
-**Instalação:** combine esta atualização com o `public/` existente no GitHub. Este pacote de código não contém spritesheets/portraits, portanto a validação visual no navegador depende da árvore de assets original.
-
-## Ajustes V9
-
-- A loja reserva uma área independente para o portrait: a tarja de nome, tipo e custo não cobre mais a imagem do Pokémon.
-- O Pokémon arrastado usa a animação Idle PMD na mesma escala de pixels do sprite da arena (a escala acompanha o zoom).
-- Ataques com projéteis aplicam dano, popup e eventual efeito secundário no impacto visual; a chegada da semente, chama, raio e feitiço não fica atrás da exibição do dano.
-- Combate reúne **mitigação física (amarelo)**, **mitigação especial (azul)** e **cura (verde)** em uma só aba. A aba de comparação adversária se desloca junto com o painel expandido.
-- O código não adiciona nem redistribui arquivos de imagens; as três pastas de assets da instalação original permanecem necessárias.
-
-## Histórico v6
-
-- Pokémon das famílias Bulbasaur, Charmander, Squirtle e Pikachu (11 espécies) usam `Idle`, `Rotate`, `Walk`, `Sleep`, `Hurt`, `Attack`, `Shoot`, `Charge`, `Strike` ou `Withdraw` conforme ação e disponibilidade no XML do PMD; os frames, durações e direções são lidos do manifesto.
-- O **Giro Aquático** do Squirtle, Wartortle e Blastoise usa `Withdraw` enquanto gira entre as oito direções, aplica dano por segundo e uma mitigação temporária fixa; não ataca nem se desloca durante a canalização.
-- Bulbasaur é ranged, com **Morteiro de Pólen** em área e cura para até dois aliados. Charmander é melee, com **Golpe Flamejante** físico em alvo único. Pikachu é ranged, com **Choque do Trovão** e encadeamento por evolução. As fórmulas estão em `config/ataques.json`.
-- **Nenhuma sinergia de combate está ativa**: tipos não concedem regeneração, bônus de ataque, resistência, velocidade ou veneno. Contagem dos tipos é apenas informativa. A influência intencional na probabilidade da loja permanece.
-- Os sprites ficam ancorados no **último pixel opaco inferior**, com sombra no chão e nível/vida/energia posicionados em relação ao topo visível; sem nomes embaixo das unidades.
-- Banco gramado integrado, com **mesma largura do tabuleiro**. Combate de 3–4 jogadores vira dois tabuleiros `7×8` unidos lateralmente, formando `14×8`.
-- Classificação mostra somente `⚔` nos adversários possíveis, sem painel extra de probabilidades.
-- Loja com chances à esquerda e barra de tipagem à direita **na mesma altura**. Portraits PMD nos cards, inspetor, painel de combate e ao arrastar. Ícones SVG redondos nos tipos da loja, barra e painel lateral.
-
-As spritesheets originais e suas condições de uso/créditos pertencem ao
-[PMD Sprite Repository](https://github.com/PMDCollab/SpriteCollab).
-
-Auto battler Pokémon de oito participantes (um jogador e sete CPUs), executado em Astro. O motor da partida roda em Web Worker no navegador. Não há multiplayer via rede nesta versão.
-
-## Editando as configurações
-
-Os **quatro JSONs na raiz `config/` são importados pelo motor no build** (não são exemplos):
-
-| Arquivo | Responsabilidade |
-| --- | --- |
-| `config/pokemons.json` | Pokémon presentes no jogo, nomes por evolução, Pokédex/sprites, status, elementos, alcance, energia, habilidade, raridade e disponibilidade na loja. |
-| `config/ataques.json` | Ataque básico físico ou especial; fórmulas e efeitos de habilidades (drenar, queimar, reduzir velocidade, veneno, barreira, salto, múltiplos golpes, dano em área). |
-| `config/fases.json` | Sequência das dez etapas de cada capítulo, escalonamento dos bot PvE e IV/nível dos chefes lendários. |
-| `config/regras_gerais.json` | Ouro, juros, streak, dano, bônus, temporizadores, limites, chances da loja, progressão de nível e fórmula de status. |
-
-`server/data.ts` normaliza esses dados para motor e HUD. `server/engine.ts` administra progressão, compra e economia; `server/systems/combat.ts` simula as batalhas 1×1, PvE e múltiplas. `src/client/arena.ts` desenha o campo físico e `src/client/hud.ts` desenha os painéis.
-
-## Novas regras de nível, loja e tipagem (v4)
-
-- O jogador inicia no nível 1 e sobe automaticamente para **2 na etapa 1-3**, **3 na 1-7**, **4 na 2-2**, **5 na 2-6** e **6 na 3-1**. Para capítulos posteriores permanece no 6 até serem definidos novos marcos. As rodadas absolutas são `[1,3,7,12,16,21]` em `levelMilestones`.
-- Todos os Pokémon começam no nível 1: quem estava em campo ao término do combate recebe **+2 níveis**, quem estava no banco recebe **+1 nível** (respeitando `maxPokemonLevel`). Na v11, cada nível *acima do primeiro* acrescentava **3%** aos status; **na v12 são 2%**, preservando os fatores independentes de IV e evolução.
-- Probabilidades da loja por nível (comum / incomum / raro / épico / lendário): `38/33/29/0/0`, `36/33/30/1/0`, `32/34/31/3/0`, `29/31/32/7/1`, `26/29/34/10/2`, `25/27/31/15/3`. Os valores fornecidos nos níveis 5 e 6 totalizam **101** devido a arredondamento; os percentuais exibidos reproduzem a configuração, e o sorteio usa esses números como pesos **normalizados**. O nível 6 vale para níveis posteriores até existir outra tabela.
-- A raridade é sorteada primeiro e o tipo altera os **pesos relativos das espécies dentro da raridade**, sem alterar o preço/raridade. Agora existe um épico na loja (Snorlax), e os 11 lendários são chefes PvE. Pesos de raridades indisponíveis são redistribuídos proporcionalmente entre as raridades com espécies lançadas. Quando você cadastrar um novo Pokémon com `shop:true`, a raridade começa a funcionar automaticamente.
-- Influência de tipagem: cada tipo de um Pokémon **ativo vale 2 pontos** e cada tipo do **banco vale 1**. A barra apresenta as cinco maiores participações. O bônus individual do tipo é `participação × 0,5`; Pokémon de dois tipos usam **maior bônus + metade do bônus menor**. Assim, uma influência de 50% Água (+25%) e 30% Planta (+15%) rende **+32,5%** de peso relativo para um Pokémon Água/Planta. Esses multiplicadores estão em `typeShopBias`.
-- Confrontos PvP: o motor prepara **três calendários completos**, penalizando duelos repetidos, e sorteia um deles com **1/3 de chance** quando começa a luta. A classificação mostra as três possibilidades; sua arena não apresenta antecipadamente nenhuma formação inimiga. Quando só restam dois jogadores, os três calendários necessariamente representam o mesmo adversário; em batalhas a três/quatro, cada opção contém um *grupo* de possíveis adversários. PvE não usa sorteio de adversário.
-
-As imagens PNG e as spritesheets estão no repositório original e **não são redistribuídas neste ZIP**. As oito famílias da loja usam animações PMD no campo e portraits PMD nos painéis. Os lendários mantêm imagens estáticas até receberem animações próprias. Articuno, Zapdos, Moltres, Mewtwo, Mew, Raikou, Entei, Suicune, Lugia, Ho-Oh e Celebi são os onze chefes possíveis.
-
-## Rodadas
-
-Cada capítulo tem exatamente dez etapas:
-
-| Etapa | Tipo | Regra especial |
-| --- | --- | --- |
-| 1 | Batalha | Combate normal. |
-| 2 | Ouro | Cada nocaute gera uma moeda de ouro para o lado que realizou o nocaute; vencedor recebe mais 4 ouro. |
-| 3 | Batalha | Combate normal. |
-| 4 | Quádrupla | Quatro jogadores na arena compartilhada. |
-| 5 | Bot PvE | Enfrenta uma equipe de Pokémon controlada pelo jogo. |
-| 6 | Batalha | Combate normal. |
-| 7 | Ouro | Mesmo sistema da etapa 2. |
-| 8 | Batalha | Combate normal. |
-| 9 | Dano em dobro | Multiplica por dois o dano de derrota da rodada. |
-| 10 | Chefe PvE | Um dos 11 lendários/míticos das gerações 1 e 2. |
-
-- Preparação: 40 s. Combate: até 30 s normalmente, acelerando 3× depois para resolver lutas prolongadas. Resultados: 3,2 s.
-- Dano normal ao perdedor: **capítulo + 1 + número de Pokémon sobreviventes do vencedor**. Ex.: no capítulo 1, 2 + sobreviventes. Na etapa 9, todo esse dano dobra.
-- Quádrupla: primeiro não recebe dano; segundo recebe `capítulo + 1 + 1`; terceiro recebe `capítulo + 1 + 4`; quarto recebe `capítulo + 1 + 7`. **Não há dano adicional por sobreviventes** nessa etapa. Primeiro conta vitória; quarto conta derrota; segundo e terceiro **preservam** o streak atual e não recebem o bônus de vitória.
-- PvE: cada jogador tem seu próprio confronto com bot. Na etapa 10 o chefe tem nível 100 e IV 50 em cada status no capítulo 1, nível 200/IV 75 no capítulo 2 e nível `100 × capítulo`/IV 100 a partir do capítulo 3. Os chefes continuam escalando além do nível 100.
-- Quando restam três jogadores, ocorre uma batalha a três para evitar uma folga injusta. Nas etapas quádruplas com menos de quatro sobreviventes são formados os grupos possíveis; um duelo a dois usa o dano normal.
-- Se várias eliminações zerarem todos os jogadores numa mesma rodada, o jogador de maior HP antes do dano é preservado com 1 HP para haver um campeão. Empates de confronto no limite de tempo são resolvidos pela vida restante.
-
-## Economia
-
-Cada nova rodada (a partir da segunda) concede:
-
-`5 de base + min(5, floor(ouro_atual / 10)) de juros + (1 se venceu a rodada anterior) + bônus de streak`.
-
-O streak conta tanto vitórias quanto derrotas consecutivas: 2→+1 ouro, 3→+2, 4→+3, 5 ou mais→+4. Renda é calculada com o ouro **antes** de receber a renda da rodada; os bônus de 4 ouro e moedas da rodada de ouro chegam após a batalha. Ouro inicial: 9. Reroll da loja: 2 ouro.
-
-Na rodada de ouro, cada nocaute cria uma moeda **na posição onde o Pokémon caiu**. O lado que causou o KO pode recolhê-la. Na **v12.1**, clicar com o botão direito na moeda move o treinador em sua direção: ela só é coletada por **colisão física**. As moedas de CPUs são coletadas automaticamente, e as moedas humanas não coletadas permanecem nas próximas etapas.
-
-## Interface e controles
-
-- A arena é gramada e **as casas hexagonais aparecem somente enquanto você segura um Pokémon** para posicioná-lo. Há um banco físico gramado de 10 posições no campo; durante duelos também aparece o banco adversário na parte superior.
-- O painel flutuante superior tem dez pontos por capítulo: **azul = vitória, vermelho = derrota, amarelo = etapa atual, cinza = colocação neutra ou etapa futura**. Ele também exibe etapa (`4-3`), modo, fase, segundos restantes e uma barra de tempo na parte inferior.
-- Arraste Pokémon para reposicionar entre campo e banco. Soltar sobre a loja vende; dois cliques num Pokémon no banco tentam colocá-lo em campo. Compras, venda, reroll e rearranjo do banco são permitidos durante combate (sem mover Pokémon já em campo).
-- Clique direito move seu treinador; scroll aplica zoom. Tecla `D` roleta loja; `E` vende o selecionado; `Esc` volta a observar seu campo.
-- A aba **COMBATE** permite comparar vida restante, dano físico/especial, dano mitigado pela defesa e cura por Pokémon. Os números de dano sobem acima do Pokémon atingido: **laranja para físico, azul para especial**, com tamanho proporcional ao dano. A **CLASSIFICAÇÃO** permite assistir aos combates das CPUs e marca possíveis adversários somente com o ícone ⚔.
-- Durante combates quádruplos, **duas arenas 7×8 lado a lado** formam um campo retangular 14×8, com duas equipes em cada arena (uma metade superior, uma inferior). Confrontos com três participantes também usam este espaço estendido. Os confrontos 1×1 mantêm uma arena 7×8.
-- Passe o mouse ou dê foco por teclado à **RENDA** para consultar base, juros, streak, bônus de vitória e o total previsto.
-
-## Atualização v7 — combate, loja e evolução
-
-- Ao começar um confronto, o treinador adversário lança Pokébolas para as posições da equipe; o combate espera a entrada terminar. Em quádruplas, cada lado usa seu próprio treinador. A compra lança uma Pokébola na posição do novo Pokémon; a fusão em três cópias produz um círculo luminoso de evolução.
-- Ao resolver um duelo, os Pokémon que sobreviveram ficam de frente para a câmera. Os do vencedor usam **Shoot** e disparam projéteis guiados na direção do(s) treinador(es) derrotado(s). Depois voltam a **Idle**. O jogo aguarda a finalização visual de todos os duelos da rodada, sem continuar causando dano nessa animação.
-- A trava da loja continua impedindo a rolagem automática, agora por meio da **aba estreita no lado direito**. Retratos PMD ocupam os cartões inteiros, com nome, tipos e custo na faixa inferior e borda da raridade. Nível, ouro e renda ficam empilhados acima do botão **ROLETAR**.
-- O painel de tipos mostra somente tipos distintos efetivamente presentes no campo **do jogador que está sendo observado**. Nenhuma sinergia concede bônus estatístico ou de combate.
-- Na V8, uma aba lateral de **COMBATE** abre uma extensão com os adversários **ao lado** da sua equipe para comparação simultânea, usando o oponente atual ou o último conhecido. Ao clicar em qualquer Pokémon no campo, inclusive inimigos e chefes, aparecem seus status, **IV** (média dos seis IVs, de 0 a 100) e **poder total** (soma dos seis atributos calculados). Os painéis foram ampliados para acomodar sete Pokémon e têm rolagem quando necessário.
-- Fusões em três copias agora escolhem **o maior IV de cada atributo** entre as três unidades usadas. Uma fusão de três Pokémon poderá formar um perfil híbrido de IVs; não usa mais a média.
-- Ataques **carregados apenas** consultam `server/systems/effectiveness.ts`: vantagem padrão 2× vira **1,5×**, resistência 0,5× vira **0,75×**, e dois tipos são combinados antes de reduzir o impacto pela metade. Não existem imunidades. Golpes carregados físicos, atingimentos secundários e danos contínuos de habilidades também seguem a regra. Ataques básicos continuam neutros.
-
-O ZIP segue **sem sprites, portraits, ícones ou outros assets binários**, porque esses recursos já existem em `public/` no repositório original. Preserve essas pastas ao aplicar o `src/` e as demais alterações.
-
-## V8 — acabamento da interface e animação
-
-- Ao arrastar uma unidade, o cursor acompanha a animação **Idle** da sprite sheet PMD, em vez de um portrait. O sprite que ficava na posição original some durante o arraste.
-- Na loja, o portrait ocupa o cartão e as informações ficam **na linha imediatamente abaixo**, com nome à esquerda, ícones da tipagem ao lado e custo à direita.
-- A evolução agora recebe as posições e as espécies das três unidades originais. Primeiro, as três cópias se movimentam em direção ao ponto da fusão; a forma evoluída aparece somente depois do efeito luminoso.
-- O botão de travar fica **do lado de fora da borda direita** da loja, como uma aba vertical. A coluna de nível, ouro, renda e rolagem sobe para preencher o vazio à esquerda dos percentuais de raridade.
-- COMBATE mantém as suas estatísticas visíveis e permite expandir/fechar a **coluna do adversário à esquerda**, em vez de substituir as próprias métricas. Os dois lados seguem a mesma escala para comparar os danos.
-- O renderizador evita trocar uma sprite sheet PMD temporariamente indisponível por um PNG parado: usa **Idle** como fallback animado até a sheet do ataque terminar de carregar. As animações conhecidas são carregadas antecipadamente; frames ativos são interpolados entre atualizações do worker; a leitura de contornos dos frames tem um limite de trabalho por quadro; a textura estática do campo é reutilizada até a câmera mudar.
-
-Esses ajustes foram testados por compilação e testes de lógica. A inspeção visual com os arquivos binários PMD precisa ser realizada ao aplicar o ZIP no repositório original; os lendários que ainda não possuem sheet PMD continuam utilizando PNGs estáticos por definição.
-
-## Executar e publicar
+Requisitos: Node.js 22 e npm, em um checkout completo com a pasta `public/` original.
 
 ```bash
 npm ci
-npm run check
-npm test
-npm run build
 npm run dev
 ```
 
-O workflow GitHub Actions existente publica uma build estática no GitHub Pages. O base path é calculado pelo `astro.config.mjs` conforme `GITHUB_REPOSITORY` (ou definido manualmente com `PUBLIC_BASE_PATH`). Os JSONs são empacotados no código durante o build: **editar um JSON requer recompilar/publicar** para aplicar as alterações.
+Abra o endereço local indicado pelo Astro. O comando `predev` gera o manifesto PMD com os recursos que já estão no repositório.
+
+Verificações oficiais antes de enviar uma PR:
+
+```bash
+npm run validate:config
+npm run check
+npm run build
+```
+
+A validação lê os JSONs sem modificá-los; `check` verifica o TypeScript; `build` gera a distribuição estática em `dist/`. A PR também passa pelo fluxo `.github/workflows/verify-pr.yml`. Não há suíte de testes automatizados incluída nesta versão.
+
+## Organização principal
+
+| Pasta | Responsabilidade |
+| --- | --- |
+| `config/` | JSONs de Pokémon, ataques, raridade/loja, itens, augments, sinergias, fases e parâmetros visuais |
+| `server/` | Motor autoritativo **local**, regras, simulação, bots e Worker; futuro candidato a backend |
+| `src/` | Interface Astro, menus, HUD, renderização Canvas, sprites, efeitos e configurador V20 |
+| `public/` | Acervo de sprites, portraits e recursos PMD; preserve os arquivos e créditos |
+| `scripts/` | Geração do manifesto PMD, ferramentas de migração e validação dos dados |
+| `.github/workflows/` | Verificação de PR e publicação estática |
+
+O motor roda em `server/sim.worker.ts` e é coordenado por `server/engine.ts`; o combate está em `server/systems/combat.ts` e módulos `server/combat/`. A arena é desenhada em `src/client/arena.ts` com módulos de animação, cena, renderização e VFX. Passos lógicos do combate são independentes do FPS do navegador.
+
+## Menu e configurador V20
+
+Na tela inicial, o botão **Configurações** abre o configurador visual V20, carregado apenas quando solicitado. Nele você pode editar valores de Pokémon, habilidades, loja, itens, augments, sinergias e outros JSONs disponíveis, pré-visualizar tamanho físico dos Pokémon e exportar **um ZIP com os arquivos `config/`**. Arquivos não modificados mantêm seu conteúdo original. O código/senha de acesso do próprio cliente é somente uma barreira visual, não autenticação segura.
+
+Para manter o jogo equilibrado, altere valores nos JSONs e confirme que a simulação utiliza o campo editado. Evite codificar valores equivalentes em mais de um lugar.
+
+## Regras para contribuir
+
+A documentação principal do repositório é **[Organização.md](Organização.md)**. Agentes Codex devem ler também **[AGENTS.md](AGENTS.md)**. Eles explicam o mapa atualizado de sistemas, como adicionar Pokémon, onde implementar habilidades, como evitar duplicações, o fluxo de verificações e as responsabilidades de cliente/motor/configuração.
+
+Mantenha a aparência e as mecânicas existentes durante refatorações. A área de itens pertence ao mundo físico, seguindo o zoom e a câmera — não é HUD fixo. Não apague assets PMD nem acrescente suítes de testes ao repositório.
+
+## Publicação e assets
+
+A build continua gerando site estático compatível com GitHub Pages. `scripts/generate-pmd-manifest.mjs` utiliza os arquivos PMD presentes, sem baixá-los novamente. Pastas de sprites e portraits são parte do repositório de publicação; não devem ser substituídas por um pacote de atualização somente com código. Direitos e créditos de terceiros permanecem com seus respectivos autores.
+
+Para detalhes de mudanças antigas, consulte o histórico de commits. Este README descreve **o funcionamento atual** e não deve ser usado para restabelecer mecânicas de versões anteriores.
