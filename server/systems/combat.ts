@@ -31,8 +31,8 @@ function stat(unit: CombatUnit, key: StatKey): number {
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
 
-function animate(unit: CombatUnit, name: AnimationName, duration: number, next?: string): void {
-  unit.animation = { name, duration, elapsed: 0, ...(next ? { next } : {}) };
+function animate(unit: CombatUnit, name: AnimationName, duration: number, next?: string, role: 'basic'|'charged' = 'charged'): void {
+  unit.animation = { name, duration, elapsed: 0, role, ...(next ? { next } : {}) };
 }
 
 function advanceAnimation(unit: CombatUnit, dt: number): void {
@@ -74,7 +74,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
-    dig: null, ghost: null, ghostCasts: 0, fear: null, storm: null, psychicImbuement: null, attackSpeedDebuffUntil: 0,
+    dig: null, ghost: null, ghostCasts: 0, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, attackSpeedDebuffUntil: 0,
     gasTime: 0, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
@@ -511,12 +511,19 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if (move.effect === 'star-refraction') {
+    // One activation, strictly 3 seconds of simulated combat time; no stacking.
+    source.refractionUntil = battle.elapsed + (move.seconds || 3);
+    animate(source, stage.chargedAnimation, .42);
+    effect(battle, source, source, 'psychic-spark', 0);
+    return;
+  }
   const shot = (victim: CombatUnit, kind: CombatEffect['kind'], raw: number, magical: boolean,
     arrival: number, onHit?: 'drain' | 'burn' | 'slow' | 'poison') =>
     projectile(battle, source, victim, kind, raw, magical, true, arrival, onHit, source, moveId, stage.chargedType);
 
   if(move.effect==='desperate-splash'){
-    animate(source, 'Splash', .65);
+    animate(source, stage.chargedAnimation, .65);
     source.hitSerial++;
     let bits=(battle.seed ^ Math.imul(source.hitSerial+211,0x9e3779b9))>>>0;
     bits^=bits>>>16;bits=Math.imul(bits,0x7feb352d);bits^=bits>>>15;
@@ -529,19 +536,14 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   }
   if ((move.effect==='brutal-kick'||move.effect==='fang-tail')&&target){
     // The hit lands on the contact frame, not immediately when the cast starts.
-    animate(source,move.effect==='brutal-kick'?'Kick':'Attack',move.effect==='brutal-kick'?.47:.7);
+    animate(source,move.effect==='brutal-kick'?'Kick':'RearUp',move.effect==='brutal-kick'?.47:.38);
     source.synergy!.pendingSkill={kind:move.effect==='brutal-kick'?'kick':'fang-tail',targetId:target.id,until:battle.elapsed+(move.effect==='brutal-kick'?.26:.38),moveId};
     return;
   }
   if (move.effect === 'self-explosion') {
-    animate(source,'Attack',.45);
-    effect(battle,source,source,'explosion',move.splashRange||1.45);
-    for (const enemy of battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u) && distance(u,source)<=(move.splashRange||1.45))) {
-      deal(battle,source,enemy,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,stage.chargedType);
-    }
-    const hpCost=source.maxHp*(move.selfHpCost || 0);
-    source.hp=Math.max(0,source.hp-hpCost); // true HP cost: ignores shields/durability/lifesteal
-    if (source.hp<=0) { source.hp=0; if(!onSynergyDeath(battle,source,source,{deal,heal,effect,stat}))knockout(battle,source,source,0); }
+    // Telegraph while the body pulses; damage and HP cost resolve on the flash.
+    animate(source,stage.chargedAnimation,.45);
+    source.synergy!.pendingSkill={kind:'explosion',targetId:source.id,until:battle.elapsed+.28,moveId};
     return;
   }
   if (move.effect === 'mew-blessing') {
@@ -583,7 +585,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     return;
   }
   if (move.effect === 'dragon-cyclone' && target) {
-    animate(source,'Shoot',.48);
+    animate(source,stage.chargedAnimation,.48);
     projectile(battle,source,target,'dragon-orb',move.baseDamage+s*move.specialRatio,true,true,.83,
       undefined,source,moveId,'dragon','dragon-cyclone');
     return;
@@ -617,26 +619,26 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   if (move.effect === 'eevee-ball') {
     const center = bestEnemyCluster(battle,source,move.splashRange || 1.65);
     if (center) {
-      animate(source,'Shoot',.42);
+      animate(source,stage.chargedAnimation,.42);
       projectile(battle,source,center,'ball',move.baseDamage + (stage.basic.stat === 'atk' ? a : s)*(move.attackRatio || 0),
         stage.basic.category === 'special',true,.83,undefined,source,moveId,stage.chargedType,'eevee-ball');
     }
     return;
   }
   if (move.effect === 'bone-throw' && target) {
-    animate(source,'Shoot',.4);
+    animate(source,stage.chargedAnimation,.4);
     projectile(battle,source,target,'bone',move.baseDamage + a*(move.attackRatio || 0),false,true,.78,
       undefined,source,moveId,stage.chargedType,'bone-throw');
     return;
   }
   if (move.effect === 'single-knockup' && target) {
-    animate(source,'Strike',.45);
+    animate(source,stage.chargedAnimation,.45);
     projectile(battle,source,target,'physical',move.baseDamage + a*(move.attackRatio || 0),false,true,.32,
       undefined,source,moveId,stage.chargedType,'single-knockup');
     return;
   }
   if (move.effect === 'rock-strike' && target) {
-    animate(source,'Strike',.44);
+    animate(source,stage.chargedAnimation,.44);
     projectile(battle,source,target,'physical',move.baseDamage + a*(move.attackRatio || 0),false,true,.32,
       undefined,source,moveId,stage.chargedType,'rock-strike');
     return;
@@ -650,7 +652,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   if (move.effect === 'healing-egg') {
     const center = bestEggCenter(battle,source,move.splashRange || 1.65,move.skillRange || 3.2);
     if (center) {
-      animate(source,'SpAttack',.42);
+      animate(source,stage.chargedAnimation,.42);
       projectile(battle,source,center,'egg',0,false,true,.83,undefined,source,moveId,stage.chargedType,'healing-egg');
     }
     return;
@@ -728,7 +730,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     return;
   }
   if (move.effect === 'shock') {
-    animate(source, 'Shoot', .42);
+    animate(source, stage.chargedAnimation, .42);
     shot(target, 'lightning', s * stageValue(move.damageRatioByStage, source.stage, 1.05), true, 1 / 3);
     battle.effects[battle.effects.length - 1].pendingHit!.chain = {
       remaining: stageValue(move.secondaryTargetsByStage, source.stage, 1), visited: [target.id],
@@ -754,6 +756,14 @@ function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
   const target=battle.units.find(u=>u.id===pending.targetId);
   const move=ATTACKS.moves[pending.moveId];
   if(!target||!move)return true;
+  if(pending.kind==='explosion') {
+    effect(battle,source,source,'explosion',move.splashRange||1.45);
+    for (const enemy of battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u) && distance(u,source)<=(move.splashRange||1.45)))
+      deal(battle,source,enemy,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,getStageData(source.family,source.stage).chargedType);
+    source.hp=Math.max(0,source.hp-source.maxHp*(move.selfHpCost||0));
+    if(source.hp<=0) {source.hp=0;if(!onSynergyDeath(battle,source,source,{deal,heal,effect,stat}))knockout(battle,source,source,0);}
+    return true;
+  }
   const a=stat(source,'atk');
   if(pending.kind==='kick'){
     if(!isTargetable(target))return true;
@@ -777,6 +787,7 @@ function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
       deal(battle,source,enemy,(move.tailBase||0)+a*(move.tailRatio||0),false,true,'water');
       if(enemy.hp>0)pushTarget(battle,source,enemy,move.push||3);
     }
+    animate(source,'Rumble',.34);
     effect(battle,source,source,'tail-sweep',move.tailRadius||2);
   }
   return true;
@@ -1041,7 +1052,7 @@ function startGhost(battle: Battle, caster: CombatUnit, moveId: string): void {
   const scare=caster.family==='gastly' && caster.stage===2 && caster.ghostCasts%2===0;
   caster.ghost={phase:'fade',time:0,duration:.17,fromX:caster.x,fromY:caster.y,
     toX:destination.x,toY:destination.y,targetId:target.id,moveId,trailClock:0,scare};
-  animate(caster,'SpAttack',.2);
+  animate(caster,getStageData(caster.family,caster.stage).chargedAnimation,.2);
 }
 /** Push a frightened enemy up to one tile away, without overlapping another combatant. */
 function scareTarget(battle: Battle,caster: CombatUnit,victim: CombatUnit, duration:number): void {
@@ -1103,7 +1114,7 @@ function ghostTick(battle: Battle,caster: CombatUnit,dt: number): void {
             .slice(0,3-primary.length)];
         for(const victim of victims) deal(battle,caster,victim,move.baseDamage+stat(caster,'spa')*move.specialRatio,true,true,'ghost');
       }
-      animate(caster,'Attack',.3);
+      animate(caster,getStageData(caster.family,caster.stage).chargedAnimation,.3);
     }
   } else if(ghost.phase==='appear'&&ghost.time>=ghost.duration){caster.ghost=null;}
 }
@@ -1171,7 +1182,7 @@ function resolve(battle: Battle): void {
     unit.combo = null;
     unit.leap = null;
     unit.charge = null;
-    unit.dig = null; unit.ghost = null; unit.fear = null; unit.storm = null; unit.psychicImbuement = null;
+    unit.dig = null; unit.ghost = null; unit.fear = null; unit.storm = null; unit.psychicImbuement = null; unit.refractionUntil = 0;
     unit.support = null;
     unit.gasTime = 0;
     unit.jumpHeight = 0;
@@ -1269,6 +1280,7 @@ export function tickBattle(battle: Battle, dt: number): void {
       continue;
     }
     unit.moving = false;
+    if (unit.refractionUntil <= battle.elapsed) unit.refractionUntil = 0;
     advanceAnimation(unit, dt);
     unit.flash = Math.max(0, unit.flash - dt);
     unit.slow = Math.max(0, unit.slow - dt);
@@ -1364,19 +1376,31 @@ export function tickBattle(battle: Battle, dt: number): void {
     }
     if (unit.attackClock > 0) continue;
     if (unit.energy >= unit.energyNeeded
+      && !(move.effect === 'star-refraction' && unit.refractionUntil > battle.elapsed)
       && (move.effect !== 'heal-powder' || woundedAllies(battle, unit, move.healRange || 3.5, move.healTargets || 2).length)
       && (move.effect !== 'healing-egg' || bestEggCenter(battle,unit,move.splashRange || 1.65,move.skillRange || 3.2))) {
       unit.energy = 0;
       spell(battle, unit, target);
     } else {
-      animate(unit, stage.basic.animation, Math.min(.4, unit.cooldown * .82));
+      animate(unit, stage.basic.animation, Math.min(.4, unit.cooldown * .82), undefined, 'basic');
       const basic = ATTACKS.basic;
       const raw = rawBasicDamage(stat(unit,unit.bossMove ? 'atk' : stage.basic.stat), basic.offensiveRatio);
       const ranged = !!stage.basic.projectile;
       const projectileKind = ranged ? 'basic-projectile' : 'physical';
-      projectile(battle, unit, target, projectileKind, raw, !unit.bossMove && stage.basic.category === 'special', false,
-        ranged ? ANIMATIONS.projectilesByType[stage.elements[0]].arrival : .35);
-      if (ranged) battle.effects[battle.effects.length - 1].basicType = stage.elements[0];
+      // Refraction targets must be distinct, targetable, in the *ordinary* range
+      // and nearest to the original victim. Deterministic ties preserve replay.
+      const multi = unit.refractionUntil > battle.elapsed && unit.family === 'staryu'
+        ? Math.min(3, 2 + unit.stage) : 1;
+      const extras = multi > 1 ? battle.units.filter(enemy => enemy.id !== target!.id
+        && enemy.playerId !== unit.playerId && isTargetable(enemy)
+        && distance(unit, enemy) <= unit.range + .08)
+        .sort((a,b) => distance(a,target!) - distance(b,target!) || a.id.localeCompare(b.id))
+        .slice(0,multi-1) : [];
+      for (const victim of [target,...extras]) {
+        projectile(battle, unit, victim, projectileKind, raw, !unit.bossMove && stage.basic.category === 'special', false,
+          ranged ? ANIMATIONS.projectilesByType[stage.elements[0]].arrival : .35);
+        if (ranged) battle.effects[battle.effects.length - 1].basicType = stage.elements[0];
+      }
       if(unit.synergy?.splashBonus){
         projectile(battle,unit,target,'water',unit.synergy.splashBonus,true,false,ranged?ANIMATIONS.projectilesByType[stage.elements[0]].arrival:.35);
         unit.synergy.splashBonus=0;

@@ -95,7 +95,7 @@ export interface SynergyUnitState {
   chilled?: { durability:number; speed:number; until:number };
   flight?: { fromX:number; fromY:number; toX:number; toY:number; elapsed:number; duration:number };
   splashBonus?: number;
-  pendingSkill?: {kind:'kick'|'fang-tail';targetId:string;until:number;moveId:string};
+  pendingSkill?: {kind:'kick'|'fang-tail'|'explosion';targetId:string;until:number;moveId:string};
   poisonDurabilityReduction?: number;
   poisonHealReduction?: number;
 }
@@ -130,7 +130,7 @@ export interface CombatUnit {
   moving: boolean;
   facingX: number;
   facingY: number;
-  animation: { name: string; elapsed: number; duration: number; next?: string } | null;
+  animation: { name: string; elapsed: number; duration: number; next?: string; role?: 'basic'|'charged' } | null;
   spinTime: number;
   spinDuration: number;
   spinReduction: number;
@@ -153,6 +153,7 @@ export interface CombatUnit {
   fear: FearState | null;
   storm: StormState | null;
   psychicImbuement: PsychicImbuement | null;
+  refractionUntil: number; // absolute simulated combat time, Staryu/Starmie
   combo: { targetId: string; hits: number; time: number; interval: number } | null;
   gasTime: number;
   support: { time: number; moveId: string } | null;
@@ -182,6 +183,7 @@ export interface CombatEffect {
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;
+  stage?: number;
   time: number;
   duration: number;
   value: number;

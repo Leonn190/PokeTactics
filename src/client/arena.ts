@@ -13,9 +13,11 @@ import { drawCoin } from './scene/coin-renderer';
 import { bonusStats } from '../../server/systems/items';
 import { renderTrainerAvatar } from './scene/trainer-renderer';
 import { renderFloatingNumber } from './vfx/floating-numbers';
+import { drawCastingGlints } from './vfx/casting-glints';
 import { renderCombatEffects } from './render/effects';
 import { SpriteBoundsCache } from './render/sprite-bounds';
 import { drawContactShadow } from './render/shadows';
+import { visualProfile, cosmeticMotion } from './animation/visual-profiles';
 import { drawBurrowMound } from './render/burrow';
 import { tierFor } from '../../server/systems/synergies/registry';
 import { randomIndex } from '../../server/systems/synergies/positioning';
@@ -36,7 +38,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy'] };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy'] };
 type PmdSheet = { file: string; width: number; height: number; durations: number[]; directions: number; hitFrame?: number };
 type PmdEntry = Record<string, PmdSheet>;
 const PMD = pmdManifest as Record<string, PmdEntry>;
@@ -285,10 +287,12 @@ export class Arena {
       const orientation = this.orientation.get(unit.id, desired, time, !unit.bench && (action === 'Idle' || action === 'Walk' || action === 'Hover'));
       const turning = !!orientation.rotate && (action === 'Idle' || action === 'Walk' || action === 'Hover') && !!anims.Rotate;
       // PMD species can omit special sheets. Fallback only to names in this real manifest.
-      const fallbacks = action === 'Shoot' ? ['Attack', 'Idle']
-        : action === 'SpAttack' ? ['Shoot', 'Attack', 'Idle']
-        : action === 'Walk' ? ['Walk', 'Attack', 'Idle']
-        : action === 'Strike' ? ['Attack', 'Idle'] : ['Idle'];
+      const fallbacks = action === 'Walk' ? ['Hover','Walk','Idle']
+        : action === 'Shoot' ? ['Attack','Idle']
+        : action === 'SpAttack' ? ['Charge','Shoot','Attack','Idle']
+        : action === 'Shock' ? ['Charge','Shoot','Attack','Idle']
+        : action === 'Hop' ? ['Hop','Attack','Idle']
+        : ['Charge','Attack','Shoot','Idle'];
       let selectedAction = turning ? 'Rotate' : anims[action] ? action : fallbacks.find(name=>anims[name]) || 'Idle';
       let animation = anims[selectedAction];
       let url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
@@ -574,7 +578,7 @@ export class Arena {
       return;
     }
     // Sombra encostada nos pés; nenhum bob/flutuação artificial.
-    drawContactShadow(ctx, p.x, p.y, radius);
+    drawContactShadow(ctx, p.x, p.y, radius, visualProfile(unit.family,unit.stage).shadow, unit.jumpHeight || 0);
     const battle=this.snapshot?.visibleBattle;
     if(battle&&this.snapshot?.phase!=='planning'&&unit.synergy){
       const elements=getStageData(unit.family,unit.stage).elements;
@@ -595,7 +599,24 @@ export class Arena {
     }
     const lift = (unit.jumpHeight || 0) + (unit.knockUpTime ? .55 * Math.sin(Math.PI * (1 - Math.min(1, unit.knockUpTime / (unit.knockUpDuration || .35)))) : 0);
     if(ghost?.phase==='appear'){ctx.save();ctx.globalAlpha=.38+.62*ghost.time/ghost.duration;ctx.shadowColor='#c99dff';ctx.shadowBlur=16;}
-    const spriteTop = this.drawPokemonSprite(p.x, p.y - lift * this.cellScale, unit, time);
+    const motion = cosmeticMotion({family:unit.family,stage:unit.stage,animation:unit.animation||null,
+      facingX:unit.facingX||0,facingY:unit.facingY||0,leap:unit.leap||null,jumpHeight:unit.jumpHeight||0},this.cellScale);
+    const spriteX = p.x + motion.dx, spriteY = p.y - lift * this.cellScale + motion.dy;
+    ctx.save();
+    if (motion.scale !== 1) { ctx.translate(spriteX,spriteY);ctx.scale(motion.scale,motion.scale);ctx.translate(-spriteX,-spriteY); }
+    const spriteTop = this.drawPokemonSprite(spriteX,spriteY,unit,time) - this.cellScale*(motion.scale-1)*.6;
+    ctx.restore();
+    drawCastingGlints(ctx,spriteX,spriteY,unit,this.cellScale,time);
+    // A jewel glows while Refração Estelar is active. Drawn on the unit, not in a HUD.
+    const starSeconds = (unit.refractionUntil || 0) - (battle?.elapsed || 0);
+    if (starSeconds > 0 && unit.family === 'staryu') {
+      const remaining = Math.min(1,starSeconds/3);
+      ctx.save();ctx.globalAlpha=.48+.25*Math.sin(time*8);ctx.fillStyle='#d5f9ff';
+      ctx.shadowColor='#79e9ff';ctx.shadowBlur=10+4*Math.sin(time*9);
+      ctx.beginPath();ctx.arc(spriteX,spriteY-this.cellScale*.50,3.2+1.2*Math.sin(time*8),0,PI2);ctx.fill();
+      ctx.globalAlpha=.83;ctx.strokeStyle='#90f5ff';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(spriteX,spriteY-this.cellScale*.52,radius*.9,-Math.PI/2,-Math.PI/2+remaining*PI2);ctx.stroke();ctx.restore();
+    }
     if(ghost?.phase==='appear')ctx.restore();
     if (unit.bench) return;
     const barWidth = Math.max(35, radius * 2.35);

@@ -54,7 +54,8 @@ export function moveDescription(move: MoveData): string {
     'desperate-splash':'Há 50% de chance de curar HP e fortalecer o próximo ataque regular com dano especial.',
     'fang-tail':'Morde o inimigo à frente e golpeia com a cauda os inimigos atrás, afastando-os até três casas.',
     'self-explosion':'Explode causando dano especial aos inimigos ao redor e perde 20% da própria Vida máxima.',
-    'mew-blessing':'Cura e protege o aliado com menor porcentagem de vida; seus ataques básicos causam dano especial extra por 3 segundos.'
+    'mew-blessing':'Cura e protege o aliado com menor porcentagem de vida; seus ataques básicos causam dano especial extra por 3 segundos.',
+    'star-refraction':'Durante 3 segundos, cada ataque regular atinge até 2 inimigos diferentes com Staryu e até 3 com Starmie. Cada projétil causa dano especial e gera energia apenas uma vez por ataque.'
   };
   const conversion = move.conversion;
   const buffs: Record<string,string> = { atk:'ATAQUE', def:'DEFESA', spa:'ATAQUE ESPECIAL', spd:'DEFESA ESPECIAL', speed:'VELOCIDADE' };

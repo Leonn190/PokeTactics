@@ -21,6 +21,7 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
   const physical = (label: string, value: number) => entry(label, value, 'physical');
   const special = (label: string, value: number) => entry(label, value, 'special');
   switch (move.effect) {
+    case 'star-refraction': return [special(`DANO POR PROJÉTIL (ATÉ ${Math.min(3,stage+2)} ALVOS)`,rawBasicDamage(s,ATTACKS.basic.offensiveRatio))];
     case 'brutal-kick': return [physical('DANO DO CHUTE',move.baseDamage+a*(move.attackRatio||0)),physical('DANO DE COLISÃO',move.wallDamage||0)];
     case 'desperate-splash': return [entry('CURA (50% DE CHANCE)',(move.healBase||0)+s*(move.healRatio||0),'heal'),special('PRÓXIMO BÁSICO EXTRA',(move.bonusBase||0)+s*(move.bonusSpaRatio||0))];
     case 'fang-tail': return [physical('DANO DA MORDIDA',move.baseDamage+a*(move.attackRatio||0)),physical('CAUDADA TRASEIRA',(move.tailBase||0)+a*(move.tailRatio||0))];

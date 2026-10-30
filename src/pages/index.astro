@@ -10,7 +10,7 @@ const baseURL = import.meta.env.BASE_URL;
     <meta name="app-version" content="18" />
     <meta name="theme-color" content="#0d141c" />
     <meta name="description" content="TFT Pokémon — batalha tática automática com oito participantes." />
-    <title>PokéTactics V18</title>
+    <title>PokéTactics V18.5</title>
   </head>
   <body>
     <main id="app">
@@ -43,7 +43,7 @@ const baseURL = import.meta.env.BASE_URL;
       <div class="vignette" aria-hidden="true"></div>
 
       <div class="top-bar">
-        <div class="brand"><div class="brand-glyph" aria-hidden="true"><span></span></div><div class="brand-words"><strong>POKÉ<span>TACTICS</span></strong><small>V18 • ERA DAS SINERGIAS</small></div></div>
+        <div class="brand"><div class="brand-glyph" aria-hidden="true"><span></span></div><div class="brand-words"><strong>POKÉ<span>TACTICS</span></strong><small>V18.5 • REFINAMENTO</small></div></div>
         <div class="timeline-panel glass">
           <div class="timeline-wrap"><div class="timeline-heading"><span>CAPÍTULO / ETAPA</span><b id="stageName">BATALHA</b></div><div id="chapterTrack" class="chapter-track"></div></div>
           <div class="round-clock"><div class="stage-heading"><span id="phaseLabel">PREPARAÇÃO</span><b id="roundLabel">1 — 1</b></div><div class="countdown" id="countdown">40</div><small class="seconds-label">SEG</small></div>
@@ -71,9 +71,9 @@ const baseURL = import.meta.env.BASE_URL;
       <div class="arena-status"><span class="status-spark"></span><span id="battleStatus">PREPARAÇÃO</span></div>
       <div id="unitInspector" class="unit-inspector glass hidden"></div>
 
-      <div id="itemInventory" class="item-inventory" aria-label="Nove espaços físicos para itens na extensão da arena">
-        <div class="item-platform-label"><span>ITENS</span><b id="inventoryCounter">0/9</b></div>
+      <div id="itemInventory" class="item-inventory" aria-label="Itens apoiados no chão ao lado inferior esquerdo da arena">
         <div id="inventoryContents" class="inventory-contents"></div>
+        <span id="inventoryCounter" class="sr-only" aria-live="polite">0/9</span>
       </div>
       <div id="itemDragGhost" class="item-drag-ghost hidden" aria-hidden="true"></div>
       <footer id="shopFooter" class="bottom-hud glass">

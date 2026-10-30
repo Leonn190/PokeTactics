@@ -32,7 +32,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -90,7 +90,7 @@ export function getStageData(family: Family, stage: number): StageData {
   const basic: BasicAttackData = {
     stat: basicOriginal?.stat || 'atk',
     category: basicOriginal?.category || 'physical',
-    animation: ranged ? ANIMATIONS.basic.rangedAnimation : ANIMATIONS.basic.meleeAnimation,
+    animation: basicOriginal?.animation || (ranged ? ANIMATIONS.basic.rangedAnimation : ANIMATIONS.basic.meleeAnimation),
     ...(ranged ? { projectile: 'basic-projectile' as const } : {})
   };
   const result: StageData = {

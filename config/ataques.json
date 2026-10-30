@@ -623,6 +623,17 @@
       "tailRatio": 0.65,
       "tailRadius": 2,
       "push": 3
+    },
+    "star-refraction": {
+      "name": "Refração Estelar",
+      "effect": "star-refraction",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "seconds": 3,
+      "secondaryTargetsByStage": [
+        2,
+        3
+      ]
     }
   }
 }

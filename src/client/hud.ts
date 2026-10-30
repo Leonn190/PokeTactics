@@ -104,22 +104,23 @@ export class Hud {
     this.latestView = view;
     const player = snapshot.players[0];
     element('shopFooter').classList.toggle('hidden',view.scoutId!=='p0');
-    element('itemInventory').classList.toggle('view-only',view.scoutId!=='p0');
+    element('itemInventory').classList.toggle('hidden',view.scoutId!=='p0');
     if (snapshot.lootMessage && snapshot.lootMessageId!==this.lastLootMessage) {
       this.lastLootMessage=snapshot.lootMessageId;this.toast(snapshot.lootMessage);
     }
     const inventory=player.itemInventory||[];
     const equippedLabel=(item:EquippedItem)=>item.recipe ? RECIPES[item.recipe]?.description||'Item completo':ITEMS.components[item.components[0]].name;
     const cells:string[]=inventory.map(item=>`<button type="button" class="inventory-slot inventory-item ${view.inventoryItemId===item.id?'selected':''}" data-inventory-item="${item.id}" title="${safe(itemTooltip(item))}" aria-label="${safe(equippedLabel(item))}">${icon(item)}</button>`);
+    const balls:string[]=[];
     for(const ball of BALLS){
       const count=player.consumables?.[ball]||0;
       if(!count)continue;
       const names=LOOT.ballNames;
       const files:Record<BallKind,string>={pokeball:'poke-ball',greatball:'great-ball',ultraball:'ultra-ball',masterball:'master-ball'};
-      cells.push(`<button class="inventory-slot inventory-ball ${view.selectedBall===ball?'selected':''}" data-inventory-ball="${ball}" title="${safe(names[ball])}: duplique um Pokémon elegível" aria-label="${safe(names[ball])}, ${count} disponíveis"><img src="${base}pokebolas/${files[ball]}.png" alt="" draggable="false"><small>×${count}</small></button>`);
+      balls.push(`<button class="inventory-slot inventory-ball ${view.selectedBall===ball?'selected':''}" data-inventory-ball="${ball}" title="${safe(names[ball])}: duplique um Pokémon elegível" aria-label="${safe(names[ball])}, ${count} disponíveis"><img src="${base}pokebolas/${files[ball]}.png" alt="" draggable="false"><small>×${count}</small></button>`);
     }
     while(cells.length<ITEMS.inventorySlots)cells.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
-    this.updateHTML('inventoryContents',`<div class="inventory-grid">${cells.slice(0,ITEMS.inventorySlots).join('')}</div>`);
+    this.updateHTML('inventoryContents',`<div class="inventory-grid" role="group" aria-label="Itens no chão">${cells.join('')}</div>${balls.length?`<div class="ball-ground" role="group" aria-label="Pokébolas no chão">${balls.join('')}</div>`:''}`);
     element('inventoryCounter').textContent=`${inventoryUsed(player)}/${ITEMS.inventorySlots}`;
     const choosing = (player.pendingEvolution?.length || 0) === 4;
     element('eeveeEvolution').classList.toggle('hidden', !choosing);

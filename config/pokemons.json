@@ -145,6 +145,10 @@
     "magikarp": [
       "./sprites/129.png",
       "./sprites/130.png"
+    ],
+    "staryu": [
+      "./sprites/120.png",
+      "./sprites/121.png"
     ]
   },
   "species": {
@@ -620,12 +624,14 @@
         {
           "elements": [
             "electric"
-          ]
+          ],
+          "chargedAnimation": "Shock"
         },
         {
           "elements": [
             "electric"
-          ]
+          ],
+          "chargedAnimation": "Shock"
         }
       ]
     },
@@ -1375,7 +1381,7 @@
           "range": 1,
           "move": "rise-onix",
           "energy": 50,
-          "chargedAnimation": "Strike",
+          "chargedAnimation": "Slam",
           "chargedType": "rock"
         },
         {
@@ -1460,7 +1466,7 @@
           "range": 1,
           "move": "rock-geodude",
           "energy": 55,
-          "chargedAnimation": "Strike"
+          "chargedAnimation": "Punch"
         },
         {
           "elements": [
@@ -1470,7 +1476,7 @@
           "range": 1,
           "move": "rock-graveler",
           "energy": 55,
-          "chargedAnimation": "Strike"
+          "chargedAnimation": "Slam"
         },
         {
           "elements": [
@@ -1550,7 +1556,7 @@
           "range": 1,
           "move": "egg-blissey",
           "energy": 60,
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "Shoot"
         }
       ]
     },
@@ -1660,7 +1666,7 @@
           "energy": 60,
           "move": "ball-vaporeon",
           "chargedType": "water",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "SpAttack"
         }
       ]
     },
@@ -1770,7 +1776,7 @@
           "energy": 60,
           "move": "ball-jolteon",
           "chargedType": "electric",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Shock"
         }
       ]
     },
@@ -1825,7 +1831,7 @@
           "energy": 60,
           "move": "ball-umbreon",
           "chargedType": "dark",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Emit"
         }
       ]
     },
@@ -1880,7 +1886,7 @@
           "energy": 60,
           "move": "ball-sylveon",
           "chargedType": "fairy",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "SpAttack"
         }
       ]
     },
@@ -2045,7 +2051,7 @@
           "energy": 60,
           "move": "ball-espeon",
           "chargedType": "psychic",
-          "chargedAnimation": "Shoot"
+          "chargedAnimation": "Twirl"
         }
       ]
     },
@@ -2528,7 +2534,7 @@
           "range": 2,
           "energy": 65,
           "move": "gastly-phantom",
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "Lick"
         },
         {
           "elements": [
@@ -2538,7 +2544,7 @@
           "range": 1,
           "energy": 70,
           "move": "haunter-phantom",
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "MultiStrike"
         },
         {
           "elements": [
@@ -2548,7 +2554,7 @@
           "range": 1,
           "energy": 80,
           "move": "gengar-phantom",
-          "chargedAnimation": "Attack"
+          "chargedAnimation": "Strike"
         }
       ]
     },
@@ -2691,7 +2697,7 @@
           ],
           "move": "magikarp-splash",
           "energy": 45,
-          "chargedAnimation": "Splash"
+          "chargedAnimation": "Hop"
         },
         {
           "elements": [
@@ -2701,6 +2707,79 @@
           "move": "gyarados-fang-tail",
           "energy": 75,
           "chargedAnimation": "Attack"
+        }
+      ]
+    },
+    "staryu": {
+      "names": [
+        "Staryu",
+        "Starmie"
+      ],
+      "pokedexIds": [
+        120,
+        121
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#83c9ed",
+      "base": {
+        "hp": 240,
+        "atk": 29,
+        "def": 48,
+        "spa": 80,
+        "spd": 57,
+        "speed": 76
+      },
+      "stageBases": [
+        {
+          "hp": 240,
+          "atk": 29,
+          "def": 48,
+          "spa": 80,
+          "spd": 57,
+          "speed": 76
+        },
+        {
+          "hp": 355,
+          "atk": 48,
+          "def": 68,
+          "spa": 120,
+          "spd": 79,
+          "speed": 103
+        }
+      ],
+      "range": 3,
+      "energy": 60,
+      "attack": "star-refraction",
+      "elements": [
+        "water"
+      ],
+      "basic": {
+        "stat": "spa",
+        "category": "special",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "range": 3,
+          "elements": [
+            "water"
+          ],
+          "move": "star-refraction",
+          "energy": 60,
+          "chargedAnimation": "Twirl",
+          "chargedType": "water"
+        },
+        {
+          "range": 3.5,
+          "elements": [
+            "water",
+            "psychic"
+          ],
+          "move": "star-refraction",
+          "energy": 65,
+          "chargedAnimation": "Twirl",
+          "chargedType": "psychic"
         }
       ]
     }

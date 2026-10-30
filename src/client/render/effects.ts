@@ -2,6 +2,7 @@
 import { SPECIES } from '../../../server/data';
 import type { CombatEffect } from '../../../server/types';
 import { renderTravelEffects } from '../vfx/travel-effects';
+import { projectileOrigin } from './projectile-origin';
 import { renderImpactEffects } from '../vfx/impact-effects';
 import { renderFloatingNumber } from '../vfx/floating-numbers';
 import { renderV16Effect } from '../vfx/v16-effects';
@@ -12,8 +13,10 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
     const ctx = context;
     for (const fx of effects) {
       const t = Math.max(0, Math.min(1, (resolveTime ? resolveTime(fx) : fx.time) / fx.duration));
-      const from = toScreen(fx.x, flipY ? -fx.y : fx.y);
+      const baseFrom = toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
+      const from = ['basic-projectile','dragon-orb','bone','egg','ball','psychic-blessing','piercing-flame','lightning','poison','spell']
+        .includes(fx.kind) ? projectileOrigin(fx,baseFrom,to,cellScale) : baseFrom;
       if (renderSynergyEffect(ctx, fx, from, to, t, cellScale, time)) continue;
       if (renderV16Effect(ctx, fx, from, to, t, cellScale, time)) continue;
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;

@@ -115,5 +115,349 @@
       "shape": "diamond",
       "arrival": 0.83
     }
+  },
+  "visualProfiles": {
+    "default": {
+      "lunge": 0.12,
+      "recoil": 0.06,
+      "launch": "front",
+      "shadow": {
+        "scale": 1,
+        "opacity": 1
+      }
+    },
+    "magikarp": [
+      {
+        "lunge": 0.19,
+        "hop": 0.65,
+        "launch": "front"
+      },
+      {
+        "lunge": 0.19,
+        "recoil": 0.1,
+        "launch": "mouth",
+        "shadow": {
+          "scale": 1.25
+        }
+      }
+    ],
+    "diglett": [
+      {
+        "lunge": 0.1,
+        "shadow": {
+          "mode": "earth",
+          "scale": 0.8
+        }
+      },
+      {
+        "lunge": 0.1,
+        "shadow": {
+          "mode": "earth",
+          "scale": 1.12
+        }
+      }
+    ],
+    "machop": [
+      {
+        "lunge": 0.34,
+        "shadow": {
+          "scale": 0.85
+        }
+      },
+      {
+        "lunge": 0.47
+      },
+      {
+        "lunge": 0.6,
+        "shadow": {
+          "scale": 1.15
+        }
+      }
+    ],
+    "gastly": [
+      {
+        "lunge": 0.12,
+        "shadow": {
+          "scale": 0.6,
+          "opacity": 0.48
+        }
+      },
+      {
+        "lunge": 0.19,
+        "shadow": {
+          "scale": 0.65,
+          "opacity": 0.48
+        }
+      },
+      {
+        "lunge": 0.24,
+        "shadow": {
+          "scale": 0.75,
+          "opacity": 0.5
+        }
+      }
+    ],
+    "pikachu": [
+      {
+        "lunge": 0.07,
+        "recoil": 0.1,
+        "launch": "front"
+      },
+      {
+        "lunge": 0.07,
+        "recoil": 0.13,
+        "launch": "front"
+      }
+    ],
+    "onix": [
+      {
+        "lunge": 0.22,
+        "shadow": {
+          "scale": 1.5
+        }
+      },
+      {
+        "lunge": 0.32,
+        "shadow": {
+          "scale": 1.7
+        }
+      }
+    ],
+    "geodude": [
+      {
+        "lunge": 0.24
+      },
+      {
+        "lunge": 0.33
+      },
+      {
+        "lunge": 0.12
+      }
+    ],
+    "chansey": [
+      {
+        "launch": "hands",
+        "recoil": 0.06
+      },
+      {
+        "launch": "hands",
+        "recoil": 0.06
+      }
+    ],
+    "voltorb": [
+      {
+        "pulse": 0.2,
+        "launch": "body"
+      },
+      {
+        "pulse": 0.27,
+        "launch": "body"
+      }
+    ],
+    "rhyhorn": [
+      {
+        "lunge": 0.18,
+        "shadow": {
+          "scale": 1.1
+        }
+      },
+      {
+        "lunge": 0.22,
+        "shadow": {
+          "scale": 1.3
+        }
+      },
+      {
+        "lunge": 0.24,
+        "shadow": {
+          "scale": 1.4
+        }
+      }
+    ],
+    "snorlax": [
+      {
+        "hop": 0.25,
+        "pulse": 0.09,
+        "shadow": {
+          "scale": 1.45
+        }
+      }
+    ],
+    "dratini": [
+      {
+        "launch": "mouth",
+        "recoil": 0.09
+      },
+      {
+        "launch": "mouth",
+        "recoil": 0.09
+      },
+      {
+        "hop": 0.35,
+        "pulse": 0.07
+      }
+    ],
+    "koffing": [
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 0.68,
+          "offsetY": 10
+        }
+      },
+      {
+        "launch": "body",
+        "shadow": {
+          "scale": 0.8,
+          "offsetY": 12
+        }
+      }
+    ],
+    "cubone": [
+      {
+        "launch": "hands",
+        "lunge": 0.12
+      },
+      {
+        "launch": "hands",
+        "lunge": 0.13
+      }
+    ],
+    "butterfree": [
+      {
+        "launch": "wings",
+        "shadow": {
+          "scale": 0.62,
+          "offsetY": 5
+        }
+      }
+    ],
+    "vulpix": [
+      {
+        "launch": "mouth",
+        "recoil": 0.1
+      },
+      {
+        "launch": "mouth",
+        "recoil": 0.12
+      }
+    ],
+    "squirtle": [
+      {
+        "pulse": 0.08
+      },
+      {
+        "pulse": 0.08
+      },
+      {
+        "pulse": 0.1
+      }
+    ],
+    "mew": [
+      {
+        "hop": 0.15,
+        "launch": "front",
+        "shadow": {
+          "scale": 0.48,
+          "opacity": 0.38
+        }
+      }
+    ],
+    "charmander": [
+      {
+        "launch": "mouth",
+        "lunge": 0.14
+      },
+      {
+        "launch": "mouth",
+        "lunge": 0.18
+      },
+      {
+        "launch": "mouth",
+        "lunge": 0.21
+      }
+    ],
+    "weedle": [
+      {
+        "lunge": 0.14
+      },
+      {
+        "lunge": 0.1
+      },
+      {
+        "lunge": 0.3
+      }
+    ],
+    "eevee": [
+      {
+        "lunge": 0.09
+      }
+    ],
+    "vaporeon": [
+      {
+        "launch": "mouth",
+        "recoil": 0.08
+      }
+    ],
+    "jolteon": [
+      {
+        "launch": "front",
+        "recoil": 0.07
+      }
+    ],
+    "flareon": [
+      {
+        "launch": "mouth",
+        "recoil": 0.11
+      }
+    ],
+    "umbreon": [
+      {
+        "launch": "front",
+        "hop": 0.04
+      }
+    ],
+    "espeon": [
+      {
+        "launch": "front",
+        "hop": 0.07
+      }
+    ],
+    "leafeon": [
+      {
+        "launch": "front",
+        "recoil": 0.04
+      }
+    ],
+    "glaceon": [
+      {
+        "launch": "front",
+        "recoil": 0.05
+      }
+    ],
+    "sylveon": [
+      {
+        "launch": "front",
+        "recoil": 0.06
+      }
+    ],
+    "staryu": [
+      {
+        "launch": "body",
+        "recoil": 0.1,
+        "pulse": 0.08,
+        "shadow": {
+          "scale": 0.55
+        }
+      },
+      {
+        "launch": "body",
+        "recoil": 0.12,
+        "pulse": 0.1,
+        "shadow": {
+          "scale": 0.64
+        }
+      }
+    ]
   }
 }

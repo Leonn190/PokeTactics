@@ -453,3 +453,47 @@
 /* Override legacy panel clipping; tooltip is attached to document.body. */
 .traits-panel{overflow:visible;z-index:23;max-height:calc(100% - 350px)}
 .trait-rows{max-height:calc(100vh - 370px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#7b9c8b transparent}
+
+
+/* V18.5: inventory is a small piece of ground, not a HUD panel. */
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.item-inventory,.item-inventory.view-only{
+ position:absolute;z-index:21;left:16px;bottom:clamp(270px,29vh,325px);
+ width:164px;max-height:min(38vh,290px);overflow:visible;padding:12px 8px 11px;
+ background:transparent;border:0;border-radius:0;transform:none;
+ box-shadow:none;backdrop-filter:none;pointer-events:auto;opacity:1
+}
+.item-inventory:before{
+ content:'';position:absolute;inset:-6px -14px -9px;
+ background:radial-gradient(ellipse at center,#4d704f82 0%,#35584070 42%,#1a3b3450 67%,transparent 80%);
+ border:0;border-radius:50%;pointer-events:none;filter:none;
+}
+.item-inventory:after{
+ content:'';position:absolute;inset:0 2px;
+ border:0;border-bottom:2px solid #87a97923;border-radius:50%;pointer-events:none
+}
+.item-inventory .inventory-contents{position:relative;z-index:1;display:flex;flex-direction:column;gap:8px;overflow:visible}
+.item-inventory .inventory-grid{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px 9px;align-items:center;justify-content:center}
+.item-inventory .inventory-slot{position:relative;width:100%;height:39px;min-width:0;display:flex;align-items:center;justify-content:center;
+ background:radial-gradient(ellipse at 50% 90%,#071a1469 0%,#10231a33 46%,transparent 70%);
+ border:1px solid transparent;border-radius:50%;box-shadow:none;filter:drop-shadow(0 2px 2px #020d0b8f);
+ transition:transform .12s ease,filter .12s ease;border-color:transparent}
+.item-inventory .inventory-slot.empty{background:transparent;border:1px dashed #71907730;opacity:.42;border-radius:50%}
+.item-inventory .inventory-slot.empty i{display:none}
+.item-inventory .inventory-slot:hover,.item-inventory .inventory-slot:focus-visible{transform:translateY(-4px) scale(1.1);border-color:#d7efb798;outline:0;filter:drop-shadow(0 0 8px #b5e5a5ad)}
+.item-inventory .inventory-slot.selected{border-color:#ffdd93;box-shadow:0 0 0 1px #ffe5aa9c,inset 0 0 10px #f8cc4266;filter:drop-shadow(0 0 8px #ffe8a2b0)}
+.item-inventory .inventory-slot .gear-icon{transform:scale(1.35)}
+.item-inventory .ball-ground{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin:0 -5px;padding:3px 5px;
+ background:radial-gradient(ellipse at center,#253b3460,transparent 75%);border:0}
+.item-inventory .ball-ground .inventory-ball{height:32px;border-radius:50%;padding:0}
+.item-inventory .ball-ground .inventory-ball img{height:29px;width:29px;max-width:100%;object-fit:contain}
+.item-inventory .ball-ground .inventory-ball small{position:absolute;right:-3px;bottom:-4px;pointer-events:none;
+ color:#ffe7a6;background:#173126de;border-radius:9px;padding:1px 3px;font:800 10px 'Barlow Condensed'}
+@media(max-width:980px){.item-inventory{left:7px;bottom:clamp(265px,31vh,325px);width:132px;padding:6px 2px}
+ .item-inventory .inventory-grid{gap:4px}.item-inventory .inventory-slot{height:34px}
+ .item-inventory .ball-ground{grid-template-columns:repeat(4,minmax(0,1fr));gap:0}}
+@media(max-height:740px){.item-inventory{bottom:252px;max-height:none}}
+@media(max-width:980px) and (max-height:740px){.item-inventory{bottom:251px}}
+/* Keep the ground props beside the shop and out of the trait scroller. */
+@media(min-width:981px){.item-inventory{left:max(16px,calc((100% - 1070px)/2 - 184px))}}
+@media(min-width:981px) and (max-width:1900px){.traits-panel{max-height:min(280px,calc(100vh - 570px))}.trait-rows{max-height:min(240px,calc(100vh - 610px))}}

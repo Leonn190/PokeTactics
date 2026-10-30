@@ -21,7 +21,19 @@ function shadowTexture(radius: number): HTMLCanvasElement {
   return canvas;
 }
 
-export function drawContactShadow(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number): void {
-  const image = shadowTexture(radius);
-  ctx.drawImage(image, x - image.width / 2, y + 1.5 - image.height / 2);
+export function drawContactShadow(ctx: CanvasRenderingContext2D, x: number, y: number,
+  radius: number, profile: {mode?: 'earth';scale?:number;opacity?:number;offsetX?:number;offsetY?:number} = {},
+  height = 0): void {
+  const scale = profile.scale ?? 1, faded = Math.max(.1,1-Math.min(1,height)*.4);
+  const xx = x + (profile.offsetX || 0), yy = y + (profile.offsetY || 0);
+  ctx.save(); ctx.globalAlpha *= (profile.opacity ?? 1) * faded;
+  if (profile.mode === 'earth') {
+    // Diglett/Dugtrio have a dark soil rim integrated into the ground, not a hovering shadow.
+    ctx.fillStyle = '#37251baf';ctx.beginPath();ctx.ellipse(xx,yy+1,radius*scale*1.28,radius*.25,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle = '#94724d7a';ctx.lineWidth = 1.5;ctx.stroke();
+  } else {
+    const image = shadowTexture(radius * scale * (1 - Math.min(.28,height*.13)));
+    ctx.drawImage(image, xx-image.width/2, yy+1.5-image.height/2);
+  }
+  ctx.restore();
 }
