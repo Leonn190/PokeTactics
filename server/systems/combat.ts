@@ -1,5 +1,5 @@
 import { beginCombatAugments, onAugmentBasic, onAugmentCast, onAugmentDamage, onAugmentDeath, tickCombatAugments } from './augments';
-import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gridXY, SPECIES, steppedRange } from '../data';
+import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gridXY, SPECIES } from '../data';
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
@@ -15,6 +15,7 @@ import { tickSynergies } from './synergies/periodic';
 import { clearStep, resolveBodies } from './physical-collision';
 import { pushTarget } from './synergies/positioning';
 import { tickFlameOrbits } from '../combat/flame-orbits';
+import { basicInRange, basicApproachDistance } from '../combat/basic-range';
 export { trainerSpot } from '../combat/trainer-position';
 
 const moveIdOf = (unit: CombatUnit): string => unit.bossMove || getStageData(unit.family, unit.stage).move;
@@ -30,30 +31,6 @@ function stat(unit: CombatUnit, key: StatKey): number {
   const synergySpeed=key==='speed'?base*(unit.synergy?.speedBonus||0):0;
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
   return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
-}
-
-/** Authoritative regular-attack reach is measured in world/hex units, never
- * expanded by sprite size or visual collision radius. */
-function effectiveBasicRange(unit:CombatUnit,now:number):number {
- const base=getStageData(unit.family,unit.stage);
- const bonus=unit.range-base.range;
- const advanced=unit.family==='staryu' && unit.stage===1 && unit.refractionUntil>now
-   ? steppedRange(base.rangeClass,1) : base.range;
- return advanced+bonus;
-}
-function basicInRange(unit:CombatUnit,enemy:CombatUnit,now:number):boolean {
- // World-space hex neighbours are roughly 1.04 units apart. The combatants
- // interpolate continuously, so axial/row thresholds would create unreachable
- // melee states between logical hex centers. Repositioning uses the same metric.
- const melee = !getStageData(unit.family,unit.stage).basic.projectile;
- const reach = effectiveBasicRange(unit,now);
- if (melee && reach <= .68) return distance(unit,enemy) <= 1.055;
- return distance(unit,enemy) <= reach + .075;
-}
-function basicApproachDistance(unit:CombatUnit,enemy:CombatUnit,now:number):number {
- const melee = !getStageData(unit.family,unit.stage).basic.projectile;
- const reach = effectiveBasicRange(unit,now);
- return melee && reach <= .68 ? 1.04 : reach;
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
