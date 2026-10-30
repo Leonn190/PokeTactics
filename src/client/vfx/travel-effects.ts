@@ -17,6 +17,13 @@ export function renderTravelEffects(ctx: CanvasRenderingContext2D, fx: CombatEff
         ctx.beginPath();ctx.ellipse(0,-8,radius*.8,radius*1.45,0,0,Math.PI*2);ctx.fill();
         ctx.restore();return true;
       }
+      if(fx.kind==='psychic-shot'){
+        const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-cellScale*.28;
+        const dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy)||1;
+        ctx.save();ctx.strokeStyle='#d5a8ff';ctx.fillStyle='#f5e2ff';ctx.shadowColor='#a66bff';ctx.shadowBlur=17;ctx.lineWidth=Math.max(2,cellScale*.055);
+        ctx.beginPath();ctx.moveTo(x-dx/length*cellScale*.38,y-dy/length*cellScale*.38);ctx.lineTo(x,y);ctx.stroke();
+        ctx.beginPath();ctx.arc(x,y,Math.max(3,cellScale*.10),0,PI2);ctx.fill();ctx.restore();return true;
+      }
       if (fx.kind === 'basic-projectile') {
         paintBasicProjectile(ctx, fx.basicType || 'normal', from, to, t, cellScale);
         return true;

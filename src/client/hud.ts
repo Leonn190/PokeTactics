@@ -2,7 +2,7 @@ import { itemImage } from './item-sprites';
 import { SynergyPanel } from './synergies/panel';
 import { interestCap,hasAugment } from '../../server/systems/augments';
 import { inventoryUsed,BALLS } from '../../server/systems/inventory';
-import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, evolutionCopies, getStageData, ATTACKS, rangeLabel, steppedRange } from '../../server/data';
+import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, evolutionCopies, getStageData, ATTACKS, rangeLabel, steppedRange } from '../../server/data';
 import { totalPower } from '../../server/formulas';
 import { bonusStats, bonusStat, effectivePercents, itemTooltip, ITEM_COLORS, ITEMS, RECIPES, numberParam } from '../../server/systems/items';
 import { LOOT } from '../../server/systems/loot';
@@ -44,8 +44,9 @@ export class Hud {
   private toastTimer = 0;
   private readonly fragmentCache = new Map<string, string>();
   private updateHTML(id: string, html: string): void {
-    if (this.fragmentCache.get(id) === html) return;
-    element(id).innerHTML = html;
+    const node=element(id);
+    if (this.fragmentCache.get(id) === html && node.hasChildNodes()) return;
+    node.innerHTML = html;
     this.fragmentCache.set(id, html);
   }
 
@@ -122,18 +123,8 @@ export class Hud {
     while(cells.length<ITEMS.inventorySlots)cells.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
     this.updateHTML('inventoryContents',`<div class="inventory-grid" role="group" aria-label="Itens no chão">${cells.join('')}</div>${balls.length?`<div class="ball-ground" role="group" aria-label="Pokébolas no chão">${balls.join('')}</div>`:''}`);
     element('inventoryCounter').textContent=`${inventoryUsed(player)}/${ITEMS.inventorySlots}`;
-    const evolvingFamily=player.pendingEvolutionKind==='tyrogue'?'tyrogue':player.pendingEvolutionKind==='scyther'?'scyther':'eevee';
-    const choosing=(player.pendingEvolution?.length||0)===evolutionCopies(evolvingFamily,0,hasAugment(player,'P11'));
-    element('eeveeEvolution').classList.toggle('hidden', !choosing);
-    if (choosing){
-      element('eeveeEvolution').querySelector<HTMLElement>('.evolution-kicker')!.textContent=evolvingFamily==='tyrogue'?'TYROGUE · ESCOLHA O HITMON':evolvingFamily==='scyther'?'SCYTHER · EVOLUÇÃO ALTERNATIVA':'EEVEE · ESCOLHA SUA EVOLUÇÃO';
-      element('eeveeEvolution').querySelector<HTMLElement>('p')!.textContent=evolvingFamily==='tyrogue'?'Hitmonchan ou Hitmonlee: qualquer evolução de Tyrogue terá IV 100 em todos os atributos.':evolvingFamily==='scyther'?'Escolha entre Scizor e Kleavor. A forma manterá os IVs, nível, itens e experiência.':'As cópias serão fundidas. A forma escolhida mantém os maiores IVs, nível e experiência.';
-      this.updateHTML('eeveeBranches', (evolvingFamily==='tyrogue'?(['hitmonchan','hitmonlee'] as const):evolvingFamily==='scyther'?(['scizor','kleavor'] as const):EEVEE_BRANCHES).map(branch => {
-      const s = SPECIES[branch], move = ATTACKS.moves[s.attack];
-      return `<button class="evolution-choice" data-eevee-branch="${branch}" style="--evo-glow:${s.glow}">
-        ${portrait(branch,70)}<strong>${s.names[0]}</strong><small>${s.elements.map(t=>typeIcon(t,16)).join('')} ${safe(move.name)}</small></button>`;
-    }).join(''));
-    }
+    // Branch evolutions now resolve immediately in the authoritative engine.
+    element('eeveeEvolution').classList.add('hidden');
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
     element('roundLabel').textContent = `${snapshot.chapter}-${snapshot.stage}`;
@@ -180,12 +171,12 @@ export class Hud {
       if (!offer) return '<div class="shop-empty"></div>';
       const data = SPECIES[offer.family];
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
-      return `<button class="shop-card" data-shop="${i}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${rangeLabel(data.range,data.rangeClass)} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, influence.shares)).toFixed(1)}%">
+      return `<button class="shop-card" data-shop="${i}" data-shop-offer="${offer.id}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${rangeLabel(data.range,data.rangeClass)} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, influence.shares)).toFixed(1)}%">
           <div class="shop-portrait">${portrait(offer.family, 100)}</div><div class="shop-card-footer"><span class="shop-name">${data.names[0]}</span>
           <span class="shop-type">${data.elements.map(type => typeIcon(type, 18)).join('')}</span>
           <span class="shop-cost"><i>◈</i>${offer.price}</span></div></button>`;
     }).join('');
-    if (shopHtml !== this.lastShop) { element('shopCards').innerHTML = shopHtml; this.lastShop = shopHtml; }
+    if (shopHtml !== this.lastShop || (!element('shopCards').hasChildNodes() && shopHtml)) { element('shopCards').innerHTML = shopHtml; this.lastShop = shopHtml; }
 
     const watched = snapshot.players.find(p => p.id === view.scoutId) || player;
     this.synergyPanel.update(watched);
@@ -364,13 +355,13 @@ export class Hud {
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
         <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>
       </div>
-      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span>${data.babyEvolution?`<span>BABY · NÍVEL MÁX. ${RULES.baby.levelCap} · IV 100 APÓS EVOLUÇÃO</span>`:''}${Object.values(pokemon.iv).every(v=>v===100)?'<span>✦ IV PERFEITO</span>':''}</div>
+      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span>${Object.values(pokemon.iv).every(v=>v===100)?'<span>✦ IV PERFEITO</span>':''}</div>
       <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
       <div class="inspector-percentages">${([['vampirism','VAMP'],['critChance','CRÍT'],['critDamage','DANO CRÍT'],['durability','DURAB'],['amplification','AMPLIF']] as const).map(([key,label])=>`<div class="inspector-percent"><small>${label}</small><b data-percent="${key}">0%</b></div>`).join('')}</div>
       <div class="inspector-equipment"><span>EQUIPAMENTOS E ATAQUE</span><div class="inspector-equipment-row">${Array.from({length:ITEMS.maxSlots},(_,index)=>{
         const item=pokemon.equipment?.[index];
         return `<button class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Slot livre'}" ${owner==='VOCÊ'?'':'disabled'}>${item?icon(item):'+'}</button>`;
-      }).join('')}<div class="inspector-slot inspector-basic-tile" title="Ataque regular físico (ATK) · valor bruto após atributos e equipamentos, antes da defesa do alvo"><span>⚔</span><b>${basic.value}</b></div></div><small>${owner==='VOCÊ'?'Clique para remover • use a mochila para equipar':''}</small></div>
+      }).join('')}<div class="inspector-slot inspector-basic-tile" title="Ataque regular físico (ATK) · valor bruto após atributos e equipamentos, antes da defesa do alvo"><span>⚔</span><b>${basic.value}</b></div></div><small>${owner==='VOCÊ'?'Clique para remover • arraste um item da mochila para equipar':''}</small></div>
       <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range,stage.rangeClass)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
       ${(displayStage<data.names.length-1||!!data.babyEvolution) ? `<div class="inspector-evolution">Evolução: ${this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.units.filter(u=>u.family===pokemon.family&&u.stage===pokemon.stage).length||1} / ${evolutionCopies(displayFamily,displayStage,!!this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.augments?.includes('P11'))} cópias</div>`:''}<div class="inspector-footer"><div class="inspector-types">${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }

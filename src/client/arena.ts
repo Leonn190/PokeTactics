@@ -1,4 +1,4 @@
-import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, RULES, ATTACKS, physicalSize, collisionRadius } from '../../server/data';
+import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, ITEM_RACK_WORLD, RULES, ATTACKS, physicalSize, collisionRadius } from '../../server/data';
 import { FrameScheduler } from './performance/frame-scheduler';
 import { PerformanceProfiler } from './performance/profiler';
 import { SnapshotClock } from './animation/snapshot-clock';
@@ -212,7 +212,7 @@ export class Arena {
 
   worldScale():number{return this.cellScale/70;}
   /** An HTML item tray uses the exact same world-to-screen projection as sprites. */
-  placeWorldRack(node:HTMLElement,x=-5.72,y=3.13):void {
+  placeWorldRack(node:HTMLElement,x=ITEM_RACK_WORLD.x,y=ITEM_RACK_WORLD.y):void {
     const point=this.toScreen(x,y), rect=this.canvas.getBoundingClientRect(), app=document.getElementById('app')!.getBoundingClientRect();
     node.style.left=`${rect.left-app.left+point.x}px`;
     node.style.top=`${rect.top-app.top+point.y}px`;

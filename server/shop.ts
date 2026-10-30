@@ -56,4 +56,21 @@ export function rollFamily(player: Player, rand: () => number): { family: Family
   return { family: families[families.length - 1], rarity };
 }
 
+/** Auto-evoluções usam a mesma distribuição mostrada na barra de influência da loja.
+ * Compara primeiro o tipo principal e depois o secundário; só usa RNG quando
+ * os dois pesos empatam. Não favorece a primeira forma no caso de empate. */
+export function evolutionByInfluence(player: Player, candidates: readonly Family[], pick: (choices: Family[]) => Family): Family {
+  const shares = typeInfluence(player).shares;
+  let bestPrimary = -1, bestSecondary = -1;
+  const tied: Family[] = [];
+  for (const family of candidates) {
+    const [primary, secondary] = getStageData(family, 0).elements;
+    const p = shares[primary] || 0, s = secondary ? shares[secondary] || 0 : 0;
+    if (p > bestPrimary + 1e-9 || (Math.abs(p - bestPrimary) <= 1e-9 && s > bestSecondary + 1e-9)) {
+      bestPrimary = p; bestSecondary = s; tied.length = 0; tied.push(family);
+    } else if (Math.abs(p - bestPrimary) <= 1e-9 && Math.abs(s - bestSecondary) <= 1e-9) tied.push(family);
+  }
+  return tied.length === 1 ? tied[0] : pick(tied);
+}
+
 export const elementOrder = () => Object.keys(ELEMENTS) as Element[];

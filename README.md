@@ -1,6 +1,14 @@
-# PokéTactics — V20.7 (Performance e Organização)
+# PokéTactics — V22.5 (Interface, evoluções e Abra)
 
 PokéTactics é um jogo de estratégia com combates automáticos, Pokémon, loja, evoluções, itens, espólios, augments e sinergias. Ele usa **Astro + TypeScript**, Canvas e sprites/animações PMD. As partidas atuais são **simuladas localmente**, com adversários controlados por bots; ainda não existe multiplayer real nem backend de partidas online.
+
+## V22.5 — principais mudanças
+
+- **HUD e loja:** compras, rerolls, Pokémon, itens e etapas são propagados na primeira resposta do Worker. Ofertas têm IDs, evitando compras em cartões antigos.
+- **Evoluções ramificadas:** Eevee, Scyther e Tyrogue evoluem automaticamente pela participação de tipos da barra TIPOS da loja. Primeiro o tipo principal, depois o secundário; empate integral é sorteado no motor. Não há janela de escolha.
+- **Bandeja física:** terreno com ícones menores, mais abaixo; acompanha câmera/zoom. O estrategista não invade a plataforma.
+- **Família Abra (incomum):** Abra/Kadabra/Alakazam são de alcance longo. Teleportam para outra casa distante na mesma fileira, ou para uma região segura quando ameaçados de perto. Kadabra dispara três tiros psíquicos angulados; Alakazam, cinco. Ataques regulares calculam 70% de ATK e 30% de SpA.
+- **Inspetor:** não exibe mais o texto explicativo sobre bebês; as regras do motor permanecem.
 
 ## Executar o projeto
 
@@ -64,3 +72,7 @@ Para detalhes de mudanças antigas, consulte o histórico de commits. Este READM
 O agendador `src/client/performance/frame-scheduler.ts` controla somente RAF. O módulo `src/client/audio.ts` concentra os efeitos sonoros; `src/client/player-settings.ts` cuida das preferências. A arena reaproveita buffers visuais em `src/client/arena.ts`; o Worker já efetua a clonagem estrutural ao transmitir snapshots.
 
 Siga `Organização.md` e `AGENTS.md` para localizar cada mecânica e preservar o isolamento `config` / `server` / `src`. Não existem suites de testes neste repositório.
+
+## V22.5 — correção de loja, itens e evoluções
+
+Cada compra confirma o identificador da oferta efetivamente exibida, evitando comprar outra espécie quando a loja muda antes da confirmação. Ofertas mudadas são redesenhadas assim que chegam no snapshot, sem esperar o intervalo regular do HUD. Itens e Pokébolas podem ser arrastados e soltos; a soltura inválida apenas devolve o item à mochila. As pendências de escolha de evolução de Scyther/Eevee também foram corrigidas.
