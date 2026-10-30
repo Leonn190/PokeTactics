@@ -1,6 +1,6 @@
 import { applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
 import { inventoryUsed,canReceive } from './systems/inventory';
-import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES, evolutionCopies } from './data';
+import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, ITEM_RACK_WORLD, SHOP_FAMILIES, SHOP_SIZE, SPECIES, evolutionCopies } from './data';
 import { rollFamily, evolutionByInfluence } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
@@ -475,8 +475,19 @@ export class GameEngine {
     const length = Math.hypot(dx, dy);
     if (length > 0.001) {
       const distance = Math.min(length, 3.8 * dt);
-      this.trainer.x += dx / length * distance;
-      this.trainer.y += dy / length * distance;
+      let nextX=this.trainer.x+dx/length*distance;
+      let nextY=this.trainer.y+dy/length*distance;
+      // A plataforma de itens ocupa terreno real: o estrategista contorna
+      // seu limite em vez de atravessar os objetos e a extensão da arena.
+      const rx=(nextX-ITEM_RACK_WORLD.x)/ITEM_RACK_WORLD.radiusX;
+      const ry=(nextY-ITEM_RACK_WORLD.y)/ITEM_RACK_WORLD.radiusY;
+      const ellipse=rx*rx+ry*ry;
+      if(ellipse<1){
+        const mag=Math.sqrt(ellipse)||.00001;
+        nextX=ITEM_RACK_WORLD.x+rx/mag*ITEM_RACK_WORLD.radiusX*1.02;
+        nextY=ITEM_RACK_WORLD.y+ry/mag*ITEM_RACK_WORLD.radiusY*1.02;
+      }
+      this.trainer.x=nextX;this.trainer.y=nextY;
     }
     for (const loot of canCollectLoot ? this.savedLoot : []) {
       if (!loot.claimed && Math.hypot(this.trainer.x-loot.x,this.trainer.y-loot.y) <= .38) this.rewardLoot(loot);
