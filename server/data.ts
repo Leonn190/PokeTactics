@@ -37,7 +37,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -60,6 +60,9 @@ export type MoveData = {
   orbCount?: number; orbitRadius?: number; rotationSpeed?: number; orbRadius?: number;
   impactsBase?: number; spaPerExtraImpact?: number; maxImpacts?: number; reimpactSeconds?: number;
   speedBonusPercent?: number; defBonusPercent?: number; spdBonusPercent?: number; maxDuration?: number;
+  durationBaseByStage?:number[]; durationSpaRatio?:number; durationMax?:number; sleepSeconds?:number;
+  shieldBaseByStage?:number[]; starBaseByStage?:number[]; starInterval?:number; starFallSeconds?:number;
+  pillarDamageBase?:number; pillarSpaRatio?:number; pillarDuration?:number; wallDuration?:number; wallBonusRatio?:number;
   finalVenomBase?: number; finalVenomSpaRatio?: number;
   chargeMaxDuration?: number; gasTimeRatio?: number; gasAttackRatio?: number; gasReleaseDelay?: number;
   sleepDuration?: number; sleepTicks?: number; sleepHealBase?: number; sleepHealSpaRatio?: number;

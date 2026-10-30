@@ -40,7 +40,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy']; orbitFlames?: CombatUnit['orbitFlames'] };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy']; orbitFlames?: CombatUnit['orbitFlames']; statuses?: CombatUnit['statuses']; lullaby?: CombatUnit['lullaby']; starWard?: CombatUnit['starWard']; stunUntil?: number; itemBurn?: CombatUnit['itemBurn'] };
 const PMD = pmdManifest as Record<string, PmdEntry>;
 const PI2 = Math.PI * 2;
 const BENCH_Y = 4.38;
@@ -70,6 +70,8 @@ export class Arena {
   private spriteBounds = new SpriteBoundsCache();
   private warmedSpecies = new Set<number>();
   private planningCache: { serial: number; scout: string; markers: Marker[] } | null = null;
+  private pillarPreview:{unitId:string;index:number;col:number;row:number}|null=null;
+  previewPillar(value:{unitId:string;index:number;col:number;row:number}|null):void{this.pillarPreview=value;}
   private pendingMove=new Map<string,{position:UnitPosition; serial:number}>();
   previewMove(id:string,position:UnitPosition):void{
     this.pendingMove.set(id,{position,serial:this.snapshot?.serial||0});
@@ -208,7 +210,7 @@ export class Arena {
 
   worldScale():number{return this.cellScale/70;}
   /** An HTML item tray uses the exact same world-to-screen projection as sprites. */
-  placeWorldRack(node:HTMLElement,x=-5.72,y=2.79):void {
+  placeWorldRack(node:HTMLElement,x=-5.72,y=3.13):void {
     const point=this.toScreen(x,y), rect=this.canvas.getBoundingClientRect(), app=document.getElementById('app')!.getBoundingClientRect();
     node.style.left=`${rect.left-app.left+point.x}px`;
     node.style.top=`${rect.top-app.top+point.y}px`;
@@ -253,6 +255,64 @@ export class Arena {
       if (d < best) { closest = { col, row: row - 4 }; best = d; }
     }
     return closest;
+  }
+  pickEnemyHex(clientX:number,clientY:number):{col:number;row:number}|null {
+    if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0')return null;
+    const world=this.pointerWorld(clientX,clientY);
+    let pick:{col:number;row:number}|null=null,best=.47;
+    for(let row=0;row<4;row++)for(let col=0;col<7;col++){
+      const p=gridXY(col,row),d=Math.hypot(p.x-world.x,p.y-world.y);
+      if(d<best){pick={col,row};best=d;}
+    }
+    return pick;
+  }
+  pickMimePillar(clientX:number,clientY:number):{unitId:string;index:number}|null {
+    if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0')return null;
+    const world=this.pointerWorld(clientX,clientY);
+    for(const mime of this.snapshot.players[0].units){
+      if(mime.family!=='mr-mime'||mime.position.area!=='board')continue;
+      const marks=mime.mimePillars||[{col:2,row:1},{col:4,row:2}];
+      for(let index=0;index<marks.length;index++){
+        const p=gridXY(marks[index].col,marks[index].row);
+        if(Math.hypot(p.x-world.x,p.y-world.y)<.37)return {unitId:mime.id,index};
+      }
+    }
+    return null;
+  }
+  private drawMimePillars(time:number):void {
+    if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0')return;
+    const ctx=this.context;
+    for(const mime of this.snapshot.players[0].units){
+      if(mime.family!=='mr-mime'||mime.position.area!=='board')continue;
+      for(const [index,mark] of (mime.mimePillars||[{col:2,row:1},{col:4,row:2}]).entries()){
+        const shown=this.pillarPreview?.unitId===mime.id&&this.pillarPreview.index===index?this.pillarPreview:mark;
+        const p=gridXY(shown.col,shown.row),at=this.toScreen(p.x,p.y),r=this.cellScale*.33;
+        ctx.save();ctx.globalAlpha=.64+.12*Math.sin(time*3+index);ctx.strokeStyle='#d0a4ff';ctx.fillStyle='#a577db55';
+        ctx.shadowColor='#aa6dff';ctx.shadowBlur=15;ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(at.x,at.y-r*.8);ctx.lineTo(at.x+r*.65,at.y-r*.3);ctx.lineTo(at.x+r*.65,at.y+r*.8);ctx.lineTo(at.x-r*.65,at.y+r*.8);ctx.lineTo(at.x-r*.65,at.y-r*.3);ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.fillStyle='#fff';ctx.font=`${Math.max(12,r*.65)}px sans-serif`;ctx.textAlign='center';ctx.fillText(String(index+1),at.x,at.y+r*.25);ctx.restore();
+      }
+    }
+  }
+  private drawObstacles(battle:NonNullable<GameSnapshot['visibleBattle']>,time:number):void {
+    const ctx=this.context,flip=battle.participants.length===2&&battle.playerB===this.view.scoutId;
+    for(const obs of battle.obstacles||[]){
+      if(obs.until<=battle.elapsed)continue;
+      const p=this.toScreen(obs.x,flip?-obs.y:obs.y),r=this.cellScale;
+      const enter=Math.min(1,Math.max(0,(battle.elapsed-obs.createdAt)/.22));
+      const exit=Math.min(1,Math.max(0,(obs.until-battle.elapsed)/.2));
+      ctx.save();ctx.globalAlpha=Math.max(0,Math.min(enter,exit));ctx.strokeStyle='#dfa7ff';ctx.fillStyle='#8e49bacc';ctx.shadowColor='#a96aff';ctx.shadowBlur=r*.18;
+      ctx.lineWidth=Math.max(2,r*.045);
+      if(obs.kind==='pillar'){
+        const h=r*.95*enter,w=r*.46;
+        ctx.beginPath();ctx.moveTo(p.x-w,p.y-r*.12);ctx.lineTo(p.x-w,p.y-r*.12-h);ctx.lineTo(p.x+w,p.y-r*.12-h);ctx.lineTo(p.x+w,p.y-r*.12);ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.fillStyle='#d8b4ff88';ctx.fillRect(p.x-w,p.y-r*.12-h,r*.19,h);
+      }else {
+        const a=this.toScreen(obs.ax,flip?-obs.ay:obs.ay),b=this.toScreen(obs.bx,flip?-obs.by:obs.by);
+        ctx.beginPath();ctx.moveTo(a.x,a.y-r*.50*enter);ctx.lineTo(b.x,b.y-r*.50*enter);ctx.lineTo(b.x,b.y);ctx.lineTo(a.x,a.y);ctx.closePath();ctx.fill();ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
   pickBench(clientX: number, clientY: number): number | null {
     if (this.view.scoutId !== 'p0') return null;
@@ -322,7 +382,12 @@ export class Arena {
     const anims = PMD[String(id)];
     if (anims) {
       this.warmAnimationSheets(id, anims, unit.family, unit.stage);
-      const action = unit.bench ? 'Sleep' : this.snapshot?.phase === 'planning' ? 'Idle'
+      const statusTime=this.snapshot?.visibleBattle?.elapsed||0;
+      const status=unit.statuses;
+      const asleep=!!status?.sleeping&&status.sleeping.until>statusTime;
+      const paralyzed=(!!status?.paralyzed&&status.paralyzed.until>statusTime)||!!unit.stunUntil&&unit.stunUntil>statusTime;
+      const frozen=!!status?.frozen&&status.frozen.until>statusTime;
+      const action = unit.bench || asleep ? 'Sleep' : paralyzed ? 'Hurt' : frozen ? 'Idle' : this.snapshot?.phase === 'planning' ? 'Idle'
         : unit.animation?.name || (unit.moving ? (anims.Hover ? 'Hover' : 'Walk') : 'Idle');
       const battle = this.snapshot?.visibleBattle;
       const flipped = this.snapshot?.phase !== 'planning' && battle?.participants.length === 2 && battle.playerB === this.view.scoutId;
@@ -355,7 +420,7 @@ export class Arena {
         }
         const active = unit.animation && !unit.bench && this.snapshot?.phase !== 'planning' && selectedAction === unit.animation.name;
         const extrapolation = this.renderLead;
-        const elapsedTicks = active && selectedAction !== 'Withdraw'
+        const elapsedTicks = frozen ? 0 : paralyzed ? Math.min(totalTicks-.001,totalTicks*.55) : active && selectedAction !== 'Withdraw'
           ? Math.min(totalTicks - .001, ((unit.animation!.elapsed + extrapolation) / unit.animation!.duration) * totalTicks)
           : (time * 60 + ((unit.id.charCodeAt(unit.id.length - 1) || 0) % 13) * 2) % totalTicks;
         let tick = elapsedTicks, frame = 0;
@@ -678,6 +743,33 @@ export class Arena {
     if (motion.scale !== 1) { ctx.translate(spriteX,spriteY);ctx.scale(motion.scale,motion.scale);ctx.translate(-spriteX,-spriteY); }
     const spriteTop = this.drawPokemonSprite(spriteX,spriteY,unit,time) - this.cellScale*(motion.scale-1)*.6;
     ctx.restore();
+    if(battle&&this.snapshot?.phase!=='planning'){
+      const now=battle.elapsed,st=unit.statuses;
+      const statusActive=(key:keyof NonNullable<typeof st>)=>!!st?.[key]&&st[key]!.until>now;
+      const centerY=p.y-this.cellScale*.49;
+      if(statusActive('burning')||!!unit.itemBurn&&unit.itemBurn.until>now){
+        ctx.save();ctx.fillStyle='#ff6a3ca3';ctx.globalAlpha=.45;
+        for(let i=0;i<6;i++){const a=(i*2.4+time*2.3),xx=p.x+Math.cos(a)*radius*.75,yy=centerY+Math.sin(a)*radius*.65;
+          ctx.beginPath();ctx.ellipse(xx,yy,2.8,6+Math.sin(time*5+i)*2,Math.sin(a),0,PI2);ctx.fill();}ctx.restore();
+      }
+      if(statusActive('poisoned')||!!unit.poison&&unit.poison.time>0){
+        ctx.save();ctx.fillStyle='#ad6ae0b0';for(let i=0;i<6;i++){
+          const a=i*2.4+time*.9,phase=(time*.28+i*.21)%1;
+          ctx.beginPath();ctx.arc(p.x+Math.sin(a)*radius*.6,centerY+radius*.6-phase*radius*1.5,2+phase*2,0,PI2);ctx.fill();}ctx.restore();
+      }
+      if(statusActive('frozen')){
+        ctx.save();ctx.fillStyle='#80d4ff42';ctx.strokeStyle='#9beaffaa';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(p.x-radius,centerY+radius);ctx.lineTo(p.x-radius*.94,centerY-radius*.9);ctx.lineTo(p.x+radius*.8,centerY-radius*.95);ctx.lineTo(p.x+radius,centerY+radius);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+      }else if(statusActive('sleeping')){
+        ctx.save();ctx.fillStyle='#c8ddff';ctx.font=`${Math.max(10,this.cellScale*.2)}px sans-serif`;
+        for(let i=0;i<3;i++){const shift=(time*.35+i/3)%1;ctx.globalAlpha=1-shift;ctx.fillText('Z',p.x+radius*.43+shift*radius*.7,centerY-radius*.4-shift*radius*1.5);}ctx.restore();
+      }else if(statusActive('paralyzed')||!!unit.stunUntil&&unit.stunUntil>now){
+        ctx.save();ctx.fillStyle='#ffdb6b';ctx.font=`${Math.max(9,radius*.65)}px sans-serif`;ctx.textAlign='center';
+        for(let i=0;i<3;i++){const a=time*3+i*2.094;ctx.fillText('✦',p.x+Math.cos(a)*radius*.7,centerY-radius+Math.sin(a)*radius*.3);}ctx.restore();
+      }
+      if(unit.starWard){ctx.save();ctx.strokeStyle='#ffd2f5';ctx.shadowColor='#f79bd9';ctx.shadowBlur=10;ctx.lineWidth=3;
+        ctx.beginPath();ctx.ellipse(p.x,centerY,radius*1.45,radius*1.8,0,0,PI2);ctx.stroke();ctx.restore();}
+    }
     // Persistent, snapshot-owned orbitals: world-space particles that follow the
     // interpolated body and continue rotating between simulation snapshots.
     if (unit.orbitFlames?.length) {
@@ -690,7 +782,9 @@ export class Arena {
         const a=flame.angle+this.renderLead*speed;
         const fx=p.x+Math.cos(a)*distance;
         const fy=p.y+(flipped?-1:1)*Math.sin(a)*distance*.72-this.cellScale*.28;
-        const radius=this.cellScale*(ability.orbRadius??.14);
+        const full=flame.maxImpacts||Math.max(1,flame.impactsLeft);
+        const wear=Math.max(.38,Math.min(1,flame.impactsLeft/full));
+        const radius=this.cellScale*(ability.orbRadius??.14)*wear;
         ctx.save();ctx.globalCompositeOperation='lighter';
         const glow=ctx.createRadialGradient(fx,fy,1,fx,fy,radius*2.6);
         glow.addColorStop(0,'#fff6c5ef');glow.addColorStop(.28,'#ffb24db6');glow.addColorStop(1,'#ff6c1900');
@@ -902,6 +996,7 @@ export class Arena {
     this.background();
     this.hexGrid(this.frame);
     this.drawSacredTile(this.frame);
+    this.drawMimePillars(this.frame);
     if (this.quadActive) {
       const participants = this.snapshot!.visibleBattle!.participants;
       this.drawBench(false, -QUAD_OFFSET, participants[0] === 'p0');
@@ -933,6 +1028,7 @@ export class Arena {
     }
     drawMarkers.sort((a, b) => a.y - b.y);
     for (const marker of drawMarkers) this.drawUnit(marker, this.frame);
+    if(battle&&this.snapshot?.phase!=='planning')this.drawObstacles(battle,this.frame);
     this.drawUnitVisuals(timestamp);
     if (intro) this.drawArrival(battle!);
     this.drawCoins();

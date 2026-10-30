@@ -1,3 +1,4 @@
+import { itemImage } from './item-sprites';
 import { SynergyPanel } from './synergies/panel';
 import { interestCap,hasAugment } from '../../server/systems/augments';
 import { inventoryUsed,BALLS } from '../../server/systems/inventory';
@@ -17,10 +18,8 @@ const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').r
 const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk: 'ATK', def: 'DEF', spa: 'SPA', spd: 'SPD' };
 
 const base = import.meta.env.BASE_URL;
-const typeIcon = (type: Element, size = 18): string => ['ground','rock','steel','dark','fairy','dragon','ghost','fighting'].includes(type)
-  ? `<span class="type-fallback" title="${safe(ELEMENTS[type].name)}" style="width:${size}px;height:${size}px;background:${ELEMENTS[type].color}">${ELEMENTS[type].name.slice(0,2).toUpperCase()}</span>`
-  : `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
-function icon(item: EquippedItem): string { return `<span class="gear-icon">${item.components.map(c=>`<i style="background:${ITEMS.components[c].color}"></i>`).join('')}</span>`; }
+const typeIcon = (type: Element, size = 18): string => `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
+const icon = itemImage;
 function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
   const s = SPECIES[family];
   const id = s.pokedexIds[Math.min(stage, s.pokedexIds.length - 1)];
@@ -352,7 +351,7 @@ export class Hud {
     const stageRange=refraction ? steppedRange(stage.rangeClass,1) : stage.range;
     const basicRange=combatant?.range??(stageRange+(pokemon.equipment||[]).filter(item=>item.recipe==='red+red').length*numberParam('longbow','range'));
     const rangeTitle=rangeLabel(basicRange,basicRange===stageRange ? (refraction ? 'Muito Alto' : stage.rangeClass) : undefined);
-    return `<div class="inspector-top">${portrait(displayFamily, 56, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}</div><div class="inspector-sub">NÍVEL ${displayLevel} · ALCANCE ${rangeTitle}</div></div></div>
+    return `<div class="inspector-top">${portrait(displayFamily, 56, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · Alcance ${rangeTitle}</div></div></div>
       <div class="inspector-resources" aria-label="Vida e energia">
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
         <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>
@@ -366,6 +365,6 @@ export class Hud {
       }).join('')}<small>${owner==='VOCÊ'?'Clique para remover • use a mochila para equipar':''}</small></div>
       <div class="inspector-basic">ATAQUE REGULAR <b>${damageHtml(basic)} <small>de dano ${basic.kind === 'special' ? 'especial' : 'físico'}</small></b></div>
       <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range,stage.rangeClass)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
-      <div class="inspector-footer"><div class="inspector-types">${stage.elements.map(t => typeIcon(t, 20)).join('')}${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
+      ${displayStage<data.names.length-1 ? `<div class="inspector-evolution">Evolução: ${this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.units.filter(u=>u.family===pokemon.family&&u.stage===pokemon.stage).length||1} / ${evolutionCopies(displayFamily,displayStage,!!this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.augments?.includes('P11'))} cópias</div>`:''}<div class="inspector-footer"><div class="inspector-types">${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }
 }

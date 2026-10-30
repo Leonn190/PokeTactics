@@ -1,3 +1,4 @@
+import { blocksEnergy } from '../../combat/statuses';
 import type { Battle,CombatUnit } from '../../types';
 import { numeric,param } from './registry';
 import { synergyTier,teamTier } from './stats';
@@ -17,7 +18,7 @@ export function tickSynergies(battle:Battle,dt:number,hooks:CombatHooks):void {
      if(t>=1){state.flight=undefined;unit.jumpHeight=0;state.speedBonus+=numeric(synergyTier(battle,unit,'flying'),'landingSpeed');}
    }
    const water=synergyTier(battle,unit,'water');
-   if(water)unit.energy=Math.min(unit.energyNeeded,unit.energy+numeric(water,'energyPerSecond')*dt);
+   if(water&&!blocksEnergy(unit,battle.elapsed))unit.energy=Math.min(unit.energyNeeded,unit.energy+numeric(water,'energyPerSecond')*dt);
    const grass=synergyTier(battle,unit,'grass');
    if(grass&&unit.hp<unit.maxHp){
      state.timers.regen=(state.timers.regen||0)+dt;

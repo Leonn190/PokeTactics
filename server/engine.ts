@@ -478,6 +478,19 @@ export class GameEngine {
       return command.kind==='augment-choose'?this.chooseAugment(human,command.slot)
         :rerollAugment(human.augmentChoice,human,command.slot,()=>this.rng.next());
     }
+    if (command.kind === 'mime-pillar') {
+      if(this.phase !== 'planning')return 'Os pilares só podem ser reposicionados na preparação';
+      const mime=human.units.find(u=>u.id===command.unitId&&u.family==='mr-mime'&&u.position.area==='board');
+      if(!mime)return 'Mr. Mime precisa estar no campo';
+      if(!Number.isInteger(command.index)||command.index<0||command.index>1||!Number.isInteger(command.col)||!Number.isInteger(command.row)
+       ||command.col<0||command.col>=BOARD_COLUMNS||command.row<0||command.row>=BOARD_ROWS)return 'Posição inválida';
+      const marks=mime.mimePillars?.map(p=>({...p}))||[{col:2,row:1},{col:4,row:2}];
+      if(marks.some((p,i)=>i!==command.index&&p.col===command.col&&p.row===command.row))return 'Os pilares não podem se sobrepor';
+      if(human.units.some(other=>other.id!==mime.id&&other.family==='mr-mime'&&other.position.area==='board'&&
+        (other.mimePillars||[{col:2,row:1},{col:4,row:2}]).some(p=>p.col===command.col&&p.row===command.row)))return 'Outra estrutura já ocupa a casa';
+      marks[command.index]={col:command.col,row:command.row};mime.mimePillars=marks;
+      return null;
+    }
     if (command.kind === 'move-trainer') {
       if (!Number.isFinite(command.x) || !Number.isFinite(command.y)) return 'Destino inválido';
       this.trainer.targetX = Math.max(-10, Math.min(10, command.x));
@@ -613,6 +626,10 @@ export class GameEngine {
     fielded.forEach((u, i) => {
       const front = u.family === 'bulbasaur' || u.family === 'squirtle';
       u.position = { area: 'board', col: [3, 2, 4, 1, 5, 0, 6, 2, 4][i], row: i<7?(front ? 0 : Math.min(3, 2 + Math.floor(i / 4))):3 };
+    });
+    fielded.filter(u=>u.family==='mr-mime').forEach((mime,index)=>{
+      const colA=(2+index*2)%7,colB=(4+index*2)%7;
+      mime.mimePillars=[{col:colA,row:1},{col:colB,row:2}];
     });
     remaining.slice(0, BENCH_SIZE).forEach((u, index) => { u.position = { area: 'bench', index }; });
     this.equipCPU(player);

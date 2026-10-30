@@ -145,6 +145,17 @@
     ],
     "ditto": [
       "./sprites/132.png"
+    ],
+    "jigglypuff": [
+      "./sprites/39.png",
+      "./sprites/40.png"
+    ],
+    "clefairy": [
+      "./sprites/35.png",
+      "./sprites/36.png"
+    ],
+    "mr-mime": [
+      "./sprites/122.png"
     ]
   },
   "species": {
@@ -3332,6 +3343,225 @@
       "evolutionCopies": [
         3
       ]
+    },
+    "jigglypuff": {
+      "names": [
+        "Jigglypuff",
+        "Wigglytuff"
+      ],
+      "pokedexIds": [
+        39,
+        40
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#f9b7d8",
+      "base": {
+        "hp": 315,
+        "atk": 29,
+        "def": 36,
+        "spa": 61,
+        "spd": 48,
+        "speed": 38
+      },
+      "stageBases": [
+        {
+          "hp": 315,
+          "atk": 29,
+          "def": 36,
+          "spa": 61,
+          "spd": 48,
+          "speed": 38
+        },
+        {
+          "hp": 460,
+          "atk": 45,
+          "def": 54,
+          "spa": 90,
+          "spd": 68,
+          "speed": 55
+        }
+      ],
+      "rangeClass": "Médio Alto",
+      "energy": 65,
+      "attack": "lullaby",
+      "elements": [
+        "normal",
+        "fairy"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal",
+            "fairy"
+          ],
+          "rangeClass": "Médio Alto",
+          "energy": 65,
+          "move": "lullaby",
+          "chargedType": "fairy",
+          "chargedAnimation": "Withdraw"
+        },
+        {
+          "elements": [
+            "normal",
+            "fairy"
+          ],
+          "rangeClass": "Médio Alto",
+          "energy": 70,
+          "move": "lullaby",
+          "chargedType": "fairy",
+          "chargedAnimation": "Withdraw"
+        }
+      ],
+      "physicalSizes": [
+        0.93,
+        1.07
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "clefairy": {
+      "names": [
+        "Clefairy",
+        "Clefable"
+      ],
+      "pokedexIds": [
+        35,
+        36
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#ffbedb",
+      "base": {
+        "hp": 280,
+        "atk": 33,
+        "def": 44,
+        "spa": 67,
+        "spd": 62,
+        "speed": 43
+      },
+      "stageBases": [
+        {
+          "hp": 280,
+          "atk": 33,
+          "def": 44,
+          "spa": 67,
+          "spd": 62,
+          "speed": 43
+        },
+        {
+          "hp": 425,
+          "atk": 49,
+          "def": 68,
+          "spa": 103,
+          "spd": 89,
+          "speed": 65
+        }
+      ],
+      "rangeClass": "Alto",
+      "energy": 70,
+      "attack": "star-ward",
+      "elements": [
+        "fairy"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "fairy"
+          ],
+          "rangeClass": "Alto",
+          "energy": 70,
+          "move": "star-ward",
+          "chargedType": "fairy",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "elements": [
+            "fairy"
+          ],
+          "rangeClass": "Alto",
+          "energy": 75,
+          "move": "star-ward",
+          "chargedType": "fairy",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        0.94,
+        1.03
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "mr-mime": {
+      "names": [
+        "Mr. Mime"
+      ],
+      "pokedexIds": [
+        122
+      ],
+      "rarity": 4,
+      "shop": true,
+      "glow": "#c29af1",
+      "base": {
+        "hp": 350,
+        "atk": 45,
+        "def": 71,
+        "spa": 121,
+        "spd": 115,
+        "speed": 87
+      },
+      "stageBases": [
+        {
+          "hp": 350,
+          "atk": 45,
+          "def": 71,
+          "spa": 121,
+          "spd": 115,
+          "speed": 87
+        }
+      ],
+      "rangeClass": "Médio Alto",
+      "energy": 80,
+      "attack": "mime-wall",
+      "elements": [
+        "psychic",
+        "fairy"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "psychic",
+            "fairy"
+          ],
+          "rangeClass": "Médio Alto",
+          "energy": 80,
+          "move": "mime-wall",
+          "chargedType": "fairy",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        1.01
+      ],
+      "evolutionCopies": []
     }
   }
 }

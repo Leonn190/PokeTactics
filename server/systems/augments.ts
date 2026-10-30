@@ -1,3 +1,4 @@
+import { blocksEnergy } from '../combat/statuses';
 /** V19: data-driven augments; simulation owns rolls, rewards and combat events. */
 import config from '../../config/augments.json';
 import { ITEM_COLORS, ITEMS, makeComponent, RECIPES } from './items';
@@ -163,12 +164,12 @@ export function onAugmentCast(battle:Battle,source:CombatUnit):void {
  source.itemTimers[key]=battle.elapsed+number('S05','cooldown');
  const receiver=battle.units.filter(u=>u.playerId===source.playerId&&u.hp>0&&u.id!==source.id)
   .sort((a,b)=>a.energy-b.energy||a.id.localeCompare(b.id))[0];
- if(receiver)receiver.energy=Math.min(receiver.energyNeeded,receiver.energy+number('S05','energy'));
+ if(receiver&&!blocksEnergy(receiver,battle.elapsed))receiver.energy=Math.min(receiver.energyNeeded,receiver.energy+number('S05','energy'));
 }
 export function onAugmentBasic(battle:Battle,source:CombatUnit):void {
  if(!(battle.augmentsByPlayer?.[source.playerId]||[]).includes('B08'))return;
  const attacks=(source.itemStacks['augment:B08']||0)+1;source.itemStacks['augment:B08']=attacks;
- if(attacks%number('B08','every')===0)source.energy=Math.min(source.energyNeeded,source.energy+number('B08','energy'));
+ if(attacks%number('B08','every')===0)(!blocksEnergy(source,battle.elapsed) && (source.energy=Math.min(source.energyNeeded,source.energy+number('B08','energy'))));
 }
 export function onAugmentDamage(battle:Battle,target:CombatUnit):void {
  const ids=battle.augmentsByPlayer?.[target.playerId]||[];

@@ -314,7 +314,11 @@ function finishDrag(event: PointerEvent): void {
   hud.render(state, view);
 }
 
+let draggingMime:{unitId:string;index:number}|null=null;
 canvas.addEventListener('pointerdown', event => {
+  const pillar=arena.pickMimePillar(event.clientX,event.clientY);
+  if(pillar&&event.button===0){draggingMime=pillar;canvas.style.cursor='grabbing';event.preventDefault();return;}
+
   if (event.button !== 0) return;
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
   if (id && (view.inventoryItemId || view.selectedBall)) {
@@ -330,13 +334,21 @@ canvas.addEventListener('pointerdown', event => {
   }
 });
 document.addEventListener('pointermove', event => {
+  if(draggingMime){const p=arena.pickEnemyHex(event.clientX,event.clientY);arena.previewPillar(p?{...draggingMime,...p}:null);canvas.style.cursor='grabbing';return;}
   if (view.dragId) {
     updateGhost(event);
     const sell = document.elementFromPoint(event.clientX, event.clientY)?.closest('#sellOverlay');
     document.getElementById('sellOverlay')?.classList.toggle('hover', !!sell);
   }
 });
+document.addEventListener('pointerup',event=>{
+  if(!draggingMime)return;
+  const hex=arena.pickEnemyHex(event.clientX,event.clientY);
+  if(hex)send({kind:'mime-pillar',unitId:draggingMime.unitId,index:draggingMime.index,...hex});
+  draggingMime=null;arena.previewPillar(null);canvas.style.cursor='';
+});
 document.addEventListener('pointerup', finishDrag);
+document.addEventListener('pointercancel',()=>{draggingMime=null;arena.previewPillar(null);canvas.style.cursor='';});
 document.addEventListener('pointercancel', clearDrag);
 
 canvas.addEventListener('dblclick', event => {
@@ -377,3 +389,27 @@ document.addEventListener('keydown', event => {
     view.selectedId = null; view.inventoryItemId=null;view.selectedBall=null;watch('p0'); hud.render(state, view);
   }
 });
+
+// Portal for attack descriptions: never changes inspector height or gets clipped by its scroll viewport.
+const abilityFloat=document.createElement('div');
+abilityFloat.className='floating-ability-tooltip hidden';abilityFloat.setAttribute('role','tooltip');document.body.append(abilityFloat);
+let abilityPinned=false;
+function showAbility(button:HTMLElement):void {
+  const source=button.parentElement?.querySelector<HTMLElement>('.inspector-ability-tooltip');
+  if(!source)return;
+  abilityFloat.innerHTML=source.innerHTML;abilityFloat.classList.remove('hidden');
+  const rect=button.getBoundingClientRect();const bounds=abilityFloat.getBoundingClientRect();
+  const width=Math.min(370,window.innerWidth-24);abilityFloat.style.width=`${Math.min(width,Math.max(235,rect.width+90))}px`;
+  const w=abilityFloat.getBoundingClientRect().width,h=abilityFloat.getBoundingClientRect().height;
+  abilityFloat.style.left=`${Math.max(12,Math.min(window.innerWidth-w-12,rect.right-w))}px`;
+  abilityFloat.style.top=`${Math.max(12,Math.min(window.innerHeight-h-12,rect.top-h-8>12?rect.top-h-8:rect.bottom+8))}px`;
+}
+function hideAbility():void {if(!abilityPinned)abilityFloat.classList.add('hidden');}
+document.addEventListener('mouseover',e=>{const button=(e.target as HTMLElement).closest<HTMLElement>('.inspector-ability');if(button&&!abilityPinned)showAbility(button);});
+document.addEventListener('mouseout',e=>{if((e.target as HTMLElement).closest('.inspector-ability'))hideAbility();});
+document.addEventListener('click',e=>{
+ const button=(e.target as HTMLElement).closest<HTMLElement>('.inspector-ability');
+ if(button){abilityPinned=!abilityPinned;if(abilityPinned)showAbility(button);else abilityFloat.classList.add('hidden');}
+ else {abilityPinned=false;abilityFloat.classList.add('hidden');}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){abilityPinned=false;abilityFloat.classList.add('hidden');}});

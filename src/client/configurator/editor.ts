@@ -1,9 +1,10 @@
 import './editor.css';
+import {itemRecipeSprite,itemComponentSprite} from '../item-sprites';
 import { changedFiles,documentOf,filenames,modifications,originalValue,restore,restorePrefix,setValue,valueOf,validate,outputJSON,type PathPart } from './state';
 import { zipFiles } from './zip';
 import { PhysicalPreview } from './preview';
 import { liveDescription, synchronizeDescriptions } from './descriptions';
-import type { Family } from '../../../server/types';
+import type { Family,ItemColor } from '../../../server/types';
 
 const safe=(value:unknown)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 const pt:Record<string,string>={
@@ -52,7 +53,7 @@ const decode=(code:string):[string,PathPart[]]=>{const [file,...path]=JSON.parse
 const get=(file:string,path:PathPart[])=>valueOf(file,path);
 const tabs=[
  ['pokemon','◈','POKÉMON'],['shop','◉','LOJA'],['augments','✦','AUGMENTS'],['items','◇','ITENS'],
- ['synergies','⬟','SINERGIAS'],['loot','✧','ESPÓLIOS'],['rules','⚙','REGRAS E ECONOMIA'],
+ ['effects','✺','EFEITOS'],['synergies','⬟','SINERGIAS'],['loot','✧','ESPÓLIOS'],['rules','⚙','REGRAS E ECONOMIA'],
  ['phases','◷','FASES'],['ranges','⌖','ALCANCES'],['other','⋯','OUTROS']
 ] as const;
 type Tab=typeof tabs[number][0];
@@ -145,7 +146,7 @@ export class Configurator {
   this.el.querySelector<HTMLElement>('.cfg-count')!.textContent=`${changed} ${changed===1?'ALTERAÇÃO':'ALTERAÇÕES'}`;
   this.el.querySelector<HTMLElement>('.cfg-nav')!.innerHTML=tabs.map(([name,icon,title])=>`<button data-cfg-tab="${name}" class="${name===this.tab?'active':''}"><b>${icon}</b>${title}<span>${changedFiles().length && this.tab===name?'•':''}</span></button>`).join('');
   target.innerHTML= this.tab==='pokemon'?this.pokemon():this.tab==='shop'?this.shop():this.tab==='augments'?this.augments():
-   this.tab==='items'?this.items():this.tab==='synergies'?this.synergies():this.tab==='loot'?recursive('espolios.json','ESPÓLIOS E RECOMPENSAS'):
+   this.tab==='items'?this.items():this.tab==='effects'?this.effects():this.tab==='synergies'?this.synergies():this.tab==='loot'?recursive('espolios.json','ESPÓLIOS E RECOMPENSAS'):
    this.tab==='rules'?recursive('regras_gerais.json','REGRAS GERAIS E ECONOMIA',Object.keys(documentOf('regras_gerais.json')).filter(k=>k!=='shopOddsByLevel')):
    this.tab==='phases'?recursive('fases.json','CAPÍTULOS, FASES E ADVERSÁRIOS'):
    this.tab==='ranges'?recursive('alcances.json','CLASSES DE ALCANCE'):
@@ -222,10 +223,22 @@ export class Configurator {
   const cfg=documentOf('itens.json');
   const recipes=Object.keys(cfg.recipes||{});
   const key=recipes.includes(this.selectedItem)?this.selectedItem:recipes[0];this.selectedItem=key||'';
-  return section('COMPONENTES E REGRAS DE EQUIPAMENTOS',`<div class="cfg-fields">${fields('itens.json',['components'],cfg.components)}</div><div class="cfg-fields">${fields('itens.json',['defaults'],cfg.defaults)}</div>`)+
-   `<div class="cfg-split"><div class="cfg-tile-list">${recipes.map(recipe=>`<button data-cfg-item="${safe(recipe)}" class="cfg-augment-tile ${key===recipe?'active':''}"><b>◇</b><span><small>RECEITA · ${safe(recipe)}</small><strong>${safe(cfg.recipes[recipe].effect)}</strong></span></button>`).join('')}</div>
+  return section('COMPONENTES E REGRAS DE EQUIPAMENTOS',`<div class="cfg-component-sprites">${Object.keys(cfg.components).map(color=>`<figure><img src="${import.meta.env.BASE_URL}${itemComponentSprite(color as ItemColor).replace(/^\//,'')}" alt=""/><figcaption>${safe(cfg.components[color].name)}</figcaption></figure>`).join('')}</div><div class="cfg-fields">${fields('itens.json',['components'],cfg.components)}</div><div class="cfg-fields">${fields('itens.json',['defaults'],cfg.defaults)}</div>`)+
+   `<div class="cfg-split"><div class="cfg-tile-list">${recipes.map(recipe=>`<button data-cfg-item="${safe(recipe)}" class="cfg-augment-tile ${key===recipe?'active':''}"><b><img class="cfg-item-sprite" src="${import.meta.env.BASE_URL}${itemRecipeSprite(recipe).replace(/^\//,'')}" alt="" loading="lazy"></b><span><small>RECEITA · ${safe(recipe)}</small><strong>${safe(cfg.recipes[recipe].effect)}</strong></span></button>`).join('')}</div>
     ${section('ITEM · '+key,`<p class="cfg-context">${safe(liveDescription('itens.json',['recipes',key]))}</p><div class="cfg-fields">${fields('itens.json',['recipes',key],cfg.recipes[key])}</div>`,'O equipamento permanece no mundo físico, não no HUD.')}</div>`+
    recursive('itens.json','LIMITES DE ITENS',['maxSlots','limits','combatIntroSeconds','inventorySlots']);
+ }
+ private effects():string {
+  const cfg=documentOf('efeitos.json');
+  const labels:Record<string,string>={poisoned:'ENVENENADO',burning:'QUEIMANDO',frozen:'CONGELADO',paralyzed:'PARALISADO',sleeping:'DORMINDO'};
+  const help:Record<string,string>={poisoned:'Veneno causa dano periódico.',burning:'Queimadura causa dano periódico e reduz toda cura recebida.',
+    frozen:'Impossibilita ações e energia, concedendo Durabilidade.',paralyzed:'Impossibilita ações, mas permite energia.',
+    sleeping:'Impossibilita ações e energia. Golpe regular físico encerra sono.'};
+  return Object.entries(cfg).map(([key,values])=>section(labels[key]||key,
+    `<p class="cfg-context">${safe(help[key]||'')}</p><div class="cfg-fields">${fields('efeitos.json',[key],values)}</div>
+    <div class="cfg-status-reapply"><label>Reaplicação</label>${choose('efeitos.json',[key,'reapply'],[
+      ['stronger_refresh','Efeito mais forte e renova duração'],['refresh','Renovar duração'],['longer','Manter a duração maior']])}</div>`,
+    'Parâmetros oficiais da simulação. Configurações particulares das habilidades continuam em Ataques.')).join('');
  }
  private synergies():string{
   const cfg=documentOf('sinergias.json');
@@ -253,7 +266,7 @@ export class Configurator {
   if(el.matches('[data-cfg-rarity]')){this.rarity=el.value;this.render();return;}
   if(el.matches('[data-cfg-type]')){this.type=el.value;this.render();return;}
   if(el.matches('[data-cfg-shoponly]')){this.onlyShop=el.checked;this.render();return;}
-  if(el.matches('select[data-cfg-path]')){const [file,path]=decode(el.dataset.cfgPath!);setValue(file,path,Number(el.value));}
+  if(el.matches('select[data-cfg-path]')){const [file,path]=decode(el.dataset.cfgPath!);const previous=get(file,path);setValue(file,path,typeof previous==='number'?Number(el.value):el.value);}
   if(el.matches('[data-cfg-path]'))this.render();
  }
  private onClick(event:Event):void {
@@ -298,7 +311,7 @@ export class Configurator {
   });
   this.el.querySelector('[data-cfg-restore-section]')!.addEventListener('click',()=>{
    if(!confirm('Restaurar os valores da seção atual?'))return;
-   const files:Record<Tab,string[]>={pokemon:['pokemons.json','ataques.json'],shop:[],augments:['augments.json'],items:['itens.json'],synergies:['sinergias.json'],loot:['espolios.json'],rules:[],phases:['fases.json'],ranges:['alcances.json'],other:[]};
+   const files:Record<Tab,string[]>={pokemon:['pokemons.json','ataques.json'],shop:[],augments:['augments.json'],items:['itens.json'],effects:['efeitos.json'],synergies:['sinergias.json'],loot:['espolios.json'],rules:[],phases:['fases.json'],ranges:['alcances.json'],other:[]};
    for(const file of files[this.tab])restore(file);
    const ruleKeys=Object.keys(documentOf('regras_gerais.json'));
    if(this.tab==='shop')for(const key of ruleKeys.filter(k=>['shopOddsByLevel','rerollCost','shopSize','typeShopBias'].includes(k)))restorePrefix('regras_gerais.json',[key]);

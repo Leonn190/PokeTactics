@@ -22,7 +22,29 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
       if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();
-      if(fx.kind==='surf-wave'){
+      if(fx.kind==='lullaby-note'){
+        const radius=cellScale*(.7+Math.max(0,fx.value)*.15);
+        ctx.globalAlpha=.48+.19*Math.sin(time*4);
+        for(let i=0;i<10;i++){
+          const a=i*PI2/10+time*.4,r=radius*(.35+((time*.14+i*.17)%1)*.75);
+          ctx.fillStyle=i%2?'#ffbce7':'#e4b4ff';ctx.font=`${Math.max(11,cellScale*.22)}px sans-serif`;
+          ctx.fillText('♪',from.x+Math.cos(a)*r,from.y-cellScale*.35+Math.sin(a)*r*.65);
+        }
+      } else if(fx.kind==='falling-star'){
+        const flight=Math.min(1,t);
+        const x=to.x,y=to.y-cellScale*(1.35*(1-flight)+.27);
+        ctx.shadowColor='#ffdb91';ctx.shadowBlur=18;ctx.strokeStyle='#ffe6a2';ctx.lineWidth=3;
+        ctx.globalAlpha=.9;
+        ctx.beginPath();ctx.moveTo(x-cellScale*.22,y-cellScale*.38);ctx.lineTo(x,y);ctx.stroke();
+        ctx.fillStyle='#fff5c8';ctx.beginPath();
+        for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?cellScale*.07:cellScale*.16;
+          if(i===0)ctx.moveTo(x+Math.cos(a)*r,y+Math.sin(a)*r);
+          else ctx.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);
+        }ctx.closePath();ctx.fill();
+      } else if(fx.kind==='wall-impact'){
+        ctx.strokeStyle='#e2b6ff';ctx.lineWidth=3*(1-t)+1;
+        ctx.globalAlpha=1-t;ctx.beginPath();ctx.arc(to.x,to.y-cellScale*.3,cellScale*(.1+.27*t),0,PI2);ctx.stroke();
+      } else if(fx.kind==='surf-wave'){
         ctx.globalAlpha=Math.min(.87, Math.max(.1,(1-t)*1.4));
         ctx.translate(from.x,from.y);ctx.rotate(Math.atan2(to.y-from.y,to.x-from.x));
         const radius=Math.max(.35,fx.value)*cellScale;

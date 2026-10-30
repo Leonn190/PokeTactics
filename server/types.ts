@@ -26,6 +26,7 @@ export interface Pokemon {
   iv: Stats;
   position: UnitPosition;
   equipment?: EquippedItem[];
+  mimePillars?: Array<{col:number;row:number}>;
   acquiredChapter?: number;
   appliedAugments?: string[];
 }
@@ -85,7 +86,7 @@ export interface FearState { fromX: number; fromY: number; toX: number; toY: num
 export interface DigState { phase: 'sink' | 'travel' | 'rise'; time: number; duration: number; fromX: number; fromY: number; toX: number; toY: number; targetId: string; trailClock: number }
 export interface StormState { x: number; y: number; nextWave: number; waves: number; targetIds: string[]; elapsed: number }
 export interface TimedStatEffect { sourceId: string; stat: 'atk' | 'def' | 'spa' | 'spd' | 'speed'; amount: number; until: number }
-export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' | 'item' | 'synergy' | 'surf' }
+export interface TimedBarrier { sourceId: string; hp: number; until: number; kind: 'eevee' | 'mew' | 'item' | 'synergy' | 'surf' | 'star-ward'; instanceId?: string }
 
 /** Snapshot-owned combat modifiers; never written back to the Pokemon roster. */
 export interface SynergyUnitState {
@@ -109,8 +110,15 @@ export interface SynergyUnitState {
   poisonHealReduction?: number;
 }
 
+export type StatusKey = 'poisoned'|'burning'|'frozen'|'paralyzed'|'sleeping';
+export interface StatusInstance {sourceId:string; until:number; started:number; instanceId:string; intensity?:number}
+export interface ArenaObstacle {
+ id:string; ownerId:string; sourceId:string; kind:'pillar'|'wall'; x:number; y:number;
+ // Walls are segments between two positions on the physical hex grid.
+ ax:number;ay:number;bx:number;by:number; createdAt:number;until:number;
+}
 export interface OrbitFlame {
- slot: number; angle: number; impactsLeft: number; bornAt: number;
+ slot: number; angle: number; impactsLeft: number; maxImpacts?: number; bornAt: number;
  // Hit registry is only used by the simulation (also serializable across snapshots).
  contacts: string[]; lastHit: Record<string,number>;
 }
@@ -165,6 +173,11 @@ export interface CombatUnit {
   ghost: GhostState | null;
   ghostCasts: number;
   orbitFlames: OrbitFlame[];
+  statuses: Partial<Record<StatusKey,StatusInstance>>;
+  lullaby: {until:number;instanceId:string;affected:string[]} | null;
+  starWard: {instanceId:string;nextStar:number} | null;
+  mimePillars?: Array<{col:number;row:number}>;
+  obstacleRoute?: {version:number;targetId:string;targetX:number;targetY:number;points:Array<{x:number;y:number}>;expires:number};
   fear: FearState | null;
   storm: StormState | null;
   psychicImbuement: PsychicImbuement | null;
@@ -205,7 +218,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact';
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;
@@ -216,6 +229,7 @@ export interface CombatEffect {
   piercing?: { sourceId: string; raw: number; attackType: Element; hitIds: string[] };
   wind?: { sourceId:string; raw:number; attackType:Element; dx:number; dy:number; speed:number;
     traveled:number; maxDistance:number; radius:number; hitIds:string[]; slowFactor:number; speedFactor:number; };
+  obstacleImpact?:boolean;
   pendingHit?: {
     sourceId: string;
     targetId: string;
@@ -263,6 +277,9 @@ export interface Battle {
   augmentsByPlayer?: Record<string,string[]>;
   augmentTimers?: Record<string,number>;
   knockupEvents: KnockupEvent[];
+  obstacles: ArenaObstacle[];
+  obstacleVersion?:number;
+  pillarsSpawned?:boolean;
 }
 
 export interface GoldDrop {
@@ -328,7 +345,8 @@ export type GameCommand =
   | { kind: 'equip-item'; itemId: string; unitId: string; ontoSlot?: number }
   | { kind: 'unequip-item'; unitId: string; slot: number }
   | { kind: 'use-ball'; ball: BallKind; unitId: string }
-  | { kind: 'move-trainer'; x: number; y: number };
+  | { kind: 'move-trainer'; x: number; y: number }
+  | { kind: 'mime-pillar'; unitId: string; index: number; col: number; row: number };
 
 export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' } | { type: 'watch'; playerId: string };
 export type ServerToClient = { type: 'snapshot'; snapshot: GameSnapshot } | { type: 'rejected'; reason: string };

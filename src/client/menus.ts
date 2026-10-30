@@ -62,6 +62,9 @@ export function moveDescription(move: MoveData): string {
     'hitmonlee-spin-kick':'50%: avança até uma casa e atinge todos ao redor com um chute giratório. 50%: recebe barreira e VEL baseadas em SpA; a próxima habilidade executa dois chutes consecutivos.',
     'lapras-surf':'Surfa por até duas casas na trajetória que atinge mais inimigos; ganha barreira por alvo ferido na primeira fase. A onda continua com metade do dano.',
     'ditto-transform':'Ao receber o primeiro ataque inimigo, copia a espécie, habilidade e atributos do atacante até seu nível +6. Retorna à forma original abaixo de 30% da Vida.',
+    'lullaby':'Canta continuamente, adormecendo uma vez por execução todos os inimigos ao redor. A duração aumenta com SpA.',
+    'star-ward':'Ganha um escudo rosa que invoca estrelas sobre o inimigo que mais causou dano até o escudo acabar.',
+    'mime-wall':'Cria duas paredes direcionais que bloqueiam os inimigos e fortalecem o próprio ataque regular.',
     'flame-orbit':'Invoca duas chamas que orbitam o corpo e queimam inimigos por contato. Enquanto houver chamas, recebe bônus de VEL, DEF e SpD.'
   };
   const conversion = move.conversion;

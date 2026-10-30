@@ -1,3 +1,4 @@
+import { blocksStep } from '../combat/obstacles';
 import type { Battle, CombatUnit } from '../types';
 import { collisionRadius } from '../data';
 
@@ -7,6 +8,7 @@ const solid = (unit:CombatUnit) => unit.hp>0 && !unit.ghost && !unit.dig && !uni
 /** Predict a safe next step without moving or mutating the other units. */
 export function clearStep(battle:Battle, unit:CombatUnit, x:number,y:number):boolean {
  const ownRadius=radius(unit);
+ if (blocksStep(battle,unit,x,y))return false;
  return !battle.units.some(other=>other!==unit && solid(other) &&
    (other.x-x)**2+(other.y-y)**2 < (radius(other)+ownRadius+.014)**2);
 }

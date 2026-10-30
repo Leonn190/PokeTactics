@@ -1,3 +1,5 @@
+import { firstObstacle, expireObstacles, summonPreparedPillars, summonWalls, routeAround } from '../combat/obstacles';
+import { active, apply as applyStatus, incapacitated, blocksEnergy, expire as expireStatus, wakeFromBasic, STATUS_RULES } from '../combat/statuses';
 import { beginCombatAugments, onAugmentBasic, onAugmentCast, onAugmentDamage, onAugmentDeath, tickCombatAugments } from './augments';
 import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gridXY, SPECIES } from '../data';
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
@@ -78,7 +80,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     energyNeeded: bossMew ? SPECIES.mew.bossEnergy! : stage.energy, range: (bossMew ? SPECIES.mew.bossRange! : stage.range) + equipment.filter(i=>i.recipe && i.recipe==='red+red').length * numberParam('longbow','range'),
     equipment, itemStacks:{},itemTimers:{regeneration:ITEMS.combatIntroSeconds+numberParam('regeneration','interval'),scaling_spa:ITEMS.combatIntroSeconds+numberParam('scaling_spa','interval'),burn_aura:ITEMS.combatIntroSeconds+numberParam('burn_aura','interval')},itemNow:0,hitSerial:0,focusCount:0,
     ...(bossMew ? { bossMove: SPECIES.mew.bossMove } : {}),
-    stats, cooldown: attackCooldown(stats.speed),
+    stats, mimePillars:pokemon.mimePillars?.map(p=>({...p})), cooldown: attackCooldown(stats.speed),
     attackClock: 0.5 + (col % 4) * 0.13,
     // Entra já voltado ao lado adversário, sem tocar a animação Rotate de 360°.
     // O Idle permanece animado inclusive durante a entrada das Pokébolas.
@@ -87,7 +89,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
-    dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
+    dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], statuses:{}, lullaby:null, starWard:null, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
     gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range + equipment.filter(i=>i.recipe==='red+red').length*numberParam('longbow','range'),energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
@@ -102,7 +104,7 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     playerA: players[0].id, playerB: players[1].id,
     participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
     units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi, kind === 'boss' && p.id.startsWith('bot:')))),
-    effects: [], knockupEvents: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
+    effects: [], obstacles:[], obstacleVersion:0, pillarsSpawned:false, knockupEvents: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
     benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
     traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)])),
     augmentsByPlayer: Object.fromEntries(players.map(p=>[p.id,[...(p.augments||[])]])),
@@ -124,6 +126,9 @@ function projectile(battle: Battle, caster: CombatUnit, target: CombatUnit,
   arrival: number, onHit?: 'drain' | 'burn' | 'slow' | 'poison', origin: CombatUnit = caster,
   moveId?: string, attackType?: Element, special?: NonNullable<CombatEffect['pendingHit']>['special']): void {
   effect(battle, origin, target, kind, 0);
+  const fx=battle.effects[battle.effects.length-1];
+  const obstructed=firstObstacle(battle,caster.playerId,origin.x,origin.y,target.x,target.y);
+  if(obstructed){fx.targetX=origin.x+(target.x-origin.x)*obstructed.t;fx.targetY=origin.y+(target.y-origin.y)*obstructed.t;fx.obstacleImpact=true;}
   battle.effects[battle.effects.length - 1].pendingHit = {
     sourceId: caster.id, targetId: target.id, raw, magical, charged, arrival, onHit, moveId, attackType, special
   };
@@ -261,7 +266,7 @@ function landProjectiles(battle: Battle, dt: number): void {
   for (const fx of battle.effects) {
     if (fx.pendingHit) {
       const movingTarget = battle.units.find(u => u.id === fx.pendingHit!.targetId && u.hp > 0);
-      if (movingTarget) { fx.targetX = movingTarget.x; fx.targetY = movingTarget.y; }
+      if (movingTarget && !fx.obstacleImpact && fx.kind!=='falling-star') { fx.targetX = movingTarget.x; fx.targetY = movingTarget.y; }
     }
     const oldTime = fx.time;
     fx.time += dt;
@@ -279,6 +284,9 @@ function landProjectiles(battle: Battle, dt: number): void {
         const traveled=Math.min(wind.maxDistance-wind.traveled,wind.speed*ratio*step);
         const px=fx.x,py=fx.y;
         fx.x+=wind.dx*traveled;fx.y+=wind.dy*traveled;wind.traveled+=traveled;
+        const stopped=firstObstacle(battle,caster.playerId,px,py,fx.x,fx.y,wind.radius*.6);
+        if(stopped){fx.x=px+(fx.x-px)*stopped.t;fx.y=py+(fx.y-py)*stopped.t;fx.time=fx.duration;
+          effect(battle,caster,{x:fx.x,y:fx.y},'wall-impact',0);break;}
         for(const unit of battle.units){
           if(unit.hp<=0||unit.playerId===caster.playerId)continue;
           if(segmentDistanceSq(px,py,fx.x,fx.y,unit.x,unit.y)>wind.radius**2)continue;
@@ -299,10 +307,14 @@ function landProjectiles(battle: Battle, dt: number): void {
       const a = Math.min(1, oldTime / fx.duration), b = Math.min(1, fx.time / fx.duration);
       if (a >= 1) continue;
       const ax = fx.x + (fx.targetX - fx.x) * a, ay = fx.y + (fx.targetY - fx.y) * a;
-      const bx = fx.x + (fx.targetX - fx.x) * b, by = fx.y + (fx.targetY - fx.y) * b;
+      let bx = fx.x + (fx.targetX - fx.x) * b, by = fx.y + (fx.targetY - fx.y) * b;
+      const stopped=firstObstacle(battle,caster.playerId,ax,ay,bx,by);
+      if(stopped){bx=ax+(bx-ax)*stopped.t;by=ay+(by-ay)*stopped.t;
+        fx.time=fx.duration;effect(battle,caster,{x:bx,y:by},'wall-impact',0);}
       for (const target of battle.units) {
         if (target.playerId === caster.playerId || !isTargetable(target) || hit.hitIds.includes(target.id)) continue;
         if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > .43 ** 2) continue;
+        if(firstObstacle(battle,caster.playerId,ax,ay,target.x,target.y))continue;
         hit.hitIds.push(target.id);
         deal(battle, caster, target, hit.raw, true, true, hit.attackType);
       }
@@ -314,6 +326,7 @@ function landProjectiles(battle: Battle, dt: number): void {
     const caster = battle.units.find(u => u.id === hit.sourceId);
     const target = battle.units.find(u => u.id === hit.targetId);
     if (!caster || !target) continue;
+    if(fx.obstacleImpact){effect(battle,caster,{x:fx.targetX,y:fx.targetY},'wall-impact',0);continue;}
     const move = ATTACKS.moves[hit.moveId || moveIdOf(caster)];
     if (hit.special === 'mew-blessing') {
       // A projectile aimed at a defeated/buried ally dissipates safely instead of healing a different unit off-screen.
@@ -364,7 +377,17 @@ function landProjectiles(battle: Battle, dt: number): void {
       continue;
     }
     if (!isTargetable(target)) continue;
+    if (fx.kind!=='falling-star'){
+      const obstacle=firstObstacle(battle,caster.playerId,caster.x,caster.y,target.x,target.y);
+      if(obstacle){effect(battle,caster,{x:caster.x+(target.x-caster.x)*obstacle.t,y:caster.y+(target.y-caster.y)*obstacle.t},'wall-impact',0);continue;}
+    }
+    if (fx.kind==='falling-star' && (!caster.starWard || !caster.barriers.some(b=>b.kind==='star-ward'&&b.instanceId===caster.starWard!.instanceId&&b.hp>0))) continue;
     deal(battle, caster, target, hit.raw, hit.magical, hit.charged, hit.attackType);
+    if(fx.kind!=='falling-star' && !hit.charged && caster.family==='mr-mime' && target.hp>0){
+      const allWalls=battle.obstacles.filter(o=>o.kind==='wall'&&o.sourceId===caster.id&&o.until>battle.elapsed);
+      const special=firstObstacle({...battle,obstacles:allWalls},'opponent',caster.x,caster.y,target.x,target.y);
+      if(special){const wall=ATTACKS.moves['mime-wall'];deal(battle,caster,target,stat(caster,'spa')*(wall.wallBonusRatio??.48),true,false,'psychic');effect(battle,caster,target,'psychic-spark',0);}
+    }
     if (hit.special === 'dragon-breath') applyAttackSlow(battle,target,move.slowDuration || 2);
     // Additional psychic component is strictly tied to landing a regular basic.
     if (!hit.charged && target.hp > 0 && caster.psychicImbuement && caster.psychicImbuement.until > battle.elapsed) {
@@ -450,7 +473,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   target.metrics.blocked += blockedByStat;
   if (magical) target.metrics.blockedSpecial += blockedByStat;
   else target.metrics.blockedPhysical += blockedByStat;
-  let damage = afterDefense * (1-defender.durability);
+  let damage = afterDefense * (1-Math.min(0.75, defender.durability+(active(target,'frozen',battle.elapsed)?STATUS_RULES.frozen.durabilityBonus:0)));
   if (magical && effectCount(target,'magic_guard')) damage*=1-numberParam('magic_guard','specialReduction');
   // Shield bonus applies to shield HP ONLY. Spillover into ordinary life
   // conserves the unamplified portion of the attack rather than multiplying it.
@@ -488,13 +511,14 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   // Exactly one energy point per *effective damage event*, not per damage amount.
   // Barrier absorption counts; a fully prevented hit does not. No further events are emitted.
   if (damage + absorbedTotal > 0)
-    target.energy = Math.min(target.energyNeeded,target.energy+1);
+    if (!blocksEnergy(target,battle.elapsed)) target.energy = Math.min(target.energyNeeded,target.energy+1);
   if (damage > 0) floatingDamage(battle, target, damage, magical ? 'special' : 'physical');
   target.flash = 0.19;
   if (damage > target.maxHp * .2 && target.hp > 0 && !target.leap && !target.combo) animate(target, 'Hurt', .28, target.spinTime > 0 ? 'Withdraw' : undefined);
   onSynergyHit(battle,source,target,hpBefore,damage+absorbedTotal,mode==='normal', {deal,heal,effect,stat});
   onAugmentDamage(battle,target);
   if(target.hp<=0 && !onSynergyDeath(battle,source,target,{deal,heal,effect,stat}))knockout(battle,source,target,damage);
+  if (!magical && !charged && mode==='normal' && damage+absorbedTotal>0) wakeFromBasic(target);
   const actual=damage+absorbedTotal;
   if (mode==='normal' && actual>0) {
     if (attacker.vampirism>0 && source.hp>0) heal(battle,source,damage*attacker.vampirism,source);
@@ -546,7 +570,7 @@ function changeDittoShape(battle:Battle,unit:CombatUnit,family:CombatUnit['famil
  unit.energy=Math.min(unit.energy,unit.energyNeeded);
  unit.combo=null;unit.leap=null;unit.charge=null;unit.surf=null;unit.gasCharge=null;unit.support=null;
  unit.pendingPollen=null;unit.spinTime=0;unit.spinReduction=0;unit.hitmonAction=null;unit.ghost=null;unit.dig=null;
- unit.animation=null;unit.refractionUntil=0;unit.orbitFlames=[];unit.hitmonGuaranteed=false;
+ unit.animation=null;unit.refractionUntil=0;unit.orbitFlames=[];unit.lullaby=null;unit.starWard=null;unit.statuses={};unit.hitmonGuaranteed=false;
  effect(battle,unit,unit,'transform',0);
 }
 function transformDitto(battle:Battle,ditto:CombatUnit,attacker:CombatUnit):void {
@@ -731,6 +755,27 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='mime-wall'){
+    animate(source,stage.chargedAnimation,.5);summonWalls(battle,source,move.wallDuration??3);
+    return;
+  }
+  if(move.effect==='lullaby') {
+    const span=Math.min(move.durationMax??6,(move.durationBaseByStage?.[source.stage]??2.2)+s*(move.durationSpaRatio??0));
+    source.lullaby={until:battle.elapsed+span,instanceId:`${battle.id}:song:${source.id}:${source.metrics.casts}`,affected:[]};
+    animate(source,'Withdraw',span);
+    effect(battle,source,source,'lullaby-note',span);
+    battle.effects[battle.effects.length-1].duration=span;
+    return;
+  }
+  if(move.effect==='star-ward'){
+    const id=`${battle.id}:star:${source.id}:${source.metrics.casts}`;
+    source.barriers=source.barriers.filter(b=>b.kind!=='star-ward');
+    const hp=((move.shieldBaseByStage?.[source.stage]??95)+s*(move.shieldSpaRatio??0))*shieldMultiplier(source);
+    source.barriers.push({sourceId:source.id,kind:'star-ward',instanceId:id,hp,until:battle.elapsed+90});
+    source.starWard={instanceId:id,nextStar:battle.elapsed+(move.starInterval??.75)};
+    animate(source,stage.chargedAnimation,.55);effect(battle,source,source,'shield',hp);
+    return;
+  }
   if(move.effect==='flame-orbit'){
     animate(source,stage.chargedAnimation,.5);
     const count=Math.max(1,Math.min(4,Math.floor(move.orbCount??2)));
@@ -738,12 +783,12 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     // Recast restores missing orbs; existing orbs gain one charge up to the original cap.
     for(let i=0;i<count;i++){
       const existing=source.orbitFlames.find(orb=>orb.slot===i);
-      if(existing){existing.impactsLeft=Math.min(max,existing.impactsLeft+1);continue;}
+      if(existing){existing.impactsLeft=Math.min(max,existing.impactsLeft+1);existing.maxImpacts=max;continue;}
       // Slots are persistent. When one orb runs out, replacement must remain
       // diametrically opposite the survivor rather than copy its angle.
       const anchor=source.orbitFlames[0];
       const angle=anchor ? anchor.angle+(i-anchor.slot)*Math.PI*2/count : Math.PI*2*i/count;
-      source.orbitFlames.push({slot:i,angle,impactsLeft:max,bornAt:battle.elapsed,contacts:[],lastHit:{}});
+      source.orbitFlames.push({slot:i,angle,impactsLeft:max,maxImpacts:max,bornAt:battle.elapsed,contacts:[],lastHit:{}});
     }
     effect(battle,source,source,'flame',0);
     return;
@@ -1531,10 +1576,13 @@ function resolve(battle: Battle): void {
     return score(b) - score(a) || battle.participants.indexOf(a) - battle.participants.indexOf(b);
   });
   battle.resolved = true;
+  battle.obstacles=[];battle.obstacleVersion=(battle.obstacleVersion||0)+1;
+  battle.effects=battle.effects.filter(fx=>fx.kind!=='lullaby-note'&&fx.kind!=='falling-star');
   battle.winner = battle.rankings[0] || null;
   battle.loser = battle.rankings[battle.rankings.length - 1] || null;
   for (const unit of battle.units) {
     if (unit.hp <= 0) continue;
+    unit.orbitFlames=[];unit.statuses={};unit.lullaby=null;unit.starWard=null;
     unit.moving = false;
     unit.spinTime = 0;
     unit.pendingPollen = null;
@@ -1581,11 +1629,45 @@ export function tickBattle(battle: Battle, dt: number): void {
   battle.introElapsed += dt;
   // O treinador lança as Pokébolas antes de começar a luta.
   if (battle.introElapsed < ITEMS.combatIntroSeconds) return;
+  summonPreparedPillars(battle,deal);
+  expireObstacles(battle);
   tickSynergies(battle,dt,{deal,heal,effect,stat});
   tickCombatAugments(battle,heal,effect);
   // Periodic item effects belong to simulation time and are deterministic.
   for (const unit of battle.units) {
     unit.itemNow=battle.elapsed;
+    expireStatus(unit,battle.elapsed);
+    if(unit.hp<=0){unit.lullaby=null;unit.starWard=null;unit.orbitFlames.length=0;battle.effects=battle.effects.filter(fx=>fx.kind!=='lullaby-note'||fx.sourceId!==unit.id);continue;}
+    const singing=unit.lullaby;
+    if(singing){
+      if(battle.elapsed>=singing.until||incapacitated(unit,battle.elapsed)){unit.lullaby=null;unit.animation=null;battle.effects=battle.effects.filter(fx=>fx.kind!=='lullaby-note'||fx.sourceId!==unit.id);}
+      else {
+        const song=ATTACKS.moves[moveIdOf(unit)];
+        const radius=song.radiusByStage?.[unit.stage]??1.55;
+        for(const foe of battle.units){
+          if(foe.playerId===unit.playerId||foe.hp<=0||distance(foe,unit)>radius||singing.affected.includes(foe.id))continue;
+          singing.affected.push(foe.id); // one sleep attempt per cast, no re-sleep on physical wake
+          applyStatus(battle,foe,'sleeping',unit,song.sleepSeconds??1.15,`${singing.instanceId}:${foe.id}`);
+        }
+      }
+    }
+    const ward=unit.starWard;
+    if(ward){
+      if(!unit.barriers.some(b=>b.kind==='star-ward' && b.instanceId===ward.instanceId && b.hp>0))unit.starWard=null;
+      else if(battle.elapsed>=ward.nextStar){
+        const move=ATTACKS.moves[moveIdOf(unit)];
+        const foes=battle.units.filter(u=>u.hp>0 && u.playerId!==unit.playerId).sort((a,b)=>b.metrics.dealt-a.metrics.dealt||a.id.localeCompare(b.id));
+        if(foes[0]){
+          const target=foes[0];
+          const fall=move.starFallSeconds??.38;
+          battle.effects.push({id:`${ward.instanceId}:${ward.nextStar}`,sourceId:unit.id,targetId:target.id,
+            kind:'falling-star',family:unit.family,x:target.x,y:target.y-1.35,targetX:target.x,targetY:target.y,
+            time:0,duration:fall,value:0,pendingHit:{sourceId:unit.id,targetId:target.id,raw:(move.starBaseByStage?.[unit.stage]??18)+stat(unit,'spa')*move.specialRatio,magical:true,charged:true,arrival:1,attackType:'fairy'}});
+        }
+        ward.nextStar+=move.starInterval??.75;
+      }
+    }
+
     unit.controlImmune=effectCount(unit,'opening_immunity')>0 && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration');
     if (unit.hp<=0) continue;
     const enemies=battle.units.filter(e=>e.playerId!==unit.playerId && e.hp>0);
@@ -1683,6 +1765,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.hp <= 0) continue;
     unit.stunTime = Math.max(0, unit.stunUntil - battle.elapsed);
     unit.knockUpTime = Math.max(0, unit.knockUpUntil - battle.elapsed);
+    if (incapacitated(unit,battle.elapsed)||unit.lullaby){unit.moving=false;continue;}
     if (unit.fear) { fearTick(unit,dt); continue; }
     if (unit.ghost) { ghostTick(battle,unit,dt); continue; }
     if (unit.dig) { digTick(battle,unit,dt); continue; }
@@ -1751,11 +1834,16 @@ export function tickBattle(battle: Battle, dt: number): void {
       unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);
       continue;
     }
-    if (!basicInRange(unit,target,battle.elapsed)) {
+    const obstruction=firstObstacle(battle,unit.playerId,unit.x,unit.y,target.x,target.y);
+    if (!basicInRange(unit,target,battle.elapsed) || obstruction) {
       const reach=basicApproachDistance(unit,target,battle.elapsed);
       let travel=Math.min(Math.max(0,d-reach),dt*(.68+stat(unit,'speed')/180)*(unit.slow?.65:1));
       const bounds=arenaBoundary(battle);
-      const dx=(target.x-unit.x)/d,dy=(target.y-unit.y)/d;
+      const waypoint=obstruction ? routeAround(battle,unit,target) : null;
+      const moveTarget=waypoint||target;
+      const movingDistance=Math.hypot(moveTarget.x-unit.x,moveTarget.y-unit.y)||.001;
+      if(waypoint)travel=Math.min(dt*(.68+stat(unit,'speed')/180)*(unit.slow?.65:1),movingDistance);
+      const dx=(moveTarget.x-unit.x)/movingDistance,dy=(moveTarget.y-unit.y)/movingDistance;
       // Local steering around nearby units; never move into another body.
       // Stable order + deterministic angles keeps replays identical across clients.
       let next:{x:number;y:number}|null=null;
@@ -1806,7 +1894,7 @@ export function tickBattle(battle: Battle, dt: number): void {
         projectile(battle,unit,target,'water',unit.synergy.splashBonus,true,false,ranged?ANIMATIONS.projectilesByType[stage.elements[0]].arrival:.35);
         unit.synergy.splashBonus=0;
       }
-      unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain + (effectCount(unit,'bonus_energy') ? numberParam('bonus_energy','energy') : 0));
+      if (!blocksEnergy(unit,battle.elapsed)) unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain + (effectCount(unit,'bonus_energy') ? numberParam('bonus_energy','energy') : 0));
       onAugmentBasic(battle,unit);
       bumpStack(unit,'guinsoo'); bumpStack(unit,'titan');
     }

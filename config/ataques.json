@@ -804,6 +804,51 @@
       "specialRatio": 0,
       "levelBonusCap": 6,
       "revertHealthRatio": 0.3
+    },
+    "lullaby": {
+      "name": "Canção de Ninar",
+      "effect": "lullaby",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "durationBaseByStage": [
+        2.2,
+        3.1
+      ],
+      "durationSpaRatio": 0.013,
+      "durationMax": 6,
+      "radiusByStage": [
+        1.55,
+        2.2
+      ],
+      "sleepSeconds": 1.15
+    },
+    "star-ward": {
+      "name": "Proteção Estelar",
+      "effect": "star-ward",
+      "baseDamage": 0,
+      "specialRatio": 0.48,
+      "shieldBaseByStage": [
+        95,
+        165
+      ],
+      "shieldSpaRatio": 1.05,
+      "starBaseByStage": [
+        18,
+        36
+      ],
+      "starInterval": 0.75,
+      "starFallSeconds": 0.38
+    },
+    "mime-wall": {
+      "name": "Paredes Mímicas",
+      "effect": "mime-wall",
+      "baseDamage": 0,
+      "specialRatio": 0.43,
+      "pillarDamageBase": 25,
+      "pillarSpaRatio": 0.25,
+      "pillarDuration": 5,
+      "wallDuration": 3,
+      "wallBonusRatio": 0.48
     }
   }
 }
