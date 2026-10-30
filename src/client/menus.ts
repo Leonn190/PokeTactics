@@ -1,4 +1,4 @@
-import { Configurator } from './configurator/editor';
+import type { Configurator } from './configurator/editor';
 import { ATTACKS, ELEMENTS, getStageData, rangeLabel, RARITY_COLORS, SPECIES, evolutionCopies } from '../../server/data';
 import type { MoveData } from '../../server/data';
 import { previewAbility, previewBasic } from '../../server/damage-preview';
@@ -71,7 +71,7 @@ export function moveDescription(move: MoveData): string {
 }
 
 export class Menus {
-  private configurator: Configurator;
+  private configuratorLoading: Promise<Configurator> | null = null;
   private selected: Entry = entries[0];
   private filter: 'all' | 'shop' | 'legendary' = 'all';
   private queued = false;
@@ -82,9 +82,7 @@ export class Menus {
   constructor(private startMatch: () => void) {
     $('findMatchButton').addEventListener('click', () => this.queue());
     $('openRosterButton').addEventListener('click', () => this.showRoster());
-    this.configurator = new Configurator(()=>this.showHome());
-    this.configurator.attachGlobals();
-    $('openSettingsButton').addEventListener('click', () => this.configurator.requestAccess());
+    $('openSettingsButton').addEventListener('click', () => { void this.openConfigurator(); });
     $('rosterBack').addEventListener('click', () => this.showHome());
     $('cancelQueueButton').addEventListener('click', () => this.showHome());
     $('rosterSearch').addEventListener('input', () => this.renderList());
@@ -102,6 +100,26 @@ export class Menus {
       this.renderList(); this.renderDetails();
     });
     this.renderList(); this.renderDetails();
+  }
+
+  /** Do not download or initialize the V20 editor until it is requested. */
+  private async openConfigurator(): Promise<void> {
+    if (!this.configuratorLoading) {
+      this.configuratorLoading = import('./configurator/editor').then(({Configurator}) => {
+        const editor = new Configurator(() => this.showHome());
+        editor.attachGlobals();
+        return editor;
+      }).catch(error => {
+        this.configuratorLoading = null;
+        throw error;
+      });
+    }
+    try {
+      (await this.configuratorLoading).requestAccess();
+    } catch (error) {
+      console.error('Falha ao carregar o configurador:', error);
+      window.alert('Não foi possível abrir o configurador. Recarregue a página e tente novamente.');
+    }
   }
 
   private screen(name: 'home' | 'roster' | 'queue' | 'game'): void {
