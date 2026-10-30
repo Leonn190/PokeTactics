@@ -11,24 +11,36 @@ export class PhysicalPreview {
  private image=new Image();
  private path='';
  private options:PreviewOptions|null=null;
+ private backgroundGradient:CanvasGradient|null=null;
+ private backgroundSize='';
+ private onVisibilityChange=():void=>{
+  if(document.hidden){cancelAnimationFrame(this.frameId);this.frameId=0;}
+  else if(this.options && !this.frameId)this.frameId=requestAnimationFrame(this.draw);
+ };
  constructor(canvas:HTMLCanvasElement){this.canvas=canvas;this.ctx=canvas.getContext('2d')!;}
  show(options:PreviewOptions):void {
+  if(!this.options)document.addEventListener('visibilitychange',this.onVisibilityChange);
   this.options=options;
   const idle=PMD[String(options.dex)]?.Idle;
   const path=idle?`${import.meta.env.BASE_URL}sprite/${String(options.dex).padStart(4,'0')}/${idle.file}`:
     `${import.meta.env.BASE_URL}portrait/${String(options.dex).padStart(4,'0')}/Normal.png`;
   if(path!==this.path){this.path=path;this.image=new Image();this.image.src=path;}
-  if(!this.frameId)this.frameId=requestAnimationFrame(this.draw);
+  if(!this.frameId && !document.hidden)this.frameId=requestAnimationFrame(this.draw);
  }
- stop():void {cancelAnimationFrame(this.frameId);this.frameId=0;this.options=null;}
+ stop():void {cancelAnimationFrame(this.frameId);this.frameId=0;this.options=null;document.removeEventListener('visibilitychange',this.onVisibilityChange);}
  private draw=():void=>{
   if(!this.options){this.frameId=0;return;}
   const {family,stage,dex,size}=this.options;
   const ctx=this.ctx,w=this.canvas.width,h=this.canvas.height;
   const cx=w*.5,ground=h*.70;
   ctx.clearRect(0,0,w,h);ctx.fillStyle='#0d1c28';ctx.fillRect(0,0,w,h);
-  const grd=ctx.createRadialGradient(cx,ground,18,cx,ground,w*.47);
-  grd.addColorStop(0,'#38524f');grd.addColorStop(1,'#152633');ctx.fillStyle=grd;
+  const sizeKey=w+'x'+h;
+  if(!this.backgroundGradient || this.backgroundSize!==sizeKey){
+   const gradient=ctx.createRadialGradient(cx,ground,18,cx,ground,w*.47);
+   gradient.addColorStop(0,'#38524f');gradient.addColorStop(1,'#152633');
+   this.backgroundGradient=gradient;this.backgroundSize=sizeKey;
+  }
+  ctx.fillStyle=this.backgroundGradient;
   ctx.beginPath();ctx.ellipse(cx,ground,135,55,0,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle='#ffffff25';ctx.lineWidth=2;
   ctx.beginPath();ctx.moveTo(cx-61,ground-41);ctx.lineTo(cx+61,ground-41);ctx.lineTo(cx+85,ground+37);ctx.lineTo(cx-85,ground+37);ctx.closePath();ctx.stroke();
