@@ -64,3 +64,7 @@ Para detalhes de mudanças antigas, consulte o histórico de commits. Este READM
 O agendador `src/client/performance/frame-scheduler.ts` controla somente RAF. O módulo `src/client/audio.ts` concentra os efeitos sonoros; `src/client/player-settings.ts` cuida das preferências. A arena reaproveita buffers visuais em `src/client/arena.ts`; o Worker já efetua a clonagem estrutural ao transmitir snapshots.
 
 Siga `Organização.md` e `AGENTS.md` para localizar cada mecânica e preservar o isolamento `config` / `server` / `src`. Não existem suites de testes neste repositório.
+
+## V22.5 — correção de loja, itens e evoluções
+
+Cada compra confirma o identificador da oferta efetivamente exibida, evitando comprar outra espécie quando a loja muda antes da confirmação. Ofertas mudadas são redesenhadas assim que chegam no snapshot, sem esperar o intervalo regular do HUD. Itens e Pokébolas podem ser arrastados e soltos; a soltura inválida apenas devolve o item à mochila. As pendências de escolha de evolução de Scyther/Eevee também foram corrigidas.
