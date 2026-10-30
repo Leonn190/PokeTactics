@@ -21,6 +21,7 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
   const physical = (label: string, value: number) => entry(label, value, 'physical');
   const special = (label: string, value: number) => entry(label, value, 'special');
   switch (move.effect) {
+    case 'flame-orbit': return [special('DANO ESPECIAL POR CONTATO',move.baseDamage+s*move.specialRatio)];
     case 'hitmonchan-uppercut': return [physical('SOCO ASCENDENTE',move.baseDamage+a*(move.attackRatio||0))];
     case 'hitmonlee-spin-kick': return [physical('DANO POR CHUTE (ATÉ 2)',move.baseDamage+a*(move.attackRatio||0))];
     case 'star-refraction': return [special(`DANO POR PROJÉTIL (ATÉ ${Math.min(3,stage+2)} ALVOS)`,rawBasicDamage(s,ATTACKS.basic.offensiveRatio))];

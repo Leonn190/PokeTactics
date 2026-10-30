@@ -1,4 +1,4 @@
-import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, RULES } from '../../server/data';
+import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, RULES, ATTACKS, physicalSize, collisionRadius } from '../../server/data';
 import { FrameScheduler } from './performance/frame-scheduler';
 import { PerformanceProfiler } from './performance/profiler';
 import { SnapshotClock } from './animation/snapshot-clock';
@@ -40,7 +40,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy'] };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy']; orbitFlames?: CombatUnit['orbitFlames'] };
 const PMD = pmdManifest as Record<string, PmdEntry>;
 const PI2 = Math.PI * 2;
 const BENCH_Y = 4.38;
@@ -341,7 +341,7 @@ export class Arena {
         const row = animation.directions === 1 ? 0
           : (selectedAction === 'Rotate' && orientation.rotate ? orientation.rotate.row : dir) % animation.directions;
         // Tamanho baseado em pixels dos próprios sprites; sem formas geométricas.
-        const sizeScale = this.cellScale / 48 * (unit.bench ? .95 : 1.13);
+        const sizeScale = this.cellScale / 48 * (unit.bench ? .95 : 1.13) * physicalSize(unit.family,unit.stage);
         const rowMarker=markerAt(animation,'shadow',row,frame);
         // PMD sheets are frame-centered; the white Shadow marker is the true ground
         // reference. Never center on changing visible pixels (arms, tails, leaps).
@@ -374,7 +374,7 @@ export class Arena {
       ? this.image(`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`)
       : primary;
     if (staticSprite.complete && staticSprite.naturalWidth) {
-      const size = this.cellScale * (unit.bench ? .67 : 1.03);
+      const size = this.cellScale * (unit.bench ? .67 : 1.03) * physicalSize(unit.family,unit.stage);
       ctx.save(); ctx.imageSmoothingEnabled = false;
       ctx.drawImage(staticSprite, x - size / 2, y - size, size, size); ctx.restore();
       return y - size;
@@ -585,7 +585,7 @@ export class Arena {
   private drawUnit(unit: Marker, time: number): void {
     const ctx = this.context;
     const p = this.toScreen(unit.x, unit.y);
-    const radius = this.cellScale * (unit.bench ? .19 : .29) * (1 + unit.stage * .18);
+    const radius = this.cellScale * (unit.bench ? .19 : collisionRadius(unit.family,unit.stage));
     const ghost=unit.ghost;
     if(ghost && ghost.phase!=='appear') {
       const fade=ghost.phase==='fade'?1-.58*ghost.time/ghost.duration:.37;
@@ -650,6 +650,32 @@ export class Arena {
     if (motion.scale !== 1) { ctx.translate(spriteX,spriteY);ctx.scale(motion.scale,motion.scale);ctx.translate(-spriteX,-spriteY); }
     const spriteTop = this.drawPokemonSprite(spriteX,spriteY,unit,time) - this.cellScale*(motion.scale-1)*.6;
     ctx.restore();
+    // Persistent, snapshot-owned orbitals: world-space particles that follow the
+    // interpolated body and continue rotating between simulation snapshots.
+    if (unit.orbitFlames?.length) {
+      const flipped=this.snapshot?.visibleBattle?.participants.length===2 && this.snapshot.visibleBattle.playerB===this.view.scoutId;
+      const ability=ATTACKS.moves[getStageData(unit.family,unit.stage).move];
+      const orbit=ability.orbitRadius??.69;
+      const speed=ability.rotationSpeed??3.5;
+      const distance=orbit*(1+(collisionRadius(unit.family,unit.stage)-.295)*.45)*this.cellScale;
+      for(const flame of unit.orbitFlames) {
+        const a=flame.angle+this.renderLead*speed;
+        const fx=p.x+Math.cos(a)*distance;
+        const fy=p.y+(flipped?-1:1)*Math.sin(a)*distance*.72-this.cellScale*.28;
+        const radius=this.cellScale*(ability.orbRadius??.14);
+        ctx.save();ctx.globalCompositeOperation='lighter';
+        const glow=ctx.createRadialGradient(fx,fy,1,fx,fy,radius*2.6);
+        glow.addColorStop(0,'#fff6c5ef');glow.addColorStop(.28,'#ffb24db6');glow.addColorStop(1,'#ff6c1900');
+        ctx.fillStyle=glow;ctx.beginPath();ctx.arc(fx,fy,radius*2.6,0,PI2);ctx.fill();
+        ctx.fillStyle='#ffdf8d';ctx.beginPath();ctx.arc(fx,fy,radius*.65,0,PI2);ctx.fill();
+        for(let j=0;j<3;j++){
+          const spark=(time*1.9+j*2.1+a),spread=radius*(.7+j*.34);
+          ctx.fillStyle=j===1?'#ffd765a0':'#ff783b8c';
+          ctx.beginPath();ctx.arc(fx-Math.cos(spark)*spread,fy-Math.sin(spark)*spread,Math.max(1,radius*(.25-j*.05)),0,PI2);ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
     const activeSheet=sheetSet?.[unit.animation?.name||''];
     drawCastingGlints(ctx,spriteX,spriteY,unit,this.cellScale,time,
       activeSheet?impactFraction(activeSheet):.5);

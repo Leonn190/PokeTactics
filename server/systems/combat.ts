@@ -1,5 +1,5 @@
 import { beginCombatAugments, onAugmentBasic, onAugmentCast, onAugmentDamage, onAugmentDeath, tickCombatAugments } from './augments';
-import { ANIMATIONS, ATTACKS, calculateStats, getStageData, gridXY, SPECIES, steppedRange } from '../data';
+import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gridXY, SPECIES, steppedRange } from '../data';
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
@@ -12,6 +12,7 @@ import { countTraits } from './synergies/counting';
 import { initializeSynergies, updateSacredTiles, synergyTier } from './synergies/stats';
 import { onSynergyHit, onSynergyDeath, sourceShieldMultiplier } from './synergies/combat-events';
 import { tickSynergies } from './synergies/periodic';
+import { clearStep, resolveBodies } from './physical-collision';
 import { pushTarget } from './synergies/positioning';
 export { trainerSpot } from '../combat/trainer-position';
 
@@ -27,7 +28,7 @@ function stat(unit: CombatUnit, key: StatKey): number {
   const decrease = (key === 'def' || key === 'spd') ? Math.min(base * .3, unit.defenseShreds.filter(b=>b.stat===key).reduce((sum,b) => sum + b.amount, 0)) : 0;
   const synergySpeed=key==='speed'?base*(unit.synergy?.speedBonus||0):0;
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
-  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='speed' ? 1-(unit.windSlow||0) : 1);
+  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
 }
 
 /** Attack range is measured to a target's near edge for melee combatants.
@@ -42,7 +43,7 @@ function effectiveBasicRange(unit:CombatUnit,now:number):number {
 }
 function basicInRange(unit:CombatUnit,enemy:CombatUnit,now:number):boolean {
  const melee=!getStageData(unit.family,unit.stage).basic.projectile;
- return distance(unit,enemy)<=effectiveBasicRange(unit,now)+(melee?.52:0)+.08;
+ return distance(unit,enemy)<=effectiveBasicRange(unit,now)+(melee ? collisionRadius(unit.family,unit.stage)+collisionRadius(enemy.family,enemy.stage) : 0)+.08;
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -90,7 +91,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
     flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
-    dig: null, ghost: null, ghostCasts: 0, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
+    dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
     gasTime: 0, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
@@ -690,6 +691,23 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='flame-orbit'){
+    animate(source,stage.chargedAnimation,.5);
+    const count=Math.max(1,Math.min(4,Math.floor(move.orbCount??2)));
+    const max=Math.max(1,Math.min(move.maxImpacts??20, Math.floor((move.impactsBase??3)+s/Math.max(1,move.spaPerExtraImpact??50))));
+    // Recast restores missing orbs; existing orbs gain one charge up to the original cap.
+    for(let i=0;i<count;i++){
+      const existing=source.orbitFlames.find(orb=>orb.slot===i);
+      if(existing){existing.impactsLeft=Math.min(max,existing.impactsLeft+1);continue;}
+      // Slots are persistent. When one orb runs out, replacement must remain
+      // diametrically opposite the survivor rather than copy its angle.
+      const anchor=source.orbitFlames[0];
+      const angle=anchor ? anchor.angle+(i-anchor.slot)*Math.PI*2/count : Math.PI*2*i/count;
+      source.orbitFlames.push({slot:i,angle,impactsLeft:max,bornAt:battle.elapsed,contacts:[],lastHit:{}});
+    }
+    effect(battle,source,source,'flame',0);
+    return;
+  }
   if(move.effect==='hitmonchan-uppercut'||move.effect==='hitmonlee-spin-kick'){activateHitmon(battle,source,moveId);return;}
   if(move.effect==='bite-shred'&&target){
     animate(source,stage.chargedAnimation,.4);
@@ -1414,6 +1432,49 @@ function tickOutcome(battle: Battle, dt: number): void {
   }
 }
 
+/** Swept flame collision with independent charges and one entry per contact. */
+function tickFlameOrbits(battle:Battle, dt:number):void {
+ for(const source of battle.units){
+  if(!source.orbitFlames?.length)continue;
+  if(source.hp<=0){source.orbitFlames=[];continue;}
+  const move=ATTACKS.moves[getStageData(source.family,source.stage).move];
+  if(move.effect!=='flame-orbit'){source.orbitFlames=[];continue;}
+  const speed=move.rotationSpeed??3.5,r=(move.orbitRadius??.7)* (1+(collisionRadius(source.family,source.stage)-.295)*.45);
+  const ballRadius=move.orbRadius??.14;
+  const duration=move.maxDuration??0;
+  const remaining:typeof source.orbitFlames=[];
+  for(const orb of source.orbitFlames){
+   if(duration>0 && battle.elapsed-orb.bornAt>=duration)continue;
+   const steps=Math.min(28,Math.max(1,Math.ceil(Math.abs(speed*dt)/.19)));
+   let touched=new Set(orb.contacts);
+   for(let step=0;step<steps&&orb.impactsLeft>0;step++){
+    const previous=orb.angle;
+    orb.angle+=speed*dt/steps;
+    const ax=source.x+Math.cos(previous)*r,ay=source.y+Math.sin(previous)*r;
+    const bx=source.x+Math.cos(orb.angle)*r,by=source.y+Math.sin(orb.angle)*r;
+    const touching=new Set<string>();
+    for(const target of battle.units){
+     if(target.playerId===source.playerId || !isTargetable(target))continue;
+     const area=(ballRadius+collisionRadius(target.family,target.stage))**2;
+     const intersects=segmentDistanceSq(ax,ay,bx,by,target.x,target.y)<=area;
+     if(!intersects)continue;
+     touching.add(target.id);
+     if(touched.has(target.id) || battle.elapsed-(orb.lastHit[target.id]??-999) < (move.reimpactSeconds??.45))continue;
+     deal(battle,source,target,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,'fire');
+     effect(battle,source,target,'flame',0);
+     orb.impactsLeft--;orb.lastHit[target.id]=battle.elapsed;
+     if(orb.impactsLeft<=0)break;
+    }
+    touched=touching;
+   }
+   orb.contacts=[...touched];
+   if(orb.impactsLeft>0)remaining.push(orb);
+   else effect(battle,source,source,'flame',0);
+  }
+  source.orbitFlames=remaining;
+ }
+}
+
 export function tickBattle(battle: Battle, dt: number): void {
   if (battle.resolved) { tickOutcome(battle, dt); return; }
   battle.elapsed += dt;
@@ -1591,7 +1652,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     }
     if (!basicInRange(unit,target,battle.elapsed)) {
       const stageBasic=getStageData(unit.family,unit.stage);
-      const reach=effectiveBasicRange(unit,battle.elapsed)+(!stageBasic.basic.projectile ? .52 : 0)+.04;
+      const reach=effectiveBasicRange(unit,battle.elapsed)+(!stageBasic.basic.projectile ? collisionRadius(unit.family,unit.stage)+collisionRadius(target.family,target.stage) : 0)+.04;
       let travel=Math.min(Math.max(0,d-reach),dt*(.68+stat(unit,'speed')/180)*(unit.slow?.65:1));
       const bounds=arenaBoundary(battle);
       const dx=(target.x-unit.x)/d,dy=(target.y-unit.y)/d;
@@ -1603,7 +1664,7 @@ export function tickBattle(battle: Battle, dt: number): void {
         const vy=dx*Math.sin(angle)+dy*Math.cos(angle);
         const nx=unit.x+vx*travel,ny=unit.y+vy*travel;
         if(nx<bounds.minX||nx>bounds.maxX||ny<bounds.minY||ny>bounds.maxY)continue;
-        if(battle.units.some(u=>u!==unit&&u!==target&&u.hp>0&&Math.hypot(u.x-nx,u.y-ny)<.58))continue;
+        if(!clearStep(battle,unit,nx,ny))continue;
         next={x:nx,y:ny};break;
       }
       if(next){unit.x=next.x;unit.y=next.y;}
@@ -1648,6 +1709,8 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.cooldown=combatCooldown(unit,battle.elapsed);
     unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);
   }
+  resolveBodies(battle,arenaBoundary(battle));
+  tickFlameOrbits(battle,dt);
   updateSacredTiles(battle);
   resolve(battle);
 }

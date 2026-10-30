@@ -7,17 +7,17 @@ const baseURL = import.meta.env.BASE_URL;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="app-version" content="19" />
+    <meta name="app-version" content="20" />
     <meta name="theme-color" content="#0d141c" />
     <meta name="description" content="TFT Pokémon — batalha tática automática com oito participantes." />
-    <title>PokéTactics V19</title>
+    <title>PokéTactics V20</title>
   </head>
   <body>
     <main id="app">
       <div id="menuLayer" class="menu-layer" aria-label="Menu principal do PokéTactics">
         <div class="menu-stars" aria-hidden="true"></div>
         <section id="homeScreen" class="home-screen">
-            <div class="home-topline"><span>✦ PRIMEIRA TEMPORADA</span><span>VERSÃO 19 <i></i> BETA</span></div>
+            <div class="home-topline"><span>✦ PRIMEIRA TEMPORADA</span><span>VERSÃO 20 <i></i> BETA</span></div>
           <div class="home-center">
             <div class="home-emblem" aria-label="Ícone PokéTactics"><div class="emblem-ball"><span></span></div><div class="emblem-crosshair"></div></div>
             <p class="home-eyebrow">ESTRATÉGIA · EVOLUÇÃO · CONQUISTA</p>
@@ -27,6 +27,7 @@ const baseURL = import.meta.env.BASE_URL;
             <div class="home-actions">
               <button id="findMatchButton" class="home-play"><span class="home-play-icon">⚔</span><span>PROCURAR PARTIDA<small>ENTRAR NA ARENA</small></span><b>›</b></button>
               <button id="openRosterButton" class="home-roster"><span>◈</span> VISUALIZAR ELENCO <span>›</span></button>
+              <button id="openSettingsButton" class="home-roster"><span>⚙</span> CONFIGURAÇÕES <span>›</span></button>
             </div>
             <p class="home-match-note"><span class="match-status-dot"></span> MATCHMAKING DISPONÍVEL <i>•</i> 8 JOGADORES <i>•</i> 100% BOTS</p>
           </div>
@@ -37,13 +38,25 @@ const baseURL = import.meta.env.BASE_URL;
           <div class="roster-toolbar"><input id="rosterSearch" type="search" placeholder="⌕  Procurar Pokémon, habilidade ou tipo..." aria-label="Buscar Pokémon" /><div class="roster-filters" id="rosterFilters"><button data-filter="all" class="active">TODOS</button><button data-filter="shop">LOJA</button><button data-filter="legendary">LENDÁRIOS</button></div></div>
           <div class="roster-content"><div id="rosterGrid" class="roster-grid" aria-label="Lista de Pokémon"></div><aside id="rosterDetails" class="roster-details" aria-label="Detalhes do Pokémon"></aside></div>
         </section>
+        <section id="settingsScreen" class="hidden" aria-label="Editor de configurações">
+         <header class="cfg-header"><div class="cfg-header-title"><span>✦ FERRAMENTAS DE DESENVOLVIMENTO · V20</span><h2>CONFIGURAÇÕES <em>POKÉTACTICS</em></h2></div>
+          <span class="cfg-count">0 ALTERAÇÕES</span><div class="cfg-header-controls">
+           <button class="cfg-btn" data-cfg-changes>◈ MODIFICAÇÕES</button>
+           <button class="cfg-btn warning" data-cfg-restore-section>↺ RESTAURAR SEÇÃO</button>
+           <button class="cfg-btn warning" data-cfg-restore-all>⟲ RESTAURAR TUDO</button>
+           <button class="cfg-btn primary" data-cfg-export>↓ BAIXAR CONFIGURAÇÕES</button>
+           <button class="cfg-btn" data-cfg-back>← VOLTAR</button></div></header>
+         <div class="cfg-shell"><nav class="cfg-nav" aria-label="Categorias de configuração"></nav><div class="cfg-body"></div></div>
+        </section>
         <section id="queueScreen" class="queue-screen hidden" role="status" aria-live="polite"><div class="queue-ring"><div class="emblem-ball small"><span></span></div></div><span class="queue-kicker">MATCHMAKING</span><h2>ENCONTRANDO PARTIDA</h2><p>Preparando uma arena com treinadores controlados pela IA.</p><div class="queue-progress"><div id="queueFill"></div></div><div class="queue-summary"><span id="queueCount">1 / 8 TREINADORES</span><b>100% BOTS</b></div><button id="cancelQueueButton">CANCELAR BUSCA</button></section>
       </div>
+      <dialog id="settingsPassword" aria-label="Acesso às configurações"><form method="dialog"><h2>⚙ ACESSO AO CONFIGURADOR</h2><p>Área de edição e balanceamento. Informe a senha para continuar.</p><input type="password" inputmode="numeric" autocomplete="off" placeholder="Senha de acesso" required /><span class="cfg-password-error" role="alert"></span><menu><button type="button" class="cfg-btn" onclick="this.closest('dialog').close()">CANCELAR</button><button type="submit" class="cfg-btn primary">ACESSAR</button></menu></form></dialog>
+      <dialog id="cfgChanges" aria-label="Parâmetros modificados"><h2>◈ MODIFICAÇÕES PENDENTES</h2><div class="cfg-changes-list"></div><form method="dialog"><button class="cfg-btn">FECHAR</button></form></dialog>
       <canvas id="battlefield" aria-label="Arena hexagonal com Pokémon em combate"></canvas>
       <div class="vignette" aria-hidden="true"></div>
 
       <div class="top-bar">
-        <div class="brand"><div class="brand-glyph" aria-hidden="true"><span></span></div><div class="brand-words"><strong>POKÉ<span>TACTICS</span></strong><small>V19 • APRIMORAMENTOS</small></div></div>
+        <div class="brand"><div class="brand-glyph" aria-hidden="true"><span></span></div><div class="brand-words"><strong>POKÉ<span>TACTICS</span></strong><small>V20 • CONFIGURAÇÕES</small></div></div>
         <div class="timeline-panel glass">
           <div class="timeline-wrap"><div class="timeline-heading"><span>CAPÍTULO / ETAPA</span><b id="stageName">BATALHA</b></div><div id="chapterTrack" class="chapter-track"></div></div>
           <div class="round-clock"><div class="stage-heading"><span id="phaseLabel">PREPARAÇÃO</span><b id="roundLabel">1 — 1</b></div><div class="countdown" id="countdown">40</div><small class="seconds-label">SEG</small></div>

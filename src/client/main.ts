@@ -77,7 +77,7 @@ const menus = new Menus(launchMatch);
 updateWorldWidgets();
 document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
   worker?.terminate(); worker = null; state = null; arena.snapshot = null; arena.setActive(false);
-  view.selectedId = null; clearDrag();
+  view.selectedId = null; clearDrag();augments.reset();
   document.getElementById('finalBanner')!.classList.add('hidden');
   menus.showHome();
 });

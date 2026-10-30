@@ -109,6 +109,11 @@ export interface SynergyUnitState {
   poisonHealReduction?: number;
 }
 
+export interface OrbitFlame {
+ slot: number; angle: number; impactsLeft: number; bornAt: number;
+ // Hit registry is only used by the simulation (also serializable across snapshots).
+ contacts: string[]; lastHit: Record<string,number>;
+}
 export interface CombatUnit {
   id: string;
   sourceId: string;
@@ -159,6 +164,7 @@ export interface CombatUnit {
   dig: DigState | null;
   ghost: GhostState | null;
   ghostCasts: number;
+  orbitFlames: OrbitFlame[];
   fear: FearState | null;
   storm: StormState | null;
   psychicImbuement: PsychicImbuement | null;

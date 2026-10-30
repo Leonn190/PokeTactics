@@ -710,6 +710,42 @@
       "bonusSpaRatio": 0.2,
       "buffDuration": 5,
       "shieldDuration": 5
+    },
+    "growlithe-orbit": {
+      "name": "Órbita Flamejante",
+      "effect": "flame-orbit",
+      "baseDamage": 16,
+      "specialRatio": 0.31,
+      "orbCount": 2,
+      "orbitRadius": 0.69,
+      "rotationSpeed": 3.5,
+      "orbRadius": 0.14,
+      "impactsBase": 3,
+      "spaPerExtraImpact": 50,
+      "maxImpacts": 11,
+      "reimpactSeconds": 0.45,
+      "speedBonusPercent": 0.15,
+      "defBonusPercent": 0.25,
+      "spdBonusPercent": 0.25,
+      "maxDuration": 0
+    },
+    "arcanine-orbit": {
+      "name": "Órbita Flamejante",
+      "effect": "flame-orbit",
+      "baseDamage": 28,
+      "specialRatio": 0.42,
+      "orbCount": 2,
+      "orbitRadius": 0.85,
+      "rotationSpeed": 4.2,
+      "orbRadius": 0.14,
+      "impactsBase": 4,
+      "spaPerExtraImpact": 45,
+      "maxImpacts": 15,
+      "reimpactSeconds": 0.45,
+      "speedBonusPercent": 0.15,
+      "defBonusPercent": 0.25,
+      "spdBonusPercent": 0.25,
+      "maxDuration": 0
     }
   }
 }

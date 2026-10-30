@@ -1,7 +1,7 @@
 import { SynergyPanel } from './synergies/panel';
 import { interestCap,hasAugment } from '../../server/systems/augments';
 import { inventoryUsed,BALLS } from '../../server/systems/inventory';
-import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, getStageData, ATTACKS, rangeLabel, steppedRange } from '../../server/data';
+import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, evolutionCopies, getStageData, ATTACKS, rangeLabel, steppedRange } from '../../server/data';
 import { totalPower } from '../../server/formulas';
 import { bonusStats, effectivePercents, itemTooltip, ITEM_COLORS, ITEMS, RECIPES, numberParam } from '../../server/systems/items';
 import { LOOT } from '../../server/systems/loot';
@@ -123,7 +123,7 @@ export class Hud {
     while(cells.length<ITEMS.inventorySlots)cells.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
     this.updateHTML('inventoryContents',`<div class="inventory-grid" role="group" aria-label="Itens no chão">${cells.join('')}</div>${balls.length?`<div class="ball-ground" role="group" aria-label="Pokébolas no chão">${balls.join('')}</div>`:''}`);
     element('inventoryCounter').textContent=`${inventoryUsed(player)}/${ITEMS.inventorySlots}`;
-    const choosing = (player.pendingEvolution?.length || 0) === (hasAugment(player,'P11')?3:4);
+    const choosing = (player.pendingEvolution?.length || 0) === evolutionCopies('eevee',0,hasAugment(player,'P11'));
     element('eeveeEvolution').classList.toggle('hidden', !choosing);
     if (choosing) this.updateHTML('eeveeBranches', EEVEE_BRANCHES.map(branch => {
       const s = SPECIES[branch], move = ATTACKS.moves[s.attack];

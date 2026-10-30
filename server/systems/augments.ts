@@ -139,7 +139,7 @@ export function purchasedPokemon(player:Player):void {
  if(!hasAugment(player,'B02')||!player.augmentCounters)return;
  const c=player.augmentCounters;
  if((c['B02:preparations']||0)>0&&(c['B02:preparations']||0)<=number('B02','preparations') &&!c['B02:bought']){
-  c['B02:bought']=1;c['B02:free']=1;
+  c['B02:bought']=1;c['B02:free']=number('B02','rolls');
  }
 }
 /** Called once after the synergy initialization, on simulation-owned combat units. */

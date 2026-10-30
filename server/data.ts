@@ -1,3 +1,4 @@
+import augmentsConfig from '../config/augments.json';
 import pokemonConfig from '../config/pokemons.json';
 import movesConfig from '../config/ataques.json';
 import phaseConfig from '../config/fases.json';
@@ -31,10 +32,12 @@ export interface SpeciesData {
   eeveeBranch?: boolean;
   basic?: BasicAttackData;
   stages?: Partial<StageData>[];
+  physicalSizes?: number[];
+  evolutionCopies?: number[];
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -54,6 +57,9 @@ export type MoveData = {
   tornadoSpeed?: number; tornadoDistance?: number; tornadoRadius?: number; tornadoSlow?: number; tornadoSpeedReduction?: number;
   speedReduction?: number; shieldSpaRatio?: number; bonusBase?: number; bonusSpaRatio?: number; buffDuration?: number;
   dashRange?: number; hitRadius?: number; impactDelay?: number; stunBase?: number; stunSpaRatio?: number; stunHpRatio?: number; stunMin?: number; stunMax?: number;
+  orbCount?: number; orbitRadius?: number; rotationSpeed?: number; orbRadius?: number;
+  impactsBase?: number; spaPerExtraImpact?: number; maxImpacts?: number; reimpactSeconds?: number;
+  speedBonusPercent?: number; defBonusPercent?: number; spdBonusPercent?: number; maxDuration?: number;
 };
 
 export const ATTACKS = movesConfig as unknown as {
@@ -170,3 +176,21 @@ export function displayName(family: Family, stage: number): string {
 export function gridXY(col: number, row: number): { x: number; y: number } {
   return { x: (col - 3) * 1.04 + (row % 2 ? 0.26 : -0.26), y: (row - 3.5) * 0.91 };
 }
+
+/** Authoritative evolution and physical footprint parameters, shared across AI, HUD and combat. */
+export function evolutionCopies(family: Family, stage = 0, enhanced = false): number {
+ const species = SPECIES[family];
+ const count = species.evolutionCopies?.[Math.min(stage,species.evolutionCopies.length-1)] ?? 3;
+ if(enhanced){
+  const augment=augmentsConfig.augments.find(entry=>entry.id==='P11');
+  const params=augment?.params as Record<string,unknown> | undefined;
+  const target=family==='eevee' ? params?.eeveeCopies : params?.evolutionCopies;
+  if(typeof target==='number' && Number.isFinite(target))return Math.max(2,Math.min(Math.floor(count),Math.floor(target)));
+ }
+ return Math.max(2,Math.floor(count));
+}
+export function physicalSize(family: Family, stage = 0): number {
+ const sizes = SPECIES[family].physicalSizes;
+ return Math.max(.5,Math.min(1.8,sizes?.[Math.min(stage,sizes.length-1)] ?? 1));
+}
+export function collisionRadius(family: Family, stage = 0): number { return .295 * physicalSize(family,stage); }

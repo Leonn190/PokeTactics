@@ -1,4 +1,5 @@
-import { ATTACKS, ELEMENTS, getStageData, rangeLabel, RARITY_COLORS, SPECIES } from '../../server/data';
+import { Configurator } from './configurator/editor';
+import { ATTACKS, ELEMENTS, getStageData, rangeLabel, RARITY_COLORS, SPECIES, evolutionCopies } from '../../server/data';
 import type { MoveData } from '../../server/data';
 import { previewAbility, previewBasic } from '../../server/damage-preview';
 import { damageRows, damageHtml } from './damage-labels';
@@ -9,7 +10,6 @@ const escapeHTML = (value: string) => value.replaceAll('&', '&amp;').replaceAll(
 const baseUrl = import.meta.env.BASE_URL;
 const rarityNames = ['COMUM', 'INCOMUM', 'RARO', 'ÉPICO', 'LENDÁRIO'];
 const statNames: Record<keyof Stats, string> = { hp:'VIDA', atk:'ATAQUE', def:'DEFESA', spa:'AT. ESP.', spd:'DEF. ESP.', speed:'VELOCIDADE' };
-const evolutionCopies: Record<string, number> = { magikarp:5, exeggcute:4, growlithe:4, shellder:4, eevee:4 };
 type Entry = { family: Family; stage: number; name: string; dex: number };
 const entries: Entry[] = (Object.keys(SPECIES) as Family[]).flatMap(family => SPECIES[family].names.map((name, stage) => ({
   family, stage, name, dex: SPECIES[family].pokedexIds[stage]
@@ -59,7 +59,8 @@ export function moveDescription(move: MoveData): string {
     'mew-blessing':'Cura e protege o aliado com menor porcentagem de vida; seus ataques básicos causam dano especial extra por 3 segundos.',
     'star-refraction':'Durante 3 segundos, os básicos da Staryu atingem até 2 alvos; os da Starmie, até 3 e recebem +1 nível de alcance temporário.',
     'hitmonchan-uppercut':'Avança no máximo uma casa para socar o inimigo alcançável com mais Vida. O golpe físico causa atordoamento maior com SpA e menor conforme a Vida do alvo.',
-    'hitmonlee-spin-kick':'50%: avança até uma casa e atinge todos ao redor com um chute giratório. 50%: recebe barreira e VEL baseadas em SpA; a próxima habilidade executa dois chutes consecutivos.'
+    'hitmonlee-spin-kick':'50%: avança até uma casa e atinge todos ao redor com um chute giratório. 50%: recebe barreira e VEL baseadas em SpA; a próxima habilidade executa dois chutes consecutivos.',
+    'flame-orbit':'Invoca duas chamas que orbitam o corpo e queimam inimigos por contato. Enquanto houver chamas, recebe bônus de VEL, DEF e SpD.'
   };
   const conversion = move.conversion;
   const buffs: Record<string,string> = { atk:'ATAQUE', def:'DEFESA', spa:'ATAQUE ESPECIAL', spd:'DEFESA ESPECIAL', speed:'VELOCIDADE' };
@@ -70,6 +71,7 @@ export function moveDescription(move: MoveData): string {
 }
 
 export class Menus {
+  private configurator: Configurator;
   private selected: Entry = entries[0];
   private filter: 'all' | 'shop' | 'legendary' = 'all';
   private queued = false;
@@ -80,6 +82,9 @@ export class Menus {
   constructor(private startMatch: () => void) {
     $('findMatchButton').addEventListener('click', () => this.queue());
     $('openRosterButton').addEventListener('click', () => this.showRoster());
+    this.configurator = new Configurator(()=>this.showHome());
+    this.configurator.attachGlobals();
+    $('openSettingsButton').addEventListener('click', () => this.configurator.requestAccess());
     $('rosterBack').addEventListener('click', () => this.showHome());
     $('cancelQueueButton').addEventListener('click', () => this.showHome());
     $('rosterSearch').addEventListener('input', () => this.renderList());
@@ -166,10 +171,10 @@ export class Menus {
     const damage = previewAbility(family, stage, stats);
     const basic = previewBasic(family, stage, stats);
     const chain = species.eeveeBranch ? ['Eevee', name] : species.names;
-    const copies = evolutionCopies[family] || 3;
+    const copies = evolutionCopies(family,stage);
     $('rosterDetails').innerHTML = `<div class="detail-splash" style="--detail-glow:${species.glow}"><div class="detail-title"><span>#${String(dex).padStart(3,'0')} • ${rarityNames[species.rarity-1]}</span><h3>${escapeHTML(name)}</h3><div class="detail-types">${data.elements.map(t => `<span style="--type:${ELEMENTS[t].color}">${ELEMENTS[t].name}</span>`).join('')}</div></div>${portrait(dex,name,'detail-art')}</div>
       <div class="detail-scroll">
-      <div class="detail-section"><span class="detail-label">LINHA EVOLUTIVA</span><div class="detail-evolution">${chain.map((n,i) => `${i ? '<span class="detail-arrow">›</span>' : ''}<span class="${n === name ? 'current' : ''}">${escapeHTML(n)}</span>`).join('')}</div>${species.eeveeBranch ? '<p class="detail-tip">Evolui de Eevee, reunindo 4 cópias e escolhendo o ramo.</p>' : chain.length === 1 ? '<p class="detail-tip">Forma final: pode absorver uma cópia idêntica para ganhar +5 níveis.</p>' : `<p class="detail-tip">Evolução por ${copies} cópias da mesma forma. Formas finais idênticas se fundem: +5 níveis.</p>`}</div>
+      <div class="detail-section"><span class="detail-label">LINHA EVOLUTIVA</span><div class="detail-evolution">${chain.map((n,i) => `${i ? '<span class="detail-arrow">›</span>' : ''}<span class="${n === name ? 'current' : ''}">${escapeHTML(n)}</span>`).join('')}</div>${species.eeveeBranch ? `<p class="detail-tip">Evolui de Eevee, reunindo ${evolutionCopies('eevee')} cópias e escolhendo o ramo.</p>` : chain.length === 1 ? '<p class="detail-tip">Forma final: pode absorver uma cópia idêntica para ganhar +5 níveis.</p>' : `<p class="detail-tip">Evolução por ${copies} cópias da mesma forma. Formas finais idênticas se fundem: +5 níveis.</p>`}</div>
       <div class="detail-section"><div class="detail-heading"><span class="detail-label">STATUS BASE</span><strong>${total} <small>PODER</small></strong></div><div class="detail-stats">${(Object.keys(statNames) as Array<keyof Stats>).map(key => `<div class="detail-stat"><span>${statNames[key]}</span><div class="detail-stat-track"><i style="width:${Math.min(100,stats[key]/(key === 'hp' ? 600 : 120)*100)}%"></i></div><b>${stats[key]}</b></div>`).join('')}</div><p class="detail-tip">Atributos sem IV e sem bônus de nível • HP conta como 1/5 do poder total.</p></div>
       <div class="detail-section"><span class="detail-label">HABILIDADE CARREGADA</span><div class="detail-ability"><b>${escapeHTML(move.name)}</b><span>${data.energy} ENERGIA • ${rangeLabel(data.range,data.rangeClass)} DE ALCANCE</span><p>${moveDescription(move)}</p><div class="detail-damage-list">${damageRows(damage)}</div></div><p class="detail-basic">Ataque regular: ${damageHtml(basic)} de dano ${basic.kind === 'special' ? 'especial (SPA)' : 'físico (ATK)'} • gera energia. Valores de base, sem IV/nível ou defesa do alvo.</p></div>
       <div class="detail-note">${species.shop ? `Disponível na loja • custo ${species.rarity} de ouro` : species.bossOnly ? 'Encontro especial: chefe lendário' : 'Adquirido por evolução de outra forma'}</div></div>`;

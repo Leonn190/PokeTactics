@@ -1,6 +1,6 @@
 import { applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
 import { inventoryUsed,canReceive } from './systems/inventory';
-import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
+import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES, evolutionCopies } from './data';
 import { rollFamily } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
@@ -199,7 +199,7 @@ export class GameEngine {
       for (const family of FAMILIES) {
         if (family === 'eevee') {
           const eevees = player.units.filter(u => u.family === 'eevee');
-          const needed=hasAugment(player,'P11')?3:4;
+          const needed=evolutionCopies('eevee',0,hasAugment(player,'P11'));
           if (eevees.length >= needed) {
             if (player.id === 'p0') player.pendingEvolution = eevees.slice(0, needed).map(u => u.id);
             else this.chooseEevee(player, this.rng.pick(EEVEE_BRANCHES));
@@ -210,7 +210,7 @@ export class GameEngine {
         const maxStage = SPECIES[family].names.length - 1;
         for (let stage = 0; stage < maxStage; stage++) {
           const matches = player.units.filter(u => u.family === family && u.stage === stage);
-          const required=hasAugment(player,'P11')?2:3;
+          const required=evolutionCopies(family,stage,hasAugment(player,'P11'));
           if (matches.length < required) continue;
           const triple = matches.slice(0, required);
           const anchor = triple.find(u => u.position.area === 'board') || triple[0];
@@ -244,7 +244,7 @@ export class GameEngine {
   }
 
   private chooseEevee(player: Player, branch: Family): void {
-    const needed=hasAugment(player,'P11')?3:4;
+    const needed=evolutionCopies('eevee',0,hasAugment(player,'P11'));
     const four = player.units.filter(u => u.family === 'eevee').slice(0, needed);
     if (four.length !== needed) return;
     const anchor = four.find(u => u.position.area === 'board') || four[0];
@@ -300,7 +300,7 @@ export class GameEngine {
     if (reward.kind === 'pokemon') {
       if (!reward.family) return false;
       const pos = this.freePlaceForReward(player);
-      const mergeable = player.units.filter(u=>u.family===reward.family && u.stage===0).length >= (reward.family==='eevee'?3:2);
+      const mergeable = player.units.filter(u=>u.family===reward.family && u.stage===0).length >= (evolutionCopies(reward.family,0,hasAugment(player,'P11'))-1);
       if (!pos && !mergeable) { drop.pending=true; return false; }
       const unit = this.makePokemon(reward.family,pos || {area:'bench',index:BENCH_SIZE});
       applyPokemonAugments(player,unit,chapterForRound(this.round));
@@ -401,7 +401,7 @@ export class GameEngine {
     if (!offer) return 'Slot vazio';
     if (player.gold < offer.price) return 'Ouro insuficiente';
     const free = this.findFreeBench(player);
-    const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= (offer.family === 'eevee' ? hasAugment(player,'P11')?2:3 : hasAugment(player,'P11')?1:2);
+    const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= (evolutionCopies(offer.family,0,hasAugment(player,'P11'))-1);
     if (free < 0 && !eligibleMerge) return `Banco cheio (${BENCH_SIZE}/${BENCH_SIZE})`;
     player.gold -= offer.price;
     const bought = this.makePokemon(offer.family, { area: 'bench', index: free < 0 ? BENCH_SIZE : free });
@@ -458,14 +458,15 @@ export class GameEngine {
     const preserved = this.preserveEquipment(player,[stronger,consumed]);
     stronger.equipment = preserved;
     stronger.position = where;
-    addLevels(stronger,hasAugment(player,'S08')?8:5);
+    const fusionLevels = hasAugment(player,'S08') ? tierParam('S08','levels',1) : RULES.fusionLevels;
+    addLevels(stronger,fusionLevels);
     if(hasAugment(player,'S08')){
-      const keys=(Object.keys(stronger.iv) as Array<keyof Stats>).sort((a,b)=>stronger.iv[a]-stronger.iv[b]||a.localeCompare(b)).slice(0,2);
-      for(const key of keys)stronger.iv[key]=Math.min(100,stronger.iv[key]+10);
+      const keys=(Object.keys(stronger.iv) as Array<keyof Stats>).sort((a,b)=>stronger.iv[a]-stronger.iv[b]||a.localeCompare(b)).slice(0,tierParam('S08','smallest',1));
+      for(const key of keys)stronger.iv[key]=Math.min(100,stronger.iv[key]+tierParam('S08','iv',1));
     }
     this.visualEvents.push({ id: this.id(), unitId: stronger.id, ownerId: player.id, kind: 'fusion', age: 0, sources,
       pokemon: { family: stronger.family, stage: stronger.stage, level: stronger.level, position: { ...stronger.position } } });
-    if (player.id === 'p0') this.log = `${SPECIES[stronger.family].names[Math.min(stronger.stage, SPECIES[stronger.family].names.length - 1)]} • +${hasAugment(player,'S08')?8:5} níveis pela fusão!`;
+    if (player.id === 'p0') this.log = `${SPECIES[stronger.family].names[Math.min(stronger.stage, SPECIES[stronger.family].names.length - 1)]} • +${fusionLevels} níveis pela fusão!`;
     return true;
   }
 
@@ -486,7 +487,7 @@ export class GameEngine {
     if (command.kind === 'choose-eevee') {
       if (!EEVEE_BRANCHES.includes(command.branch)) return 'Evolução inválida';
       const ids = human.pendingEvolution;
-      if (!ids || ids.length !== (hasAugment(human,'P11')?3:4) || ids.some(id => !human.units.some(u => u.id === id && u.family === 'eevee'))) return 'Reúna Eevee suficientes para evoluir';
+      if (!ids || ids.length !== evolutionCopies('eevee',0,hasAugment(human,'P11')) || ids.some(id => !human.units.some(u => u.id === id && u.family === 'eevee'))) return 'Reúna Eevee suficientes para evoluir';
       this.chooseEevee(human, command.branch);
       this.merge(human);
       return null;

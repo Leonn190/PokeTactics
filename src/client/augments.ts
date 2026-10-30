@@ -83,12 +83,12 @@ export class AugmentView {
  }
  positionStacks(arena:Arena):void {
   const state=this.current;
-  if(!state || state.phase==='finished'){this.hideTooltip();this.stacks.innerHTML='';return;}
+  if(!state || state.phase==='finished'){this.hideTooltip();this.stacks.innerHTML='';delete this.stacks.dataset.owners;return;}
   const battle=state.visibleBattle;
-  const participants=battle?.participants || [state.observedId];
+  const participants=state.phase==='combat' && battle && !battle.resolved ? battle.participants : [state.observedId];
   const quad=participants.length>2;
   const ids=participants.filter(id=>state.players.some(p=>p.id===id));
-  const key=ids.map(id=>`${id}:${state.players.find(p=>p.id===id)?.augments?.join(',')||''}`).join('|');
+  const key=`${state.phase}:${battle&&state.phase==='combat'&&!battle.resolved?battle.id:'planning'}:${state.observedId}:`+ids.map(id=>`${id}:${state.players.find(p=>p.id===id)?.augments?.join(',')||''}`).join('|');
   if(this.stacks.dataset.owners!==key){
    this.hideTooltip();
    this.stacks.dataset.owners=key;

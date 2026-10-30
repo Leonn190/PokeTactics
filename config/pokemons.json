@@ -235,7 +235,16 @@
           "speed": 88
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.89,
+        0.95,
+        1.04
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "weedle": {
       "names": [
@@ -331,7 +340,16 @@
           "speed": 112
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.95,
+        0.95,
+        1.0
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "bulbasaur": {
       "names": [
@@ -420,7 +438,16 @@
           "range": 3.8
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95,
+        0.89,
+        0.89
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "charmander": {
       "names": [
@@ -505,7 +532,16 @@
           "speed": 110
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.95,
+        1.04,
+        1.0
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "squirtle": {
       "names": [
@@ -589,7 +625,16 @@
           "range": 0.6
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.89,
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "pikachu": {
       "names": [
@@ -659,7 +704,14 @@
           "range": 2
         }
       ],
-      "rangeClass": "Médio Alto"
+      "rangeClass": "Médio Alto",
+      "physicalSizes": [
+        1.04,
+        1.04
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "koffing": {
       "names": [
@@ -728,7 +780,14 @@
           "speed": 37
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        1.04,
+        1.08
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "snorlax": {
       "names": [
@@ -779,7 +838,13 @@
           "speed": 25
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        1.08
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "articuno": {
       "names": [
@@ -827,7 +892,13 @@
           "range": 3.8
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "zapdos": {
       "names": [
@@ -875,7 +946,13 @@
           "range": 3.8
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "moltres": {
       "names": [
@@ -923,7 +1000,13 @@
           "range": 3.8
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "mewtwo": {
       "names": [
@@ -969,7 +1052,13 @@
           "range": 5
         }
       ],
-      "rangeClass": "Muito Alto"
+      "rangeClass": "Muito Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "mew": {
       "names": [
@@ -1034,7 +1123,13 @@
         "category": "special",
         "animation": "Shoot"
       },
-      "rangeClass": "Muito Alto"
+      "rangeClass": "Muito Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "cubone": {
       "names": [
@@ -1108,7 +1203,14 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "onix": {
       "names": [
@@ -1186,7 +1288,14 @@
           "rangeClass": "Médio"
         }
       ],
-      "rangeClass": "Médio"
+      "rangeClass": "Médio",
+      "physicalSizes": [
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "geodude": {
       "names": [
@@ -1283,7 +1392,16 @@
           "rangeClass": "Curto"
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.95,
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "chansey": {
       "names": [
@@ -1356,7 +1474,14 @@
           "rangeClass": "Curto"
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "eevee": {
       "names": [
@@ -1413,7 +1538,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        4
+      ]
     },
     "vaporeon": {
       "names": [
@@ -1470,7 +1601,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "flareon": {
       "names": [
@@ -1527,7 +1664,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "jolteon": {
       "names": [
@@ -1584,7 +1727,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "umbreon": {
       "names": [
@@ -1641,7 +1790,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "sylveon": {
       "names": [
@@ -1698,7 +1853,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "leafeon": {
       "names": [
@@ -1755,7 +1916,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "glaceon": {
       "names": [
@@ -1812,7 +1979,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "espeon": {
       "names": [
@@ -1869,7 +2042,13 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "rhyhorn": {
       "names": [
@@ -1969,7 +2148,16 @@
           "rangeClass": "Curto"
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.95,
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "vulpix": {
       "names": [
@@ -2045,7 +2233,14 @@
           "rangeClass": "Muito Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "dratini": {
       "names": [
@@ -2154,7 +2349,16 @@
           "rangeClass": "Curto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.95,
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "diglett": {
       "names": [
@@ -2227,7 +2431,14 @@
           "rangeClass": "Curto"
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.82,
+        0.89
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "voltorb": {
       "names": [
@@ -2296,7 +2507,14 @@
           "rangeClass": "Curto"
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.89,
+        0.89
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "gastly": {
       "names": [
@@ -2393,7 +2611,16 @@
           "rangeClass": "Curto"
         }
       ],
-      "rangeClass": "Médio Alto"
+      "rangeClass": "Médio Alto",
+      "physicalSizes": [
+        1.04,
+        1.04,
+        0.95
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "machop": {
       "names": [
@@ -2483,7 +2710,16 @@
           "range": 0.6
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.95,
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     },
     "magikarp": {
       "names": [
@@ -2557,7 +2793,14 @@
           "range": 0.6
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        5
+      ]
     },
     "staryu": {
       "names": [
@@ -2633,7 +2876,14 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Alto"
+      "rangeClass": "Alto",
+      "physicalSizes": [
+        0.89,
+        0.89
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "rattata": {
       "names": [
@@ -2706,7 +2956,14 @@
           "rangeClass": "Curto"
         }
       ],
-      "rangeClass": "Curto"
+      "rangeClass": "Curto",
+      "physicalSizes": [
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "spearow": {
       "names": [
@@ -2784,7 +3041,14 @@
           "rangeClass": "Alto"
         }
       ],
-      "rangeClass": "Médio Alto"
+      "rangeClass": "Médio Alto",
+      "physicalSizes": [
+        0.95,
+        0.95
+      ],
+      "evolutionCopies": [
+        3
+      ]
     },
     "hitmonchan": {
       "names": [
@@ -2824,6 +3088,12 @@
           "chargedType": "fighting",
           "chargedAnimation": "Uppercut"
         }
+      ],
+      "physicalSizes": [
+        1.04
+      ],
+      "evolutionCopies": [
+        3
       ]
     },
     "hitmonlee": {
@@ -2864,6 +3134,84 @@
           "chargedType": "fighting",
           "chargedAnimation": "Kick"
         }
+      ],
+      "physicalSizes": [
+        1.0
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "growlithe": {
+      "names": [
+        "Growlithe",
+        "Arcanine"
+      ],
+      "pokedexIds": [
+        58,
+        59
+      ],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#f7a66f",
+      "base": {
+        "hp": 345,
+        "atk": 62,
+        "def": 56,
+        "spa": 67,
+        "spd": 53,
+        "speed": 58
+      },
+      "stageBases": [
+        {
+          "hp": 345,
+          "atk": 62,
+          "def": 56,
+          "spa": 67,
+          "spd": 53,
+          "speed": 58
+        },
+        {
+          "hp": 620,
+          "atk": 112,
+          "def": 91,
+          "spa": 121,
+          "spd": 86,
+          "speed": 100
+        }
+      ],
+      "range": 0.6,
+      "rangeClass": "Curto",
+      "energy": 70,
+      "attack": "growlithe-orbit",
+      "elements": [
+        "fire"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "move": "growlithe-orbit",
+          "energy": 70,
+          "rangeClass": "Curto",
+          "chargedAnimation": "SpAttack"
+        },
+        {
+          "move": "arcanine-orbit",
+          "energy": 75,
+          "rangeClass": "Curto",
+          "chargedAnimation": "SpAttack"
+        }
+      ],
+      "physicalSizes": [
+        0.97,
+        1.22
+      ],
+      "evolutionCopies": [
+        4
       ]
     }
   }
