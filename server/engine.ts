@@ -1,7 +1,7 @@
 import { applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
 import { inventoryUsed,canReceive } from './systems/inventory';
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES, evolutionCopies } from './data';
-import { rollFamily } from './shop';
+import { rollFamily, evolutionByInfluence } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
 import { craft, makeComponent, ITEM_COLORS, ITEMS } from './systems/items';
@@ -200,9 +200,9 @@ export class GameEngine {
         if (family === 'scyther') {
           const scythers=player.units.filter(u=>u.family==='scyther');
           const needed=evolutionCopies('scyther',0,hasAugment(player,'P11'));
-          if(scythers.length>=needed && !player.pendingEvolution){
-            if(player.id==='p0'){player.pendingEvolution=scythers.slice(0,needed).map(u=>u.id);player.pendingEvolutionKind='scyther';}
-            else {this.chooseEevee(player,this.rng.pick(['scizor','kleavor']));changed=true;}
+          if(scythers.length>=needed){
+            this.chooseEevee(player,evolutionByInfluence(player,['scizor','kleavor'],choices=>this.rng.pick(choices)));
+            changed=true;
           } else if(scythers.length<needed && player.pendingEvolutionKind==='scyther'){
             player.pendingEvolution=undefined;player.pendingEvolutionKind=undefined;
           }
@@ -212,8 +212,8 @@ export class GameEngine {
           const babies=player.units.filter(u=>u.family==='tyrogue' && u.stage===0);
           const needed=evolutionCopies('tyrogue',0,hasAugment(player,'P11'));
           if(babies.length>=needed){
-            if(player.id==='p0' && !player.pendingEvolution){player.pendingEvolution=babies.slice(0,needed).map(u=>u.id);player.pendingEvolutionKind='tyrogue';}
-            else if(player.id!=='p0'){this.chooseEevee(player,this.rng.pick(['hitmonchan','hitmonlee']));changed=true;}
+            this.chooseEevee(player,evolutionByInfluence(player,['hitmonchan','hitmonlee'],choices=>this.rng.pick(choices)));
+            changed=true;
           }else if(player.pendingEvolutionKind==='tyrogue'){player.pendingEvolution=undefined;player.pendingEvolutionKind=undefined;}
           continue;
         }
@@ -221,12 +221,8 @@ export class GameEngine {
           const eevees = player.units.filter(u => u.family === 'eevee');
           const needed=evolutionCopies('eevee',0,hasAugment(player,'P11'));
           if (eevees.length >= needed) {
-            if (player.id === 'p0') {
-              if (!player.pendingEvolution){player.pendingEvolution = eevees.slice(0, needed).map(u => u.id);player.pendingEvolutionKind='eevee';}
-            } else {
-              this.chooseEevee(player, this.rng.pick(EEVEE_BRANCHES));
-              changed = true;
-            }
+            this.chooseEevee(player,evolutionByInfluence(player,EEVEE_BRANCHES,choices=>this.rng.pick(choices)));
+            changed = true;
           } else if(player.pendingEvolutionKind==='eevee'){player.pendingEvolution=undefined;player.pendingEvolutionKind=undefined;}
           continue;
         }
@@ -546,17 +542,8 @@ export class GameEngine {
       this.trainer.targetY = Math.max(-4.5, Math.min(4.65, command.y));
       return null;
     }
-    if (command.kind === 'choose-eevee') {
-      const scytherChoice=human.pendingEvolutionKind==='scyther';
-      const tyrogueChoice=human.pendingEvolutionKind==='tyrogue';
-      if(!(tyrogueChoice ? (command.branch==='hitmonchan'||command.branch==='hitmonlee') : scytherChoice ? (command.branch==='scizor'||command.branch==='kleavor') : EEVEE_BRANCHES.includes(command.branch))) return 'Evolução inválida';
-      const ids = human.pendingEvolution;
-      const family=tyrogueChoice?'tyrogue':scytherChoice?'scyther':'eevee';
-      if(!ids || ids.length!==evolutionCopies(family,0,hasAugment(human,'P11')) || ids.some(id=>!human.units.some(u=>u.id===id&&u.family===family)))return 'Reúna as cópias para evoluir';
-      this.chooseEevee(human, command.branch);
-      this.merge(human);
-      return null;
-    }
+    // Ramos múltiplos evoluem automaticamente pela influência dos tipos, nunca por escolha manual.
+    if (command.kind === 'choose-eevee') return 'A evolução agora é automática pela barra de tipos';
     if (command.kind === 'equip-item') {
       const item=human.itemInventory?.find(i=>i.id===command.itemId);
       const target=human.units.find(u=>u.id===command.unitId);
