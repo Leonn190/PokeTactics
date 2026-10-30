@@ -14,6 +14,7 @@ import { onSynergyHit, onSynergyDeath, sourceShieldMultiplier } from './synergie
 import { tickSynergies } from './synergies/periodic';
 import { clearStep, resolveBodies } from './physical-collision';
 import { pushTarget } from './synergies/positioning';
+import { tickFlameOrbits } from '../combat/flame-orbits';
 export { trainerSpot } from '../combat/trainer-position';
 
 const moveIdOf = (unit: CombatUnit): string => unit.bossMove || getStageData(unit.family, unit.stage).move;
@@ -1432,49 +1433,6 @@ function tickOutcome(battle: Battle, dt: number): void {
   }
 }
 
-/** Swept flame collision with independent charges and one entry per contact. */
-function tickFlameOrbits(battle:Battle, dt:number):void {
- for(const source of battle.units){
-  if(!source.orbitFlames?.length)continue;
-  if(source.hp<=0){source.orbitFlames=[];continue;}
-  const move=ATTACKS.moves[getStageData(source.family,source.stage).move];
-  if(move.effect!=='flame-orbit'){source.orbitFlames=[];continue;}
-  const speed=move.rotationSpeed??3.5,r=(move.orbitRadius??.7)* (1+(collisionRadius(source.family,source.stage)-.295)*.45);
-  const ballRadius=move.orbRadius??.14;
-  const duration=move.maxDuration??0;
-  const remaining:typeof source.orbitFlames=[];
-  for(const orb of source.orbitFlames){
-   if(duration>0 && battle.elapsed-orb.bornAt>=duration)continue;
-   const steps=Math.min(28,Math.max(1,Math.ceil(Math.abs(speed*dt)/.19)));
-   let touched=new Set(orb.contacts);
-   for(let step=0;step<steps&&orb.impactsLeft>0;step++){
-    const previous=orb.angle;
-    orb.angle+=speed*dt/steps;
-    const ax=source.x+Math.cos(previous)*r,ay=source.y+Math.sin(previous)*r;
-    const bx=source.x+Math.cos(orb.angle)*r,by=source.y+Math.sin(orb.angle)*r;
-    const touching=new Set<string>();
-    for(const target of battle.units){
-     if(target.playerId===source.playerId || !isTargetable(target))continue;
-     const area=(ballRadius+collisionRadius(target.family,target.stage))**2;
-     const intersects=segmentDistanceSq(ax,ay,bx,by,target.x,target.y)<=area;
-     if(!intersects)continue;
-     touching.add(target.id);
-     if(touched.has(target.id) || battle.elapsed-(orb.lastHit[target.id]??-999) < (move.reimpactSeconds??.45))continue;
-     deal(battle,source,target,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,'fire');
-     effect(battle,source,target,'flame',0);
-     orb.impactsLeft--;orb.lastHit[target.id]=battle.elapsed;
-     if(orb.impactsLeft<=0)break;
-    }
-    touched=touching;
-   }
-   orb.contacts=[...touched];
-   if(orb.impactsLeft>0)remaining.push(orb);
-   else effect(battle,source,source,'flame',0);
-  }
-  source.orbitFlames=remaining;
- }
-}
-
 export function tickBattle(battle: Battle, dt: number): void {
   if (battle.resolved) { tickOutcome(battle, dt); return; }
   battle.elapsed += dt;
@@ -1707,7 +1665,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);
   }
   resolveBodies(battle,arenaBoundary(battle));
-  tickFlameOrbits(battle,dt);
+  tickFlameOrbits(battle,dt,deal,stat,isTargetable,segmentDistanceSq);
   updateSacredTiles(battle);
   resolve(battle);
 }
