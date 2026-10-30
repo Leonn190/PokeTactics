@@ -351,7 +351,7 @@ export interface GameSnapshot {
 }
 
 export type GameCommand =
-  | { kind: 'buy'; slot: number }
+  | { kind: 'buy'; slot: number; offerId: string }
   | { kind: 'reroll' }
   | { kind: 'augment-reroll'; slot: number }
   | { kind: 'augment-choose'; slot: number }
