@@ -60,6 +60,7 @@ export class Arena {
   private rafHandle: number | null = null;
   private spriteManager = new SpriteManager();
   private frameScheduler = new FrameScheduler(RENDER_SETTINGS.maxFrameRate);
+  setFrameRate(limit: number): void { this.frameScheduler.setLimit(limit); }
   private visualClock = new SnapshotClock();
   private effectTimeline = new EffectTimeline();
   private visualEvents = new VisualEventManager();
@@ -75,6 +76,9 @@ export class Arena {
     this.planningCache=null;
   }
   private unitEventLookup = new Map<string, NonNullable<GameSnapshot['visualEvents']>[number]>();
+  private orientationIds = new Set<string>();
+  private enemyIntroOrder = new Map<string, number>();
+  private renderMarkers: Marker[] = [];
   private animationTicks = new WeakMap<PmdSheet, number>();
   private spriteParts = new Map<string, BodyPoints>();
   private grassCanvas: HTMLCanvasElement | null = null;
@@ -95,7 +99,10 @@ export class Arena {
     // Optimistic relocation ends as soon as the worker confirms or rejects it.
     for(const [id,pending] of this.pendingMove){
       const unit=snapshot.players[0]?.units.find(u=>u.id===id);
-      if(!unit || JSON.stringify(unit.position)===JSON.stringify(pending.position) || snapshot.serial>pending.serial+2)
+      if (!unit || (unit.position.area === pending.position.area && (unit.position.area === 'bench'
+        ? pending.position.area === 'bench' && unit.position.index === pending.position.index
+        : pending.position.area === 'board' && unit.position.col === pending.position.col && unit.position.row === pending.position.row))
+        || snapshot.serial > pending.serial + 2)
         this.pendingMove.delete(id);
     }
     this.planningCache=null;
@@ -106,7 +113,8 @@ export class Arena {
     }
     this.effectTimeline.sync(snapshot.visibleBattle?.id || '', snapshot.visibleBattle?.effects || []);
     this.visualEvents.sync(snapshot.visualEvents, arrivedAt);
-    const orientationIds = new Set<string>();
+    const orientationIds = this.orientationIds;
+    orientationIds.clear();
     for (const player of snapshot.players) for (const unit of player.units) orientationIds.add(unit.id);
     for (const unit of snapshot.visibleBattle?.units || []) orientationIds.add(unit.id);
     for (const event of snapshot.visualEvents) {
@@ -114,6 +122,13 @@ export class Arena {
       for (const source of event.sources || []) if (source.id) orientationIds.add(source.id);
     }
     this.orientation.prune(orientationIds);
+    this.enemyIntroOrder.clear();
+    if (snapshot.phase === 'combat' && snapshot.visibleBattle && !snapshot.visibleBattle.resolved && snapshot.visibleBattle.introElapsed < 1.5) {
+      let enemyIndex = 0;
+      for (const unit of snapshot.visibleBattle.units) {
+        if (unit.playerId !== this.view.scoutId) this.enemyIntroOrder.set(unit.id, enemyIndex++);
+      }
+    }
     if (snapshot.visibleBattle) {
       this.unitInterpolator.sync(snapshot.visibleBattle.id, snapshot.visibleBattle.units, arrivedAt);
       // Download Rotate during the 1.5s arrival, before the first orientation turn.
@@ -901,19 +916,23 @@ export class Arena {
     const markers = this.markers();
     const battle = this.snapshot?.visibleBattle;
     const intro = this.snapshot?.phase === 'combat' && battle && !battle.resolved && battle.introElapsed < 1.5;
-    const enemyIntroOrder = intro ? new Map(battle!.units.filter(u => u.playerId !== this.view.scoutId).map((u,i) => [u.id, i])) : null;
+    const enemyIntroOrder = this.enemyIntroOrder;
     const visualEvents = this.unitEventLookup;
-    markers.filter(marker => {
-      if (this.view.dragging && marker.ownerId === 'p0' && marker.sourceId === this.view.dragId) return false;
+    const drawMarkers = this.renderMarkers;
+    drawMarkers.length = 0;
+    for (const marker of markers) {
+      if (this.view.dragging && marker.ownerId === 'p0' && marker.sourceId === this.view.dragId) continue;
       if (intro && !marker.bench && marker.ownerId !== this.view.scoutId) {
         const enemyIndex = enemyIntroOrder?.get(marker.id) ?? -1;
-        if (battle!.introElapsed < .77 + (enemyIndex % 7) * .06 + Math.floor(enemyIndex / 7) * .13) return false;
+        if (battle!.introElapsed + this.renderLead < .77 + (enemyIndex % 7) * .06 + Math.floor(enemyIndex / 7) * .13) continue;
       }
       const animation = visualEvents.get(`${marker.ownerId}:${marker.sourceId}`);
       const age = animation ? this.visualEvents.age(animation, timestamp) : 99;
-      return !(animation?.kind === 'summon' && age < .75)
-        && !(animation?.kind === 'evolve' && age < 1.12);
-    }).sort((a, b) => a.y - b.y).forEach(marker => this.drawUnit(marker, this.frame));
+      if (animation?.kind === 'summon' && age < .75 || animation?.kind === 'evolve' && age < 1.12) continue;
+      drawMarkers.push(marker);
+    }
+    drawMarkers.sort((a, b) => a.y - b.y);
+    for (const marker of drawMarkers) this.drawUnit(marker, this.frame);
     this.drawUnitVisuals(timestamp);
     if (intro) this.drawArrival(battle!);
     this.drawCoins();

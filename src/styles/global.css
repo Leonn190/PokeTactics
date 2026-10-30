@@ -502,3 +502,20 @@
 
 /* V19: remove legacy viewport anchors; the tray has one world-space anchor. */
 .item-inventory,.item-inventory.view-only{bottom:auto!important;right:auto!important;max-height:none!important}
+
+/* V20.7: personal settings stay above the game and the technical editor. */
+.game-settings-button{position:absolute;z-index:13;top:77px;left:50%;transform:translateX(-50%);border:1px solid #b5a07166;border-radius:10px;padding:7px 14px;background:#172c37e8;color:#f7db9a;font:700 11px/1.1 inherit;letter-spacing:.08em;cursor:pointer}
+.game-settings-button:hover{background:#254453}
+.player-settings-backdrop{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:20px;background:#030b13d9;backdrop-filter:blur(7px)}
+.player-settings-backdrop.hidden{display:none}
+.player-settings-panel{width:min(460px,100%);padding:28px;border-radius:19px;border:1px solid #c6ab7180;background:linear-gradient(155deg,#18323b,#101c2a 70%);box-shadow:0 22px 100px #000c;color:#f2eee1}
+.player-settings-panel>header{display:flex;justify-content:space-between;gap:20px;align-items:start;margin-bottom:26px}
+.player-settings-panel>header span{display:block;color:#c3a969;font-size:11px;letter-spacing:.15em;margin-bottom:6px}
+.player-settings-panel h2{font-size:21px;line-height:1.2;letter-spacing:.07em;margin:0}
+.player-settings-panel>header button{background:#ffffff10;color:#f3efd7;border:1px solid #ffffff40;border-radius:8px;padding:7px 11px;cursor:pointer}
+.player-settings-control{margin:0 0 25px}
+.player-settings-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;font-size:13px;font-weight:800;letter-spacing:.07em}
+.player-settings-label output{color:#f4cb71;font-size:16px;font-variant-numeric:tabular-nums}
+.player-settings-control input[type=range]{display:block;width:100%;accent-color:#f1c968;cursor:pointer;min-height:23px}
+.player-settings-control p,.player-settings-panel footer{font-size:12px;line-height:1.5;color:#b9cad1;margin:10px 0 0}
+.player-settings-panel footer{border-top:1px solid #ffffff20;padding-top:16px}
