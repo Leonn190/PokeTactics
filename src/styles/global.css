@@ -504,7 +504,7 @@
 .item-inventory,.item-inventory.view-only{bottom:auto!important;right:auto!important;max-height:none!important}
 
 /* V20.7: personal settings stay above the game and the technical editor. */
-.game-settings-button{position:absolute;z-index:13;top:77px;left:50%;transform:translateX(-50%);border:1px solid #b5a07166;border-radius:10px;padding:7px 14px;background:#172c37e8;color:#f7db9a;font:700 11px/1.1 inherit;letter-spacing:.08em;cursor:pointer}
+.game-settings-button{position:absolute;z-index:13;top:19px;right:21px;border:1px solid #b5a07166;border-radius:10px;padding:7px 14px;background:#172c37e8;color:#f7db9a;font-family:inherit;font-size:11px;font-weight:700;line-height:1.1;letter-spacing:.08em;cursor:pointer}
 .game-settings-button:hover{background:#254453}
 .player-settings-backdrop{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:20px;background:#030b13d9;backdrop-filter:blur(7px)}
 .player-settings-backdrop.hidden{display:none}

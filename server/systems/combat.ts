@@ -26,8 +26,17 @@ const metrics = (): CombatMetrics => ({ casts: 0, controlSeconds: 0, dealt: 0, p
 function stat(unit: CombatUnit, key: StatKey): number {
   const base = unit.stats[key];
   if (key === 'hp') return base;
-  const increase = Math.min(base * .3, unit.buffs.filter(b => b.stat === key).reduce((sum,b) => sum + b.amount, 0));
-  const decrease = (key === 'def' || key === 'spd') ? Math.min(base * .3, unit.defenseShreds.filter(b=>b.stat===key).reduce((sum,b) => sum + b.amount, 0)) : 0;
+  // Scan status arrays without allocating filter buffers on repeated stat reads.
+  // Additions preserve original iteration order and therefore numeric rounding.
+  let buffAmount = 0;
+  for (const buff of unit.buffs) if (buff.stat === key) buffAmount += buff.amount;
+  const increase = Math.min(base * .3, buffAmount);
+  let decrease = 0;
+  if (key === 'def' || key === 'spd') {
+    let shredAmount = 0;
+    for (const shred of unit.defenseShreds) if (shred.stat === key) shredAmount += shred.amount;
+    decrease = Math.min(base * .3, shredAmount);
+  }
   const synergySpeed=key==='speed'?base*(unit.synergy?.speedBonus||0):0;
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
   return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
