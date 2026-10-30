@@ -120,6 +120,7 @@ export class Configurator {
  }
  private pokemon():string{
   const pokemon=documentOf('pokemons.json');
+  const modifiedFamilies=new Set(modifications().filter(c=>c.file==='pokemons.json' && c.path[0]==='species').map(c=>String(c.path[1])));
   const list=entries.filter(e=>{
    const s=pokemon.species[e.family];
    return (this.rarity==='all'||String(s.rarity)===this.rarity)&& (this.type==='all'||s.elements.includes(this.type)) &&
@@ -157,7 +158,7 @@ export class Configurator {
     <label class="cfg-shop-toggle"><input type="checkbox" data-cfg-shoponly ${this.onlyShop?'checked':''}/> Apenas loja</label>
     <span class="cfg-context">${list.length} de ${entries.length} formas</span></div>
     <div class="cfg-poke-cards">${list.map(a=>{const sp=pokemon.species[a.family];return `<button class="cfg-poke-card ${a===this.entry?'active':''}" data-cfg-pokemon="${entries.indexOf(a)}" style="--rarity:${['#758492','#8fcd9c','#77b8f1','#cf91ec','#ffc96c'][sp.rarity-1]}">
-     ${portrait(a.dex,a.name)}<span><small>#${String(a.dex).padStart(3,'0')} · ${rarities[sp.rarity-1]}</small><strong>${safe(a.name)}</strong></span><b>${modifications().some(c=>c.path[1]===a.family)?'●':''}</b></button>`;}).join('')}</div></aside>${controls}</div>`;
+     ${portrait(a.dex,a.name)}<span><small>#${String(a.dex).padStart(3,'0')} · ${rarities[sp.rarity-1]}</small><strong>${safe(a.name)}</strong></span><b>${modifiedFamilies.has(a.family)?'●':''}</b></button>`;}).join('')}</div></aside>${controls}</div>`;
  }
  private shop():string{
   const rows=documentOf('regras_gerais.json').shopOddsByLevel as number[][];
