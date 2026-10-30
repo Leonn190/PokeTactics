@@ -822,14 +822,14 @@ export class GameEngine {
       accelerated: this.phase === 'combat' && this.clock >= roundTimers(this.round).combatSeconds,
       observedId: watched,
       players: this.players.map(p => ({
-        ...p, units: p.units.map(u => ({ ...u, iv: { ...u.iv }, position: { ...u.position }, equipment:(u.equipment||[]).map(i=>({...i,components:[...i.components]})) })),
-        itemInventory:p.id==='p0' ? (p.itemInventory||[]).map(i=>({...i,components:[...i.components]})) : [],
-        consumables:p.id==='p0' ? {...p.consumables} as NonNullable<Player['consumables']> : {pokeball:0,greatball:0,ultraball:0,masterball:0},
-        shop: p.id === 'p0' ? p.shop.map(offer => offer && { ...offer }) : []
+        ...p, units: p.units, // postMessage immediately structured-clones this ephemeral view
+        itemInventory:p.id==='p0' ? (p.itemInventory||[]) : [],
+        consumables:p.id==='p0' ? p.consumables as NonNullable<Player['consumables']> : {pokeball:0,greatball:0,ultraball:0,masterball:0},
+        shop: p.id === 'p0' ? p.shop : []
       })),
       opponentId: this.phase === 'planning' ? null : this.opponentId,
       lastOpponentId: this.lastOpponentId,
-      visualEvents: this.visualEvents.filter(a => a.ownerId === watched || a.ownerId === 'p0' || (a.kind === 'trainer-damage' && a.battleId === battle?.id)).map(a => ({ ...a })),
+      visualEvents: this.visualEvents.filter(a => a.ownerId === watched || a.ownerId === 'p0' || (a.kind === 'trainer-damage' && a.battleId === battle?.id)),
       possibleOpponents: this.phase === 'planning' ? this.matchupOptions() : {},
       // postMessage performs the one structured clone at the worker boundary.
       visibleBattle: battle,
