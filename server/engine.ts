@@ -203,6 +203,8 @@ export class GameEngine {
           if(scythers.length>=needed && !player.pendingEvolution){
             if(player.id==='p0'){player.pendingEvolution=scythers.slice(0,needed).map(u=>u.id);player.pendingEvolutionKind='scyther';}
             else {this.chooseEevee(player,this.rng.pick(['scizor','kleavor']));changed=true;}
+          } else if(scythers.length<needed && player.pendingEvolutionKind==='scyther'){
+            player.pendingEvolution=undefined;player.pendingEvolutionKind=undefined;
           }
           continue;
         }
@@ -219,9 +221,12 @@ export class GameEngine {
           const eevees = player.units.filter(u => u.family === 'eevee');
           const needed=evolutionCopies('eevee',0,hasAugment(player,'P11'));
           if (eevees.length >= needed) {
-            if (player.id === 'p0' && !player.pendingEvolution){player.pendingEvolution = eevees.slice(0, needed).map(u => u.id);player.pendingEvolutionKind='eevee';}
-            else this.chooseEevee(player, this.rng.pick(EEVEE_BRANCHES));
-            if (player.id !== 'p0') changed = true;
+            if (player.id === 'p0') {
+              if (!player.pendingEvolution){player.pendingEvolution = eevees.slice(0, needed).map(u => u.id);player.pendingEvolutionKind='eevee';}
+            } else {
+              this.chooseEevee(player, this.rng.pick(EEVEE_BRANCHES));
+              changed = true;
+            }
           } else if(player.pendingEvolutionKind==='eevee'){player.pendingEvolution=undefined;player.pendingEvolutionKind=undefined;}
           continue;
         }
@@ -604,6 +609,8 @@ export class GameEngine {
     }
     if (command.kind === 'buy') {
       if (!Number.isInteger(command.slot) || command.slot < 0 || command.slot >= SHOP_SIZE) return 'Slot inválido';
+      // A stale client card must never purchase a different offer after a reroll or stage transition.
+      if (!command.offerId || human.shop[command.slot]?.id !== command.offerId) return 'A loja mudou: confira a oferta atual';
       return this.buy(human, command.slot);
     }
     if (command.kind === 'reroll') {
