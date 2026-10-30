@@ -16,6 +16,7 @@ export class AugmentView {
  private lastChapter=0;
  private preview=false;
  private current:GameSnapshot|null=null;
+ private lastPlacementKey='';
  private canChoose=false;
  constructor(private send:(command:GameCommand)=>void){
   this.overlay=document.createElement('div');this.overlay.className='augment-overlay hidden';
@@ -55,8 +56,17 @@ export class AugmentView {
     this.send(reroll?{kind:'augment-reroll',slot}:{kind:'augment-choose',slot});
   });
  }
- reset():void {this.hideTooltip();this.current=null;this.latestChoice='';this.lastChapter=0;this.preview=false;this.stacks.innerHTML='';delete this.stacks.dataset.owners;this.draw();}
- render(snapshot:GameSnapshot,arena:Arena):void {this.current=snapshot;this.draw();this.positionStacks(arena);}
+ reset():void {this.hideTooltip();this.current=null;this.lastPlacementKey='';this.latestChoice='';this.lastChapter=0;this.preview=false;this.stacks.innerHTML='';delete this.stacks.dataset.owners;this.draw();}
+ render(snapshot:GameSnapshot,arena:Arena):void {
+   this.current=snapshot;
+   this.draw();
+   // Only recompute world positions when the scene's ownership/layout changes.
+   // Zoom and resize explicitly call positionStacks from main.ts.
+   const battle=snapshot.phase==='combat' && !snapshot.visibleBattle?.resolved ? snapshot.visibleBattle : null;
+   const ids=battle?.participants || [snapshot.observedId];
+   const layout=[snapshot.phase,battle?.id,snapshot.observedId,...ids.map(id=>`${id}:${snapshot.players.find(p=>p.id===id)?.augments?.join(',')||''}`)].join('|');
+   if(layout!==this.lastPlacementKey){this.positionStacks(arena);this.lastPlacementKey=layout;}
+ }
  private draw():void {
   const state=this.current,choice=state?.players[0].augmentChoice;
   const pending=!!choice&&choice.status==='pending'&&state?.phase==='planning'&&!state?.players[0].eliminated;

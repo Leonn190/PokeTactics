@@ -6,22 +6,30 @@ import type { ClientToServer, ServerToClient } from './types';
 const game = new GameEngine();
 let watchedPlayer = 'p0';
 const send = (message: ServerToClient) => self.postMessage(message);
+const publish = () => send({type:'snapshot',snapshot:game.snapshot(watchedPlayer)});
+const rejectUnexpected=(error:unknown)=>{
+  console.error('[Worker V22.6] Falha isolada ao processar estado',error);
+  send({type:'rejected',reason:'Erro temporário na simulação; tente novamente.'});
+};
 const stepMs = RENDER_SETTINGS.simulationTickMs;
 let previousTime = performance.now();
 let accumulatedMs = 0;
 let nextSnapshot = 0;
+let tickErrorReported=false;
 
 self.addEventListener('message', (event: MessageEvent<ClientToServer>) => {
-  if (event.data.type === 'watch') {
-    const playerId = event.data.playerId;
-    if (game.players.some(player => player.id === playerId)) watchedPlayer = playerId;
-  }
-  if (event.data.type === 'command') {
-    const reason = game.command(event.data.command);
-    if (reason) send({ type: 'rejected', reason });
-  }
-  send({ type: 'snapshot', snapshot: game.snapshot(watchedPlayer) });
-  nextSnapshot = performance.now() + RENDER_SETTINGS.snapshotIntervalMs;
+  try {
+    if (event.data.type === 'watch') {
+      const playerId = event.data.playerId;
+      if (game.players.some(player => player.id === playerId)) watchedPlayer = playerId;
+    }
+    if (event.data.type === 'command') {
+      const reason = game.command(event.data.command);
+      if (reason) send({ type: 'rejected', reason });
+    }
+    publish(); // Never wait for the next timed snapshot after a buy/reroll/equipment command.
+    nextSnapshot = performance.now() + RENDER_SETTINGS.snapshotIntervalMs;
+  }catch(error){rejectUnexpected(error);}
 });
 
 // Regular logical steps: drawing speed cannot change attacks, movement or damage.
@@ -32,14 +40,22 @@ setInterval(() => {
   previousTime = now;
   accumulatedMs += elapsedMs;
   let steps = 0;
-  while (accumulatedMs >= stepMs && steps < 5) {
-    game.tick(stepMs / 1000, watchedPlayer === 'p0');
-    accumulatedMs -= stepMs;
-    steps++;
+  try {
+    while (accumulatedMs >= stepMs && steps < 5) {
+      game.tick(stepMs / 1000, watchedPlayer === 'p0');
+      accumulatedMs -= stepMs;
+      steps++;
+    }
+    if (steps === 5) accumulatedMs = Math.min(accumulatedMs, stepMs);
+    tickErrorReported=false;
+  }catch(error){
+    // A simulation exception cannot permanently stop delivery of new HUD snapshots.
+    accumulatedMs=0;
+    if(!tickErrorReported)console.error('[Worker V22.6] Falha no tick da simulação',error);
+    tickErrorReported=true;
   }
-  if (steps === 5) accumulatedMs = Math.min(accumulatedMs, stepMs);
   if (now >= nextSnapshot) {
-    send({ type: 'snapshot', snapshot: game.snapshot(watchedPlayer) });
+    try {publish();}catch(error){rejectUnexpected(error);}
     nextSnapshot = now + RENDER_SETTINGS.snapshotIntervalMs;
   }
 }, Math.max(10, Math.floor(stepMs / 2)));

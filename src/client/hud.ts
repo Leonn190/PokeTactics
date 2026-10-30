@@ -42,12 +42,13 @@ export class Hud {
   private latestSnapshot: GameSnapshot | null = null;
   private latestView: ClientView | null = null;
   private toastTimer = 0;
-  private readonly fragmentCache = new Map<string, string>();
+  private readonly fragmentCache = new Map<string, {html:string;node:HTMLElement;first:ChildNode|null;length:number}>();
   private updateHTML(id: string, html: string): void {
     const node=element(id);
-    if (this.fragmentCache.get(id) === html && node.hasChildNodes()) return;
-    node.innerHTML = html;
-    this.fragmentCache.set(id, html);
+    const old=this.fragmentCache.get(id);
+    if(old?.html===html && old.node===node && old.first===node.firstChild && old.length===node.childNodes.length)return;
+    node.innerHTML=html;
+    this.fragmentCache.set(id,{html,node,first:node.firstChild,length:node.childNodes.length});
   }
 
   constructor() {
@@ -100,10 +101,84 @@ export class Hud {
     progress.classList.toggle('fast', snapshot.accelerated);
   }
 
-  render(snapshot: GameSnapshot, view: ClientView): void {
-    this.latestSnapshot = snapshot;
-    this.latestView = view;
-    const player = snapshot.players[0];
+  /** Each HUD region renders independently. No animation, hidden panel or failed section
+   * can block the shop, gold, synergies, ranking or the selected Pokemon. */
+  render(snapshot:GameSnapshot,view:ClientView):void {
+    this.latestSnapshot=snapshot;
+    this.latestView=view;
+    const human=snapshot.players[0];
+    const watched=snapshot.players.find(p=>p.id===view.scoutId)||human;
+    const rosterKey=(p:Player)=>p.units.map(u=>[u.id,u.family,u.stage,u.level,u.position,u.equipment,u.xp]);
+    const shopKey=human.shop.map(offer=>offer&&[offer.id,offer.family,offer.price,offer.rarity]);
+    const influenceRoster=human.units.map(u=>[u.family,u.stage,u.position.area]);
+    this.region('economy',()=>[snapshot.phase,snapshot.accelerated,snapshot.chapter,snapshot.stage,human.gold,human.level,human.augments,human.streak,human.roundVictory],()=>this.renderEconomy(snapshot,view));
+    this.region('shopOffers',()=>[shopKey,human.gold,human.eliminated,snapshot.phase,influenceRoster],()=>this.renderShopOffers(snapshot,view));
+    this.region('shopInfo',()=>[human.gold,human.level,human.eliminated,human.locked,human.augmentCounters?.['B02:free'],snapshot.phase,influenceRoster],()=>this.renderShopInfo(snapshot,view));
+    this.region('inventory',()=>[human.itemInventory,human.consumables,view.scoutId,view.selectedBall,view.inventoryItemId,this.inventoryPage,snapshot.lootMessageId],()=>this.renderInventory(snapshot,view));
+    this.region('synergies',()=>[view.scoutId,watched.augments,watched.units.map(u=>[u.id,u.family,u.stage,u.position])],()=>this.renderSynergies(snapshot,view));
+    this.region('ranking',()=>[view.scoutId,snapshot.players.map(p=>[p.id,p.name,p.health,p.eliminated,p.placement]),snapshot.phase,snapshot.stageType,snapshot.possibleOpponents.p0,snapshot.battleStatuses,snapshot.visualEvents.filter(e=>e.kind==='trainer-damage'&&e.age<1.05).map(e=>[e.id,e.ownerId,e.age,e.value])],()=>this.renderRanking(snapshot,view));
+    this.region('timeline',()=>[snapshot.chapter,snapshot.stage,snapshot.stageName,human.history],()=>this.renderTimeline(snapshot,view));
+    this.region('status',()=>[view.scoutId,snapshot.phase,snapshot.accelerated,snapshot.stageName,snapshot.log,snapshot.visibleBattle?.goldDrops.map(d=>[d.claimed,d.ownerId]),snapshot.players.map(p=>[p.id,p.name])],()=>this.renderStatus(snapshot,view));
+    const inspected = snapshot.players.flatMap(p=>p.units).find(u=>u.id===view.selectedId);
+    const activeBattle=snapshot.observedId===view.scoutId ? snapshot.visibleBattle : null;
+    const battleInspected=activeBattle?.units.find(u=>u.id===view.selectedId||u.sourceId===view.selectedId);
+    this.region('inspector',()=>[view.selectedId,view.scoutId,snapshot.observedId,snapshot.phase,
+      human.augments?.includes('P11'),snapshot.players.map(p=>p.units.map(u=>[u.family,u.stage])),
+      inspected&&[inspected.id,inspected.family,inspected.stage,inspected.level,inspected.iv,inspected.xp,inspected.equipment],
+      battleInspected&&[battleInspected.id,battleInspected.family,battleInspected.stage,battleInspected.level,battleInspected.iv,battleInspected.stats,battleInspected.equipment,battleInspected.buffs,battleInspected.synergy,battleInspected.ditto,battleInspected.range,battleInspected.focusCount,battleInspected.refractionUntil>battleInspected.itemNow]
+    ],()=>this.renderInspector(snapshot,view));
+    this.isolated('inspector-resources',()=>{
+      if(!view.selectedId)return;
+      const pokemon=inspected||(battleInspected?this.fromCombat(battleInspected):null);
+      if(pokemon)this.renderInspectorResources(battleInspected,pokemon);
+    });
+    // The inactive combat panel is not rendered every 85ms. Its cache is caught up
+    // immediately when opened, including the latest damage metrics.
+    if(this.panel==='combat')this.region('combat',()=>[view.scoutId,this.metric,this.showOpponent,snapshot.phase,snapshot.observedId,
+      snapshot.opponentId,snapshot.lastOpponentId,snapshot.combatStats,rosterKey(watched),
+      activeBattle?.id,activeBattle?.units.map(u=>[u.id,u.sourceId,u.hp,u.maxHp,u.stats,u.equipment])],()=>this.renderCombat(snapshot,view));
+    this.region('final',()=>[snapshot.phase,snapshot.winnerId,human.placement,snapshot.players.map(p=>[p.id,p.name])],()=>this.renderFinal(snapshot,view));
+  }
+
+  private regionSignatures=new Map<string,{key:string; nodes:Array<{node:HTMLElement;first:ChildNode|null; length:number}>}>();
+  private failedRegions=new Set<string>();
+  /** Signature calculation and DOM writes are both inside this error boundary. */
+  private region(name:string, fingerprint:()=>unknown, draw:()=>void):void {
+    try {
+      const signature=JSON.stringify(fingerprint());
+      const cached=this.regionSignatures.get(name);
+      const targets=this.regionTargets[name]||[];
+      if(cached?.key===signature && cached.nodes.every((previous,i)=>{
+        const node=element(targets[i]);
+        return previous.node===node && previous.first===node.firstChild && previous.length===node.childNodes.length;
+      }))return;
+      draw();
+      this.regionSignatures.set(name,{key:signature,nodes:targets.map(id=>{
+        const node=element(id);return {node,first:node.firstChild,length:node.childNodes.length};
+      })});
+      this.failedRegions.delete(name);
+    }catch(error){this.failure(name,error);}
+  }
+  private isolated(name:string,draw:()=>void):void {
+    try {draw();this.failedRegions.delete(name);}
+    catch(error){this.failure(name,error);}
+  }
+  private failure(name:string,error:unknown):void {
+    this.regionSignatures.delete(name);
+    if(!this.failedRegions.has(name))console.error(`[HUD V22.6] Falha em ${name}; as outras regiões continuam atualizando`,error);
+    this.failedRegions.add(name);
+  }
+  private readonly regionTargets:Record<string,string[]>={"inventory": ["itemInventory", "shopFooter", "inventoryContents", "inventoryCounter", "eeveeEvolution"], "economy": ["phaseLabel", "roundLabel", "goldCount", "incomeCount", "incomeBreakdown", "levelNumber"], "shopInfo": ["shopChances", "typeInfluence", "rerollButton", "lockButton"], "timeline": ["chapterTrack", "stageName"], "shopOffers": ["shopCards"], "synergies": ["traitRows"], "ranking": ["rankRows"], "combat": ["combatRows", "opponentCombatRows", "combatOwnLabel", "opponentCombatPanel"], "status": ["scoutBadge", "battleStatus"], "inspector": ["unitInspector"], "final": ["finalBanner"]};
+  reset():void {
+    this.regionSignatures.clear();this.failedRegions.clear();this.fragmentCache.clear();
+    this.latestSnapshot=null;this.latestView=null;this.lastLootMessage='';this.lastRank='';this.inventoryPage=0;
+    this.synergyPanel.reset();
+    element('shopCards').innerHTML='';element('rankRows').innerHTML='';
+    element('unitInspector').innerHTML='';element('unitInspector').classList.add('hidden');
+  }
+
+  private renderInventory(snapshot:GameSnapshot,view:ClientView):void {
+    const player=snapshot.players[0];
     element('shopFooter').classList.toggle('hidden',view.scoutId!=='p0');
     element('itemInventory').classList.toggle('hidden',view.scoutId!=='p0');
     if (snapshot.lootMessage && snapshot.lootMessageId!==this.lastLootMessage) {
@@ -125,10 +200,13 @@ export class Hud {
     element('inventoryCounter').textContent=`${inventoryUsed(player)}/${ITEMS.inventorySlots}`;
     // Branch evolutions now resolve immediately in the authoritative engine.
     element('eeveeEvolution').classList.add('hidden');
+  }
+
+  private renderEconomy(snapshot:GameSnapshot,view:ClientView):void {
+    const player=snapshot.players[0];
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
     element('roundLabel').textContent = `${snapshot.chapter}-${snapshot.stage}`;
-    this.renderClock(snapshot);
     element('goldCount').textContent = String(player.gold);
     const streak = (RULES.streakBonuses as Record<string, number>)[String(Math.min(5, Math.abs(player.streak)))] || 0;
     const interestLimit=interestCap(player.augments||[]);
@@ -138,7 +216,10 @@ export class Hud {
     const streakText = player.streak > 0 ? `${player.streak} vitórias seguidas` : player.streak < 0 ? `${-player.streak} derrotas seguidas` : 'sem sequência';
     this.updateHTML('incomeBreakdown', `<strong>PRÓXIMA RENDA</strong><div>Renda base <b>+${RULES.baseIncome}</b></div><div>Juros (${player.gold} ÷ ${RULES.interestEveryGold}, limite ${interestLimit}) <b>+${interest}</b></div><div>Última vitória <b>+${victory}</b></div><div>Sequência (${streakText}) <b>+${streak}</b></div><hr /><div class="total">Total projetado <b>+${RULES.baseIncome + interest + victory + streak}</b></div><small>Se vencer a próxima batalha, receberá +${RULES.victoryIncome} no pagamento seguinte. Juros e sequência serão recalculados.</small>`);
     element('levelNumber').textContent = String(player.level);
-    const fielded = player.units.filter(unit => unit.position.area === 'board');
+  }
+
+  private renderShopInfo(snapshot:GameSnapshot,view:ClientView):void {
+    const player=snapshot.players[0];
     const odds = shopOdds(player.level);
     const rarities = ['COMUM', 'INCOMUM', 'RARO', 'ÉPICO', 'LENDÁRIO'];
     this.updateHTML('shopChances', rarities.map((label, i) => `<div class="rarity-chance" title="${label}: peso ${odds[i]}%${odds.reduce((a,b) => a+b,0) !== 100 ? ' (pesos normalizados no sorteio)' : ''}"><i style="background:${RARITY_COLORS[i]}"></i><span>${label}</span><b>${odds[i]}%</b></div>`).join(''));
@@ -157,6 +238,10 @@ export class Hud {
     element('lockButton').setAttribute('aria-label', player.locked ? 'Destravar loja' : 'Travar loja');
     element('lockButton').setAttribute('title', player.locked ? 'Destravar loja' : 'Travar loja');
 
+  }
+
+  private renderTimeline(snapshot:GameSnapshot,view:ClientView):void {
+    const player=snapshot.players[0];
     const timeline = Array.from({ length: PHASES.stagesPerChapter }, (_, i) => {
         const stage = i + 1;
         const outcome = player.history[(snapshot.chapter - 1) * PHASES.stagesPerChapter + i];
@@ -164,23 +249,38 @@ export class Hud {
         const type = PHASES.stages[i].type;
         return `<div class="chapter-dot ${state} ${type}" title="${snapshot.chapter}-${stage} • ${PHASES.stages[i].name}${outcome ? ` • ${outcome}` : ''}" aria-label="Etapa ${snapshot.chapter}-${stage}"><i></i><small>${stage}</small></div>`;
       }).join('');
-    if (timeline !== this.lastTimeline) { element('chapterTrack').innerHTML = timeline; this.lastTimeline = timeline; }
+    this.updateHTML('chapterTrack', timeline);
     element('stageName').textContent = snapshot.stageName.toUpperCase();
 
+  }
+
+  private renderShopOffers(snapshot:GameSnapshot,view:ClientView):void {
+    const player=snapshot.players[0];
+    const influence=typeInfluence(player);
     const shopHtml = player.shop.map((offer: ShopOffer | null, i) => {
       if (!offer) return '<div class="shop-empty"></div>';
       const data = SPECIES[offer.family];
+      // Some V22.5 species define range only by rangeClass/stage. Never read their absent
+      // legacy species.range: it throws in rangeLabel and used to freeze the entire HUD.
+      const stage=getStageData(offer.family,0);
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
-      return `<button class="shop-card" data-shop="${i}" data-shop-offer="${offer.id}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${data.energy} de energia • alcance ${rangeLabel(data.range,data.rangeClass)} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, influence.shares)).toFixed(1)}%">
+      return `<button class="shop-card" data-shop="${i}" data-shop-offer="${offer.id}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${stage.energy} de energia • alcance ${rangeLabel(stage.range,stage.rangeClass)} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, influence.shares)).toFixed(1)}%">
           <div class="shop-portrait">${portrait(offer.family, 100)}</div><div class="shop-card-footer"><span class="shop-name">${data.names[0]}</span>
           <span class="shop-type">${data.elements.map(type => typeIcon(type, 18)).join('')}</span>
           <span class="shop-cost"><i>◈</i>${offer.price}</span></div></button>`;
     }).join('');
-    if (shopHtml !== this.lastShop || (!element('shopCards').hasChildNodes() && shopHtml)) { element('shopCards').innerHTML = shopHtml; this.lastShop = shopHtml; }
+    this.updateHTML('shopCards', shopHtml);
 
+  }
+
+  private renderSynergies(snapshot:GameSnapshot,view:ClientView):void {
+    const player=snapshot.players[0];
     const watched = snapshot.players.find(p => p.id === view.scoutId) || player;
     this.synergyPanel.update(watched);
 
+  }
+
+  private renderRanking(snapshot:GameSnapshot,view:ClientView):void {
     const ranked = [...snapshot.players].sort((a, b) => Number(a.eliminated) - Number(b.eliminated) || b.health - a.health || a.name.localeCompare(b.name));
     const possibilities = snapshot.possibleOpponents.p0 || [];
     const pve = snapshot.stageType === 'bot' || snapshot.stageType === 'boss';
@@ -194,7 +294,7 @@ export class Hud {
       : snapshot.battleStatuses[id] === 'defeated' ? 'Derrotado' : '';
     const shownHp=(p:Player):number => {const evt=snapshot.visualEvents.find(e=>e.kind==='trainer-damage'&&e.ownerId===p.id&&e.age<1.03);return Math.min(RULES.startingHealth,p.health+(evt?.value||0));};
     const rowHpClass = (health: number): string => health === 0 ? 'dead' : health < 30 ? 'low' : '';
-    if (this.lastRank !== rankOrder) {
+    if (this.lastRank !== rankOrder || element('rankRows').children.length!==ranked.length || ranked.some((p,i)=>(element('rankRows').children[i] as HTMLElement | undefined)?.dataset.scout!==p.id)) {
       const ranks = ranked.map((p,i)=>`<button class="rank-row ${p.id==='p0'?'you':''} ${view.scoutId===p.id&&p.id!=='p0'?'scouting':''} ${p.eliminated?'out':''}" data-scout="${p.id}" title="${p.id==='p0'?'Sua arena':`Inspecionar arena de ${safe(p.name)}`}" >
         <span class="rank-position">${p.placement||i+1}</span><span class="rank-token"></span><span class="rank-name">${safe(p.name)}</span><span class="rank-combat-status ${snapshot.battleStatuses[p.id]||''}">${rankStatus(p.id)}</span>${likely.has(p.id)?'<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>':''}<span class="rank-hp ${rowHpClass(shownHp(p))}">${shownHp(p)}</span></button>`).join('');
       element('rankRows').innerHTML = ranks;
@@ -219,6 +319,10 @@ export class Hud {
       });
     }
 
+  }
+
+  private renderCombat(snapshot:GameSnapshot,view:ClientView):void {
+    const watched=snapshot.players.find(p=>p.id===view.scoutId)||snapshot.players[0];
     const battle = snapshot.observedId === view.scoutId ? snapshot.visibleBattle : null;
     const opponentId = battle?.participants.find(id => id !== view.scoutId)
       || (view.scoutId === 'p0' ? snapshot.opponentId || snapshot.lastOpponentId : null);
@@ -258,8 +362,8 @@ export class Hud {
     }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : this.metric === 'mitigation' ? '<div class="metric-legend"><span><i class="def"></i>DEF</span><span><i class="spd"></i>SPD</span><span><i class="heal"></i>CURA</span></div>' : '')
       : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
     const ownHtml = combatHtml(ownEntries), enemyHtml = combatHtml(enemyEntries);
-    if (ownHtml !== this.lastCombat) { element('combatRows').innerHTML = ownHtml; this.lastCombat = ownHtml; }
-    if (enemyHtml !== this.lastOpponentCombat) { element('opponentCombatRows').innerHTML = enemyHtml; this.lastOpponentCombat = enemyHtml; }
+    this.updateHTML('combatRows',ownHtml);
+    this.updateHTML('opponentCombatRows',enemyHtml);
     element('combatOwnLabel').textContent = `EQUIPE · ${watched.name}`;
     element('combatSideLabel').textContent = `ADVERSÁRIO · ${snapshot.players.find(p => p.id === opponentId)?.name || opponentId?.replace('bot:', 'BOT ') || '—'}`;
     const toggle = element<HTMLButtonElement>('combatSideButton');
@@ -271,6 +375,10 @@ export class Hud {
     toggle.setAttribute('aria-label', this.showOpponent ? 'Ocultar equipe adversária' : 'Mostrar equipe adversária');
     element('opponentCombatPanel').classList.toggle('hidden', this.panel !== 'combat' || !this.showOpponent || !opponentId);
 
+  }
+
+  private renderStatus(snapshot:GameSnapshot,view:ClientView):void {
+    const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     const scout = view.scoutId !== 'p0' ? snapshot.players.find(p => p.id === view.scoutId) : null;
     element('scoutBadge').classList.toggle('hidden', !scout);
     element('scoutName').textContent = scout ? `OBSERVANDO ${scout.name}` : '';
@@ -279,6 +387,10 @@ export class Hud {
       element('battleStatus').textContent = scout ? `ARENA DE ${scout.name}` : `PREPARE SUA FORMAÇÃO • ${snapshot.stageName.toUpperCase()}`;
     } else element('battleStatus').textContent = pendingCoins && !scout ? `CLIQUE NAS MOEDAS • ${pendingCoins} PARA COLETAR` : scout ? `ASSISTINDO ${scout.name}` : snapshot.accelerated ? `COMBATE ACELERADO ${RULES.combatAcceleration}×` : snapshot.log || phaseLabels[snapshot.phase];
 
+  }
+
+  private renderInspector(snapshot:GameSnapshot,view:ClientView):void {
+    const battleUnits = snapshot.observedId===view.scoutId ? snapshot.visibleBattle?.units || [] : [];
     const inspected = snapshot.players.flatMap(p => p.units.map(unit => ({ unit, owner: p.name })))
       .find(item => item.unit.id === view.selectedId);
     const battleInspected = battleUnits.find(u => u.id === view.selectedId || u.sourceId === view.selectedId);
@@ -287,9 +399,13 @@ export class Hud {
     const inspector = inspectedPokemon ? this.inspector(inspectedPokemon, inspectOwner, battleInspected) : '';
     element('unitInspector').classList.toggle('hidden', !inspectedPokemon);
     // The inspector may have been removed/hidden by a screen transition despite an unchanged HTML cache.
-    if (inspector !== this.lastInspector || (inspector && !element('unitInspector').querySelector('.inspector-top'))) { element('unitInspector').innerHTML = inspector; this.lastInspector = inspector; }
+    this.updateHTML('unitInspector',inspector);
     if (inspectedPokemon) this.renderInspectorResources(battleInspected, inspectedPokemon);
 
+  }
+
+  private renderFinal(snapshot:GameSnapshot,view:ClientView):void {
+    const player=snapshot.players[0];
     const final = snapshot.phase === 'finished';
     element('finalBanner').classList.toggle('hidden', !final);
     if (final) {
@@ -350,7 +466,7 @@ export class Hud {
     const stageRange=refraction ? steppedRange(stage.rangeClass,1) : stage.range;
     const basicRange=combatant?.range??(stageRange+(pokemon.equipment||[]).filter(item=>item.recipe==='red+red').length*numberParam('longbow','range'));
     const rangeTitle=rangeLabel(basicRange,basicRange===stageRange ? (refraction ? 'Muito Alto' : stage.rangeClass) : undefined);
-    return `<div class="inspector-top">${portrait(displayFamily, 56, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · Alcance ${rangeTitle}</div></div></div>
+    return `<div class="inspector-top">${portrait(displayFamily, 56, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · XP ${pokemon.xp} · Alcance ${rangeTitle}</div></div></div>
       <div class="inspector-resources" aria-label="Vida e energia">
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
         <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>

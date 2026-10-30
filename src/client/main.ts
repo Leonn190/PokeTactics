@@ -5,7 +5,7 @@ import { Hud } from './hud';
 import { Menus } from './menus';
 import { PlayerSettings } from './player-settings';
 import { GameAudio } from './audio';
-import { BENCH_SIZE, RENDER_SETTINGS, SPECIES } from '../../server/data';
+import { BENCH_SIZE, SPECIES } from '../../server/data';
 import { ITEMS } from '../../server/systems/items';
 import pmdManifest from './pmd-manifest.json';
 import type { BallKind, ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
@@ -40,11 +40,7 @@ function countDrawnFrame(now:number){
 // Count the actual rendered frames through the arena's rendering callback.
 arena.onDrawFrame=countDrawnFrame;
 const augments = new AugmentView(command=>send(command));
-function updateWorldWidgets():void {
-  arena.placeWorldRack(document.getElementById('itemInventory')!);
-  if(state)augments.render(state,arena);
-}
-window.addEventListener('resize',updateWorldWidgets);
+window.addEventListener('resize',placeWorldWidgets);
 let worker: Worker | null = null;
 const ghost = document.getElementById('dragGhost')!;
 const ghostCanvas = document.createElement('canvas');
@@ -62,29 +58,16 @@ let ghostHeight = 96;
 let state: GameSnapshot | null = null;
 let dragStarted = false;
 let pointerStart = { x: 0, y: 0 };
-let lastHudRender = 0;
-let lastHudRevision = '';
-
-/** Structural snapshot signature: update stateful HUD parts on the FIRST matching
- * Worker snapshot, not after the 190ms animation/performance throttle.
- * Exclude the combat clock and VFX, which are refreshed separately. */
-function hudRevision(snapshot:GameSnapshot):string {
-  const human=snapshot.players[0];
-  return JSON.stringify([
-    snapshot.phase,snapshot.round,snapshot.chapter,snapshot.stage,snapshot.stageType,
-    snapshot.stageName,snapshot.accelerated,snapshot.winnerId,snapshot.lootMessageId,
-    snapshot.observedId,snapshot.battleStatuses,snapshot.possibleOpponents,
-    view.scoutId,view.selectedId,view.inventoryItemId,view.selectedBall,
-    snapshot.players.map(p=>[
-      p.id,p.name,p.health,p.gold,p.level,p.locked,p.eliminated,p.streak,
-      p.roundVictory,p.history,p.placement,p.augments,p.augmentChoice?.status,
-      p.augmentCounters,p.units.map(u=>[u.id,u.family,u.stage,u.level,u.xp,u.iv,u.position,u.equipment])
-    ]),
-    human.shop,human.itemInventory,human.pendingItems,human.consumables,
-    human.pendingEvolution,human.pendingEvolutionKind,
-    snapshot.visibleBattle?.id,snapshot.visibleBattle?.resolved,
-    snapshot.visibleBattle?.goldDrops.map(drop=>[drop.id,drop.claimed])
-  ]);
+let lastSnapshotSerial=-1;
+let lastWorldLayout='';
+const errorBoundaries=new Set<string>();
+function independently(name:string,callback:()=>void):void {
+  try {callback();errorBoundaries.delete(name);}
+  catch(error){if(!errorBoundaries.has(name))console.error(`[PokéTactics V22.6] ${name}`,error);errorBoundaries.add(name);}
+}
+function placeWorldWidgets():void {
+  independently('Posicionar itens',()=>arena.placeWorldRack(document.getElementById('itemInventory')!));
+  independently('Posicionar augments',()=>augments.positionStacks(arena));
 }
 
 function send(command: GameCommand): void {
@@ -103,29 +86,29 @@ function launchMatch(): void {
   view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
   framesDrawn=0;windowStart=performance.now();smoothedFps=75;fpsReadout.textContent='FPS: —';
-  lastHudRevision = '';lastHudRender = 0;
+  lastSnapshotSerial=-1;lastWorldLayout='';hud.reset();errorBoundaries.clear();
   augments.reset();
+  requestAnimationFrame(placeWorldWidgets);
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
   const currentWorker = worker;
   currentWorker.addEventListener('message', (event: MessageEvent<ServerToClient>) => {
     if (worker !== currentWorker) return;
     if (event.data.type === 'rejected') return hud.toast(event.data.reason);
-    if (!arena.acceptSnapshot(event.data.snapshot)) return;
-    state = event.data.snapshot;
-    updateWorldWidgets();
-    if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
-      && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
-    if (view.inventoryItemId && !state.players[0].itemInventory?.some(item=>item.id===view.inventoryItemId)) view.inventoryItemId=null;
-    if (view.selectedBall && !(state.players[0].consumables?.[view.selectedBall]||0)) view.selectedBall=null;
-    const now = performance.now();
-    // Full state transitions (purchases, rerolls, items, selection, stage and
-    // evolution) bypass the timed visual refresh; the Worker owns all values.
-    const revision = hudRevision(state);
-    hud.renderClock(state);
-    if (revision !== lastHudRevision || now-lastHudRender >= RENDER_SETTINGS.hudRefreshMs) {
-      hud.render(state,view);
-      lastHudRender=now;lastHudRevision=revision;
-    }
+    const incoming=event.data.snapshot;
+    if(!Number.isFinite(incoming.serial)||incoming.serial<=lastSnapshotSerial)return;
+    lastSnapshotSerial=incoming.serial;
+    state=incoming;
+    if(view.selectedId && !state.players.some(p=>p.units.some(u=>u.id===view.selectedId))
+      && !state.visibleBattle?.units.some(u=>u.id===view.selectedId||u.sourceId===view.selectedId))view.selectedId=null;
+    if(view.inventoryItemId&&!state.players[0].itemInventory?.some(item=>item.id===view.inventoryItemId))view.inventoryItemId=null;
+    if(view.selectedBall&&!(state.players[0].consumables?.[view.selectedBall]||0))view.selectedBall=null;
+    // Authoritative state first, never gated by a canvas draw or a global 190ms timer.
+    independently('HUD',()=>hud.render(incoming,view));
+    independently('Relógio',()=>hud.renderClock(incoming));
+    independently('Arena',()=>arena.acceptSnapshot(incoming));
+    independently('Augments',()=>augments.render(incoming,arena));
+    const layout=[incoming.phase,incoming.observedId,incoming.visibleBattle?.participants.join(',')].join(':');
+    if(lastWorldLayout!==layout){lastWorldLayout=layout;placeWorldWidgets();}
   });
   currentWorker.addEventListener('error', () => hud.toast('Erro ao iniciar a simulação'));
   currentWorker.postMessage({ type: 'connect' } satisfies ClientToServer);
@@ -135,11 +118,11 @@ document.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest('button');
   if (button && button.id !== 'findMatchButton') audio.play('click');
 });
-updateWorldWidgets();
+placeWorldWidgets();
 document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
   playerSettings.close(); audio.play('finish');
   worker?.terminate(); worker = null; state = null; arena.snapshot = null; arena.setActive(false);
-  view.selectedId = null; clearDrag();augments.reset();
+  view.selectedId=null;clearDrag();clearItemDrag();view.selectedBall=null;view.inventoryItemId=null;augments.reset();hud.reset();lastSnapshotSerial=-1;lastWorldLayout='';
   document.getElementById('finalBanner')!.classList.add('hidden');
   menus.showHome();
 });
@@ -149,11 +132,10 @@ inventoryContents.addEventListener('click',event=>{
   if (!state || view.scoutId!=='p0') return;
   const page=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-page]');
   if(page){hud.changeInventoryPage(page.dataset.inventoryPage==='next'?1:-1);hud.render(state,view);return;}
-  // Pointer clicks never arm a sticky item. Keyboard activation retains an accessible fallback.
-  if(event.detail!==0)return;
+  // Normal equipment is always dragged. Pokeballs retain keyboard/click support.
   const item=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-item]');
   const ball=(event.target as HTMLElement).closest<HTMLElement>('[data-inventory-ball]');
-  if(item) {view.inventoryItemId=view.inventoryItemId===item.dataset.inventoryItem?null:item.dataset.inventoryItem||null;view.selectedBall=null;}
+  if(item) {view.inventoryItemId=null;return;}
   if(ball) {view.selectedBall=view.selectedBall===ball.dataset.inventoryBall?null:ball.dataset.inventoryBall as BallKind;view.inventoryItemId=null;}
   hud.render(state,view);
 });
@@ -162,10 +144,7 @@ document.getElementById('unitInspector')!.addEventListener('click',event=>{
   const slot=(event.target as HTMLElement).closest<HTMLElement>('[data-gear-slot]');
   if(!slot) return;
   const unitId=slot.dataset.gearUnit!;
-  if(view.inventoryItemId) {
-    send({kind:'equip-item',itemId:view.inventoryItemId,unitId,ontoSlot:Number(slot.dataset.gearSlot)});
-    view.inventoryItemId=null;
-  } else send({kind:'unequip-item',unitId,slot:Number(slot.dataset.gearSlot)});
+  if(slot.classList.contains('occupied'))send({kind:'unequip-item',unitId,slot:Number(slot.dataset.gearSlot)});
 });
 // The board rack offers the same point-and-drag behavior as the Pokémon themselves.
 let trayDragId:string|null=null;
@@ -205,6 +184,7 @@ inventoryContents.addEventListener('pointerdown',event=>{
   trayStart={x:event.clientX,y:event.clientY};
   trayDragging=false;
   // Keep the pointer attached to this stable parent while the item moves over the canvas.
+  if(inventoryContents.hasPointerCapture(event.pointerId))inventoryContents.releasePointerCapture(event.pointerId);
   inventoryContents.setPointerCapture(event.pointerId);
   event.preventDefault();
 });
@@ -215,9 +195,10 @@ document.addEventListener('pointermove',event=>{
     if(!item&&!trayDragBall){clearItemDrag();return;}
     const source=trayDragBall ? document.querySelector<HTMLElement>(`[data-inventory-ball="${trayDragBall}"] img`) : document.querySelector<HTMLElement>(`[data-inventory-item="${trayDragId}"] .gear-icon`);
     itemGhost.innerHTML=source?.outerHTML||'';
-    itemGhost.classList.remove('hidden');trayDragging=true;
+    itemGhost.classList.remove('hidden');trayDragging=true;view.inventoryItemId=null;view.selectedBall=null;
   }
   if(trayDragging){
+    if(event.cancelable)event.preventDefault();
     itemGhost.style.left=`${event.clientX}px`;itemGhost.style.top=`${event.clientY}px`;
     itemGhost.classList.toggle('valid-target',validInventoryDrop(arena.pickOwnUnit(event.clientX,event.clientY),trayDragId,trayDragBall));
   }
@@ -228,7 +209,10 @@ document.addEventListener('pointerup',event=>{
   if(trayDragging && view.scoutId==='p0'&&state){
     const target=document.elementFromPoint(event.clientX,event.clientY);
     const slot=target?.closest<HTMLElement>('[data-gear-slot]');
-    const unitId=target===canvas?arena.pickOwnUnit(event.clientX,event.clientY):null;
+    const rect=canvas.getBoundingClientRect();
+    const aboveCanvas=event.clientX>=rect.left&&event.clientX<=rect.right&&event.clientY>=rect.top&&event.clientY<=rect.bottom;
+    const overHud=!!target?.closest('#shopFooter,#unitInspector,#itemInventory,.augment-overlay,.arena-augment-stacks');
+    const unitId=aboveCanvas&&!overHud?arena.pickOwnUnit(event.clientX,event.clientY):null;
     if(slot && id && validInventoryDrop(slot.dataset.gearUnit||null,id,null))
       send({kind:'equip-item',itemId:id,unitId:slot.dataset.gearUnit!,ontoSlot:Number(slot.dataset.gearSlot)});
     else if(unitId && validInventoryDrop(unitId,id,ball)){
@@ -241,7 +225,7 @@ document.addEventListener('pointerup',event=>{
   }
   clearItemDrag();
 });
-document.addEventListener('pointercancel',clearItemDrag);
+document.addEventListener('pointercancel',event=>{if(event.pointerId===trayPointer)clearItemDrag();});
 window.addEventListener('blur',clearItemDrag);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearItemDrag();});
 
@@ -261,7 +245,7 @@ document.getElementById('rankRows')!.addEventListener('click', event => {
 });
 document.getElementById('returnBoard')!.addEventListener('click', () => {
   if (!state) return;
-  watch('p0'); hud.render(state, view);
+  watch('p0'); view.selectedId=null; hud.render(state, view);
 });
 
 function startDrag(id: string, event: PointerEvent): void {
@@ -374,9 +358,8 @@ canvas.addEventListener('pointerdown', event => {
 
   if (event.button !== 0) return;
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
-  if (id && (view.inventoryItemId || view.selectedBall)) {
-    if(view.inventoryItemId) send({kind:'equip-item',itemId:view.inventoryItemId,unitId:id});
-    else if(view.selectedBall) send({kind:'use-ball',ball:view.selectedBall,unitId:id});
+  if (id && view.selectedBall) {
+    send({kind:'use-ball',ball:view.selectedBall,unitId:id});
     view.inventoryItemId=null;view.selectedBall=null;
     if(state) hud.render(state,view);
   } else if (id) startDrag(id, event);
@@ -429,7 +412,7 @@ canvas.addEventListener('contextmenu', event => {
 canvas.addEventListener('wheel', event => {
   event.preventDefault();
   arena.zoomAt(event.deltaY, event.clientX, event.clientY);
-  updateWorldWidgets();
+  placeWorldWidgets();
 }, { passive: false });
 document.addEventListener('keydown', event => {
   if (playerSettings.isOpen() || !state || event.repeat || state.phase === 'finished') return;

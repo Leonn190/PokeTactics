@@ -70,7 +70,7 @@ export class Arena {
   private renderLead = 0;
   private spriteBounds = new SpriteBoundsCache();
   private warmedSpecies = new Set<number>();
-  private planningCache: { serial: number; scout: string; markers: Marker[] } | null = null;
+  private planningCache: { key: string; scout: string; markers: Marker[] } | null = null;
   private pillarPreview:{unitId:string;index:number;col:number;row:number}|null=null;
   previewPillar(value:{unitId:string;index:number;col:number;row:number}|null):void{this.pillarPreview=value;}
   private pendingMove=new Map<string,{position:UnitPosition; serial:number}>();
@@ -90,6 +90,7 @@ export class Arena {
   private lastFrame = 0;
   private frame = 0;
   private active = false;
+  private frameErrorReported=false;
   private renderScale = Math.min(window.devicePixelRatio || 1, RENDER_SETTINGS.maxPixelRatio);
   private frameCost = 0;
   private frameIntervals = 0;
@@ -101,15 +102,16 @@ export class Arena {
     if (!this.visualClock.accept(snapshot.serial, arrivedAt)) return false;
     this.snapshot = snapshot;
     // Optimistic relocation ends as soon as the worker confirms or rejects it.
+    let previewExpired=false;
     for(const [id,pending] of this.pendingMove){
       const unit=snapshot.players[0]?.units.find(u=>u.id===id);
       if (!unit || (unit.position.area === pending.position.area && (unit.position.area === 'bench'
         ? pending.position.area === 'bench' && unit.position.index === pending.position.index
         : pending.position.area === 'board' && unit.position.col === pending.position.col && unit.position.row === pending.position.row))
         || snapshot.serial > pending.serial + 2)
-        this.pendingMove.delete(id);
+        {this.pendingMove.delete(id);previewExpired=true;}
     }
-    this.planningCache=null;
+    if(snapshot.phase!=='planning'||previewExpired)this.planningCache=null;
     // Build stable lookup once per snapshot rather than allocating it at display frequency.
     this.unitEventLookup.clear();
     for (const event of snapshot.visualEvents) {
@@ -165,6 +167,7 @@ export class Arena {
 
   setActive(active: boolean): void {
     this.active = active;
+    this.frameErrorReported=false;
     this.lastFrame = 0;
     this.frameScheduler.reset();
     this.visualClock.reset();
@@ -182,8 +185,9 @@ export class Arena {
     if (this.rafHandle !== null || !this.active || document.hidden) return;
     this.rafHandle = requestAnimationFrame(time => {
       this.rafHandle = null;
-      this.draw(time);
-      this.scheduleFrame();
+      try {this.draw(time);this.frameErrorReported=false;}
+      catch(error){if(!this.frameErrorReported)console.error('[Arena V22.6] Falha ao desenhar o quadro',error);this.frameErrorReported=true;}
+      finally {this.scheduleFrame();}
     });
   }
 
@@ -544,10 +548,10 @@ export class Arena {
   private markers(): Marker[] {
     const snapshot = this.snapshot;
     if (!snapshot) return [];
-    if (snapshot.phase === 'planning' && this.planningCache?.serial === snapshot.serial && this.planningCache.scout === this.view.scoutId) {
-      return this.planningCache.markers;
-    }
     const watched = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
+    const planningKey=snapshot.phase==='planning' ? JSON.stringify(watched.units.map(u=>[
+      u.id,u.family,u.stage,u.level,u.position,u.equipment])) : '';
+    if(snapshot.phase==='planning' && this.planningCache?.key===planningKey && this.planningCache.scout===this.view.scoutId)return this.planningCache.markers;
     const benchUnits = (units: Pokemon[], ownerId: string, own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
       const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index, enemy, offset);
       return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
@@ -588,7 +592,7 @@ export class Arena {
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
     const prepared = [...convert(liveUnits, true), ...bench];
-    this.planningCache = { serial: snapshot.serial, scout: this.view.scoutId, markers: prepared };
+    this.planningCache = { key: planningKey, scout: this.view.scoutId, markers: prepared };
     return prepared;
   }
 

@@ -39,6 +39,7 @@ export class SynergyPanel {
    rows.addEventListener('keydown',ev=>{if(ev.key==='Escape')this.hide();});
    this.tooltip.addEventListener('pointerleave',ev=>{if(!this.rows.contains(ev.relatedTarget as Node|null))this.hide();});
  }
+ reset():void {this.latestTypes='';this.latestOwnership='';this.visible=null;this.counts={};this.contributing={};this.rows.innerHTML='';this.tooltip.hidden=true;}
  update(watched:Player):void {
    const unique=new Set<string>();this.counts={};this.contributing={};
    this.owned=new Set(watched.units.map(u=>`${u.family}:${u.stage}`));
@@ -71,7 +72,7 @@ export class SynergyPanel {
         <span class="sy-count">${count} / ${step}</span></button>`;
    }).join('')||'<div class="traits-empty">Nenhum tipo em campo</div>';
    const changed=this.latestTypes!==html;
-   if(changed){this.rows.innerHTML=html;this.latestTypes=html;}
+   if(changed||!this.rows.hasChildNodes()){this.rows.innerHTML=html;this.latestTypes=html;}
    if((changed||ownershipChanged)&&this.visible){const anchor=this.rows.querySelector<HTMLElement>(`[data-synergy="${this.visible}"]`);if(anchor)this.show(this.visible,anchor);else this.hide();}
  }
  private show(type:Element,row:HTMLElement):void {
