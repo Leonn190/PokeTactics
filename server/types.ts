@@ -16,6 +16,7 @@ export type StageResult = 'win' | 'loss' | 'second' | 'third' | 'fourth' | null;
 export type Phase = 'planning' | 'combat' | 'result' | 'finished';
 export type UnitPosition = { area: 'bench'; index: number } | { area: 'board'; col: number; row: number };
 
+export interface AugmentChoice { chapter: number; rarity: 'bronze'|'silver'|'gold'|'prismatic'; offers: string[]; rerolled: boolean[]; status:'pending'|'chosen'; selected?: string }
 export interface Pokemon {
   id: string;
   family: Family;
@@ -25,6 +26,8 @@ export interface Pokemon {
   iv: Stats;
   position: UnitPosition;
   equipment?: EquippedItem[];
+  acquiredChapter?: number;
+  appliedAugments?: string[];
 }
 
 export interface ShopOffer {
@@ -52,6 +55,12 @@ export interface Player {
   pendingEvolution?: string[];
   itemInventory?: EquippedItem[];
   pendingItems?: EquippedItem[];
+  augments?: string[];
+  augmentChoice?: AugmentChoice;
+  augmentChosenChapters?: Record<string,number>;
+  augmentCounters?: Record<string,number>;
+  augmentEvents?: string[];
+  currentRound?: number;
   consumables?: Record<BallKind, number>;
 }
 
@@ -170,6 +179,8 @@ export interface CombatUnit {
   slow: number;
   synergy?: SynergyUnitState;
   metrics: CombatMetrics;
+  augmentCrit?: boolean;
+  windSlow?: number;
 }
 
 export interface CombatEffect {
@@ -180,7 +191,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact';
   damageType?: 'physical' | 'special' | 'true';
   basicType?: Element;
   family: Family;
@@ -189,6 +200,8 @@ export interface CombatEffect {
   duration: number;
   value: number;
   piercing?: { sourceId: string; raw: number; attackType: Element; hitIds: string[] };
+  wind?: { sourceId:string; raw:number; attackType:Element; dx:number; dy:number; speed:number;
+    traveled:number; maxDistance:number; radius:number; hitIds:string[]; slowFactor:number; speedFactor:number; };
   pendingHit?: {
     sourceId: string;
     targetId: string;
@@ -200,7 +213,7 @@ export interface CombatEffect {
     arrival: number;
     onHit?: 'drain' | 'burn' | 'slow' | 'poison';
     chain?: { remaining: number; visited: string[]; ratio: number; range: number };
-    special?: 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg' | 'dragon-breath' | 'dragon-cyclone' | 'mew-blessing';
+    special?: 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg' | 'dragon-breath' | 'dragon-cyclone' | 'mew-blessing' | 'bite-shred';
     psychicBonus?: number;
   };
 }
@@ -233,6 +246,8 @@ export interface Battle {
   sacredTiles?: Record<string,{col:number;row:number}>;
   synergyTimers?: Record<string,number>;
   benches: Record<string, Pokemon[]>;
+  augmentsByPlayer?: Record<string,string[]>;
+  augmentTimers?: Record<string,number>;
   knockupEvents: KnockupEvent[];
 }
 
@@ -290,6 +305,8 @@ export interface GameSnapshot {
 export type GameCommand =
   | { kind: 'buy'; slot: number }
   | { kind: 'reroll' }
+  | { kind: 'augment-reroll'; slot: number }
+  | { kind: 'augment-choose'; slot: number }
   | { kind: 'lock' }
   | { kind: 'move'; unitId: string; position: UnitPosition }
   | { kind: 'sell'; unitId: string }

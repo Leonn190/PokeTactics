@@ -11,10 +11,6 @@
     "yellow": 5
   },
   "eligibleTypes": [
-    "battle",
-    "gold",
-    "quad",
-    "double",
     "bot",
     "boss"
   ],

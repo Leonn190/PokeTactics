@@ -634,6 +634,48 @@
         2,
         3
       ]
+    },
+    "rattata-bite": {
+      "name": "Mordida",
+      "effect": "bite-shred",
+      "baseDamage": 22,
+      "attackRatio": 0.5,
+      "specialRatio": 0,
+      "shredBase": 6,
+      "shredRatio": 0.1,
+      "shredDuration": 4
+    },
+    "raticate-bite": {
+      "name": "Mordida",
+      "effect": "bite-shred",
+      "baseDamage": 37,
+      "attackRatio": 0.65,
+      "specialRatio": 0,
+      "shredBase": 10,
+      "shredRatio": 0.14,
+      "shredDuration": 5
+    },
+    "spearow-tornado": {
+      "name": "Tornado",
+      "effect": "wind-tornado",
+      "baseDamage": 20,
+      "specialRatio": 0.4,
+      "tornadoSpeed": 7.2,
+      "tornadoDistance": 9,
+      "tornadoRadius": 0.49,
+      "tornadoSlow": 0.5,
+      "tornadoSpeedReduction": 0.8
+    },
+    "fearow-tornado": {
+      "name": "Tornado",
+      "effect": "wind-tornado",
+      "baseDamage": 33,
+      "specialRatio": 0.5,
+      "tornadoSpeed": 8,
+      "tornadoDistance": 10,
+      "tornadoRadius": 0.53,
+      "tornadoSlow": 0.5,
+      "tornadoSpeedReduction": 0.8
     }
   }
 }

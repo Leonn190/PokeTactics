@@ -131,6 +131,14 @@
     "staryu": [
       "./sprites/120.png",
       "./sprites/121.png"
+    ],
+    "rattata": [
+      "./sprites/19.png",
+      "./sprites/20.png"
+    ],
+    "spearow": [
+      "./sprites/21.png",
+      "./sprites/22.png"
     ]
   },
   "species": {
@@ -2498,6 +2506,151 @@
           "energy": 65,
           "chargedAnimation": "Twirl",
           "chargedType": "psychic"
+        }
+      ]
+    },
+    "rattata": {
+      "names": [
+        "Rattata",
+        "Raticate"
+      ],
+      "pokedexIds": [
+        19,
+        20
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#cfaa94",
+      "base": {
+        "hp": 225,
+        "atk": 52,
+        "def": 38,
+        "spa": 25,
+        "spd": 32,
+        "speed": 78
+      },
+      "stageBases": [
+        {
+          "hp": 225,
+          "atk": 52,
+          "def": 38,
+          "spa": 25,
+          "spd": 32,
+          "speed": 78
+        },
+        {
+          "hp": 370,
+          "atk": 99,
+          "def": 62,
+          "spa": 42,
+          "spd": 54,
+          "speed": 112
+        }
+      ],
+      "range": 1,
+      "energy": 55,
+      "attack": "rattata-bite",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal"
+          ],
+          "range": 1,
+          "move": "rattata-bite",
+          "energy": 55,
+          "chargedAnimation": "Attack"
+        },
+        {
+          "elements": [
+            "normal"
+          ],
+          "range": 1,
+          "move": "raticate-bite",
+          "energy": 60,
+          "chargedAnimation": "Attack"
+        }
+      ]
+    },
+    "spearow": {
+      "names": [
+        "Spearow",
+        "Fearow"
+      ],
+      "pokedexIds": [
+        21,
+        22
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#c9b891",
+      "base": {
+        "hp": 200,
+        "atk": 48,
+        "def": 30,
+        "spa": 50,
+        "spd": 40,
+        "speed": 84
+      },
+      "stageBases": [
+        {
+          "hp": 200,
+          "atk": 48,
+          "def": 30,
+          "spa": 50,
+          "spd": 40,
+          "speed": 84
+        },
+        {
+          "hp": 345,
+          "atk": 80,
+          "def": 54,
+          "spa": 95,
+          "spd": 64,
+          "speed": 120
+        }
+      ],
+      "range": 2,
+      "energy": 65,
+      "attack": "spearow-tornado",
+      "elements": [
+        "normal",
+        "flying"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal",
+            "flying"
+          ],
+          "range": 2,
+          "move": "spearow-tornado",
+          "energy": 65,
+          "chargedAnimation": "Shoot",
+          "chargedType": "flying"
+        },
+        {
+          "elements": [
+            "normal",
+            "flying"
+          ],
+          "range": 3,
+          "move": "fearow-tornado",
+          "energy": 70,
+          "chargedAnimation": "Shoot",
+          "chargedType": "flying"
         }
       ]
     }

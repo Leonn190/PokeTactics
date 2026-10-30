@@ -1,3 +1,4 @@
+import { beginCombatAugments, onAugmentBasic, onAugmentCast, onAugmentDamage, onAugmentDeath, tickCombatAugments } from './augments';
 import { ANIMATIONS, ATTACKS, calculateStats, getStageData, gridXY, SPECIES } from '../data';
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
@@ -26,7 +27,7 @@ function stat(unit: CombatUnit, key: StatKey): number {
   const decrease = (key === 'def' || key === 'spd') ? Math.min(base * .3, unit.defenseShreds.filter(b=>b.stat===key).reduce((sum,b) => sum + b.amount, 0)) : 0;
   const synergySpeed=key==='speed'?base*(unit.synergy?.speedBonus||0):0;
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
-  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed);
+  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='speed' ? 1-(unit.windSlow||0) : 1);
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -91,9 +92,12 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi, kind === 'boss' && p.id.startsWith('bot:')))),
     effects: [], knockupEvents: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
     benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
-    traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)]))
+    traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)])),
+    augmentsByPlayer: Object.fromEntries(players.map(p=>[p.id,[...(p.augments||[])]])),
+    augmentTimers: {}
   };
   initializeSynergies(battle);
+  beginCombatAugments(battle);
   return battle;
 }
 
@@ -240,6 +244,8 @@ function applyBallConversion(battle: Battle, caster: CombatUnit, amount: number)
 }
 
 function landProjectiles(battle: Battle, dt: number): void {
+  // Multiple tornadoes may overlap; a single 50% slow is applied (never multiplied).
+  for(const unit of battle.units)unit.windSlow=0;
   for (const fx of battle.effects) {
     if (fx.pendingHit) {
       const movingTarget = battle.units.find(u => u.id === fx.pendingHit!.targetId && u.hp > 0);
@@ -247,6 +253,33 @@ function landProjectiles(battle: Battle, dt: number): void {
     }
     const oldTime = fx.time;
     fx.time += dt;
+    if (fx.wind) {
+      const wind=fx.wind;
+      const caster=battle.units.find(u=>u.id===wind.sourceId);
+      if(!caster||fx.time>=fx.duration){fx.time=fx.duration;continue;}
+      // Fixed substeps prevent tunneling at accelerated combat speed. One hit ID per cast.
+      let remaining=dt;
+      while(remaining>0 && wind.traveled<wind.maxDistance){
+        const step=Math.min(.035,remaining);remaining-=step;
+        const touching=battle.units.some(unit=>unit.hp>0&&unit.playerId!==caster.playerId
+          &&Math.hypot(unit.x-fx.x,unit.y-fx.y)<=wind.radius);
+        const ratio=touching ? wind.speedFactor : 1;
+        const traveled=Math.min(wind.maxDistance-wind.traveled,wind.speed*ratio*step);
+        const px=fx.x,py=fx.y;
+        fx.x+=wind.dx*traveled;fx.y+=wind.dy*traveled;wind.traveled+=traveled;
+        for(const unit of battle.units){
+          if(unit.hp<=0||unit.playerId===caster.playerId)continue;
+          if(segmentDistanceSq(px,py,fx.x,fx.y,unit.x,unit.y)>wind.radius**2)continue;
+          if(!wind.hitIds.includes(unit.id)){
+            wind.hitIds.push(unit.id);deal(battle,caster,unit,wind.raw,true,true,wind.attackType);
+          }
+          // The slowing effect is tied to the tornado's actual contact area.
+          if(unit.hp>0 && Math.hypot(unit.x-fx.x,unit.y-fx.y)<=wind.radius)unit.windSlow=Math.max(unit.windSlow||0,wind.slowFactor);
+        }
+      }
+      if(wind.traveled>=wind.maxDistance)fx.time=fx.duration;
+      continue;
+    }
     if (fx.piercing) {
       const hit = fx.piercing;
       const caster = battle.units.find(u => u.id === hit.sourceId);
@@ -325,7 +358,7 @@ function landProjectiles(battle: Battle, dt: number): void {
       const mew = battle.units.find(u => u.id === buff.sourceId);
       if (mew) { deal(battle,mew,target,buff.extraDamage,true,false,'psychic'); effect(battle,mew,target,'psychic-spark',0); }
     }
-    if (hit.special === 'bone-throw') { if (target.hp > 0) applyShred(battle,caster,target); continue; }
+    if (hit.special === 'bone-throw' || hit.special==='bite-shred') { if (target.hp > 0) applyShred(battle,caster,target); continue; }
     if (hit.special === 'single-knockup') { applyKnockup(battle,caster,target,move.controlDuration || .75); continue; }
     if (hit.special === 'rock-strike') continue;
     if (hit.onHit === 'drain') {
@@ -358,6 +391,8 @@ function landProjectiles(battle: Battle, dt: number): void {
 }
 
 function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage: number): void {
+  // Only a definitive KO can transfer the prism's inheritance.
+  onAugmentDeath(battle,target);
   effect(battle, killer, target, 'ko', damage);
   if (!battle.units.some(u => u.playerId === target.playerId && u.hp > 0)) battle.knockoutAt[target.playerId] = battle.elapsed;
   if (battle.goldRound && killer.playerId !== target.playerId) {
@@ -379,7 +414,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   let bits = (battle.seed ^ Math.imul(source.hitSerial, 0x9e3779b9)) >>> 0;
   bits ^= bits >>> 16; bits = Math.imul(bits, 0x7feb352d); bits ^= bits >>> 15;
   bits = Math.imul(bits, 0x846ca68b); bits ^= bits >>> 16;
-  const critical = mode==='normal' && (!charged || effectCount(source,'spell_critical')>0 || !!synergyTier(battle,source,'dark'))
+  const critical = mode==='normal' && (!charged || effectCount(source,'spell_critical')>0 || !!source.synergy?.flags.augmentSpellCritical || !!synergyTier(battle,source,'dark'))
     && (bits >>> 0)/4294967296 < attacker.critChance;
   let critFactor=critical ? attacker.critDamage : 1;
   if (critical && effectCount(target,'bramble')) critFactor=1+(critFactor-1)*(1-numberParam('bramble','criticalExtraReduction'));
@@ -430,6 +465,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   target.flash = 0.19;
   if (damage > target.maxHp * .2 && target.hp > 0 && !target.leap && !target.combo) animate(target, 'Hurt', .28, target.spinTime > 0 ? 'Withdraw' : undefined);
   onSynergyHit(battle,source,target,hpBefore,damage+absorbedTotal,mode==='normal', {deal,heal,effect,stat});
+  onAugmentDamage(battle,target);
   if(target.hp<=0 && !onSynergyDeath(battle,source,target,{deal,heal,effect,stat}))knockout(battle,source,target,damage);
   const actual=damage+absorbedTotal;
   if (mode==='normal' && actual>0) {
@@ -501,6 +537,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   const stage = getStageData(source.family, source.stage);
   const moveId = moveIdOf(source), move = ATTACKS.moves[moveId];
   source.metrics.casts++;
+  onAugmentCast(battle,source);
   if (effectCount(source,'cast_haste')) source.itemTimers.cast_haste=battle.elapsed+numberParam('cast_haste','duration');
   if (effectCount(source,'cast_wave')) {
     source.itemStacks.cast_wave=(source.itemStacks.cast_wave||0)+1;
@@ -511,6 +548,25 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='bite-shred'&&target){
+    animate(source,stage.chargedAnimation,.4);
+    projectile(battle,source,target,'bite-impact',move.baseDamage+a*(move.attackRatio||0),false,true,.3,
+      undefined,source,moveId,stage.chargedType,'bite-shred');
+    return;
+  }
+  if(move.effect==='wind-tornado'&&target){
+    const dx=target.x-source.x,dy=target.y-source.y;
+    const length=Math.hypot(dx,dy)||1;
+    const ux=dx/length,uy=dy/length;
+    animate(source,stage.chargedAnimation,.45);
+    battle.effects.push({id:`${battle.id}:wind:${source.id}:${source.metrics.casts}`,kind:'wind-tornado',
+      family:source.family,sourceId:source.id,x:source.x+ux*.38,y:source.y+uy*.38,
+      targetX:target.x,targetY:target.y,time:0,duration:14,value:0,
+      wind:{sourceId:source.id,raw:move.baseDamage+s*move.specialRatio,attackType:'flying',
+        dx:ux,dy:uy,speed:move.tornadoSpeed||7,traveled:0,maxDistance:move.tornadoDistance||9,
+        radius:move.tornadoRadius||.49,slowFactor:move.tornadoSlow??.5,speedFactor:1-(move.tornadoSpeedReduction??.8),hitIds:[]}});
+    return;
+  }
   if (move.effect === 'star-refraction') {
     // One activation, strictly 3 seconds of simulated combat time; no stacking.
     source.refractionUntil = battle.elapsed + (move.seconds || 3);
@@ -1222,6 +1278,7 @@ export function tickBattle(battle: Battle, dt: number): void {
   // O treinador lança as Pokébolas antes de começar a luta.
   if (battle.introElapsed < ITEMS.combatIntroSeconds) return;
   tickSynergies(battle,dt,{deal,heal,effect,stat});
+  tickCombatAugments(battle,heal,effect);
   // Periodic item effects belong to simulation time and are deterministic.
   for (const unit of battle.units) {
     unit.itemNow=battle.elapsed;
@@ -1368,7 +1425,7 @@ export function tickBattle(battle: Battle, dt: number): void {
       continue;
     }
     if (d > unit.range + 0.08) {
-      const travel = Math.min(d - unit.range, dt * (0.68 + unit.stats.speed / 180) * (unit.slow ? 0.65 : 1));
+      const travel = Math.min(d - unit.range, dt * (0.68 + stat(unit,'speed') / 180) * (unit.slow ? 0.65 : 1));
       unit.x += (target.x - unit.x) / d * travel;
       unit.y += (target.y - unit.y) / d * travel;
       unit.moving = travel > .001;
@@ -1406,6 +1463,7 @@ export function tickBattle(battle: Battle, dt: number): void {
         unit.synergy.splashBonus=0;
       }
       unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain + (effectCount(unit,'bonus_energy') ? numberParam('bonus_energy','energy') : 0));
+      onAugmentBasic(battle,unit);
       bumpStack(unit,'guinsoo'); bumpStack(unit,'titan');
     }
     unit.cooldown=combatCooldown(unit,battle.elapsed);

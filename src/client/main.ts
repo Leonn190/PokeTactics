@@ -1,3 +1,5 @@
+import './augments.css';
+import { AugmentView } from './augments';
 import { Arena, type ClientView } from './arena';
 import { Hud } from './hud';
 import { Menus } from './menus';
@@ -9,6 +11,12 @@ const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, draggi
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
+const augments = new AugmentView(command=>send(command));
+function updateWorldWidgets():void {
+  arena.placeWorldRack(document.getElementById('itemInventory')!);
+  if(state)augments.render(state,arena);
+}
+window.addEventListener('resize',updateWorldWidgets);
 let worker: Worker | null = null;
 const ghost = document.getElementById('dragGhost')!;
 const ghostCanvas = document.createElement('canvas');
@@ -31,7 +39,7 @@ let lastHudPhase = '';
 let lastHudGold = -1;
 
 function send(command: GameCommand): void {
-  if (!state || !worker || view.scoutId!=='p0' || state.phase === 'finished' || state.players[0].eliminated) return;
+  if (!state || !worker || (view.scoutId!=='p0' && command.kind!=='augment-choose' && command.kind!=='augment-reroll') || state.phase === 'finished' || state.players[0].eliminated) return;
   worker.postMessage({ type: 'command', command } satisfies ClientToServer);
 }
 function watch(playerId: string): void {
@@ -44,6 +52,7 @@ function launchMatch(): void {
   view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
   lastHudPhase = ''; lastHudGold = -1; lastHudRender = 0;
+  augments.reset();
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
   const currentWorker = worker;
   currentWorker.addEventListener('message', (event: MessageEvent<ServerToClient>) => {
@@ -51,6 +60,7 @@ function launchMatch(): void {
     if (event.data.type === 'rejected') return hud.toast(event.data.reason);
     if (!arena.acceptSnapshot(event.data.snapshot)) return;
     state = event.data.snapshot;
+    updateWorldWidgets();
     if (view.selectedId && !state.players.some(p => p.units.some(u => u.id === view.selectedId))
       && !state.visibleBattle?.units.some(u => u.id === view.selectedId || u.sourceId === view.selectedId)) view.selectedId = null;
     const now = performance.now();
@@ -64,6 +74,7 @@ function launchMatch(): void {
   currentWorker.postMessage({ type: 'connect' } satisfies ClientToServer);
 }
 const menus = new Menus(launchMatch);
+updateWorldWidgets();
 document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
   worker?.terminate(); worker = null; state = null; arena.snapshot = null; arena.setActive(false);
   view.selectedId = null; clearDrag();
@@ -331,6 +342,7 @@ canvas.addEventListener('contextmenu', event => {
 canvas.addEventListener('wheel', event => {
   event.preventDefault();
   arena.zoomAt(event.deltaY, event.clientX, event.clientY);
+  updateWorldWidgets();
 }, { passive: false });
 document.addEventListener('keydown', event => {
   if (!state || event.repeat || state.phase === 'finished') return;

@@ -21,6 +21,8 @@ function portrait(dex: number, name: string, className: string): string {
 
 export function moveDescription(move: MoveData): string {
   const effects: Record<MoveData['effect'], string> = {
+    'bite-shred':'Morde um alvo e reduz sua DEF por alguns segundos.',
+    'wind-tornado':'Lança um tornado que atravessa adversários, reduz a velocidade deles em 50% e desacelera enquanto atravessa cada um.',
     drain:'Drena vida do inimigo e restaura a própria vida.',
     burn:'Causa dano e aplica queimadura no alvo.',
     slow:'Causa dano e reduz a velocidade dos adversários.',

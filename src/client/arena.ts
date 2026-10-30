@@ -179,6 +179,15 @@ export class Arena {
     return Math.min(normal, this.quadActive ? Math.max(21, (this.width - 550) / 18) : normal) * this.zoom;
   }
 
+  worldScale():number{return this.cellScale/70;}
+  /** An HTML item tray uses the exact same world-to-screen projection as sprites. */
+  placeWorldRack(node:HTMLElement,x=-5.72,y=2.35):void {
+    const point=this.toScreen(x,y), rect=this.canvas.getBoundingClientRect(), app=document.getElementById('app')!.getBoundingClientRect();
+    node.style.left=`${rect.left-app.left+point.x}px`;
+    node.style.top=`${rect.top-app.top+point.y}px`;
+    node.style.setProperty('--rack-world-scale',String(this.worldScale()));
+  }
+
   // Mesmo fator aplicado ao Pokémon que aparece fisicamente sobre a arena.
   dragSpriteScale(): number { return this.cellScale / 48 * 1.13; }
 

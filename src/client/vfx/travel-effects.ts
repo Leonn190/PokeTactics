@@ -4,6 +4,19 @@ import { paintBasicProjectile } from '../render/projectiles';
 type Point = { x: number; y: number };
 const PI2 = Math.PI * 2;
 export function renderTravelEffects(ctx: CanvasRenderingContext2D, fx: CombatEffect, from: Point, to: Point, t: number, cellScale: number): boolean {
+      if(fx.kind==='wind-tornado'){
+        // Current server position is authoritative; visual spin is cosmetic.
+        const radius=cellScale*.28,angle=fx.time*11;
+        ctx.save();ctx.translate(from.x,from.y-cellScale*.3);
+        ctx.strokeStyle='#d7f9ff';ctx.fillStyle='#80e5e53b';ctx.shadowColor='#92e6ff';ctx.shadowBlur=11;
+        for(let i=0;i<3;i++){
+          const r=radius*(.5+i*.33);
+          ctx.lineWidth=3.5-i*.65;
+          ctx.beginPath();ctx.ellipse(0,-i*6,r,r*.47,angle+i*1.5,0,Math.PI*1.6);ctx.stroke();
+        }
+        ctx.beginPath();ctx.ellipse(0,-8,radius*.8,radius*1.45,0,0,Math.PI*2);ctx.fill();
+        ctx.restore();return true;
+      }
       if (fx.kind === 'basic-projectile') {
         paintBasicProjectile(ctx, fx.basicType || 'normal', from, to, t, cellScale);
         return true;

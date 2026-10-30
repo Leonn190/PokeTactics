@@ -1,4 +1,5 @@
 import { SynergyPanel } from './synergies/panel';
+import { interestCap,hasAugment } from '../../server/systems/augments';
 import { inventoryUsed,BALLS } from '../../server/systems/inventory';
 import { calculateStats, displayName, EEVEE_BRANCHES, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, getStageData, ATTACKS } from '../../server/data';
 import { totalPower } from '../../server/formulas';
@@ -122,7 +123,7 @@ export class Hud {
     while(cells.length<ITEMS.inventorySlots)cells.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
     this.updateHTML('inventoryContents',`<div class="inventory-grid" role="group" aria-label="Itens no chão">${cells.join('')}</div>${balls.length?`<div class="ball-ground" role="group" aria-label="Pokébolas no chão">${balls.join('')}</div>`:''}`);
     element('inventoryCounter').textContent=`${inventoryUsed(player)}/${ITEMS.inventorySlots}`;
-    const choosing = (player.pendingEvolution?.length || 0) === 4;
+    const choosing = (player.pendingEvolution?.length || 0) === (hasAugment(player,'P11')?3:4);
     element('eeveeEvolution').classList.toggle('hidden', !choosing);
     if (choosing) this.updateHTML('eeveeBranches', EEVEE_BRANCHES.map(branch => {
       const s = SPECIES[branch], move = ATTACKS.moves[s.attack];
@@ -135,11 +136,12 @@ export class Hud {
     this.renderClock(snapshot);
     element('goldCount').textContent = String(player.gold);
     const streak = (RULES.streakBonuses as Record<string, number>)[String(Math.min(5, Math.abs(player.streak)))] || 0;
-    const interest = Math.min(RULES.maxInterest, Math.floor(player.gold / RULES.interestEveryGold));
+    const interestLimit=interestCap(player.augments||[]);
+    const interest = Math.min(interestLimit, Math.floor(player.gold / RULES.interestEveryGold));
     const victory = player.roundVictory ? RULES.victoryIncome : 0;
     element('incomeCount').textContent = `+${RULES.baseIncome + interest + victory + streak}`;
     const streakText = player.streak > 0 ? `${player.streak} vitórias seguidas` : player.streak < 0 ? `${-player.streak} derrotas seguidas` : 'sem sequência';
-    this.updateHTML('incomeBreakdown', `<strong>PRÓXIMA RENDA</strong><div>Renda base <b>+${RULES.baseIncome}</b></div><div>Juros (${player.gold} ÷ ${RULES.interestEveryGold}, limite ${RULES.maxInterest}) <b>+${interest}</b></div><div>Última vitória <b>+${victory}</b></div><div>Sequência (${streakText}) <b>+${streak}</b></div><hr /><div class="total">Total projetado <b>+${RULES.baseIncome + interest + victory + streak}</b></div><small>Se vencer a próxima batalha, receberá +${RULES.victoryIncome} no pagamento seguinte. Juros e sequência serão recalculados.</small>`);
+    this.updateHTML('incomeBreakdown', `<strong>PRÓXIMA RENDA</strong><div>Renda base <b>+${RULES.baseIncome}</b></div><div>Juros (${player.gold} ÷ ${RULES.interestEveryGold}, limite ${interestLimit}) <b>+${interest}</b></div><div>Última vitória <b>+${victory}</b></div><div>Sequência (${streakText}) <b>+${streak}</b></div><hr /><div class="total">Total projetado <b>+${RULES.baseIncome + interest + victory + streak}</b></div><small>Se vencer a próxima batalha, receberá +${RULES.victoryIncome} no pagamento seguinte. Juros e sequência serão recalculados.</small>`);
     element('levelNumber').textContent = String(player.level);
     const fielded = player.units.filter(unit => unit.position.area === 'board');
     const odds = shopOdds(player.level);
@@ -151,7 +153,10 @@ export class Hud {
       const info = ELEMENTS[type], fraction = influence.shares[type] || 0;
       return `<div class="influence-segment" style="width:${fraction * 100}%;--type-color:${info.color}" title="${info.name}: ${influence.points[type]} pontos • ${(fraction * 100).toFixed(1)}% da influência">${typeIcon(type, 16)}<span>${(fraction * 100).toFixed(0)}%</span></div>`;
     }).join('') : '<span class="influence-empty">Sem tipos</span>'}</div>`);
-    element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || player.gold < RULES.rerollCost || player.eliminated);
+    const freeShopReroll=(player.augmentCounters?.['B02:free']||0)>0;
+    element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || (!freeShopReroll&&player.gold < RULES.rerollCost) || player.eliminated);
+    element('rerollButton').setAttribute('title',freeShopReroll?'Atualização gratuita do Comprador Persistente':`Atualizar loja por ${RULES.rerollCost} de ouro`);
+    const shopRerollCost=element('rerollButton').querySelector('small');if(shopRerollCost)shopRerollCost.textContent=freeShopReroll?'GRÁTIS':`◈ ${RULES.rerollCost}`;
     element('lockButton').classList.toggle('locked', player.locked);
     this.updateHTML('lockButton', player.locked ? '▣' : '◇');
     element('lockButton').setAttribute('aria-label', player.locked ? 'Destravar loja' : 'Travar loja');

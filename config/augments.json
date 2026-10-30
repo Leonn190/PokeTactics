@@ -1,0 +1,717 @@
+{
+  "chapterRarityWeights": {
+    "1": {
+      "bronze": 50,
+      "silver": 35,
+      "gold": 13,
+      "prismatic": 2
+    },
+    "2": {
+      "bronze": 28,
+      "silver": 38,
+      "gold": 26,
+      "prismatic": 8
+    },
+    "3+": {
+      "bronze": 15,
+      "silver": 30,
+      "gold": 38,
+      "prismatic": 17
+    }
+  },
+  "augments": [
+    {
+      "id": "B01",
+      "name": "Capital I",
+      "rarity": "bronze",
+      "description": "Receba 10/14/18 de ouro (capítulos 1/2/3+).",
+      "icon": "coins",
+      "chapters": "all",
+      "effect": "B01",
+      "params": {
+        "gold": [
+          10,
+          14,
+          18
+        ]
+      },
+      "symbol": "🪙"
+    },
+    {
+      "id": "B02",
+      "name": "Comprador Persistente",
+      "rarity": "bronze",
+      "description": "Nas próximas 10 preparações, sua primeira compra concede 1 atualização gratuita da loja.",
+      "icon": "shopping-cart",
+      "chapters": "all",
+      "effect": "B02",
+      "params": {
+        "preparations": 10,
+        "rolls": 1
+      },
+      "symbol": "🛒"
+    },
+    {
+      "id": "B03",
+      "name": "DNA Resiliente I",
+      "rarity": "bronze",
+      "description": "O menor IV de cada Pokémon aumenta 15, inclusive futuros.",
+      "icon": "dna",
+      "chapters": "all",
+      "effect": "B03",
+      "params": {
+        "iv": 15
+      },
+      "symbol": "🧬"
+    },
+    {
+      "id": "B04",
+      "name": "Aprendiz Reservado",
+      "rarity": "bronze",
+      "description": "Pokémon no banco recebem +1 XP adicional por batalha.",
+      "icon": "book-open",
+      "chapters": "all",
+      "effect": "B04",
+      "params": {
+        "benchXp": 1
+      },
+      "symbol": "📚"
+    },
+    {
+      "id": "B05",
+      "name": "Regeneração Natural",
+      "rarity": "bronze",
+      "description": "Todos os aliados regeneram 1,5% da vida máxima a cada 2 s.",
+      "icon": "heart-pulse",
+      "chapters": "all",
+      "effect": "B05",
+      "params": {
+        "fraction": 0.015,
+        "interval": 2
+      },
+      "symbol": "💗"
+    },
+    {
+      "id": "B06",
+      "name": "Prontos para Lutar",
+      "rarity": "bronze",
+      "description": "Todos os aliados começam cada luta com 18 de energia.",
+      "icon": "zap",
+      "chapters": "all",
+      "effect": "B06",
+      "params": {
+        "energy": 18
+      },
+      "symbol": "⚡"
+    },
+    {
+      "id": "B07",
+      "name": "Equipamento Reforçado",
+      "rarity": "bronze",
+      "description": "Com 2 itens, Pokémon recebem +10 p.p. de Durabilidade.",
+      "icon": "shield-plus",
+      "chapters": "all",
+      "effect": "B07",
+      "params": {
+        "durability": 0.1,
+        "items": 2
+      },
+      "symbol": "🛡️"
+    },
+    {
+      "id": "B08",
+      "name": "Energia Crescente",
+      "rarity": "bronze",
+      "description": "Cada 3º ataque regular fornece 10 de energia adicional.",
+      "icon": "battery-charging",
+      "chapters": "all",
+      "effect": "B08",
+      "params": {
+        "every": 3,
+        "energy": 10
+      },
+      "symbol": "🔋"
+    },
+    {
+      "id": "B09",
+      "name": "Pé de Meia",
+      "rarity": "bronze",
+      "description": "Receba 5 de ouro agora; 6 no capítulo 2 e 6 no capítulo 3.",
+      "icon": "piggy-bank",
+      "chapters": "C1",
+      "effect": "B09",
+      "params": {
+        "payments": {
+          "1": 5,
+          "2": 6,
+          "3": 6
+        }
+      },
+      "symbol": "🐷"
+    },
+    {
+      "id": "B10",
+      "name": "Jovens Promessas",
+      "rarity": "bronze",
+      "description": "Os 5 primeiros Pokémon obtidos no capítulo 1 ganham +12 IV em tudo.",
+      "icon": "sprout",
+      "chapters": "C1",
+      "effect": "B10",
+      "params": {
+        "count": 5,
+        "iv": 12
+      },
+      "symbol": "🌱"
+    },
+    {
+      "id": "B11",
+      "name": "Curso Intensivo",
+      "rarity": "bronze",
+      "description": "Pokémon possuídos recebem imediatamente +5 níveis.",
+      "icon": "graduation-cap",
+      "chapters": "C2",
+      "effect": "B11",
+      "params": {
+        "levels": 5
+      },
+      "symbol": "🎓"
+    },
+    {
+      "id": "B12",
+      "name": "Veteranos Resistentes",
+      "rarity": "bronze",
+      "description": "Nível 35+: abaixo de 50% de vida recebe +15 p.p. de Durabilidade.",
+      "icon": "shield-alert",
+      "chapters": "C3+",
+      "effect": "B12",
+      "params": {
+        "level": 35,
+        "threshold": 0.5,
+        "durability": 0.15
+      },
+      "symbol": "💪"
+    },
+    {
+      "id": "S01",
+      "name": "Capital II",
+      "rarity": "silver",
+      "description": "Receba 19/26/33 de ouro (capítulos 1/2/3+).",
+      "icon": "wallet",
+      "chapters": "all",
+      "effect": "S01",
+      "params": {
+        "gold": [
+          19,
+          26,
+          33
+        ]
+      },
+      "symbol": "👛"
+    },
+    {
+      "id": "S02",
+      "name": "Precipitado I",
+      "rarity": "silver",
+      "description": "Nível do treinador adiantado em 1 rodada.",
+      "icon": "timer",
+      "chapters": "all",
+      "effect": "S02",
+      "params": {
+        "rounds": 1
+      },
+      "symbol": "⏱️"
+    },
+    {
+      "id": "S03",
+      "name": "DNA Resiliente II",
+      "rarity": "silver",
+      "description": "Todos os atuais e futuros ganham +12 IV em cada atributo.",
+      "icon": "git-merge",
+      "chapters": "all",
+      "effect": "S03",
+      "params": {
+        "iv": 12
+      },
+      "symbol": "🧪"
+    },
+    {
+      "id": "S04",
+      "name": "Treino Acelerado I",
+      "rarity": "silver",
+      "description": "+1 XP/batalha para campo e banco.",
+      "icon": "dumbbell",
+      "chapters": "all",
+      "effect": "S04",
+      "params": {
+        "activeXp": 1,
+        "benchXp": 1
+      },
+      "symbol": "🏋️"
+    },
+    {
+      "id": "S05",
+      "name": "Energia Solidária",
+      "rarity": "silver",
+      "description": "Após habilidade, dá 12 energia ao aliado vivo com menos energia; 4 s por conjurador.",
+      "icon": "share-2",
+      "chapters": "all",
+      "effect": "S05",
+      "params": {
+        "energy": 12,
+        "cooldown": 4
+      },
+      "symbol": "🔗"
+    },
+    {
+      "id": "S06",
+      "name": "Carapaça de Emergência",
+      "rarity": "silver",
+      "description": "Ao cair abaixo de 50% de vida, +18 p.p. Durabilidade até o fim da luta.",
+      "icon": "shield",
+      "chapters": "all",
+      "effect": "S06",
+      "params": {
+        "threshold": 0.5,
+        "durability": 0.18
+      },
+      "symbol": "🐢"
+    },
+    {
+      "id": "S07",
+      "name": "Bolsa de Componentes",
+      "rarity": "silver",
+      "description": "Receba dois componentes aleatórios de itens.",
+      "icon": "package",
+      "chapters": "all",
+      "effect": "S07",
+      "params": {
+        "components": 2
+      },
+      "symbol": "📦"
+    },
+    {
+      "id": "S08",
+      "name": "Fusão Disciplinada",
+      "rarity": "silver",
+      "description": "Fusões finais dão +8 níveis (em vez de 5) e +10 IV nos 2 menores atributos.",
+      "icon": "git-compare",
+      "chapters": "all",
+      "effect": "S08",
+      "params": {
+        "levels": 8,
+        "iv": 10,
+        "smallest": 2
+      },
+      "symbol": "🔩"
+    },
+    {
+      "id": "S09",
+      "name": "Investimento Programado",
+      "rarity": "silver",
+      "description": "Receba 7 agora, 9 no capítulo 2 e 9 no capítulo 3.",
+      "icon": "calendar-clock",
+      "chapters": "C1",
+      "effect": "S09",
+      "params": {
+        "payments": {
+          "1": 7,
+          "2": 9,
+          "3": 9
+        }
+      },
+      "symbol": "📅"
+    },
+    {
+      "id": "S10",
+      "name": "Geração Promissora",
+      "rarity": "silver",
+      "description": "Pokémon obtidos no capítulo 1 têm IV mínimo de 60.",
+      "icon": "baby",
+      "chapters": "C1",
+      "effect": "S10",
+      "params": {
+        "floor": 60
+      },
+      "symbol": "🐣"
+    },
+    {
+      "id": "S11",
+      "name": "Oficina do Treinador",
+      "rarity": "silver",
+      "description": "Receba 1 item completo aleatório e 6 de ouro.",
+      "icon": "wrench",
+      "chapters": "C2",
+      "effect": "S11",
+      "params": {
+        "items": 1,
+        "gold": 6
+      },
+      "symbol": "🔨"
+    },
+    {
+      "id": "S12",
+      "name": "Experiência Acumulada",
+      "rarity": "silver",
+      "description": "Nível 35+: +12 p.p. Amplificação e +8 p.p. Durabilidade.",
+      "icon": "medal",
+      "chapters": "C3+",
+      "effect": "S12",
+      "params": {
+        "level": 35,
+        "amplification": 0.12,
+        "durability": 0.08
+      },
+      "symbol": "🏅"
+    },
+    {
+      "id": "G01",
+      "name": "Capital III",
+      "rarity": "gold",
+      "description": "Receba 30/40/52 de ouro (capítulos 1/2/3+).",
+      "icon": "landmark",
+      "chapters": "all",
+      "effect": "G01",
+      "params": {
+        "gold": [
+          30,
+          40,
+          52
+        ]
+      },
+      "symbol": "🏦"
+    },
+    {
+      "id": "G02",
+      "name": "Treino Acelerado II",
+      "rarity": "gold",
+      "description": "Campo ganha +2 XP, banco +1 XP por batalha.",
+      "icon": "biceps-flexed",
+      "chapters": "all",
+      "effect": "G02",
+      "params": {
+        "activeXp": 2,
+        "benchXp": 1
+      },
+      "symbol": "🥋"
+    },
+    {
+      "id": "G03",
+      "name": "DNA Resiliente III",
+      "rarity": "gold",
+      "description": "IV mínimo de 70 para Pokémon atuais e futuros.",
+      "icon": "flask-conical",
+      "chapters": "all",
+      "effect": "G03",
+      "params": {
+        "floor": 70
+      },
+      "symbol": "🔬"
+    },
+    {
+      "id": "G04",
+      "name": "Liderança Natural",
+      "rarity": "gold",
+      "description": "Sua maior sinergia ativa recebe +1 de contagem.",
+      "icon": "crown",
+      "chapters": "all",
+      "effect": "G04",
+      "params": {
+        "top": 1,
+        "bonus": 1
+      },
+      "symbol": "👑"
+    },
+    {
+      "id": "G05",
+      "name": "Escudo Adaptativo",
+      "rarity": "gold",
+      "description": "A cada 8 s, o aliado com menos % vida ganha barreira 15% da própria vida máxima por 5 s.",
+      "icon": "shield-check",
+      "chapters": "all",
+      "effect": "G05",
+      "params": {
+        "interval": 8,
+        "fraction": 0.15,
+        "duration": 5
+      },
+      "symbol": "🧿"
+    },
+    {
+      "id": "G06",
+      "name": "Herança Genética",
+      "rarity": "gold",
+      "description": "Pokémon evoluídos atuais e futuros recebem +25 IV em cada atributo, uma vez.",
+      "icon": "network",
+      "chapters": "all",
+      "effect": "G06",
+      "params": {
+        "iv": 25
+      },
+      "symbol": "🧫"
+    },
+    {
+      "id": "G07",
+      "name": "Recompensa do Vencedor",
+      "rarity": "gold",
+      "description": "Após PvP, ouro por vitória: 5/7/10; por derrota: 2/3/4.",
+      "icon": "trophy",
+      "chapters": "all",
+      "effect": "G07",
+      "params": {
+        "win": [
+          5,
+          7,
+          10
+        ],
+        "loss": [
+          2,
+          3,
+          4
+        ]
+      },
+      "symbol": "🏆"
+    },
+    {
+      "id": "G08",
+      "name": "Críticos Especiais",
+      "rarity": "gold",
+      "description": "+15 p.p. chance crítica, +20 dano crítico; habilidades podem causar crítico.",
+      "icon": "crosshair",
+      "chapters": "all",
+      "effect": "G08",
+      "params": {
+        "critChance": 0.15,
+        "critDamage": 0.2
+      },
+      "symbol": "🎯"
+    },
+    {
+      "id": "G09",
+      "name": "Juros Compostos",
+      "rarity": "gold",
+      "description": "Receba 12 de ouro; teto de juros aumenta para 7 por rodada.",
+      "icon": "trending-up",
+      "chapters": "C1",
+      "effect": "G09",
+      "params": {
+        "gold": 12,
+        "interestCap": 7
+      },
+      "symbol": "📈"
+    },
+    {
+      "id": "G10",
+      "name": "Centro de Treinamento",
+      "rarity": "gold",
+      "description": "Adquiridos no capítulo 1 recebem +3 XP por batalha (campo ou banco).",
+      "icon": "school",
+      "chapters": "C1",
+      "effect": "G10",
+      "params": {
+        "xp": 3
+      },
+      "symbol": "🏫"
+    },
+    {
+      "id": "G11",
+      "name": "Precipitado II",
+      "rarity": "gold",
+      "description": "Avance 4 rodadas no nível do treinador; substitui Precipitado I.",
+      "icon": "fast-forward",
+      "chapters": "C2",
+      "effect": "G11",
+      "params": {
+        "rounds": 4
+      },
+      "symbol": "⏩"
+    },
+    {
+      "id": "G12",
+      "name": "Veteranos de Elite",
+      "rarity": "gold",
+      "description": "Nível 40+: +20 p.p. Amplificação e +12 p.p. Durabilidade.",
+      "icon": "award",
+      "chapters": "C3+",
+      "effect": "G12",
+      "params": {
+        "level": 40,
+        "amplification": 0.2,
+        "durability": 0.12
+      },
+      "symbol": "🥇"
+    },
+    {
+      "id": "P01",
+      "name": "Capital IV",
+      "rarity": "prismatic",
+      "description": "Receba 48/62/80 de ouro (capítulos 1/2/3+).",
+      "icon": "gem",
+      "chapters": "all",
+      "effect": "P01",
+      "params": {
+        "gold": [
+          48,
+          62,
+          80
+        ]
+      },
+      "symbol": "💎"
+    },
+    {
+      "id": "P02",
+      "name": "DNA Resiliente IV",
+      "rarity": "prismatic",
+      "description": "IV mínimo de 90 para Pokémon atuais e futuros.",
+      "icon": "atom",
+      "chapters": "all",
+      "effect": "P02",
+      "params": {
+        "floor": 90
+      },
+      "symbol": "⚛️"
+    },
+    {
+      "id": "P03",
+      "name": "Treino Acelerado III",
+      "rarity": "prismatic",
+      "description": "Atuais e futuros +5/10/15 níveis; campo +3 XP, banco +2 XP por batalha.",
+      "icon": "rocket",
+      "chapters": "all",
+      "effect": "P03",
+      "params": {
+        "levels": [
+          5,
+          10,
+          15
+        ],
+        "activeXp": 3,
+        "benchXp": 2
+      },
+      "symbol": "🚀"
+    },
+    {
+      "id": "P04",
+      "name": "Conselho dos Tipos",
+      "rarity": "prismatic",
+      "description": "Suas 2 maiores sinergias recebem +1 cada.",
+      "icon": "layers-3",
+      "chapters": "all",
+      "effect": "P04",
+      "params": {
+        "top": 2,
+        "bonus": 1
+      },
+      "symbol": "🗳️"
+    },
+    {
+      "id": "P05",
+      "name": "Despertar Imediato",
+      "rarity": "prismatic",
+      "description": "Pokémon iniciam combate com 75% da energia necessária para habilidade.",
+      "icon": "sunrise",
+      "chapters": "all",
+      "effect": "P05",
+      "params": {
+        "fraction": 0.75
+      },
+      "symbol": "🌅"
+    },
+    {
+      "id": "P06",
+      "name": "Herança Universal",
+      "rarity": "prismatic",
+      "description": "Na morte definitiva, aliado vivo de maior nível herda 20% de ATK/DEF/SpA/SpD/VEL; até 3 acúmulos.",
+      "icon": "skull",
+      "chapters": "all",
+      "effect": "P06",
+      "params": {
+        "fraction": 0.2,
+        "stacks": 3
+      },
+      "symbol": "💀"
+    },
+    {
+      "id": "P07",
+      "name": "Arsenal do Treinador",
+      "rarity": "prismatic",
+      "description": "Receba quatro componentes aleatórios e uma Ultra Ball.",
+      "icon": "backpack",
+      "chapters": "all",
+      "effect": "P07",
+      "params": {
+        "components": 4,
+        "ultraball": 1
+      },
+      "symbol": "🎒"
+    },
+    {
+      "id": "P08",
+      "name": "Supremacia Elemental",
+      "rarity": "prismatic",
+      "description": "Sua maior sinergia ativa recebe +2 de contagem.",
+      "icon": "sparkles",
+      "chapters": "all",
+      "effect": "P08",
+      "params": {
+        "top": 1,
+        "bonus": 2
+      },
+      "symbol": "✨"
+    },
+    {
+      "id": "P09",
+      "name": "Império Financeiro",
+      "rarity": "prismatic",
+      "description": "Receba 12 de ouro; teto de juros passa a 8 por rodada.",
+      "icon": "building-2",
+      "chapters": "C1",
+      "effect": "P09",
+      "params": {
+        "gold": 12,
+        "interestCap": 8
+      },
+      "symbol": "🏛️"
+    },
+    {
+      "id": "P10",
+      "name": "Geração de Campeões",
+      "rarity": "prismatic",
+      "description": "Adquiridos no capítulo 1 recebem +25 IV e +2 XP/batalha permanentemente.",
+      "icon": "star",
+      "chapters": "C1",
+      "effect": "P10",
+      "params": {
+        "iv": 25,
+        "xp": 2
+      },
+      "symbol": "🌟"
+    },
+    {
+      "id": "P11",
+      "name": "Evolução Facilitada",
+      "rarity": "prismatic",
+      "description": "Evoluções normais com 2 cópias; Eevee com 3; fusões finais continuam com 2.",
+      "icon": "git-pull-request",
+      "chapters": "C2",
+      "effect": "P11",
+      "params": {
+        "evolutionCopies": 2,
+        "eeveeCopies": 3
+      },
+      "symbol": "🌈"
+    },
+    {
+      "id": "P12",
+      "name": "Exército Experiente",
+      "rarity": "prismatic",
+      "description": "Pokémon atuais e futuros recebem +20 níveis permanentemente.",
+      "icon": "swords",
+      "chapters": "C3+",
+      "effect": "P12",
+      "params": {
+        "levels": 20
+      },
+      "symbol": "⚔️"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
 import { inventoryUsed,canReceive } from './systems/inventory';
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, SHOP_FAMILIES, SHOP_SIZE, SPECIES } from './data';
 import { rollFamily } from './shop';
@@ -36,7 +37,7 @@ export function streakIncome(streak: number): number {
   return bonuses[String(Math.min(Math.abs(streak), Math.max(...Object.keys(bonuses).map(Number))))] || 0;
 }
 export function projectedIncome(player: Player): number {
-  return RULES.baseIncome + Math.min(RULES.maxInterest, Math.floor(player.gold / RULES.interestEveryGold))
+  return RULES.baseIncome + Math.min(interestCap(player.augments||[]), Math.floor(player.gold / RULES.interestEveryGold))
     + (player.roundVictory ? RULES.victoryIncome : 0) + streakIncome(player.streak);
 }
 
@@ -78,15 +79,44 @@ export class GameEngine {
       player.units.push(this.makePokemon(family, { area: 'board', col: i % 3 + 2, row: 1 }));
       this.refreshShop(player);
     });
+    this.startAugmentChapter(1);
     this.prepareMatchmaking();
   }
 
+  private startAugmentChapter(chapter:number):void {
+    for(const player of this.players){
+      if(player.eliminated||player.augmentChoice?.chapter===chapter)continue;
+      player.currentRound=this.round;
+      player.augmentChoice=offerAugments(player,chapter,()=>this.rng.next());
+      if(player.id!=='p0')this.chooseAugment(player,this.rng.int(3));
+    }
+  }
+  private chooseAugment(player:Player,slot:number):string|null {
+    const choice=player.augmentChoice;
+    if(!choice||choice.status!=='pending'||!Number.isInteger(slot)||slot<0||slot>=3)return 'Escolha de aprimoramento indisponível';
+    const id=choice.offers[slot];
+    if(!id||player.augments?.includes(id))return 'Aprimoramento inválido';
+    choice.status='chosen';choice.selected=id;
+    (player.augments||=[]).push(id);
+    (player.augmentChosenChapters||={})[id]=choice.chapter;
+    immediateAugment(player,id,choice.chapter,()=>this.rng.next(),()=>this.id());
+    if(id==='B10'||id==='S10'||id==='G10'||id==='P10')
+      for(const unit of player.units)applyPokemonAugments(player,unit,choice.chapter);
+    if(id==='P11')this.merge(player);
+    if(id==='B02') {
+      player.augmentCounters||={};
+      player.augmentCounters['B02:preparations']=0;
+      startedPreparation(player);
+    }
+    player.level=Math.max(player.level,nextTrainerLevel(this.round,player.augments||[]));
+    return null;
+  }
   private id(): string { return `u${++this.idCounter}`; }
 
   private makePokemon(family: Family, position: UnitPosition): Pokemon {
     const iv = Object.fromEntries((Object.keys(SPECIES[family].base) as Array<keyof Stats>)
       .map(stat => [stat, this.rng.int(101)])) as unknown as Stats;
-    return { id: this.id(), family, stage: 0, level: 1, xp: 0, iv, position, equipment: [] };
+    return { id: this.id(), family, stage: 0, level: 1, xp: 0, iv, position, equipment: [], acquiredChapter:chapterForRound(this.round), appliedAugments:[] };
   }
 
   private levelForRound(): number {
@@ -169,8 +199,9 @@ export class GameEngine {
       for (const family of FAMILIES) {
         if (family === 'eevee') {
           const eevees = player.units.filter(u => u.family === 'eevee');
-          if (eevees.length >= 4) {
-            if (player.id === 'p0') player.pendingEvolution = eevees.slice(0, 4).map(u => u.id);
+          const needed=hasAugment(player,'P11')?3:4;
+          if (eevees.length >= needed) {
+            if (player.id === 'p0') player.pendingEvolution = eevees.slice(0, needed).map(u => u.id);
             else this.chooseEevee(player, this.rng.pick(EEVEE_BRANCHES));
             if (player.id !== 'p0') changed = true;
           } else player.pendingEvolution = undefined;
@@ -179,8 +210,9 @@ export class GameEngine {
         const maxStage = SPECIES[family].names.length - 1;
         for (let stage = 0; stage < maxStage; stage++) {
           const matches = player.units.filter(u => u.family === family && u.stage === stage);
-          if (matches.length < 3) continue;
-          const triple = matches.slice(0, 3);
+          const required=hasAugment(player,'P11')?2:3;
+          if (matches.length < required) continue;
+          const triple = matches.slice(0, required);
           const anchor = triple.find(u => u.position.area === 'board') || triple[0];
           const iv = Object.fromEntries((Object.keys(anchor.iv) as Array<keyof Stats>).map(stat => [
             stat, Math.max(...triple.map(u => u.iv[stat]))
@@ -192,6 +224,9 @@ export class GameEngine {
             xp: Math.max(...triple.map(u => u.xp)), position: { ...anchor.position }
           };
           evolved.equipment = this.preserveEquipment(player, triple);
+          evolved.acquiredChapter=Math.min(...triple.map(u=>u.acquiredChapter||1));
+          evolved.appliedAugments=[...new Set(triple.flatMap(u=>u.appliedAugments||[]))];
+          applyEvolutionAugments(player,evolved,chapterForRound(this.round));
           player.units.push(evolved);
           this.visualEvents.push({
             id: this.id(), unitId: evolved.id, ownerId: player.id, kind: 'evolve', age: 0,
@@ -209,8 +244,9 @@ export class GameEngine {
   }
 
   private chooseEevee(player: Player, branch: Family): void {
-    const four = player.units.filter(u => u.family === 'eevee').slice(0, 4);
-    if (four.length !== 4) return;
+    const needed=hasAugment(player,'P11')?3:4;
+    const four = player.units.filter(u => u.family === 'eevee').slice(0, needed);
+    if (four.length !== needed) return;
     const anchor = four.find(u => u.position.area === 'board') || four[0];
     const iv = Object.fromEntries((Object.keys(anchor.iv) as Array<keyof Stats>).map(key =>
       [key, Math.max(...four.map(unit => unit.iv[key]))])) as Stats;
@@ -218,6 +254,9 @@ export class GameEngine {
     const evolved: Pokemon = { id:this.id(), family:branch, stage:1, iv,
       level:Math.max(...four.map(u => u.level)), xp:Math.max(...four.map(u => u.xp)), position:{...anchor.position} };
     evolved.equipment = this.preserveEquipment(player,four);
+    evolved.acquiredChapter=Math.min(...four.map(u=>u.acquiredChapter||1));
+    evolved.appliedAugments=[...new Set(four.flatMap(u=>u.appliedAugments||[]))];
+    applyEvolutionAugments(player,evolved,chapterForRound(this.round));
     player.units.push(evolved);
     player.pendingEvolution = undefined;
     this.visualEvents.push({ id:this.id(), unitId:evolved.id, ownerId:player.id, kind:'evolve', age:0,
@@ -264,6 +303,7 @@ export class GameEngine {
       const mergeable = player.units.filter(u=>u.family===reward.family && u.stage===0).length >= (reward.family==='eevee'?3:2);
       if (!pos && !mergeable) { drop.pending=true; return false; }
       const unit = this.makePokemon(reward.family,pos || {area:'bench',index:BENCH_SIZE});
+      applyPokemonAugments(player,unit,chapterForRound(this.round));
       player.units.push(unit);
       this.visualEvents.push({ id:this.id(), unitId:unit.id, ownerId:player.id, kind:'summon', age:0,
         pokemon:{family:unit.family,stage:unit.stage,level:unit.level,position:{...unit.position}} });
@@ -361,11 +401,13 @@ export class GameEngine {
     if (!offer) return 'Slot vazio';
     if (player.gold < offer.price) return 'Ouro insuficiente';
     const free = this.findFreeBench(player);
-    const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= (offer.family === 'eevee' ? 3 : 2);
+    const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= (offer.family === 'eevee' ? hasAugment(player,'P11')?2:3 : hasAugment(player,'P11')?1:2);
     if (free < 0 && !eligibleMerge) return `Banco cheio (${BENCH_SIZE}/${BENCH_SIZE})`;
     player.gold -= offer.price;
     const bought = this.makePokemon(offer.family, { area: 'bench', index: free < 0 ? BENCH_SIZE : free });
+    applyPokemonAugments(player,bought,chapterForRound(this.round));
     player.units.push(bought);
+    if(this.phase==='planning')purchasedPokemon(player);
     player.shop[slot] = null;
     this.visualEvents.push({ id: this.id(), unitId: bought.id, ownerId: player.id, kind: 'summon', age: 0,
       pokemon: { family: bought.family, stage: bought.stage, level: bought.level, position: { ...bought.position } } });
@@ -416,17 +458,25 @@ export class GameEngine {
     const preserved = this.preserveEquipment(player,[stronger,consumed]);
     stronger.equipment = preserved;
     stronger.position = where;
-    stronger.level = Math.min(RULES.maxPokemonLevel, stronger.level + 5);
-    stronger.xp = Math.max(stronger.xp, stronger.level - 1);
+    addLevels(stronger,hasAugment(player,'S08')?8:5);
+    if(hasAugment(player,'S08')){
+      const keys=(Object.keys(stronger.iv) as Array<keyof Stats>).sort((a,b)=>stronger.iv[a]-stronger.iv[b]||a.localeCompare(b)).slice(0,2);
+      for(const key of keys)stronger.iv[key]=Math.min(100,stronger.iv[key]+10);
+    }
     this.visualEvents.push({ id: this.id(), unitId: stronger.id, ownerId: player.id, kind: 'fusion', age: 0, sources,
       pokemon: { family: stronger.family, stage: stronger.stage, level: stronger.level, position: { ...stronger.position } } });
-    if (player.id === 'p0') this.log = `${SPECIES[stronger.family].names[Math.min(stronger.stage, SPECIES[stronger.family].names.length - 1)]} • +5 níveis pela fusão!`;
+    if (player.id === 'p0') this.log = `${SPECIES[stronger.family].names[Math.min(stronger.stage, SPECIES[stronger.family].names.length - 1)]} • +${hasAugment(player,'S08')?8:5} níveis pela fusão!`;
     return true;
   }
 
   command(command: GameCommand): string | null {
     const human = this.players[0];
     if (human.eliminated || this.phase === 'finished') return 'A partida já terminou para você';
+    if(command.kind==='augment-choose'||command.kind==='augment-reroll'){
+      if(this.phase!=='planning'||human.augmentChoice?.chapter!==chapterForRound(this.round))return 'Fora da fase de escolha';
+      return command.kind==='augment-choose'?this.chooseAugment(human,command.slot)
+        :rerollAugment(human.augmentChoice,human,command.slot,()=>this.rng.next());
+    }
     if (command.kind === 'move-trainer') {
       if (!Number.isFinite(command.x) || !Number.isFinite(command.y)) return 'Destino inválido';
       this.trainer.targetX = Math.max(-10, Math.min(10, command.x));
@@ -436,7 +486,7 @@ export class GameEngine {
     if (command.kind === 'choose-eevee') {
       if (!EEVEE_BRANCHES.includes(command.branch)) return 'Evolução inválida';
       const ids = human.pendingEvolution;
-      if (!ids || ids.length !== 4 || ids.some(id => !human.units.some(u => u.id === id && u.family === 'eevee'))) return 'Reúna quatro Eevee para evoluir';
+      if (!ids || ids.length !== (hasAugment(human,'P11')?3:4) || ids.some(id => !human.units.some(u => u.id === id && u.family === 'eevee'))) return 'Reúna Eevee suficientes para evoluir';
       this.chooseEevee(human, command.branch);
       this.merge(human);
       return null;
@@ -480,6 +530,8 @@ export class GameEngine {
       const pos=this.freePlaceForReward(human);
       if (!pos) return 'Banco cheio: libere uma vaga para duplicar';
       const clone:Pokemon={ ...target,id:this.id(),iv:{...target.iv},position:pos,equipment:[] };
+      clone.acquiredChapter=chapterForRound(this.round);clone.appliedAugments=[...target.appliedAugments||[]];
+      applyPokemonAugments(human,clone,chapterForRound(this.round));
       human.units.push(clone);
       human.consumables![command.ball]--;
       this.releasePendingItems(human);
@@ -494,8 +546,10 @@ export class GameEngine {
       return this.buy(human, command.slot);
     }
     if (command.kind === 'reroll') {
-      if (human.gold < RULES.rerollCost) return 'Ouro insuficiente';
-      human.gold -= RULES.rerollCost;
+      const free=human.augmentCounters?.['B02:free']||0;
+      if (!free && human.gold < RULES.rerollCost) return 'Ouro insuficiente';
+      if (free)human.augmentCounters!['B02:free']=free-1;
+      else human.gold -= RULES.rerollCost;
       this.refreshShop(human);
       return null;
     }
@@ -589,6 +643,10 @@ export class GameEngine {
   }
 
   private startCombat(): void {
+    for(const p of this.players){
+      if(p.augmentChoice?.status==='pending'&&!p.eliminated)this.chooseAugment(p,this.rng.int(3));
+      if(p.augmentCounters)p.augmentCounters['B02:free']=0;
+    }
     this.phase = 'combat'; this.clock = 0; this.duration = roundTimers(this.round).combatSeconds;
     const stage = currentStage(this.round);
     const alive = this.players.filter(p => !p.eliminated);
@@ -647,6 +705,9 @@ export class GameEngine {
         const place = index + 1;
         const result: StageResult = place === 1 ? 'win' : quad ? place === 2 ? 'second' : place === 3 ? 'third' : 'fourth' : 'loss';
         this.recordResult(player, result);
+        if(stage.type!=='bot'&&stage.type!=='boss'&&hasAugment(player,'G07')){
+          player.gold+=tierParam('G07',place===1?'win':'loss',chapterForRound(this.round));
+        }
         if (place === 1) {
           if (stage.type === 'gold') player.gold += RULES.goldRoundWinnerBonus;
           return;
@@ -689,7 +750,7 @@ export class GameEngine {
     for (const p of eliminated) p.placement = this.players.filter(q => q.placement === null).length;
     for (const p of this.players) {
       for (const unit of p.units) {
-        unit.xp += unit.position.area === 'board' ? RULES.pokemonExperience.activePerBattle : RULES.pokemonExperience.benchPerBattle;
+        unit.xp += battleExperience(p,unit);
         unit.level = Math.min(RULES.maxPokemonLevel, 1 + unit.xp);
       }
     }
@@ -717,10 +778,14 @@ export class GameEngine {
       if (p.eliminated) continue;
       p.gold += projectedIncome(p);
       p.roundVictory = false;
-      p.level = this.levelForRound();
+      p.currentRound=this.round;
+      p.level=Math.max(p.level,nextTrainerLevel(this.round,p.augments||[]));
+      if(((this.round-1)%PHASES.stagesPerChapter)===0)chapterPayment(p,chapterForRound(this.round));
+      startedPreparation(p);
       if (!p.locked) this.refreshShop(p);
       if (p.id !== 'p0') this.runCPU(p);
     }
+    if(((this.round-1)%PHASES.stagesPerChapter)===0)this.startAugmentChapter(chapterForRound(this.round));
     this.prepareMatchmaking();
     this.log = `Preparação • Rodada ${this.round}`;
   }

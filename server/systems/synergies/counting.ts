@@ -1,3 +1,4 @@
+import { bonusTraits } from '../augments';
 import { getStageData } from '../../data';
 import type { Element,Player } from '../../types';
 /** Distinct deployed forms; duplicates and benches never grant additional traits. */
@@ -10,5 +11,5 @@ export function countTraits(player:Player):Partial<Record<Element,number>> {
     unique.add(key);
     for(const element of getStageData(pokemon.family,pokemon.stage).elements) result[element]=(result[element]||0)+1;
   }
-  return result;
+  return bonusTraits(result,player.augments||[]);
 }

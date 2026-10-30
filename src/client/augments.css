@@ -1,0 +1,39 @@
+/* V19: TFT-style chapter choice. The dimmer does not stop the authoritative timer. */
+.augment-overlay{position:fixed;inset:0;z-index:110;display:grid;place-items:center;background:#010614bd;backdrop-filter:blur(5px);padding:16px;animation:augFade .23s ease both}
+.augment-overlay.hidden,.augment-reopen.hidden{display:none!important}
+.augment-dialog{width:min(1110px,100%);color:#eaf2ff;text-align:center;filter:drop-shadow(0 16px 32px #000a)}
+.augment-dialog header>span{font-size:11px;letter-spacing:.33em;color:#c8dce8;font-weight:800}
+.augment-dialog header h2{font-family:'Barlow Condensed',system-ui,sans-serif;font-weight:900;letter-spacing:.07em;font-size:clamp(30px,4vw,52px);margin:6px 0 2px;color:#f6f6ec;text-shadow:0 3px 25px #7ab5e39a}
+.augment-dialog header p{font-size:12px;color:#c7d6e3;margin:0 0 22px}
+.augment-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}
+.augment-card{position:relative;min-width:0;min-height:375px;padding:5px;background:linear-gradient(138deg,#fff5,#213449 40%,#bfe9ff66);clip-path:polygon(10% 0%,90% 0%,100% 8%,100% 91%,91% 100%,9% 100%,0% 91%,0 8%);--shine:#f0bb83;--shadow:#ad6940}
+.augment-card.rarity-silver{--shine:#e1ecfa;--shadow:#a1b8cc}
+.augment-card.rarity-gold{--shine:#ffed8e;--shadow:#da9d39}
+.augment-card.rarity-prismatic{--shine:#bff9f5;--shadow:#a27af2;background:linear-gradient(130deg,#88ffdd,#8ddaff,#cc8eff,#ffdaab,#88ffdd);background-size:250% 250%;animation:prismaticEdge 8s linear infinite}
+.augment-card-choose{width:100%;min-height:321px;padding:17px 17px 12px;display:flex;align-items:center;flex-direction:column;border:0;cursor:pointer;color:#edf7ff;background:linear-gradient(155deg,#22314f 0%,#0d192b 49%,#090f1c 100%);box-shadow:inset 0 0 40px #0007;position:relative;isolation:isolate;clip-path:inherit;transition:filter .15s ease}
+.augment-card-choose:hover{filter:brightness(1.2)}
+.augment-card-choose:focus-visible{outline:2px solid #fff;outline-offset:-7px}
+.augment-card .augment-flare{position:absolute;z-index:-1;inset:-40px;background:radial-gradient(ellipse at 50% 20%,var(--shadow) 0,transparent 48%);opacity:.27;pointer-events:none}
+.augment-card .augment-symbol{width:108px;height:108px;margin:14px 0 13px;display:grid;place-items:center;flex:none;font-size:55px;border-radius:19px;border:1px solid var(--shine);background:radial-gradient(circle,#58657b 0%,#152d3b 45%,#0c111c 95%);box-shadow:0 0 0 5px #ffffff08,0 3px 30px var(--shadow),inset 0 0 20px #000b;filter:drop-shadow(0 2px 4px #0008)}
+.augment-tier{font-weight:900;color:var(--shine);letter-spacing:.24em;font-size:10px;margin:0 0 5px}
+.augment-card h3{font-family:'Barlow Condensed',system-ui,sans-serif;font-size:25px;line-height:1.05;letter-spacing:.035em;margin:2px 0 8px}
+.augment-card p{font-size:13px;line-height:1.55;margin:auto 0;max-width:265px;color:#d1dbe7;text-wrap:pretty}
+.augment-pick-text{margin-top:13px;color:var(--shine);font-size:10px;letter-spacing:.11em;font-weight:900}
+.augment-card-roll{width:100%;height:42px;background:linear-gradient(90deg,#151d2b,#2f3d50,#131c2c);border:0;border-top:1px solid var(--shine);color:#e0effb;letter-spacing:.08em;font-weight:800;font-size:11px;cursor:pointer}
+.augment-card-roll:hover:not(:disabled){background:#304b60}
+.augment-card-roll:disabled{opacity:.45;cursor:not-allowed}
+.augment-dialog footer{display:flex;align-items:center;justify-content:center;gap:25px;margin-top:17px}
+.augment-dialog footer button,.augment-reopen{border:1px solid #87d2f39e;background:#162e45ed;color:#e9f8ff;padding:12px 25px;border-radius:7px;font-size:12px;font-weight:900;letter-spacing:.08em;cursor:pointer;box-shadow:0 4px 22px #000a}
+.augment-dialog footer span{font-size:12px;color:#e1b78d}
+.augment-reopen{position:fixed;z-index:35;top:128px;left:50%;transform:translateX(-50%);background:#14263cee;animation:augFade .2s ease both}
+.arena-augment-stacks{position:absolute;inset:0;z-index:23;pointer-events:none}
+.arena-augment-owner{position:absolute;display:flex;flex-direction:column;align-items:center;gap:5px;transform:translate(-50%,-50%) scale(var(--augment-scale,1));transform-origin:center;pointer-events:none;max-width:94px}
+.arena-augment-owner strong{background:#081625cc;color:#eff1d9;font:800 11px 'Barlow Condensed',sans-serif;letter-spacing:.07em;padding:3px 5px;border-radius:4px;white-space:nowrap;text-shadow:0 2px 5px #000}
+.arena-augment-icons{display:flex;flex-direction:column;gap:3px;align-items:center;max-height:180px;overflow:visible}
+.arena-augment-icon{pointer-events:auto;display:grid;place-items:center;width:33px;height:33px;border:2px solid #b58d5a;background:linear-gradient(140deg,#263b48,#0d1425);border-radius:6px;font-size:19px;box-shadow:0 1px 7px #000c;cursor:help}
+.arena-augment-icon.rarity-silver{border-color:#c6d6e9}.arena-augment-icon.rarity-gold{border-color:#edc669}.arena-augment-icon.rarity-prismatic{border-color:#9ddcff;box-shadow:0 0 10px #b099f17d}
+@keyframes augFade{from{opacity:0}to{opacity:1}}@keyframes prismaticEdge{to{background-position:250% 100%}}
+@media(max-width:800px){.augment-dialog{max-height:95vh;overflow-y:auto}.augment-cards{gap:7px}.augment-card{min-height:310px}.augment-card-choose{min-height:285px;padding:11px 6px}.augment-card .augment-symbol{width:66px;height:66px;font-size:34px}.augment-card h3{font-size:18px}.augment-card p{font-size:11px}.augment-card-roll{font-size:9px}}
+@media(max-width:510px){.augment-cards{grid-template-columns:1fr}.augment-card{min-height:180px}.augment-card-choose{min-height:180px}.augment-card .augment-symbol{margin:0;width:52px;height:52px;font-size:28px}.augment-card-roll{height:28px}}
+
+.arena-augment-icons.many{display:grid;grid-template-columns:repeat(2,33px);gap:3px;max-height:none}
