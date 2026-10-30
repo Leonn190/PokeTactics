@@ -10,7 +10,8 @@ const entry = (label: string, amount: number, kind: DamagePreview['kind']): Dama
 
 export function previewBasic(family: Family, stage: number, stats: Stats): DamagePreview {
   const attack = getStageData(family, stage).basic;
-  return entry('ATAQUE REGULAR', rawBasicDamage(stats[attack.stat], ATTACKS.basic.offensiveRatio), attack.category);
+  const fraction=family==='abra'?(ATTACKS.moves['psychic-teleport'].basicSpaFraction??.3):0;
+  return entry('ATAQUE REGULAR',rawBasicDamage(stats.atk*(1-fraction)+stats.spa*fraction,ATTACKS.basic.offensiveRatio),attack.category);
 }
 
 /** Raw values before enemy mitigation. Special effects are annotated by hit/DPS. */
@@ -21,6 +22,7 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
   const physical = (label: string, value: number) => entry(label, value, 'physical');
   const special = (label: string, value: number) => entry(label, value, 'special');
   switch (move.effect) {
+    case 'psychic-teleport':return stage===0?[]:[special(`DANO POR DISPARO × ${move.shotCountByStage?.[stage]||0}`,move.baseDamage+s*move.specialRatio)];
     case 'flame-jet':return [special('DANO POR INSTÂNCIA',move.baseDamage+s*move.specialRatio)];
     case 'electric-punch':return [special('PANCADA NO ALVO',move.baseDamage+s*move.specialRatio),special('DANO ADJACENTE', (move.baseDamage+s*move.specialRatio)*(move.secondaryRatioByStage?.[stage]||0))];
     case 'flame-orbit': return [special('DANO ESPECIAL POR CONTATO',move.baseDamage+s*move.specialRatio)];
