@@ -1,6 +1,14 @@
-# PokéTactics — V20.7 (Performance e Organização)
+# PokéTactics — V22.5 (Interface, evoluções e Abra)
 
 PokéTactics é um jogo de estratégia com combates automáticos, Pokémon, loja, evoluções, itens, espólios, augments e sinergias. Ele usa **Astro + TypeScript**, Canvas e sprites/animações PMD. As partidas atuais são **simuladas localmente**, com adversários controlados por bots; ainda não existe multiplayer real nem backend de partidas online.
+
+## V22.5 — principais mudanças
+
+- **HUD e loja:** compras, rerolls, Pokémon, itens e etapas são propagados na primeira resposta do Worker. Ofertas têm IDs, evitando compras em cartões antigos.
+- **Evoluções ramificadas:** Eevee, Scyther e Tyrogue evoluem automaticamente pela participação de tipos da barra TIPOS da loja. Primeiro o tipo principal, depois o secundário; empate integral é sorteado no motor. Não há janela de escolha.
+- **Bandeja física:** terreno com ícones menores, mais abaixo; acompanha câmera/zoom. O estrategista não invade a plataforma.
+- **Família Abra (incomum):** Abra/Kadabra/Alakazam são de alcance longo. Teleportam para outra casa distante na mesma fileira, ou para uma região segura quando ameaçados de perto. Kadabra dispara três tiros psíquicos angulados; Alakazam, cinco. Ataques regulares calculam 70% de ATK e 30% de SpA.
+- **Inspetor:** não exibe mais o texto explicativo sobre bebês; as regras do motor permanecem.
 
 ## Executar o projeto
 
