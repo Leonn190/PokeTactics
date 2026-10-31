@@ -15,13 +15,15 @@ const finite = value => typeof value === 'number' && Number.isFinite(value);
 const positive = value => finite(value) && value >= 0;
 const stats = ['hp', 'atk', 'def', 'spa', 'spd', 'speed'];
 
-const ranges = new Set();
+const rangeLevels = new Set();
 for (const range of alcances.levels) {
-  check(typeof range.name === 'string' && range.name.length > 0, 'Alcance sem nome');
-  check(!ranges.has(range.name), 'Classe de alcance duplicada: ' + range.name);
-  check(finite(range.value) && range.value > 0, 'Alcance inválido: ' + range.name);
-  ranges.add(range.name);
+  const level = Number(range.name);
+  check(typeof range.name === 'string' && /^[1-9]\\d*$/.test(range.name) && Number.isSafeInteger(level), 'Nível de alcance inválido: ' + range.name);
+  check(!rangeLevels.has(level), 'Nível de alcance duplicado: ' + range.name);
+  check(finite(range.value) && range.value === level - 0.5, 'Distância efetiva inválida para alcance ' + range.name);
+  rangeLevels.add(level);
 }
+const validRangeLevel = level => Number.isInteger(level) && rangeLevels.has(level);
 const assertStats = (value, label) => {
   for (const key of stats) check(positive(value?.[key]), label + ': atributo ' + key + ' inválido');
 };
@@ -40,7 +42,7 @@ for (const [family, species] of Object.entries(pokemons.species)) {
   check(species.pokedexIds?.length === species.names?.length, label + ': nomes e Pokédex desalinhados');
   check(Number.isInteger(species.rarity) && species.rarity >= 1 && species.rarity <= 5, label + ': raridade inválida');
   check(positive(species.energy), label + ': energia inválida');
-  check(ranges.has(species.rangeClass), label + ': classe de alcance inválida');
+  check(validRangeLevel(species.rangeLevel), label + ': nível de alcance inválido');
   check(Boolean(moves[species.attack]), label + ': habilidade inexistente ' + species.attack);
   if (species.bossMove) check(Boolean(moves[species.bossMove]), label + ': bossMove inexistente ' + species.bossMove);
   assertStats(species.base, label + '.base');
@@ -53,7 +55,7 @@ for (const [family, species] of Object.entries(pokemons.species)) {
     check(species.stages.length <= species.names.length, label + ': etapas acima do total de formas');
     species.stages.forEach((stage, i) => {
       if (stage.move) check(Boolean(moves[stage.move]), label + ': move desconhecido na etapa ' + i);
-      if (stage.rangeClass) check(ranges.has(stage.rangeClass), label + ': alcance desconhecido na etapa ' + i);
+      if (stage.rangeLevel !== undefined) check(validRangeLevel(stage.rangeLevel), label + ': nível de alcance inválido na etapa ' + i);
       if (stage.energy !== undefined) check(positive(stage.energy), label + ': energia inválida na etapa ' + i);
     });
   }
