@@ -100,11 +100,21 @@ export const ATTACKS = movesConfig as unknown as {
 export const RANGES = rangeConfig.levels as Array<{name:string;value:number}>;
 export function effectiveRange(level:number):number {
  const integer=Math.max(1,Math.floor(Number.isFinite(level)?level:1));
- return integer-0.5;
+ const configured=RANGES[integer-1];
+ if(configured)return configured.value;
+ // Bosses and temporary effects may request levels beyond the editable table.
+ const last=RANGES[RANGES.length-1];
+ const previous=RANGES[RANGES.length-2];
+ return last.value+(integer-RANGES.length)*(last.value-previous.value);
 }
 export function rangeValue(level:number):number {return effectiveRange(level);}
 export function steppedRange(level:number,steps:number):number {return effectiveRange(Math.max(1,level+steps));}
-export function rangeLabel(value:number):string {return String(Math.max(1,Math.round(value+0.5)));}
+export function rangeLabel(value:number):string {
+ if(!Number.isFinite(value))return '1';
+ let best=0;
+ for(let i=1;i<RANGES.length;i++)if(Math.abs(RANGES[i].value-value)<Math.abs(RANGES[best].value-value))best=i;
+ return RANGES[best]?.name || '1';
+}
 export const RULES = rulesConfig;
 export const TERRAIN = terrainConfig;
 export const PHASES = phaseConfig as unknown as {
