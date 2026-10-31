@@ -107,6 +107,8 @@ export function selectCombatTarget(
   source.chaseOriginX=undefined;source.chaseOriginY=undefined;
  }
  if(!target)return null;
+ // Prefer an enemy already hittable instead of walking past it to chase a distant one.
+ if(!inRange(target) && inRangeEnemies.length)target=closest(inRangeEnemies)||target;
  if(!inRange(target)){
   if(source.basicTargetWasInRange){
    // Do not chase a fleeing victim when a different enemy is already hittable.
