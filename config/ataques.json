@@ -1002,6 +1002,40 @@
       "shotRadius": 0.36,
       "closeEnemyRadius": 1.5,
       "teleportMinDistance": 1.5
+    },
+    "venom-seed": {
+      "name": "Semente Venenosa",
+      "effect": "terrain-poison-shot",
+      "baseDamage": 10,
+      "specialRatio": 0.43,
+      "initialSecondsByStage": [
+        3,
+        4,
+        4.5
+      ],
+      "centerIntensityByStage": [
+        1,
+        2,
+        2
+      ],
+      "adjacentIntensityByStage": [
+        0,
+        0,
+        1
+      ]
+    },
+    "sludge-absorb": {
+      "name": "Absorver",
+      "effect": "sludge-absorb",
+      "baseDamage": 5,
+      "specialRatio": 0.23,
+      "absorbDuration": 1.5,
+      "absorbTickInterval": 0.3,
+      "absorbDamageRatio": 0.24,
+      "absorbDamageBase": 4,
+      "absorbDamageReduction": 0.15,
+      "executeThreshold": 0.1,
+      "executeHealRatio": 0.2
     }
   }
 }

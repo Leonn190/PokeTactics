@@ -4,6 +4,7 @@ import { Arena, type ClientView } from './arena';
 import { Hud } from './hud';
 import { Menus } from './menus';
 import { PlayerSettings } from './player-settings';
+import { SandboxView } from './sandbox';
 import { GameAudio } from './audio';
 import { BENCH_SIZE, SPECIES } from '../../server/data';
 import { ITEMS } from '../../server/systems/items';
@@ -80,14 +81,14 @@ function watch(playerId: string): void {
   worker?.postMessage({ type: 'watch', playerId } satisfies ClientToServer);
 }
 
-function launchMatch(): void {
+function launchMatch(mode:'normal'|'sandbox'='normal'): void {
   audio.play('start');
   worker?.terminate();
   view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
   framesDrawn=0;windowStart=performance.now();smoothedFps=75;fpsReadout.textContent='FPS: —';
   lastSnapshotSerial=-1;lastWorldLayout='';hud.reset();errorBoundaries.clear();
-  augments.reset();
+  augments.reset();sandbox.reset();
   requestAnimationFrame(placeWorldWidgets);
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
   const currentWorker = worker;
@@ -98,6 +99,7 @@ function launchMatch(): void {
     if(!Number.isFinite(incoming.serial)||incoming.serial<=lastSnapshotSerial)return;
     lastSnapshotSerial=incoming.serial;
     state=incoming;
+    independently('Sandbox',()=>sandbox.render(incoming));
     if(view.selectedId && !state.players.some(p=>p.units.some(u=>u.id===view.selectedId))
       && !state.visibleBattle?.units.some(u=>u.id===view.selectedId||u.sourceId===view.selectedId))view.selectedId=null;
     if(view.inventoryItemId&&!state.players[0].itemInventory?.some(item=>item.id===view.inventoryItemId))view.inventoryItemId=null;
@@ -111,21 +113,23 @@ function launchMatch(): void {
     if(lastWorldLayout!==layout){lastWorldLayout=layout;placeWorldWidgets();}
   });
   currentWorker.addEventListener('error', () => hud.toast('Erro ao iniciar a simulação'));
-  currentWorker.postMessage({ type: 'connect' } satisfies ClientToServer);
+  currentWorker.postMessage({ type: 'connect', mode } satisfies ClientToServer);
 }
-const menus = new Menus(launchMatch, () => playerSettings.open());
+const menus = new Menus(()=>launchMatch('normal'), () => playerSettings.open(),()=>launchMatch('sandbox'));
+const sandbox=new SandboxView(command=>send(command),()=>closeMatch());
+function closeMatch():void {
+  playerSettings.close();audio.play('finish');
+  worker?.terminate();worker=null;state=null;arena.snapshot=null;arena.setActive(false);
+  view.scoutId='p0';view.selectedId=null;clearDrag();clearItemDrag();view.selectedBall=null;view.inventoryItemId=null;
+  augments.reset();sandbox.reset();hud.reset();lastSnapshotSerial=-1;lastWorldLayout='';
+  document.getElementById('finalBanner')!.classList.add('hidden');menus.showHome();
+}
 document.addEventListener('click', event => {
   const button = (event.target as HTMLElement).closest('button');
   if (button && button.id !== 'findMatchButton') audio.play('click');
 });
 placeWorldWidgets();
-document.getElementById('finishedHomeButton')!.addEventListener('click', () => {
-  playerSettings.close(); audio.play('finish');
-  worker?.terminate(); worker = null; state = null; arena.snapshot = null; arena.setActive(false);
-  view.selectedId=null;clearDrag();clearItemDrag();view.selectedBall=null;view.inventoryItemId=null;augments.reset();hud.reset();lastSnapshotSerial=-1;lastWorldLayout='';
-  document.getElementById('finalBanner')!.classList.add('hidden');
-  menus.showHome();
-});
+document.getElementById('finishedHomeButton')!.addEventListener('click', closeMatch);
 
 const inventoryContents = document.getElementById('inventoryContents')!;
 inventoryContents.addEventListener('click',event=>{
@@ -160,7 +164,7 @@ function clearItemDrag():void{
 }
 function validInventoryDrop(unitId:string|null,itemId:string|null,ball:BallKind|null):boolean{
   if(!state||!unitId)return false;
-  const player=state.players[0],unit=player.units.find(u=>u.id===unitId);
+  const player=state.players[0],unit=(state.sandbox?state.players.flatMap(p=>p.units):player.units).find(u=>u.id===unitId);
   if(!unit||(state.phase!=='planning'&&unit.position.area==='board'))return false;
   if(itemId){
     const item=player.itemInventory?.find(i=>i.id===itemId);
@@ -212,11 +216,13 @@ document.addEventListener('pointerup',event=>{
     const rect=canvas.getBoundingClientRect();
     const aboveCanvas=event.clientX>=rect.left&&event.clientX<=rect.right&&event.clientY>=rect.top&&event.clientY<=rect.bottom;
     const overHud=!!target?.closest('#shopFooter,#unitInspector,#itemInventory,.augment-overlay,.arena-augment-stacks');
-    const unitId=aboveCanvas&&!overHud?arena.pickOwnUnit(event.clientX,event.clientY):null;
+    const picked=aboveCanvas&&!overHud?(state.sandbox?arena.pickUnit(event.clientX,event.clientY):null):null;
+    const unitId=aboveCanvas&&!overHud?(picked?.sourceId||arena.pickOwnUnit(event.clientX,event.clientY)):null;
     if(slot && id && validInventoryDrop(slot.dataset.gearUnit||null,id,null))
       send({kind:'equip-item',itemId:id,unitId:slot.dataset.gearUnit!,ontoSlot:Number(slot.dataset.gearSlot)});
     else if(unitId && validInventoryDrop(unitId,id,ball)){
       if(ball)send({kind:'use-ball',ball,unitId});
+      else if(id&&picked?.ownerId==='p1')send({kind:'sandbox-equip-item',ownerId:'p1',itemId:id,unitId});
       else if(id)send({kind:'equip-item',itemId:id,unitId});
     }
     // An invalid or empty drop does nothing: the authoritative inventory keeps the item.
@@ -236,7 +242,7 @@ document.getElementById('shopCards')!.addEventListener('click', event => {
 document.getElementById('rerollButton')!.addEventListener('click', () => send({ kind: 'reroll' }));
 document.getElementById('lockButton')!.addEventListener('click', () => send({ kind: 'lock' }));
 document.getElementById('rankRows')!.addEventListener('click', event => {
-  if (!state) return;
+  if (!state || state.sandbox) return;
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-scout]');
   if (!target) return;
   watch(target.dataset.scout || 'p0');
@@ -250,7 +256,7 @@ document.getElementById('returnBoard')!.addEventListener('click', () => {
 
 function startDrag(id: string, event: PointerEvent): void {
   if (!state || state.phase === 'finished') return;
-  const unit = state.players[0].units.find(u => u.id === id);
+  const unit = (state.sandbox?state.players.flatMap(p=>p.units):state.players[0].units).find(u => u.id === id);
   if (!unit || (unit.position.area === 'board' && (state.phase !== 'planning' || view.scoutId !== 'p0'))) return;
   view.selectedId = id;
   view.dragId = id;
@@ -305,12 +311,12 @@ function updateGhost(event: PointerEvent): void {
   if (!dragStarted && Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 5) {
     dragStarted = true;
     view.dragging = true;
-    const unit = state.players[0].units.find(u => u.id === view.dragId);
+    const unit = (state.sandbox?state.players.flatMap(p=>p.units):state.players[0].units).find(u => u.id === view.dragId);
     if (unit) setDragSprite(unit.family, unit.stage);
     ghost.classList.remove('hidden');
     requestAnimationFrame(drawDraggedIdle);
     document.querySelector('.shop-row')?.classList.add('drag-selling');
-    document.getElementById('sellOverlay')?.classList.remove('hidden');
+    if(!state.sandbox||state.players[0].units.some(u=>u.id===view.dragId))document.getElementById('sellOverlay')?.classList.remove('hidden');
   }
   if (!dragStarted) return;
   ghost.style.transform = `translate3d(${event.clientX - ghostWidth / 2}px,${event.clientY - ghostHeight + 6}px,0)`;
@@ -337,8 +343,14 @@ function finishDrag(event: PointerEvent): void {
   const target = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
   const sell = target?.closest('#sellOverlay');
   if (dragStarted) {
-    if (sell) send({ kind: 'sell', unitId: id });
+    const enemyOwner=state.sandbox&&state.players[1].units.some(u=>u.id===id);
+    if (sell && !enemyOwner) send({ kind: 'sell', unitId: id });
     else if (target === canvas) {
+      if(enemyOwner){
+        const hex=arena.pickEnemyHex(event.clientX,event.clientY);
+        if(hex)send({kind:'sandbox-move',ownerId:'p1',unitId:id,col:hex.col,row:3-hex.row});
+        clearDrag();hud.render(state,view);return;
+      }
       const benchIndex = arena.pickBench(event.clientX, event.clientY);
       if (benchIndex !== null) { const position={area:'bench' as const,index:benchIndex};arena.previewMove(id,position);send({kind:'move',unitId:id,position}); }
       else if (state.phase === 'planning' && view.scoutId === 'p0') {
@@ -358,6 +370,8 @@ canvas.addEventListener('pointerdown', event => {
 
   if (event.button !== 0) return;
   const id = arena.pickOwnUnit(event.clientX, event.clientY);
+  const enemyUnit=state?.sandbox&&state.phase==='planning'?arena.pickUnit(event.clientX,event.clientY):null;
+  if (!id&&enemyUnit?.ownerId==='p1'){startDrag(enemyUnit.sourceId,event);return;}
   if (id && view.selectedBall) {
     send({kind:'use-ball',ball:view.selectedBall,unitId:id});
     view.inventoryItemId=null;view.selectedBall=null;

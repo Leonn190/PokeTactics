@@ -63,7 +63,7 @@ export class AugmentView {
    // Only recompute world positions when the scene's ownership/layout changes.
    // Zoom and resize explicitly call positionStacks from main.ts.
    const battle=snapshot.phase==='combat' && !snapshot.visibleBattle?.resolved ? snapshot.visibleBattle : null;
-   const ids=battle?.participants || [snapshot.observedId];
+   const ids=snapshot.sandbox?['p0','p1']:battle?.participants || [snapshot.observedId];
    const layout=[snapshot.phase,battle?.id,snapshot.observedId,...ids.map(id=>`${id}:${snapshot.players.find(p=>p.id===id)?.augments?.join(',')||''}`)].join('|');
    if(layout!==this.lastPlacementKey){this.positionStacks(arena);this.lastPlacementKey=layout;}
  }
@@ -95,7 +95,7 @@ export class AugmentView {
   const state=this.current;
   if(!state || state.phase==='finished'){this.hideTooltip();this.stacks.innerHTML='';delete this.stacks.dataset.owners;return;}
   const battle=state.visibleBattle;
-  const participants=state.phase==='combat' && battle && !battle.resolved ? battle.participants : [state.observedId];
+  const participants=state.sandbox?['p0','p1']:state.phase==='combat' && battle && !battle.resolved ? battle.participants : [state.observedId];
   const quad=participants.length>2;
   const ids=participants.filter(id=>state.players.some(p=>p.id===id));
   const key=`${state.phase}:${battle&&state.phase==='combat'&&!battle.resolved?battle.id:'planning'}:${state.observedId}:`+ids.map(id=>`${id}:${state.players.find(p=>p.id===id)?.augments?.join(',')||''}`).join('|');

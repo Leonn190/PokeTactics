@@ -6,6 +6,7 @@ import rulesConfig from '../config/regras_gerais.json';
 import animationConfig from '../config/animacoes.json';
 import renderConfig from '../config/renderizacao.json';
 import rangeConfig from '../config/alcances.json';
+import terrainConfig from '../config/terrenos.json';
 import type { Element, Family, Rarity, StageType, Stats } from './types';
 
 export type BasicAttackData = { stat: 'atk' | 'spa'; category: 'physical' | 'special'; animation: string; projectile?: string };
@@ -41,7 +42,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -85,6 +86,9 @@ export type MoveData = {
   durabilityByStage?: number[]; energyDrainPrimaryByStage?: number[]; energyDrainAdjacentByStage?: number[];
   babyEnergyDrainPrimary?: number; babyEnergyDrainAdjacent?: number; shieldEnergyRatio?: number; shieldMaxHpFraction?: number;
   basicSpaFraction?:number;shotCountByStage?:number[];shotAngleDegrees?:number;shotRange?:number;shotRadius?:number;closeEnemyRadius?:number;teleportMinDistance?:number;
+  initialSecondsByStage?:number[];centerIntensityByStage?:number[];adjacentIntensityByStage?:number[];
+  absorbDuration?:number;absorbTickInterval?:number;absorbDamageBase?:number;absorbDamageRatio?:number;
+  absorbDamageReduction?:number;executeHealRatio?:number;
   continuationMultiplier?: number; levelBonusCap?: number; revertHealthRatio?: number;
 };
 
@@ -104,6 +108,7 @@ export function rangeLabel(value:number, rangeClass?:RangeClass):string {
  return level?`${level} (${value.toFixed(1)} casas)`:`${value.toFixed(1)} casas`;
 }
 export const RULES = rulesConfig;
+export const TERRAIN = terrainConfig;
 export const PHASES = phaseConfig as unknown as {
   stagesPerChapter: number;
   stages: Array<{ type: StageType; name: string }>;

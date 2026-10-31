@@ -1,0 +1,38 @@
+{
+  "poison": {
+    "damageInterval": 0.5,
+    "decaySeconds": 2,
+    "baseDamageByIntensity": [
+      0,
+      4,
+      8,
+      14
+    ],
+    "spaRatioByIntensity": [
+      0,
+      0.055,
+      0.105,
+      0.175
+    ],
+    "grimer": {
+      "trailSeconds": 5,
+      "trailIntensity": 1,
+      "healthStep": 0.25,
+      "healthSeconds": 3.5,
+      "healthIntensity": 1,
+      "deathSeconds": 6,
+      "deathCenterIntensity": 2,
+      "deathAdjacentIntensity": 1
+    },
+    "muk": {
+      "trailSeconds": 5,
+      "trailIntensity": 2,
+      "healthStep": 0.25,
+      "healthSeconds": 3.5,
+      "healthIntensity": 2,
+      "deathSeconds": 6,
+      "deathCenterIntensity": 3,
+      "deathAdjacentIntensity": 2
+    }
+  }
+}

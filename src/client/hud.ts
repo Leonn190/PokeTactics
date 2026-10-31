@@ -93,7 +93,7 @@ export class Hud {
 
   /** Lightweight frequent timer update; no shop/rank DOM rebuilding. */
   renderClock(snapshot: GameSnapshot): void {
-    const value = snapshot.phase === 'finished' ? '—' : String(Math.ceil(snapshot.timeLeft));
+    const value = snapshot.sandbox&&snapshot.phase==='planning' ? '∞' : snapshot.phase === 'finished' ? '—' : String(Math.ceil(snapshot.timeLeft));
     const countdown = element('countdown');
     if (countdown.textContent !== value) countdown.textContent = value;
     const progress = element('stageProgress');
@@ -207,7 +207,7 @@ export class Hud {
     const phaseLabels = { planning: 'PREPARAÇÃO', combat: 'COMBATE', result: 'RESULTADO', finished: 'ENCERRADO' };
     element('phaseLabel').textContent = snapshot.accelerated ? 'COMBATE ACELERADO' : phaseLabels[snapshot.phase];
     element('roundLabel').textContent = `${snapshot.chapter}-${snapshot.stage}`;
-    element('goldCount').textContent = String(player.gold);
+    element('goldCount').textContent = snapshot.sandbox?'∞':String(player.gold);
     const streak = (RULES.streakBonuses as Record<string, number>)[String(Math.min(5, Math.abs(player.streak)))] || 0;
     const interestLimit=interestCap(player.augments||[]);
     const interest = Math.min(interestLimit, Math.floor(player.gold / RULES.interestEveryGold));

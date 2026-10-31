@@ -4959,6 +4959,193 @@
         3,
         3
       ]
+    },
+    "grimer": {
+      "names": [
+        "Grimer",
+        "Muk"
+      ],
+      "pokedexIds": [
+        88,
+        89
+      ],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#aa78b8",
+      "base": {
+        "hp": 405,
+        "atk": 53,
+        "def": 68,
+        "spa": 78,
+        "spd": 73,
+        "speed": 37
+      },
+      "stageBases": [
+        {
+          "hp": 405,
+          "atk": 53,
+          "def": 68,
+          "spa": 78,
+          "spd": 73,
+          "speed": 37
+        },
+        {
+          "hp": 630,
+          "atk": 78,
+          "def": 105,
+          "spa": 115,
+          "spd": 109,
+          "speed": 46
+        }
+      ],
+      "rangeClass": "Curto",
+      "range": 0.65,
+      "energy": 75,
+      "attack": "sludge-absorb",
+      "elements": [
+        "poison"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "poison"
+          ],
+          "rangeClass": "Curto",
+          "energy": 75,
+          "move": "sludge-absorb",
+          "chargedType": "poison",
+          "chargedAnimation": "Attack"
+        },
+        {
+          "elements": [
+            "poison"
+          ],
+          "rangeClass": "Curto",
+          "energy": 90,
+          "move": "sludge-absorb",
+          "chargedType": "poison",
+          "chargedAnimation": "Attack"
+        }
+      ],
+      "physicalSizes": [
+        0.92,
+        1.32
+      ],
+      "evolutionCopies": [
+        3
+      ]
+    },
+    "bellsprout": {
+      "names": [
+        "Bellsprout",
+        "Weepinbell",
+        "Victreebel"
+      ],
+      "pokedexIds": [
+        69,
+        70,
+        71
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#a9e179",
+      "base": {
+        "hp": 245,
+        "atk": 38,
+        "def": 41,
+        "spa": 75,
+        "spd": 49,
+        "speed": 55
+      },
+      "stageBases": [
+        {
+          "hp": 245,
+          "atk": 38,
+          "def": 41,
+          "spa": 75,
+          "spd": 49,
+          "speed": 55
+        },
+        {
+          "hp": 375,
+          "atk": 56,
+          "def": 62,
+          "spa": 105,
+          "spd": 69,
+          "speed": 67
+        },
+        {
+          "hp": 535,
+          "atk": 78,
+          "def": 88,
+          "spa": 146,
+          "spd": 102,
+          "speed": 78
+        }
+      ],
+      "rangeClass": "Alto",
+      "range": 3.8,
+      "energy": 65,
+      "attack": "venom-seed",
+      "elements": [
+        "grass",
+        "poison"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "seed"
+      },
+      "stages": [
+        {
+          "elements": [
+            "grass",
+            "poison"
+          ],
+          "rangeClass": "Alto",
+          "energy": 65,
+          "move": "venom-seed",
+          "chargedType": "poison",
+          "chargedAnimation": "Shoot"
+        },
+        {
+          "elements": [
+            "grass",
+            "poison"
+          ],
+          "rangeClass": "Alto",
+          "energy": 75,
+          "move": "venom-seed",
+          "chargedType": "poison",
+          "chargedAnimation": "Shoot"
+        },
+        {
+          "elements": [
+            "grass",
+            "poison"
+          ],
+          "rangeClass": "Alto",
+          "energy": 85,
+          "move": "venom-seed",
+          "chargedType": "poison",
+          "chargedAnimation": "Shoot"
+        }
+      ],
+      "physicalSizes": [
+        0.78,
+        0.99,
+        1.21
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ]
     }
   }
 }

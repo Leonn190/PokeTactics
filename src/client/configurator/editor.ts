@@ -8,6 +8,8 @@ import type { Family,ItemColor } from '../../../server/types';
 
 const safe=(value:unknown)=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
 const pt:Record<string,string>={
+ poison:'Veneno persistente',decaySeconds:'Tempo de degradação por estágio',baseDamageByIntensity:'Dano base por intensidade',spaRatioByIntensity:'Escala do SpA por intensidade',trailSeconds:'Duração do rastro',trailIntensity:'Intensidade do rastro',healthStep:'Perda de vida por ativação',healthSeconds:'Duração do veneno ao perder vida',healthIntensity:'Intensidade ao perder vida',deathSeconds:'Duração após morte',deathCenterIntensity:'Intensidade no hexágono da morte',deathAdjacentIntensity:'Intensidade nos vizinhos da morte',grimer:'Grimer',muk:'Muk',centerIntensityByStage:'Intensidade central por evolução',adjacentIntensityByStage:'Intensidade adjacente por evolução',terrainDurationByStage:'Duração do terreno por evolução',absorbDuration:'Tempo de absorção',absorbTickInterval:'Intervalo do dano de absorção',absorbDamageBase:'Dano base da absorção',absorbDamageRatio:'Escala do SpA na absorção',absorbDamageReduction:'Dano redirecionado ao alvo',executeHealRatio:'Cura ao executar',
+
  meteorCount:'Quantidade de meteoros',impactRadius:'Raio do impacto',fragmentRatio:'Dano dos fragmentos',fallSpeed:'Velocidade de queda',fragmentSpeed:'Velocidade dos fragmentos',warningSeconds:'Aviso do impacto',coneRange:'Comprimento do cone',coneAngle:'Abertura do cone (graus)',executeThreshold:'Limiar de execução',shieldDamageMultiplier:'Multiplicador contra barreiras',dashSpeed:'Velocidade do dash',hitInterval:'Intervalo dos golpes',freezeBase:'Congelamento base',freezeSpaRatio:'Congelamento por SpA',freezeMax:'Congelamento máximo',adjacentRadius:'Raio do alvo secundário',adjacentFreezeRatio:'Controle no alvo secundário',pierceBase:'Perfuração base',pierceSpaRatio:'Perfuração por SpA',pierceMax:'Perfuração máxima',tickInterval:'Intervalo (s)',baseDps:'Dano por segundo',healingReduction:'Redução de cura',durabilityBonus:'Durabilidade extra',wakeOnPhysicalBasic:'Despertar com ataque regular',
  hp:'Vida',atk:'Ataque (ATK)',def:'Defesa (DEF)',spa:'Ataque especial (SpA)',spd:'Defesa especial (SpD)',speed:'Velocidade (VEL)',
  baseDamage:'Dano base',attackRatio:'Escala de ATK',specialRatio:'Escala de SpA',offensiveRatio:'Escala ofensiva',energyGain:'Energia recebida',
@@ -250,7 +252,8 @@ export class Configurator {
     `<p class="cfg-context">${safe(help[key]||'')}</p><div class="cfg-fields">${fields('efeitos.json',[key],values)}</div>
     <div class="cfg-status-reapply"><label>Reaplicação</label>${choose('efeitos.json',[key,'reapply'],[
       ['stronger_refresh','Efeito mais forte e renova duração'],['refresh','Renovar duração'],['longer','Manter a duração maior']])}</div>`,
-    'Parâmetros oficiais da simulação. Configurações particulares das habilidades continuam em Ataques.')).join('');
+    'Parâmetros oficiais da simulação. Configurações particulares das habilidades continuam em Ataques.')).join('')
+    +recursive('terrenos.json','TERRENOS VENENOSOS E EFEITOS PERSISTENTES',['poison']);
  }
  private synergies():string{
   const cfg=documentOf('sinergias.json');

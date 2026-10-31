@@ -1,10 +1,10 @@
-import { applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
+import { AUGMENT_MAP, applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
 import { inventoryUsed,canReceive } from './systems/inventory';
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, ITEM_RACK_WORLD, SHOP_FAMILIES, SHOP_SIZE, SPECIES, evolutionCopies } from './data';
 import { rollFamily, evolutionByInfluence } from './shop';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
-import { craft, makeComponent, ITEM_COLORS, ITEMS } from './systems/items';
+import { craft, makeComponent, ITEM_COLORS, RECIPES, ITEMS } from './systems/items';
 import { LOOT, eligibleForLoot, rollColor, rollReward } from './systems/loot';
 import { chapterForRound, roundTimers } from './chapter-timers';
 import type { Battle, Family, GameCommand, GameSnapshot, GoldDrop, LootDrop, LootReward, BallKind, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
@@ -65,15 +65,26 @@ export class GameEngine {
   private lootMessage = '';
   private lootMessageId = '';
   readonly players: Player[];
+  readonly sandbox: boolean;
+  private sandboxFoundations=new Map<string,{iv:Stats;xp:number;level:number}>();
 
-  constructor(seed = Date.now()) {
+  constructor(seed = Date.now(), sandbox = false) {
+    this.sandbox=sandbox;
     this.rng = new Rng(seed);
-    this.players = NAMES.slice(0, RULES.players).map((name, i) => ({
+    this.players = NAMES.slice(0, sandbox?2:RULES.players).map((name, i) => ({
       id: `p${i}`, name, health: RULES.startingHealth, gold: RULES.startingGold, level: 1,
       units: [], shop: Array(SHOP_SIZE).fill(null), locked: false, itemInventory: [],
       consumables: { pokeball:0,greatball:0,ultraball:0,masterball:0 },
       eliminated: false, lastWin: false, streak: 0, roundVictory: false, history: [], placement: null
     }));
+    if(sandbox){
+      this.duration=86400;this.opponentId='p1';this.lastOpponentId='p1';
+      this.players[0].name='VOCÊ';this.players[1].name='EQUIPE INIMIGA';
+      for(const player of this.players){player.level=6;player.gold=1_000_000;player.health=RULES.startingHealth;player.augments=[];player.augmentChoice=undefined;}
+      this.refreshShop(this.players[0]);
+      this.log='Modo Teste · preparação livre';
+      return;
+    }
     this.players.forEach((player, i) => {
       const family = i === 0 ? 'bulbasaur' : this.rng.pick(FAMILIES.slice(0, 3));
       player.units.push(this.makePokemon(family, { area: 'board', col: i % 3 + 2, row: 1 }));
@@ -449,7 +460,9 @@ export class GameEngine {
     const eligibleMerge = player.units.filter(u => u.family === offer.family && u.stage === 0).length >= (evolutionCopies(offer.family,0,hasAugment(player,'P11'))-1);
     if (free < 0 && !eligibleMerge) return `Banco cheio (${BENCH_SIZE}/${BENCH_SIZE})`;
     player.gold -= offer.price;
+    if(this.sandbox)player.gold=1_000_000;
     const bought = this.makePokemon(offer.family, { area: 'bench', index: free < 0 ? BENCH_SIZE : free });
+    if(this.sandbox)this.sandboxFoundations.set(bought.id,{iv:{...bought.iv},xp:bought.xp,level:bought.level});
     applyPokemonAugments(player,bought,chapterForRound(this.round));
     player.units.push(bought);
     if(this.phase==='planning')purchasedPokemon(player);
@@ -526,7 +539,130 @@ export class GameEngine {
     return true;
   }
 
+  private sandboxRebuildAugments(player:Player):void {
+    const active=[...(player.augments||[])];
+    // Limited-count augments must be recalculated on each toggle.
+    player.augmentCounters={...(player.augmentCounters||{}),B10:0};
+    // Rebuild from pristine bases rather than subtracting irreversible IV/level changes.
+    for(const unit of player.units){
+      let baseline=this.sandboxFoundations.get(unit.id);
+      if(!baseline){baseline={iv:{...unit.iv},xp:unit.xp,level:unit.level};this.sandboxFoundations.set(unit.id,baseline);}
+      unit.iv={...baseline.iv};unit.xp=baseline.xp;unit.level=baseline.level;
+      unit.appliedAugments=[];
+    }
+    for(const unit of player.units)applyPokemonAugments(player,unit,3);
+    for(const id of active){
+      // Instant level grants are rebuilt from the original XP, never stacked on toggles.
+      if(id==='B11')for(const unit of player.units)addLevels(unit,Number((AUGMENT_MAP[id]?.params as any)?.levels||0));
+    }
+    player.level=6;
+  }
+
+  private sandboxCommand(command: GameCommand):string|null {
+    if(!this.sandbox)return 'Comando exclusivo do Modo Teste';
+    if(command.kind==='sandbox-restart'){
+      if(this.phase==='combat'){this.battles=[];this.phase='planning';this.clock=0;this.duration=86400;}
+      return this.sandboxCommand({kind:'sandbox-start'});
+    }
+    if(command.kind==='sandbox-start'){
+      if(this.phase!=='planning')return 'O combate já começou';
+      if(this.players.some(player=>!player.units.some(unit=>unit.position.area==='board')))
+        return 'Posicione pelo menos um Pokémon de cada lado';
+      this.battles=[createBattleGroup(this.players,`sandbox:${this.id()}`,'battle')];
+      this.phase='combat';this.clock=0;this.duration=86400;this.opponentId='p1';
+      this.log='Modo Teste · confronto iniciado';return null;
+    }
+    if(this.phase!=='planning')return 'Edite as equipes durante a preparação';
+    if(command.kind==='sandbox-item'){
+      const inventory=this.players[0].itemInventory||=[];
+      if(!canReceive(this.players[0],1))return 'Área de itens cheia: equipe um item antes de criar outro';
+      if(command.color){
+        if(!ITEM_COLORS.includes(command.color))return 'Componente inválido';
+        inventory.push(makeComponent(this.id(),command.color));
+      }else if(command.recipe&&RECIPES[command.recipe]){
+        inventory.push({id:this.id(),kind:'complete',components:command.recipe.split('+') as import('./types').ItemColor[],recipe:command.recipe});
+      }else return 'Item indisponível';
+      this.players[0].itemInventory=inventory;return null;
+    }
+    if(!('ownerId' in command))return 'Equipe inválida';
+    const owner=this.players.find(player=>player.id===command.ownerId);
+    if(!owner)return 'Equipe não encontrada';
+    if(command.kind==='sandbox-equip-item'){
+      const human=this.players[0];
+      const item=human.itemInventory?.find(x=>x.id===command.itemId);
+      const unit=owner.units.find(x=>x.id===command.unitId);
+      if(!item||!unit)return 'Item ou Pokémon inválido';
+      const gear=unit.equipment||=[];
+      const existing=item.kind==='component'?gear.find(x=>x.kind==='component'):undefined;
+      if(existing){
+        const combined=craft(this.id(),item,existing);
+        if(!combined)return 'Combinação inválida';
+        gear.splice(gear.indexOf(existing),1,combined);
+      }else{
+        if(gear.length>=ITEMS.maxSlots)return 'Máximo de equipamentos';
+        gear.push(item);
+      }
+      human.itemInventory=human.itemInventory!.filter(x=>x.id!==item.id);
+      return null;
+    }
+    if(command.kind==='sandbox-equip'){
+      const unit=owner.units.find(u=>u.id===command.unitId);
+      if(!unit)return 'Pokémon não encontrado';
+      if(command.slot!==undefined){
+        if(!Number.isInteger(command.slot)||command.slot<0||command.slot>=(unit.equipment?.length||0))return 'Item inválido';
+        unit.equipment!.splice(command.slot,1);return null;
+      }
+      if((unit.equipment||[]).length>=ITEMS.maxSlots)return 'Máximo de equipamentos';
+      if(command.color&&ITEM_COLORS.includes(command.color))(unit.equipment||=[]).push(makeComponent(this.id(),command.color));
+      else if(command.recipe&&RECIPES[command.recipe]){
+        (unit.equipment||=[]).push({id:this.id(),kind:'complete',components:command.recipe.split('+') as import('./types').ItemColor[],recipe:command.recipe});
+      }else return 'Item inválido';
+      return null;
+    }
+    if(command.kind==='sandbox-augment'){
+      if(!AUGMENT_MAP[command.id])return 'Augment inexistente';
+      owner.augments||=[];
+      if(command.enabled&&!owner.augments.includes(command.id))owner.augments.push(command.id);
+      if(!command.enabled)owner.augments=owner.augments.filter(id=>id!==command.id);
+      this.sandboxRebuildAugments(owner);return null;
+    }
+    if(command.kind==='sandbox-add'){
+      if(!Object.hasOwn(SPECIES,command.family))return 'Pokémon inexistente';
+      const stage=Math.floor(command.stage);
+      if(!Number.isFinite(stage)||stage<0||stage>=SPECIES[command.family].names.length)return 'Evolução inválida';
+      if(owner.units.filter(unit=>unit.position.area==='board').length>=6)return 'Limite de 6 Pokémon em campo';
+      const taken=new Set(owner.units.filter(unit=>unit.position.area==='board').map(u=>u.position.area==='board'?`${u.position.col}:${u.position.row}`:''));
+      const choices=Array.from({length:BOARD_ROWS*BOARD_COLUMNS},(_,i)=>({col:i%BOARD_COLUMNS,row:Math.floor(i/BOARD_COLUMNS)}));
+      const preferred=Number.isInteger(command.col)&&Number.isInteger(command.row)?choices.find(x=>x.col===command.col&&x.row===command.row):undefined;
+      const pos=preferred&&!taken.has(`${preferred.col}:${preferred.row}`)?preferred:choices.find(x=>!taken.has(`${x.col}:${x.row}`));
+      if(!pos)return 'Não há hexágono livre';
+      const unit=this.makePokemon(command.family,{area:'board',...pos});unit.stage=stage;
+      owner.units.push(unit);this.sandboxFoundations.set(unit.id,{iv:{...unit.iv},xp:unit.xp,level:unit.level});
+      this.sandboxRebuildAugments(owner);
+      return null;
+    }
+    const unit=owner.units.find(u=>u.id===command.unitId);
+    if(!unit)return 'Pokémon não encontrado';
+    if(command.kind==='sandbox-remove'){
+      owner.units=owner.units.filter(u=>u.id!==unit.id);this.sandboxFoundations.delete(unit.id);return null;
+    }
+    if(command.kind==='sandbox-stage'){
+      if(!Number.isInteger(command.stage)||command.stage<0||command.stage>=SPECIES[unit.family].names.length)return 'Evolução inválida';
+      unit.stage=command.stage;this.sandboxRebuildAugments(owner);return null;
+    }
+    if(command.kind==='sandbox-move'){
+      if(!Number.isInteger(command.col)||!Number.isInteger(command.row)||command.col<0||command.col>=BOARD_COLUMNS||command.row<0||command.row>=BOARD_ROWS)return 'Hexágono inválido';
+      const prev=unit.position;
+      const occupied=owner.units.find(u=>u.id!==unit.id&&u.position.area==='board'&&u.position.col===command.col&&u.position.row===command.row);
+      unit.position={area:'board',col:command.col,row:command.row};
+      if(occupied)occupied.position={...prev};
+      return null;
+    }
+    return 'Comando indisponível';
+  }
+
   command(command: GameCommand): string | null {
+    if(command.kind.startsWith('sandbox-'))return this.sandboxCommand(command);
     const human = this.players[0];
     if (human.eliminated || this.phase === 'finished') return 'A partida já terminou para você';
     if(command.kind==='augment-choose'||command.kind==='augment-reroll'){
@@ -617,9 +753,11 @@ export class GameEngine {
       if (free)human.augmentCounters!['B02:free']=free-1;
       else human.gold -= RULES.rerollCost;
       this.refreshShop(human);
+      if(this.sandbox)human.gold=1_000_000;
       return null;
     }
     if (command.kind === 'lock') { human.locked = !human.locked; return null; }
+    if(!('unitId' in command))return 'Comando indisponível';
     const unit = human.units.find(u => u.id === command.unitId);
     if (!unit) return 'Pokémon não encontrado';
     if (this.phase !== 'planning' && unit.position.area === 'board') return 'Pokémon em campo não pode ser movido durante o combate';
@@ -896,6 +1034,18 @@ export class GameEngine {
     for (const animation of this.visualEvents) animation.age += step;
     this.visualEvents = this.visualEvents.filter(animation => animation.age < 1.7);
     this.clock += step;
+    if(this.sandbox){
+      if(this.phase==='combat'){
+        for(const battle of this.battles)tickBattle(battle,step);
+        if(this.clock>=120)this.battles.forEach(forceResolveBattle);
+        if(this.battles.every(b=>b.resolved&&b.outcomeElapsed>=1.5)){
+          this.lastCombatStats=Object.assign({},...this.battles.map(b=>battleMetrics(b)));
+          this.battles=[];this.phase='planning';this.clock=0;this.duration=86400;
+          this.log='Modo Teste · confronto concluído. Equipes preservadas.';
+        }
+      }
+      return;
+    }
     if (this.phase === 'planning' && this.clock >= this.duration) this.startCombat();
     else if (this.phase === 'combat') {
       const accelerated = this.clock >= roundTimers(this.round).combatSeconds;
@@ -911,7 +1061,7 @@ export class GameEngine {
     const battle = this.battles.find(b => b.participants.includes(watched)) || null;
     const stats = battle ? battleMetrics(battle) : this.lastCombatStats;
     return {
-      serial: ++this.serial, phase: this.phase, phaseSeconds: this.duration,
+      serial: ++this.serial, sandbox:this.sandbox, phase: this.phase, phaseSeconds: this.duration,
       timeLeft: Math.max(0, this.duration - this.clock), round: this.round,
       chapter: chapterForRound(this.round),
       stage: ((this.round - 1) % PHASES.stagesPerChapter) + 1,
@@ -925,7 +1075,7 @@ export class GameEngine {
         consumables:p.id==='p0' ? p.consumables as NonNullable<Player['consumables']> : {pokeball:0,greatball:0,ultraball:0,masterball:0},
         shop: p.id === 'p0' ? p.shop : []
       })),
-      opponentId: this.phase === 'planning' ? null : this.opponentId,
+      opponentId: this.sandbox?'p1':this.phase === 'planning' ? null : this.opponentId,
       lastOpponentId: this.lastOpponentId,
       visualEvents: this.visualEvents.filter(a => a.ownerId === watched || a.ownerId === 'p0' || (a.kind === 'trainer-damage' && a.battleId === battle?.id)),
       possibleOpponents: this.phase === 'planning' ? this.matchupOptions() : {},

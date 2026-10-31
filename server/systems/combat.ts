@@ -19,6 +19,7 @@ import { pushTarget } from './synergies/positioning';
 import { tickFlameOrbits } from '../combat/flame-orbits';
 import { basicInRange, basicApproachDistance } from '../combat/basic-range';
 import { meteorCenters, withinCone } from '../combat/field-skills';
+import { nearestCell, poisonSplash, poisonousMovement, poisonousHealth, poisonousDeath, tickTerrain } from '../combat/terrain';
 export { trainerSpot } from '../combat/trainer-position';
 
 const baby = (unit: CombatUnit): boolean => !!SPECIES[unit.family].babyEvolution;
@@ -108,7 +109,7 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     playerA: players[0].id, playerB: players[1].id,
     participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
     units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi, kind === 'boss' && p.id.startsWith('bot:')))),
-    effects: [], obstacles:[], obstacleVersion:0, pillarsSpawned:false, knockupEvents: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
+    effects: [], terrain:{}, obstacles:[], obstacleVersion:0, pillarsSpawned:false, knockupEvents: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
     benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
     traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)])),
     augmentsByPlayer: Object.fromEntries(players.map(p=>[p.id,[...(p.augments||[])]])),
@@ -565,6 +566,14 @@ function landProjectiles(battle: Battle, dt: number): void {
     if(fx.obstacleImpact){effect(battle,caster,{x:fx.targetX,y:fx.targetY},'wall-impact',0);continue;}
     const move = ATTACKS.moves[hit.moveId || moveIdOf(caster)];
 
+    if(hit.special==='terrain-poison'){
+      if(isTargetable(target))deal(battle,caster,target,hit.raw,true,true,'poison');
+      const cell=nearestCell(fx.targetX,fx.targetY)||nearestCell(target.x,target.y);
+      poisonSplash(battle,caster,cell,move.centerIntensityByStage?.[caster.stage]||1,
+        move.adjacentIntensityByStage?.[caster.stage]||0,move.initialSecondsByStage?.[caster.stage]||3,stat(caster,'spa'));
+      effect(battle,caster,{x:fx.targetX,y:fx.targetY},'poison',0);
+      continue;
+    }
     if(hit.special==='magnet-impact'){
       if(isTargetable(target))deal(battle,caster,target,hit.raw,true,true,'electric');
       const move=ATTACKS.moves[hit.moveId||'electromagnetic-ball'];
@@ -691,6 +700,8 @@ function landProjectiles(battle: Battle, dt: number): void {
 }
 
 function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage: number): void {
+  poisonousDeath(battle,target,stat(target,'spa'));
+  if(target.absorb){releaseAbsorb(battle,target);}
   // Only a definitive KO can transfer the prism's inheritance.
   onAugmentDeath(battle,target);
   effect(battle, killer, target, 'ko', damage);
@@ -759,6 +770,15 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
     if (damage <= 0) break;
   }
   target.barriers = target.barriers.filter(b => b.hp > 0);
+  // Absorption redirects 15% of actual post-mitigation damage, without recursion.
+  let absorbRedirect:{target:CombatUnit;damage:number}|null=null;
+  if(target.absorb && source.id!==target.id && mode!=='dot' && mode!=='reflect' && mode!=='extra'){
+    const captured=battle.units.find(u=>u.id===target.absorb!.targetId&&u.hp>0);
+    if(captured && target.hp>0){
+      const fraction=ATTACKS.moves['sludge-absorb'].absorbDamageReduction??.15;
+      absorbRedirect={target:captured,damage:damage*fraction};damage*=1-fraction;
+    }
+  }
   damage = Math.min(target.hp, damage);
   source.metrics.dealt += damage;
   if (magical) source.metrics.specialDealt += damage;
@@ -766,6 +786,11 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   target.metrics.taken += damage;
   const hpBefore=target.hp;
   target.hp -= damage;
+  poisonousHealth(battle,target,stat(target,'spa'));
+  if(absorbRedirect){
+    // Secondary hit enters the normal shield/resistance/death pipeline, but cannot redirect again.
+    deal(battle,source,absorbRedirect.target,absorbRedirect.damage,magical,charged,attackType,'extra');
+  }
   // An actual enemy strike (including a blocked one) triggers Ditto's only transformation.
   if (mode === 'normal' && source.playerId !== target.playerId && source.id !== target.id && target.hp > 0) {
     if (target.ditto && !target.ditto.used) transformDitto(battle,target,source);
@@ -1128,6 +1153,23 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='terrain-poison-shot' && target){
+    animate(source,'Shoot',.43);
+    projectile(battle,source,target,'poison',move.baseDamage+s*move.specialRatio,true,true,1,undefined,source,moveId,'poison','terrain-poison');
+    return;
+  }
+  if(move.effect==='sludge-absorb' && target){
+    const duration=move.absorbDuration??1.5;
+    if(source.absorb)releaseAbsorb(battle,source);
+    source.absorb={targetId:target.id,until:battle.elapsed+duration,
+      nextTick:battle.elapsed+(move.absorbTickInterval??.3),originalStunUntil:target.stunUntil};
+    target.stunUntil=Math.max(target.stunUntil,battle.elapsed+duration);
+    target.stunTime=Math.max(target.stunTime,duration);
+    source.metrics.controlSeconds+=duration;
+    animate(source,'Attack',duration);
+    effect(battle,source,target,'gas',duration);
+    return;
+  }
   if(move.effect==='psychic-teleport' && target){
     psychicTeleport(battle,source,target,move);
     psychicShots(battle,source,target,move);
@@ -1992,6 +2034,8 @@ function resolve(battle: Battle): void {
     if (!aAlive && !bAlive) return (battle.knockoutAt[b] ?? -1) - (battle.knockoutAt[a] ?? -1);
     return score(b) - score(a) || battle.participants.indexOf(a) - battle.participants.indexOf(b);
   });
+  battle.terrain={};
+  for(const unit of battle.units)if(unit.absorb)releaseAbsorb(battle,unit);
   battle.resolved = true;
   battle.obstacles=[];battle.obstacleVersion=(battle.obstacleVersion||0)+1;
   battle.effects=battle.effects.filter(fx=>fx.kind!=='lullaby-note'&&fx.kind!=='falling-star');
@@ -2041,6 +2085,34 @@ function tickOutcome(battle: Battle, dt: number): void {
   }
 }
 
+function releaseAbsorb(battle:Battle,source:CombatUnit):void {
+ const absorption=source.absorb;if(!absorption)return;
+ const victim=battle.units.find(u=>u.id===absorption.targetId);
+ if(victim && victim.stunUntil<=absorption.until+1e-5)
+  victim.stunUntil=Math.max(battle.elapsed,absorption.originalStunUntil);
+ source.absorb=undefined;
+}
+function tickAbsorb(battle:Battle,source:CombatUnit):void {
+ const absorption=source.absorb;if(!absorption)return;
+ const victim=battle.units.find(u=>u.id===absorption.targetId&&u.hp>0);
+ if(source.hp<=0||!victim||battle.resolved){releaseAbsorb(battle,source);return;}
+ const move=ATTACKS.moves['sludge-absorb'];
+ const tick=move.absorbTickInterval??.3;
+ while(absorption.nextTick<=Math.min(battle.elapsed,absorption.until)+1e-7){
+  deal(battle,source,victim,(move.absorbDamageBase||0)+stat(source,'spa')*(move.absorbDamageRatio||0),true,true,'poison','dot');
+  absorption.nextTick+=tick;
+  if(victim.hp<=0)break;
+ }
+ if(battle.elapsed>=absorption.until||victim.hp<=0){
+  if(source.stage>0&&source.family==='grimer'&&victim.hp>0 && victim.hp/victim.maxHp<(move.executeThreshold??.1)){
+   const lost=victim.hp;victim.hp=0;victim.metrics.taken+=lost;source.metrics.dealt+=lost;source.metrics.specialDealt+=lost;
+   floatingDamage(battle,victim,lost,'special');poisonousHealth(battle,victim,stat(victim,'spa'));
+   if(!onSynergyDeath(battle,source,victim,{deal,heal,effect,stat}))knockout(battle,source,victim,lost);
+   heal(battle,source,source.maxHp*(move.executeHealRatio??.2),source);
+  }
+  releaseAbsorb(battle,source);
+ }
+}
 export function tickBattle(battle: Battle, dt: number): void {
   if (battle.resolved) { tickOutcome(battle, dt); return; }
   battle.elapsed += dt;
@@ -2058,6 +2130,13 @@ export function tickBattle(battle: Battle, dt: number): void {
   }
   // O treinador lança as Pokébolas antes de começar a luta.
   if (battle.introElapsed < ITEMS.combatIntroSeconds) return;
+  // Terrain and absorb states advance only in simulation time, regardless of render FPS.
+  for(const unit of battle.units){if(unit.family==='grimer'){
+    poisonousMovement(battle,unit,stat(unit,'spa'));
+    poisonousHealth(battle,unit,stat(unit,'spa'));
+  }}
+  tickTerrain(battle,(source,target,raw)=>{deal(battle,source,target,raw,true,true,'poison','dot');});
+  for(const unit of battle.units)if(unit.absorb)tickAbsorb(battle,unit);
   summonPreparedPillars(battle,deal);
   expireObstacles(battle);
   tickSynergies(battle,dt,{deal,heal,effect,stat});
@@ -2196,6 +2275,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.knockUpTime = Math.max(0, unit.knockUpUntil - battle.elapsed);
     if (incapacitated(unit,battle.elapsed)||unit.lullaby){unit.moving=false;continue;}
     if(fleeing(unit)){fleeBaby(battle,unit,dt);continue;}
+    if(unit.absorb)continue;
     if(unit.flameJet){tickFlameJet(battle,unit,dt);continue;}
     if (unit.fear) { fearTick(unit,dt); continue; }
     if (unit.ghost) { ghostTick(battle,unit,dt); continue; }
@@ -2358,6 +2438,11 @@ export function tickBattle(battle: Battle, dt: number): void {
     }
     unit.cooldown=combatCooldown(unit,battle.elapsed);
     unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);
+  }
+  // Post-movement sweep records only genuine changes of hex, never frame repetition.
+  for(const unit of battle.units)if(unit.hp>0&&unit.family==='grimer'){
+    poisonousMovement(battle,unit,stat(unit,'spa'));
+    poisonousHealth(battle,unit,stat(unit,'spa'));
   }
   resolveBodies(battle,arenaBoundary(battle));
   tickFlameOrbits(battle,dt,deal,stat,isTargetable,segmentDistanceSq);

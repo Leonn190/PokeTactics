@@ -7,17 +7,17 @@ const baseURL = import.meta.env.BASE_URL;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="app-version" content="22.6" />
+    <meta name="app-version" content="23" />
     <meta name="theme-color" content="#0d141c" />
     <meta name="description" content="TFT Pokémon — batalha tática automática com oito participantes." />
-    <title>PokéTactics V22.6</title>
+    <title>PokéTactics V23</title>
   </head>
   <body>
     <main id="app">
       <div id="menuLayer" class="menu-layer" aria-label="Menu principal do PokéTactics">
         <div class="menu-stars" aria-hidden="true"></div>
         <section id="homeScreen" class="home-screen">
-            <div class="home-topline"><span>✦ PRIMEIRA TEMPORADA</span><span>VERSÃO 22.6 <i></i> BETA</span></div>
+            <div class="home-topline"><span>✦ PRIMEIRA TEMPORADA</span><span>VERSÃO 23 <i></i> BETA</span></div>
           <div class="home-center">
             <div class="home-emblem" aria-label="Ícone PokéTactics"><div class="emblem-ball"><span></span></div><div class="emblem-crosshair"></div></div>
             <p class="home-eyebrow">ESTRATÉGIA · EVOLUÇÃO · CONQUISTA</p>
@@ -26,6 +26,7 @@ const baseURL = import.meta.env.BASE_URL;
             <div class="home-hero-art" aria-hidden="true"><img src={`${baseURL}portrait/0003/Normal.png`} alt="" /><img src={`${baseURL}portrait/0006/Normal.png`} alt="" /><img src={`${baseURL}portrait/0009/Normal.png`} alt="" /></div>
             <div class="home-actions">
               <button id="findMatchButton" class="home-play"><span class="home-play-icon">⚔</span><span>PROCURAR PARTIDA<small>ENTRAR NA ARENA</small></span><b>›</b></button>
+              <button id="sandboxMenuButton" class="home-roster"><span>🧪</span> MODO TESTE <span>›</span></button>
               <button id="openRosterButton" class="home-roster"><span>◈</span> VISUALIZAR ELENCO <span>›</span></button>
               <button id="openSettingsButton" class="home-roster"><span>⚙</span> CONFIGURAÇÕES DO JOGADOR <span>›</span></button>
               <button id="openBalanceEditorButton" class="home-roster"><span>◇</span> EDITOR DE BALANCEAMENTO <span>›</span></button>
@@ -61,11 +62,12 @@ const baseURL = import.meta.env.BASE_URL;
       </div>
       <dialog id="settingsPassword" aria-label="Acesso às configurações"><form method="dialog"><h2>⚙ ACESSO AO CONFIGURADOR</h2><p>Área de edição e balanceamento. Informe a senha para continuar.</p><input type="password" inputmode="numeric" autocomplete="off" placeholder="Senha de acesso" required /><span class="cfg-password-error" role="alert"></span><menu><button type="button" class="cfg-btn" onclick="this.closest('dialog').close()">CANCELAR</button><button type="submit" class="cfg-btn primary">ACESSAR</button></menu></form></dialog>
       <dialog id="cfgChanges" aria-label="Parâmetros modificados"><h2>◈ MODIFICAÇÕES PENDENTES</h2><div class="cfg-changes-list"></div><form method="dialog"><button class="cfg-btn">FECHAR</button></form></dialog>
+      <div id="sandboxTools" class="hidden" aria-label="Ferramentas do Modo Teste"><button id="sandboxToggle" type="button">☰ FERRAMENTAS DO TESTE</button><aside id="sandboxPanel" class="hidden" aria-label="Controles do Modo Teste"></aside></div>
       <canvas id="battlefield" aria-label="Arena hexagonal com Pokémon em combate"></canvas>
       <div class="vignette" aria-hidden="true"></div>
 
       <div class="top-bar">
-        <div class="brand"><div class="brand-glyph" aria-hidden="true"><span></span></div><div class="brand-words"><strong>POKÉ<span>TACTICS</span></strong><small>V22.6 • BETA</small></div></div>
+        <div class="brand"><div class="brand-glyph" aria-hidden="true"><span></span></div><div class="brand-words"><strong>POKÉ<span>TACTICS</span></strong><small>V23 • BETA</small></div></div>
         <div class="timeline-panel glass">
           <div class="timeline-wrap"><div class="timeline-heading"><span>CAPÍTULO / ETAPA</span><b id="stageName">BATALHA</b></div><div id="chapterTrack" class="chapter-track"></div></div>
           <div class="round-clock"><div class="stage-heading"><span id="phaseLabel">PREPARAÇÃO</span><b id="roundLabel">1 — 1</b></div><div class="countdown" id="countdown">40</div><small class="seconds-label">SEG</small></div>

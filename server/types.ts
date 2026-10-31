@@ -177,6 +177,10 @@ export interface CombatUnit {
   babyFlee?: boolean;
   flameJet?: { remaining:number; accumulator:number; visualClock:number; dx:number; dy:number; duration:number; };
   wasMoving?:boolean;
+  poisonLastTile?:string;
+  poisonThresholds?:number;
+  poisonDeathEmitted?:boolean;
+  absorb?:{targetId:string;until:number;nextTick:number;originalStunUntil:number};
   lastCombatTargetId?:string;
   scizorPending?:boolean;
   scizorAction?:{targetId:string;fromX:number;fromY:number;toX:number;toY:number;elapsed:number;dashTime:number;hitsDone:number;nextHit:number};
@@ -258,7 +262,7 @@ export interface CombatEffect {
     arrival: number;
     onHit?: 'drain' | 'burn' | 'slow' | 'poison';
     chain?: { remaining: number; visited: string[]; ratio: number; range: number };
-    special?: 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg' | 'dragon-breath' | 'dragon-cyclone' | 'mew-blessing' | 'bite-shred' | 'jynx-kiss' | 'magnet-impact';
+    special?: 'terrain-poison' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'healing-egg' | 'dragon-breath' | 'dragon-cyclone' | 'mew-blessing' | 'bite-shred' | 'jynx-kiss' | 'magnet-impact';
     psychicBonus?: number;
   };
 }
@@ -268,6 +272,10 @@ export interface KnockupEvent {
   knockup_instance_id: string; start_time: number;
 }
 
+export interface PoisonTerrain {
+ kind:'poison'; col:number; row:number; sourceId:string; ownerId:string; sourceSpa:number;
+ intensity:1|2|3; until:number; nextDecay:number; nextTick:number;
+}
 export interface Battle {
   id: string;
   playerA: string;
@@ -281,6 +289,7 @@ export interface Battle {
   kind: StageType;
   units: CombatUnit[];
   effects: CombatEffect[];
+  terrain?: Record<string,PoisonTerrain>;
   elapsed: number;
   introElapsed: number;
   outcomeElapsed: number;
@@ -339,6 +348,7 @@ export interface GameSnapshot {
   visualEvents: UnitVisualEvent[];
   possibleOpponents: Record<string, string[][]>;
   visibleBattle: Battle | null;
+  sandbox?: boolean;
   combatStats: Record<string, Record<string, CombatMetrics>>;
   battleStatuses: Record<string, 'battling' | 'victorious' | 'defeated' | null>;
   log: string;
@@ -351,6 +361,15 @@ export interface GameSnapshot {
 }
 
 export type GameCommand =
+  | { kind:'sandbox-start'|'sandbox-restart' }
+  | { kind:'sandbox-add'; ownerId:'p0'|'p1'; family:Family; stage:number; col?:number; row?:number }
+  | { kind:'sandbox-move'; unitId:string; ownerId:'p0'|'p1'; col:number; row:number }
+  | { kind:'sandbox-remove'; unitId:string; ownerId:'p0'|'p1' }
+  | { kind:'sandbox-stage'; unitId:string; ownerId:'p0'|'p1'; stage:number }
+  | { kind:'sandbox-item'; color?:ItemColor; recipe?:string }
+  | { kind:'sandbox-equip-item'; ownerId:'p0'|'p1'; unitId:string; itemId:string }
+  | { kind:'sandbox-equip'; ownerId:'p0'|'p1'; unitId:string; color?:ItemColor; recipe?:string; slot?:number }
+  | { kind:'sandbox-augment'; ownerId:'p0'|'p1'; id:string; enabled:boolean }
   | { kind: 'buy'; slot: number; offerId: string }
   | { kind: 'reroll' }
   | { kind: 'augment-reroll'; slot: number }
@@ -365,5 +384,5 @@ export type GameCommand =
   | { kind: 'move-trainer'; x: number; y: number }
   | { kind: 'mime-pillar'; unitId: string; index: number; col: number; row: number };
 
-export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect' } | { type: 'watch'; playerId: string };
+export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect'; mode?:'normal'|'sandbox' } | { type: 'watch'; playerId: string };
 export type ServerToClient = { type: 'snapshot'; snapshot: GameSnapshot } | { type: 'rejected'; reason: string };

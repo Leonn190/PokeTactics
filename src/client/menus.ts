@@ -58,6 +58,8 @@ export function moveDescription(move: MoveData): string {
     'claw-strip':'Meowth arranha uma faixa frontal usando SpA. Persian persegue o inimigo mais distante; um ataque curto interrompe a corrida e recebe o arranhão.',
     'flame-jet':'Sopra um jato de fogo contínuo, causando acertos especiais periódicos. Magmortar ganha Durabilidade enquanto canaliza.',
     'electric-punch':'Golpe especial que remove energia do alvo e dos adjacentes; Electivire causa dano secundário e recebe barreira.',
+    'terrain-poison-shot':'Dispara uma semente de veneno que contamina hexágonos. Evoluções ampliam a intensidade e área. O veneno enfraquece gradualmente.',
+    'sludge-absorb':'Imobiliza o alvo por 1,5 segundo e absorve sua energia. Desvia 15% do dano recebido para a vítima; Muk executa e cura-se ao final caso a vítima tenha menos de 10% de Vida.',
     'psychic-teleport':'Teleporta para outra casa não adjacente na mesma fileira; sob ameaça próxima, foge para uma posição distante. Abra só teleporta; Kadabra lança três disparos psíquicos angulados e Alakazam lança cinco. Todos possuem 30% de SpA na força do ataque regular.',
     'electromagnetic-ball':'Dispara uma esfera elétrica que permanece no impacto, causa 3/4/5 pulsos especiais a cada 0,5 s e atrai e absorve projéteis inimigos.',
     'ghost-ambush':'Atravessa obstáculos em forma espectral até as costas do inimigo com menos Vida a até 2 casas. Gastly acerta só ele; Haunter arranha até 3 próximos; Gengar alterna arranhada e um susto que afasta os inimigos ao redor em até 1 casa.',
@@ -93,7 +95,9 @@ export class Menus {
   private queueTicker: number | null = null;
   private startAt = 0;
 
-  constructor(private startMatch: () => void, private openPlayerSettings: () => void) {
+  constructor(private startMatch: () => void, private openPlayerSettings: () => void,
+              private startSandbox:()=>void) {
+    $('sandboxMenuButton').addEventListener('click',()=>{this.screen('game');this.startSandbox();});
     $('findMatchButton').addEventListener('click', () => this.queue());
     $('openRosterButton').addEventListener('click', () => this.showRoster());
     $('openSettingsButton').addEventListener('click', () => this.openPlayerSettings());

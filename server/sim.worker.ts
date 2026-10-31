@@ -3,12 +3,12 @@ import { GameEngine } from './engine';
 import { RENDER_SETTINGS } from './data';
 import type { ClientToServer, ServerToClient } from './types';
 
-const game = new GameEngine();
+let game:GameEngine|null=null;
 let watchedPlayer = 'p0';
 const send = (message: ServerToClient) => self.postMessage(message);
-const publish = () => send({type:'snapshot',snapshot:game.snapshot(watchedPlayer)});
+const publish = () => {if(game)send({type:'snapshot',snapshot:game.snapshot(watchedPlayer)});};
 const rejectUnexpected=(error:unknown)=>{
-  console.error('[Worker V22.6] Falha isolada ao processar estado',error);
+  console.error('[Worker V23] Falha isolada ao processar estado',error);
   send({type:'rejected',reason:'Erro temporário na simulação; tente novamente.'});
 };
 const stepMs = RENDER_SETTINGS.simulationTickMs;
@@ -19,6 +19,8 @@ let tickErrorReported=false;
 
 self.addEventListener('message', (event: MessageEvent<ClientToServer>) => {
   try {
+    if (event.data.type === 'connect') {game=new GameEngine(Date.now(),event.data.mode==='sandbox');watchedPlayer='p0';}
+    if (!game)return;
     if (event.data.type === 'watch') {
       const playerId = event.data.playerId;
       if (game.players.some(player => player.id === playerId)) watchedPlayer = playerId;
@@ -42,7 +44,7 @@ setInterval(() => {
   let steps = 0;
   try {
     while (accumulatedMs >= stepMs && steps < 5) {
-      game.tick(stepMs / 1000, watchedPlayer === 'p0');
+      game?.tick(stepMs / 1000, watchedPlayer === 'p0');
       accumulatedMs -= stepMs;
       steps++;
     }
@@ -51,7 +53,7 @@ setInterval(() => {
   }catch(error){
     // A simulation exception cannot permanently stop delivery of new HUD snapshots.
     accumulatedMs=0;
-    if(!tickErrorReported)console.error('[Worker V22.6] Falha no tick da simulação',error);
+    if(!tickErrorReported)console.error('[Worker V23] Falha no tick da simulação',error);
     tickErrorReported=true;
   }
   if (now >= nextSnapshot) {

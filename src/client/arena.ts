@@ -526,6 +526,55 @@ export class Arena {
     }
   }
 
+  private drawTerrain(time:number):void {
+    const battle=this.snapshot?.visibleBattle,tiles=battle?.terrain;
+    if(!tiles || this.snapshot?.phase==='planning')return;
+    const flip=battle!.participants.length===2&&battle!.playerB===this.view.scoutId;
+    const ctx=this.context,r=this.cellScale*.54;
+    for(const tile of Object.values(tiles)){
+      const point=gridXY(tile.col,tile.row),screen=this.toScreen(point.x,flip?-point.y:point.y);
+      const fade=Math.min(1,Math.max(0,(tile.until-battle!.elapsed)/.4));
+      const pulse=.92+.08*Math.sin(time*3+tile.col*.83+tile.row);
+      ctx.save();ctx.globalAlpha=fade*pulse;
+      ctx.beginPath();
+      for(let v=0;v<6;v++){const angle=v*PI2/6+Math.PI/6;
+        if(!v)ctx.moveTo(screen.x+Math.cos(angle)*r,screen.y+Math.sin(angle)*r);
+        else ctx.lineTo(screen.x+Math.cos(angle)*r,screen.y+Math.sin(angle)*r);
+      }
+      ctx.closePath();
+      ctx.fillStyle=tile.intensity===1?'#84d89a65':tile.intensity===2?'#43b47599':'#297648d1';
+      ctx.strokeStyle=tile.intensity===3?'#d4a1e3ad':'#92efad99';ctx.lineWidth=1.5;
+      ctx.fill();ctx.stroke();
+      if(tile.intensity===3){ctx.fillStyle='#b17bddbb';
+        for(let i=0;i<3;i++){const a=time*.6+i*2.09+tile.row;
+          ctx.beginPath();ctx.arc(screen.x+Math.cos(a)*r*.40,screen.y+Math.sin(a)*r*.35,r*.07,0,PI2);ctx.fill();}
+      }
+      ctx.restore();
+    }
+  }
+  private drawAbsorptions(time:number):void {
+    const battle=this.snapshot?.visibleBattle;
+    if(!battle||battle.resolved||this.snapshot?.phase!=='combat')return;
+    const ctx=this.context,flip=battle.participants.length===2&&battle.playerB===this.view.scoutId;
+    for(const absorber of battle.units){
+      if(!absorber.absorb||absorber.hp<=0)continue;
+      const victim=battle.units.find(u=>u.id===absorber.absorb?.targetId&&u.hp>0);
+      if(!victim)continue;
+      const from=this.toScreen(absorber.x,flip?-absorber.y:absorber.y);
+      const to=this.toScreen(victim.x,flip?-victim.y:victim.y);
+      const radius=this.cellScale*(.28+.045*Math.sin(time*7));
+      ctx.save();
+      ctx.strokeStyle='#6ccd91a8';ctx.lineWidth=Math.max(2,this.cellScale*.09);
+      ctx.setLineDash([this.cellScale*.10,this.cellScale*.12]);ctx.lineDashOffset=-time*24;
+      ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.quadraticCurveTo((from.x+to.x)/2,(from.y+to.y)/2-this.cellScale*.4,to.x,to.y);ctx.stroke();
+      ctx.setLineDash([]);ctx.fillStyle='#2c9b62aa';ctx.strokeStyle='#b2ef9c';ctx.lineWidth=2;
+      ctx.beginPath();ctx.ellipse(to.x,to.y+radius*.20,radius*1.5,radius,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#bded9ed0';
+      for(let i=0;i<3;i++){const phase=time*3+i*2.1;
+        ctx.beginPath();ctx.arc(to.x+Math.cos(phase)*radius,to.y+Math.sin(phase)*radius*.8,radius*.13,0,Math.PI*2);ctx.fill();}
+      ctx.restore();
+    }
+  }
   private drawBench(enemy = false, offset = 0, interactive = false): void {
     const ctx = this.context;
     const left = this.toScreen(offset - ARENA_HALF, (enemy ? -BENCH_Y : BENCH_Y) - .41);
@@ -549,8 +598,8 @@ export class Arena {
     const snapshot = this.snapshot;
     if (!snapshot) return [];
     const watched = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
-    const planningKey=snapshot.phase==='planning' ? JSON.stringify(watched.units.map(u=>[
-      u.id,u.family,u.stage,u.level,u.position,u.equipment])) : '';
+    const planningKey=snapshot.phase==='planning' ? JSON.stringify([watched.units.map(u=>[
+      u.id,u.family,u.stage,u.level,u.position,u.equipment]),snapshot.sandbox?snapshot.players[1]?.units.map(u=>[u.id,u.family,u.stage,u.position,u.equipment]):null]) : '';
     if(snapshot.phase==='planning' && this.planningCache?.key===planningKey && this.planningCache.scout===this.view.scoutId)return this.planningCache.markers;
     const benchUnits = (units: Pokemon[], ownerId: string, own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
       const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index, enemy, offset);
@@ -559,7 +608,7 @@ export class Arena {
     });
     const liveUnits=watched.units.map(u=>this.pendingMove.has(u.id)?{...u,position:this.pendingMove.get(u.id)!.position}:u);
     const bench = benchUnits(liveUnits, watched.id, true, false, 0);
-    const foeId = snapshot.visibleBattle?.participants.find(id => id !== this.view.scoutId) || null;
+    const foeId = snapshot.sandbox?'p1':snapshot.visibleBattle?.participants.find(id => id !== this.view.scoutId) || null;
     const foePlayer = snapshot.players.find(p => p.id === foeId);
     const enemyBenchUnits = foePlayer ? foePlayer.units.filter(u => u.position.area === 'bench') : foeId ? snapshot.visibleBattle?.benches[foeId] || [] : [];
     const foeBench = benchUnits(enemyBenchUnits, foeId || '', false, true, 0);
@@ -583,15 +632,16 @@ export class Arena {
       return [...battleMarkers, ...bench, ...foeBench];
     }
     const friendly = watched;
-    const convert = (units: Pokemon[], own: boolean): Marker[] => units.filter(u => u.position.area === 'board').map(u => {
+    const convert = (units: Pokemon[], own: boolean,ownerId:string): Marker[] => units.filter(u => u.position.area === 'board').map(u => {
       const pos = u.position as Extract<UnitPosition, { area: 'board' }>;
       const row = own ? 4 + pos.row : 3 - pos.row;
       const p = gridXY(pos.col, row);
-      return { id: u.id, sourceId: u.id, ownerId: friendly.id, x: p.x, y: p.y, family: u.family, stage: u.stage,
+      return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage,
         level: u.level, own, equipment:u.equipment||[],hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
-    const prepared = [...convert(liveUnits, true), ...bench];
+    const prepared = [...convert(liveUnits, true,watched.id), ...bench,
+      ...(snapshot.sandbox && foePlayer ? convert(foePlayer.units,false,foePlayer.id) : [])];
     this.planningCache = { key: planningKey, scout: this.view.scoutId, markers: prepared };
     return prepared;
   }
@@ -1039,6 +1089,7 @@ export class Arena {
     ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     this.background();
     this.hexGrid(this.frame);
+    this.drawTerrain(this.frame);
     this.drawSacredTile(this.frame);
     this.drawMimePillars(this.frame);
     if (this.quadActive) {
@@ -1061,7 +1112,7 @@ export class Arena {
     const drawMarkers = this.renderMarkers;
     drawMarkers.length = 0;
     for (const marker of markers) {
-      if (this.view.dragging && marker.ownerId === 'p0' && marker.sourceId === this.view.dragId) continue;
+      if (this.view.dragging && marker.sourceId === this.view.dragId) continue;
       if (intro && !marker.bench && marker.ownerId !== this.view.scoutId) {
         const enemyIndex = enemyIntroOrder?.get(marker.id) ?? -1;
         if (battle!.introElapsed + this.renderLead < .77 + (enemyIndex % 7) * .06 + Math.floor(enemyIndex / 7) * .13) continue;
@@ -1073,6 +1124,7 @@ export class Arena {
     }
     drawMarkers.sort((a, b) => a.y - b.y);
     for (const marker of drawMarkers) this.drawUnit(marker, this.frame);
+    this.drawAbsorptions(this.frame);
     if(battle&&this.snapshot?.phase!=='planning')this.drawObstacles(battle,this.frame);
     this.drawUnitVisuals(timestamp);
     if (intro) this.drawArrival(battle!);
