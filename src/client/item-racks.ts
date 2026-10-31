@@ -11,7 +11,7 @@ export class ObservedItemRacks {
   const battle=snapshot.phase!=='planning'&&!snapshot.visibleBattle?.resolved?snapshot.visibleBattle:null;
   const ids=battle?.participants||[scoutId];
   const visible=ids.filter(id=>snapshot.players.some(p=>p.id===id) && !(id==='p0'&&scoutId==='p0'));
-  for(const node of this.root.querySelectorAll<HTMLElement>('[data-rack-owner]'))if(!visible.includes(node.dataset.rackOwner||'')){
+  for(const node of Array.from(this.root.querySelectorAll<HTMLElement>('[data-rack-owner]')))if(!visible.includes(node.dataset.rackOwner||'')){
     this.lastSignatures.delete(node.dataset.rackOwner||'');node.remove();
   }
   for(const id of visible){
@@ -28,7 +28,7 @@ export class ObservedItemRacks {
   }
  }
  position(arena:Arena):void{
-  for(const node of this.root.querySelectorAll<HTMLElement>('[data-rack-owner]')){
+  for(const node of Array.from(this.root.querySelectorAll<HTMLElement>('[data-rack-owner]'))){
    const p=arena.ownerPlacement(node.dataset.rackOwner||'');arena.placeWorldRack(node,p.rack.x,p.rack.y);
   }
  }
