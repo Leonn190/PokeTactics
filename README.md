@@ -76,3 +76,7 @@ Siga `Organização.md` e `AGENTS.md` para localizar cada mecânica e preservar 
 ## V22.5 — correção de loja, itens e evoluções
 
 Cada compra confirma o identificador da oferta efetivamente exibida, evitando comprar outra espécie quando a loja muda antes da confirmação. Ofertas mudadas são redesenhadas assim que chegam no snapshot, sem esperar o intervalo regular do HUD. Itens e Pokébolas podem ser arrastados e soltos; a soltura inválida apenas devolve o item à mochila. As pendências de escolha de evolução de Scyther/Eevee também foram corrigidas.
+
+### V23.6 — movimentação e alcance
+
+A movimentação normal de combate passou a planejar trajetos pelos hexágonos, desviando de unidades e obstáculos enquanto mantém o movimento visual suave. O alcance 1 agora permite ataques quando os corpos estão realmente próximos, sem voltar à distância fixa antiga; a escolha do alvo é persistente e reavaliada em caso de fuga, morte ou bloqueio. Valores de alcance vêm de config/alcances.json. Habilidades de deslocamento especial mantêm suas próprias regras.
