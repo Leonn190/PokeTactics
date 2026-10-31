@@ -18,7 +18,7 @@ const stats = ['hp', 'atk', 'def', 'spa', 'spd', 'speed'];
 const rangeLevels = new Set();
 for (const range of alcances.levels) {
   const level = Number(range.name);
-  check(typeof range.name === 'string' && /^[1-9]\\d*$/.test(range.name) && Number.isSafeInteger(level), 'Nível de alcance inválido: ' + range.name);
+  check(typeof range.name === 'string' && /^[1-9][0-9]*$/.test(range.name) && Number.isSafeInteger(level), 'Nível de alcance inválido: ' + range.name);
   check(!rangeLevels.has(level), 'Nível de alcance duplicado: ' + range.name);
   check(finite(range.value) && range.value === level - 0.5, 'Distância efetiva inválida para alcance ' + range.name);
   rangeLevels.add(level);
