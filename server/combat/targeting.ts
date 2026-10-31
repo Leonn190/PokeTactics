@@ -106,7 +106,8 @@ export function selectCombatTarget(
   source.basicTargetWasInRange=false;
   source.chaseOriginX=undefined;source.chaseOriginY=undefined;
  }
- if(target && !inRange(target)){
+ if(!target)return null;
+ if(!inRange(target)){
   if(source.basicTargetWasInRange){
    // Do not chase a fleeing victim when a different enemy is already hittable.
    target=closest(inRangeEnemies)||target;
