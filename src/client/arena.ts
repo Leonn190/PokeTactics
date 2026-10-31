@@ -1099,33 +1099,21 @@ export class Arena {
     }
   }
 
+  /** Only a floating impact marker: projectiles are rendered from real surviving Pokémon. */
   private drawTrainerDamage(now: number, battle: NonNullable<GameSnapshot['visibleBattle']>): void {
-    const flip = battle.participants.length === 2 && battle.playerB === this.view.scoutId;
-    for (const event of this.snapshot?.visualEvents || []) {
-      if (event.kind !== 'trainer-damage' || event.battleId !== battle.id || !event.value) continue;
-      const slot = battle.participants.indexOf(event.ownerId);
-      if (slot < 0) continue;
-      const spot = trainerSpot(slot, battle.participants.length > 2);
-      const actual = event.ownerId === 'p0' && this.view.scoutId === 'p0'
-        ? this.trainer : { x: spot.x, y: flip ? -spot.y : spot.y };
-      const p = this.toScreen(actual.x, actual.y);
-      const elapsed=this.visualEvents.age(event,now),arrival=1.03,flight=Math.min(1,Math.max(0,elapsed/arrival));
-      const origin=this.toScreen(0,0),ctx=this.context;
-      // Present one impact corresponding to the authoritative HP change already resolved by the engine.
-      ctx.save();
-      if(elapsed<arrival){
-        const bend=Math.sin(flight*Math.PI)*this.cellScale*.58;
-        const x=origin.x+(p.x-origin.x)*flight;
-        const y=origin.y+(p.y-origin.y)*flight-bend;
-        ctx.fillStyle='#fff5cc';ctx.strokeStyle='#ff9b73';ctx.shadowColor='#ff7440';ctx.shadowBlur=15;
-        ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-this.cellScale*.48,Math.max(3,this.cellScale*.075),0,PI2);ctx.fill();ctx.stroke();
-      }else{
-        const blast=Math.min(1,(elapsed-arrival)/.48);
-        ctx.globalAlpha=1-blast;ctx.strokeStyle='#ffcb89';ctx.fillStyle='#ffad3f2b';ctx.shadowColor='#ff8b4b';ctx.shadowBlur=20;
-        ctx.lineWidth=3*(1-blast)+1;ctx.beginPath();ctx.arc(p.x,p.y-this.cellScale*.48,this.cellScale*(.18+.56*blast),0,PI2);ctx.fill();ctx.stroke();
-        renderFloatingNumber(ctx,p.x,p.y-this.cellScale*.65,event.value,Math.min(1,blast),'trainer');
-      }
-      ctx.restore();
+    const flip=battle.participants.length===2 && battle.playerB===this.view.scoutId;
+    for(const event of this.snapshot?.visualEvents||[]){
+      if(event.kind!=='trainer-damage'||event.battleId!==battle.id||!event.value)continue;
+      const slot=battle.participants.indexOf(event.ownerId);if(slot<0)continue;
+      const location=trainerSpot(slot,battle.participants.length>2);
+      const actual=event.ownerId==='p0'&&this.view.scoutId==='p0'?this.trainer:{x:location.x,y:flip?-location.y:location.y};
+      const {x,y}=this.toScreen(actual.x,actual.y);
+      const age=this.visualEvents.age(event,now),t=Math.min(1,age/.72);
+      const ctx=this.context;
+      ctx.save();ctx.globalAlpha=1-t;ctx.shadowColor='#f5a762';ctx.shadowBlur=14;
+      ctx.strokeStyle='#f9d29d';ctx.lineWidth=2.5;ctx.beginPath();
+      ctx.arc(x,y-this.cellScale*.42,this.cellScale*(.12+.37*t),0,PI2);ctx.stroke();ctx.restore();
+      renderFloatingNumber(ctx,x,y-this.cellScale*.72,event.value,t,'trainer');
     }
   }
 

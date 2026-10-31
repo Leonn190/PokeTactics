@@ -1,7 +1,8 @@
-import { AUGMENT_MAP, applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, drawAugmentRarity, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
+import { AUGMENT_MAP, applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, drawAugmentRarity, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
 import { inventoryUsed,canReceive } from './systems/inventory';
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, ITEM_RACK_WORLD, SHOP_FAMILIES, SHOP_SIZE, SPECIES, evolutionCopies } from './data';
 import { rollFamily, evolutionByInfluence } from './shop';
+import { grantTrainerXp, buyTrainerXp } from './trainer-xp';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
 import { craft, makeComponent, ITEM_COLORS, RECIPES, ITEMS } from './systems/items';
@@ -50,6 +51,9 @@ export class GameEngine {
   private phase: Phase = 'planning';
   private round = 1;
   private battles: Battle[] = [];
+  private trainerImpacts:Array<{battleId:string;targetId:string;value:number;projectileId:string|null;hitAt:number;applied:boolean}>=[];
+  private preparedTrainerBattles = new Set<string>();
+  private combatStartingHealth = new Map<string,number>();
   private opponentId: string | null = null;
   private lastOpponentId: string | null = null;
   private augmentRarities:Record<number,import('./systems/augments').AugmentRarity>={};
@@ -73,7 +77,7 @@ export class GameEngine {
     this.sandbox=sandbox;
     this.rng = new Rng(seed);
     this.players = NAMES.slice(0, sandbox?2:RULES.players).map((name, i) => ({
-      id: `p${i}`, name, health: RULES.startingHealth, gold: RULES.startingGold, level: 1,
+      id: `p${i}`, name, health: RULES.startingHealth, gold: RULES.startingGold, level: RULES.trainerProgression.initialLevel, trainerXp:0,
       units: [], shop: Array(SHOP_SIZE).fill(null), locked: false, itemInventory: [],
       consumables: { pokeball:0,greatball:0,ultraball:0,masterball:0 },
       eliminated: false, lastWin: false, streak: 0, roundVictory: false, history: [], placement: null
@@ -111,6 +115,7 @@ export class GameEngine {
     const id=choice.offers[slot];
     if(!id||player.augments?.includes(id))return 'Aprimoramento inválido';
     choice.status='chosen';choice.selected=id;
+    if(id==='G11')player.augments=(player.augments||[]).filter(active=>active!=='S02');
     (player.augments||=[]).push(id);
     (player.augmentChosenChapters||={})[id]=choice.chapter;
     immediateAugment(player,id,choice.chapter,()=>this.rng.next(),()=>this.id());
@@ -122,7 +127,6 @@ export class GameEngine {
       player.augmentCounters['B02:preparations']=0;
       startedPreparation(player);
     }
-    player.level=Math.max(player.level,nextTrainerLevel(this.round,player.augments||[]));
     return null;
   }
   private id(): string { return `u${++this.idCounter}`; }
@@ -131,10 +135,6 @@ export class GameEngine {
     const iv = Object.fromEntries((Object.keys(SPECIES[family].base) as Array<keyof Stats>)
       .map(stat => [stat, this.rng.int(101)])) as unknown as Stats;
     return { id: this.id(), family, stage: 0, level: 1, xp: 0, iv, position, equipment: [], acquiredChapter:chapterForRound(this.round), appliedAugments:[] };
-  }
-
-  private levelForRound(): number {
-    return RULES.levelMilestones.reduce((level, start, i) => this.round >= start ? i + 1 : level, 1);
   }
 
   private refreshShop(player: Player): void {
@@ -771,6 +771,10 @@ export class GameEngine {
       if (!command.offerId || human.shop[command.slot]?.id !== command.offerId) return 'A loja mudou: confira a oferta atual';
       return this.buy(human, command.slot);
     }
+    if (command.kind === 'buy-xp') {
+      if (this.phase !== 'planning') return 'XP só pode ser comprado na preparação';
+      return buyTrainerXp(human) ? null : 'Compra de XP indisponível';
+    }
     if (command.kind === 'reroll') {
       const free=human.augmentCounters?.['B02:free']||0;
       if (!free && human.gold < RULES.rerollCost) return 'Ouro insuficiente';
@@ -813,6 +817,23 @@ export class GameEngine {
 
   private runCPU(player: Player): void {
     if (player.eliminated) return;
+    const style=Number(player.id.slice(1))%3; // 0: níveis, 1: fusões, 2: equilíbrio
+    const board=player.units.filter(u=>u.position.area==='board').length;
+    const bank=player.units.filter(u=>u.position.area==='bench').length;
+    const missing=Math.max(0,player.level-board);
+    const reserve=style===0?8:style===1?18:12;
+    const xpGoal=style===0?Math.max(missing,2):style===1?Math.max(0,missing-1):missing;
+    let purchasesXp=0;
+    while(player.level<RULES.trainerProgression.maxLevel && player.gold>=RULES.trainerProgression.buyXpCost+reserve && purchasesXp<xpGoal &&
+      (style===0 || player.units.length>player.level || bank>1 || this.round>=10)){
+      if(!buyTrainerXp(player))break;
+      purchasesXp++;
+    }
+    // Reroll only with disposable gold and a real bench/fusion incentive.
+    const fusion=player.units.some(u=>u.stage===0 && player.units.filter(v=>v.family===u.family&&v.stage===0).length>=2);
+    if(player.gold>=reserve+RULES.rerollCost+3 && (fusion || (style===1 && bank<RULES.benchSize))){
+      player.gold-=RULES.rerollCost;this.refreshShop(player);
+    }
     const available = player.shop
       .map((offer, i) => ({ offer, i }))
       .filter((entry): entry is { offer: ShopOffer; i: number } => !!entry.offer && entry.offer.price <= player.gold)
@@ -869,7 +890,7 @@ export class GameEngine {
     });
     return {
       id: `bot:${player.id}`, name: isBoss ? SPECIES[legendary!].names[0] : `BOT ${chapter}`,
-      health: 100, gold: 0, level: size, units, shop: [], locked: false,
+      health: 100, gold: 0, level: size, trainerXp:0, units, shop: [], locked: false,
       eliminated: false, lastWin: false, streak: 0, roundVictory: false, history: [], placement: null
     };
   }
@@ -897,6 +918,8 @@ export class GameEngine {
       if(p.augmentCounters)p.augmentCounters['B02:free']=0;
     }
     this.phase = 'combat'; this.clock = 0; this.duration = roundTimers(this.round).combatSeconds;
+    this.preparedTrainerBattles.clear();this.trainerImpacts=[];
+    this.combatStartingHealth=new Map(this.players.map(player=>[player.id,player.health]));
     const stage = currentStage(this.round);
     const alive = this.players.filter(p => !p.eliminated);
     this.battles = [];
@@ -938,10 +961,69 @@ export class GameEngine {
     // 2nd/3rd in a 4-player round: no +1 for victory and no change to either streak.
   }
 
+  /** Damage plans use existing battle outcomes; every health change occurs on projectile impact. */
+  /** Prepare each arena independently. A quick match must not lose its projectiles
+   * while another arena is still fighting. Each impact is applied only on arrival. */
+  private prepareTrainerImpacts():void {
+    const stage=currentStage(this.round);
+    for(const battle of this.battles){
+      if(!battle.resolved||battle.outcomeElapsed<.35||this.preparedTrainerBattles.has(battle.id))continue;
+      this.preparedTrainerBattles.add(battle.id);
+      const winner=battle.rankings[0];
+      const quad=stage.type==='quad' && battle.participants.length>=3;
+      for(const [index,targetId] of battle.rankings.entries()){
+        if(index===0)continue;
+        const player=this.players.find(p=>p.id===targetId);
+        if(!player)continue; // PvE enemies have no ranked trainer health.
+        let damage=chapterDamage(chapterForRound(this.round));
+        if(quad)damage+=RULES.quadPlacementExtraDamage[String(index+1) as keyof typeof RULES.quadPlacementExtraDamage]||0;
+        else {
+          damage+=survivors(battle,winner)*RULES.survivingUnitDamage;
+          if(stage.type==='double')damage*=RULES.doubleDamageMultiplier;
+        }
+        const total=Math.min(player.health,Math.max(0,damage));
+        const shots=battle.effects.filter(f=>f.kind==='trainer-hit'&&f.targetId===targetId)
+          .sort((a,b)=>a.id.localeCompare(b.id));
+        if(total<=0){battle.effects=battle.effects.filter(f=>f.kind!=='trainer-hit'||f.targetId!==targetId);continue;}
+        if(shots.length){
+          const base=Math.floor(total/shots.length),rem=total%shots.length;
+          shots.forEach((shot,i)=>{
+            shot.value=base+(i<rem?1:0);
+            if(shot.value>0)this.trainerImpacts.push({battleId:battle.id,targetId,value:shot.value,
+              projectileId:shot.id,hitAt:battle.outcomeElapsed+Math.max(0,shot.duration-shot.time),applied:false});
+          });
+          battle.effects=battle.effects.filter(f=>f.kind!=='trainer-hit'||f.targetId!==targetId||f.value>0);
+        }else{
+          // Timeout without survivors: award damage at resolution, no invented shot.
+          this.trainerImpacts.push({battleId:battle.id,targetId,value:total,
+            projectileId:null,hitAt:battle.outcomeElapsed+1.03,applied:false});
+        }
+      }
+    }
+  }
+
+  private applyTrainerImpacts():void {
+    for(const hit of this.trainerImpacts){
+      if(hit.applied)continue;
+      const battle=this.battles.find(b=>b.id===hit.battleId);
+      if(!battle||battle.outcomeElapsed+1e-7<hit.hitAt)continue;
+      const player=this.players.find(p=>p.id===hit.targetId);
+      hit.applied=true;
+      if(!player)continue;
+      let amount=Math.min(player.health,hit.value);
+      // Never produce a match with zero surviving trainers.
+      if(this.players.filter(p=>p.health>0).length===1)amount=Math.min(amount,Math.max(0,player.health-1));
+      if(amount<=0)continue;
+      player.health-=amount;
+      this.visualEvents.push({id:this.id(),kind:'trainer-damage',unitId:player.id,
+        ownerId:player.id,battleId:hit.battleId,age:0,value:amount});
+    }
+  }
+
   private finishCombat(): void {
     this.phase = 'result'; this.clock = 0; this.duration = RULES.resultSeconds;
     this.lastCombatStats = {};
-    const beforeDamage = new Map(this.players.map(p => [p.id, p.health]));
+    const beforeDamage = this.combatStartingHealth;
     const stage = currentStage(this.round);
     for (const battle of this.battles) {
       forceResolveBattle(battle);
@@ -968,7 +1050,6 @@ export class GameEngine {
           damage += survivors(battle, winnerId) * RULES.survivingUnitDamage;
           if (stage.type === 'double') damage *= RULES.doubleDamageMultiplier;
         }
-        player.health = Math.max(0, player.health - damage);
         if (player.id === 'p0') this.log = `${stage.name} • ${quad ? `${place}º lugar` : 'Derrota'} • -${damage} de vida`;
       });
       if (winnerId === 'p0') this.log = stage.type === 'gold' ? `Vitória • +${RULES.goldRoundWinnerBonus} ouro bônus` : `Vitória • ${stage.name}`;
@@ -990,20 +1071,6 @@ export class GameEngine {
       }
     }
     this.spawnLoot();
-    // Simultaneous eliminations should not erase the match champion.
-    if (this.players.every(p => p.eliminated || p.health <= 0)) {
-      const survivor = [...this.players].filter(p => !p.eliminated).sort((a, b) => (beforeDamage.get(b.id) || 0) - (beforeDamage.get(a.id) || 0))[0];
-      if (survivor) survivor.health = 1;
-    }
-    // Emit the actual post-clamp, post-champion-correction damage once per affected trainer.
-    for (const player of this.players) {
-      const amount = (beforeDamage.get(player.id) || 0) - player.health;
-      if (amount <= 0) continue;
-      const battle = this.battles.find(b => b.participants.includes(player.id));
-      if (!battle) continue;
-      this.visualEvents.push({ id: this.id(), kind: 'trainer-damage', unitId: player.id,
-        ownerId: player.id, battleId: battle.id, age: 0, value: amount });
-    }
     for (const p of this.players) if (!p.eliminated && p.health === 0) p.eliminated = true;
     const eliminated = this.players.filter(p => p.eliminated && p.placement === null)
       .sort((a, b) => (beforeDamage.get(a.id) || 0) - (beforeDamage.get(b.id) || 0));
@@ -1040,7 +1107,7 @@ export class GameEngine {
       p.gold += projectedIncome(p);
       p.roundVictory = false;
       p.currentRound=this.round;
-      p.level=Math.max(p.level,nextTrainerLevel(this.round,p.augments||[]));
+      grantTrainerXp(p,RULES.trainerProgression.freeXpPerStage);
       if(((this.round-1)%PHASES.stagesPerChapter)===0)chapterPayment(p,chapterForRound(this.round));
       startedPreparation(p);
       if (!p.locked) this.refreshShop(p);
@@ -1076,7 +1143,9 @@ export class GameEngine {
       for (const battle of this.battles) tickBattle(battle, accelerated ? step * RULES.combatAcceleration : step);
       // Last-resort resolution prevents regeneration stalemates, without truncating normal fights at 30s.
       if (this.clock >= roundTimers(this.round).safetySeconds) this.battles.forEach(forceResolveBattle);
-      if (this.battles.every(b => b.resolved && b.outcomeElapsed >= 1.5)) this.finishCombat();
+      this.prepareTrainerImpacts();
+      this.applyTrainerImpacts();
+      if (this.battles.every(b => b.resolved && b.outcomeElapsed >= 1.5) && this.trainerImpacts.every(h=>h.applied)) this.finishCombat();
     } else if (this.phase === 'result' && this.clock >= this.duration) this.nextRound();
   }
 

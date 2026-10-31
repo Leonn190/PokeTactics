@@ -1,3 +1,4 @@
+import { grantTrainerXp } from '../trainer-xp';
 import { blocksEnergy } from '../combat/statuses';
 /** V19: data-driven augments; simulation owns rolls, rewards and combat events. */
 import config from '../../config/augments.json';
@@ -92,10 +93,6 @@ export function applyEvolutionAugments(player:Player,pokemon:Pokemon,chapter:num
  }
  applyPokemonAugments(player,pokemon,chapter);
 }
-export function nextTrainerLevel(round:number,ids:readonly string[]):number {
- const advance=ids.includes('G11')?number('G11','rounds'):ids.includes('S02')?number('S02','rounds'):0;
- return RULES.levelMilestones.reduce((level,start,i)=>round>=Math.max(1,start-advance)?i+1:level,1);
-}
 export function interestCap(ids:readonly string[]):number {return Math.max(RULES.maxInterest,ids.includes('G09')?number('G09','interestCap'):0,ids.includes('P09')?number('P09','interestCap'):0);}
 export function battleExperience(player:Player,pokemon:Pokemon):number {
  let xp=pokemon.position.area==='board'?RULES.pokemonExperience.activePerBattle:RULES.pokemonExperience.benchPerBattle;
@@ -124,7 +121,13 @@ export function immediateAugment(player:Player,id:string,chapter:number,random:(
  }
  if(params.ultraball){player.consumables||={pokeball:0,greatball:0,ultraball:0,masterball:0};player.consumables.ultraball+=params.ultraball;}
  if(id==='B11'){for(const p of player.units)addLevels(p,number('B11','levels'));}
- if(id==='G11'||id==='S02')player.level=Math.max(player.level,nextTrainerLevel((player.currentRound||1),player.augments||[]));
+ if(id==='G11'||id==='S02'){
+  const credit=player.augmentCounters||={};
+  const promised=number(id,'trainerXp');
+  const previous=credit['precipitado:xp']||0;
+  grantTrainerXp(player,Math.max(0,promised-previous));
+  credit['precipitado:xp']=Math.max(previous,promised);
+ }
  if(id==='P03'||id==='P12'||id==='G06'||id==='B03'||id==='S03'||id==='G03'||id==='P02')for(const p of player.units)applyPokemonAugments(player,p,chapter);
 }
 export function chapterPayment(player:Player,chapter:number):void {

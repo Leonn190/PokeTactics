@@ -3879,7 +3879,7 @@
         82,
         462
       ],
-      "rarity": 1,
+      "rarity": 2,
       "shop": true,
       "glow": "#80dff3",
       "base": {
@@ -5100,6 +5100,108 @@
       "evolutionCopies": [
         3
       ]
+    },
+    "mankey": {
+      "names": [
+        "Mankey",
+        "Primeape",
+        "Annihilape"
+      ],
+      "pokedexIds": [
+        56,
+        57,
+        979
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#cfa89f",
+      "base": {
+        "hp": 300,
+        "atk": 69,
+        "def": 43,
+        "spa": 32,
+        "spd": 43,
+        "speed": 76
+      },
+      "stageBases": [
+        {
+          "hp": 300,
+          "atk": 69,
+          "def": 43,
+          "spa": 32,
+          "spd": 43,
+          "speed": 76
+        },
+        {
+          "hp": 415,
+          "atk": 96,
+          "def": 62,
+          "spa": 46,
+          "spd": 64,
+          "speed": 95
+        },
+        {
+          "hp": 590,
+          "atk": 131,
+          "def": 88,
+          "spa": 63,
+          "spd": 86,
+          "speed": 111
+        }
+      ],
+      "energy": 65,
+      "attack": "furious-leap",
+      "elements": [
+        "fighting"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Attack"
+      },
+      "stages": [
+        {
+          "elements": [
+            "fighting"
+          ],
+          "energy": 65,
+          "move": "furious-leap",
+          "chargedType": "fighting",
+          "chargedAnimation": "Attack",
+          "rangeLevel": 1
+        },
+        {
+          "elements": [
+            "fighting"
+          ],
+          "energy": 70,
+          "move": "furious-leap",
+          "chargedType": "fighting",
+          "chargedAnimation": "Attack",
+          "rangeLevel": 1
+        },
+        {
+          "elements": [
+            "fighting",
+            "ghost"
+          ],
+          "energy": 75,
+          "move": "furious-leap",
+          "chargedType": "ghost",
+          "chargedAnimation": "Attack",
+          "rangeLevel": 1
+        }
+      ],
+      "physicalSizes": [
+        0.85,
+        0.96,
+        1.1
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ],
+      "rangeLevel": 1
     }
   }
 }

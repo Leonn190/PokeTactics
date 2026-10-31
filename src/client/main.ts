@@ -261,6 +261,7 @@ document.getElementById('shopCards')!.addEventListener('click', event => {
   if (target?.dataset.shopOffer) send({ kind: 'buy', slot: Number(target.dataset.shop), offerId: target.dataset.shopOffer });
 });
 document.getElementById('rerollButton')!.addEventListener('click', () => send({ kind: 'reroll' }));
+document.getElementById('buyXpButton')!.addEventListener('click', () => send({ kind: 'buy-xp' }));
 document.getElementById('lockButton')!.addEventListener('click', () => send({ kind: 'lock' }));
 document.getElementById('rankRows')!.addEventListener('click', event => {
   if (!state || state.sandbox) return;

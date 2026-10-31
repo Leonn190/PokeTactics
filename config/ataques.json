@@ -1053,6 +1053,33 @@
         0,
         0
       ]
+    },
+    "furious-leap": {
+      "name": "Salto Furioso",
+      "effect": "furious-leap",
+      "baseDamage": 12,
+      "specialRatio": 0.3,
+      "damageByStage": [
+        12,
+        18,
+        24
+      ],
+      "damageRatioByStage": [
+        0.3,
+        0.35,
+        0.4
+      ],
+      "ragePercentByStage": [
+        0.01,
+        0.015,
+        0.015
+      ],
+      "reviveDelay": 1,
+      "reviveHpFraction": 0.1,
+      "reviveRageMultiplier": 1.5,
+      "jumpDuration": 0.32,
+      "landingDuration": 0.3,
+      "jumpSearchRadius": 2.4
     }
   }
 }

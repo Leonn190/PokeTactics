@@ -212,12 +212,12 @@
       "id": "S02",
       "name": "Precipitado I",
       "rarity": "silver",
-      "description": "Nível do treinador adiantado em 1 rodada.",
+      "description": "Receba 8 XP de treinador imediatamente.",
       "icon": "timer",
       "chapters": "all",
       "effect": "S02",
       "params": {
-        "rounds": 1
+        "trainerXp": 8
       },
       "symbol": "⏱️"
     },
@@ -516,12 +516,12 @@
       "id": "G11",
       "name": "Precipitado II",
       "rarity": "gold",
-      "description": "Avance 4 rodadas no nível do treinador; substitui Precipitado I.",
+      "description": "Receba 16 XP totais; substitui Precipitado I (recebe só a diferença).",
       "icon": "fast-forward",
       "chapters": "C2",
       "effect": "G11",
       "params": {
-        "rounds": 4
+        "trainerXp": 16
       },
       "symbol": "⏩"
     },

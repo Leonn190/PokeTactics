@@ -7,6 +7,7 @@ import { totalPower } from '../../server/formulas';
 import { bonusStats, bonusStat, effectivePercents, itemTooltip, ITEM_COLORS, ITEMS, RECIPES, numberParam } from '../../server/systems/items';
 import { LOOT } from '../../server/systems/loot';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
+import { trainerXpNeeded } from '../../server/trainer-xp';
 import { moveDescription } from './menus';
 import { previewAbility, previewBasic } from '../../server/damage-preview';
 import { damageHtml, damageRows } from './damage-labels';
@@ -117,7 +118,7 @@ export class Hud {
     const rosterKey=(p:Player)=>p.units.map(u=>[u.id,u.family,u.stage,u.level,u.position,u.equipment,u.xp]);
     const shopKey=human.shop.map(offer=>offer&&[offer.id,offer.family,offer.price,offer.rarity]);
     const influenceRoster=human.units.map(u=>[u.family,u.stage,u.position.area]);
-    this.region('economy',()=>[snapshot.phase,snapshot.accelerated,snapshot.chapter,snapshot.stage,human.gold,human.level,human.augments,human.streak,human.roundVictory],()=>this.renderEconomy(snapshot,view));
+    this.region('economy',()=>[snapshot.phase,snapshot.accelerated,snapshot.chapter,snapshot.stage,human.gold,human.level,human.trainerXp,human.augments,human.streak,human.roundVictory],()=>this.renderEconomy(snapshot,view));
     this.region('shopOffers',()=>[shopKey,human.gold,human.eliminated,snapshot.phase,influenceRoster],()=>this.renderShopOffers(snapshot,view));
     this.region('shopInfo',()=>[human.gold,human.level,human.eliminated,human.locked,human.augmentCounters?.['B02:free'],snapshot.phase,influenceRoster],()=>this.renderShopInfo(snapshot,view));
     this.region('inventory',()=>[human.itemInventory,human.consumables,view.scoutId,view.selectedBall,view.inventoryItemId,this.inventoryPage,snapshot.lootMessageId],()=>this.renderInventory(snapshot,view));
@@ -174,7 +175,7 @@ export class Hud {
     if(!this.failedRegions.has(name))console.error(`[HUD V22.6] Falha em ${name}; as outras regiões continuam atualizando`,error);
     this.failedRegions.add(name);
   }
-  private readonly regionTargets:Record<string,string[]>={"inventory": ["itemInventory", "shopFooter", "inventoryContents", "inventoryCounter", "eeveeEvolution"], "economy": ["phaseLabel", "roundLabel", "goldCount", "incomeCount", "incomeBreakdown", "levelNumber"], "shopInfo": ["shopChances", "typeInfluence", "rerollButton", "lockButton"], "timeline": ["chapterTrack", "stageName"], "shopOffers": ["shopCards"], "synergies": ["traitRows"], "ranking": ["rankRows"], "combat": ["combatRows", "opponentCombatRows", "combatOwnLabel", "opponentCombatPanel"], "status": ["scoutBadge", "battleStatus"], "inspector": ["unitInspector"], "final": ["finalBanner"]};
+  private readonly regionTargets:Record<string,string[]>={"inventory": ["itemInventory", "shopFooter", "inventoryContents", "inventoryCounter", "eeveeEvolution"], "economy": ["phaseLabel", "roundLabel", "goldCount", "incomeCount", "incomeBreakdown", "levelNumber", "trainerXpCaption", "trainerXpFill", "buyXpButton"], "shopInfo": ["shopChances", "typeInfluence", "rerollButton", "lockButton"], "timeline": ["chapterTrack", "stageName"], "shopOffers": ["shopCards"], "synergies": ["traitRows"], "ranking": ["rankRows"], "combat": ["combatRows", "opponentCombatRows", "combatOwnLabel", "opponentCombatPanel"], "status": ["scoutBadge", "battleStatus"], "inspector": ["unitInspector"], "final": ["finalBanner"]};
   reset():void {
     this.regionSignatures.clear();this.failedRegions.clear();this.fragmentCache.clear();
     this.latestSnapshot=null;this.latestView=null;this.lastLootMessage='';this.lastRank='';this.inventoryPage=0;
@@ -219,7 +220,17 @@ export class Hud {
     element('incomeCount').textContent = `+${RULES.baseIncome + interest + victory + streak}`;
     const streakText = player.streak > 0 ? `${player.streak} vitórias seguidas` : player.streak < 0 ? `${-player.streak} derrotas seguidas` : 'sem sequência';
     this.updateHTML('incomeBreakdown', `<strong>PRÓXIMA RENDA</strong><div>Renda base <b>+${RULES.baseIncome}</b></div><div>Juros (${player.gold} ÷ ${RULES.interestEveryGold}, limite ${interestLimit}) <b>+${interest}</b></div><div>Última vitória <b>+${victory}</b></div><div>Sequência (${streakText}) <b>+${streak}</b></div><hr /><div class="total">Total projetado <b>+${RULES.baseIncome + interest + victory + streak}</b></div><small>Se vencer a próxima batalha, receberá +${RULES.victoryIncome} no pagamento seguinte. Juros e sequência serão recalculados.</small>`);
-    element('levelNumber').textContent = String(player.level);
+    const number=element('levelNumber');
+    if(number.textContent!==String(player.level)){
+      number.textContent=String(player.level);number.classList.remove('xp-level-up');void number.offsetWidth;number.classList.add('xp-level-up');
+    }
+    const needed=trainerXpNeeded(player.level),atMax=needed<=0;
+    element('trainerXpCaption').textContent=atMax?'NÍVEL MÁXIMO':`${player.trainerXp} / ${needed} XP`;
+    element('trainerXpFill').style.width=`${atMax?100:100*Math.min(1,player.trainerXp/needed)}%`;
+    const buy=element<HTMLButtonElement>('buyXpButton');
+    buy.disabled=atMax||player.gold<RULES.trainerProgression.buyXpCost||player.eliminated||snapshot.phase!=='planning';
+    buy.innerHTML=atMax?'NÍVEL MÁXIMO':`COMPRAR XP <span>◈ ${RULES.trainerProgression.buyXpCost}</span>`;
+
   }
 
   private renderShopInfo(snapshot:GameSnapshot,view:ClientView):void {
@@ -296,7 +307,7 @@ export class Hud {
       ? 'Batalhando<span class="rank-dots"><i>.</i><i>.</i><i>.</i></span>'
       : snapshot.battleStatuses[id] === 'victorious' ? 'Vitorioso'
       : snapshot.battleStatuses[id] === 'defeated' ? 'Derrotado' : '';
-    const shownHp=(p:Player):number => {const evt=snapshot.visualEvents.find(e=>e.kind==='trainer-damage'&&e.ownerId===p.id&&e.age<1.03);return Math.min(RULES.startingHealth,p.health+(evt?.value||0));};
+    const shownHp=(p:Player):number => p.health;
     const rowHpClass = (health: number): string => health === 0 ? 'dead' : health < 30 ? 'low' : '';
     if (this.lastRank !== rankOrder || element('rankRows').children.length!==ranked.length || ranked.some((p,i)=>(element('rankRows').children[i] as HTMLElement | undefined)?.dataset.scout!==p.id)) {
       const ranks = ranked.map((p,i)=>`<button class="rank-row ${p.id==='p0'?'you':''} ${view.scoutId===p.id&&p.id!=='p0'?'scouting':''} ${p.eliminated?'out':''}" data-scout="${p.id}" title="${p.id==='p0'?'Sua arena':`Inspecionar arena de ${safe(p.name)}`}" >

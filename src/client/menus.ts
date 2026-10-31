@@ -77,6 +77,7 @@ export function moveDescription(move: MoveData): string {
     'lullaby':'Canta continuamente, adormecendo uma vez por execução todos os inimigos ao redor. A duração aumenta com SpA.',
     'star-ward':'Ganha um escudo rosa que invoca estrelas sobre o inimigo que mais causou dano até o escudo acabar.',
     'mime-wall':'Cria duas paredes direcionais que bloqueiam os inimigos e fortalecem o próprio ataque regular.',
+    'furious-leap':'Salta no inimigo, causa pouco dano especial e recua para um espaço livre. Cada golpe inimigo efetivo recebido aumenta ATK e VEL; Annihilape ressuscita uma vez com Fúria reforçada.',
     'flame-orbit':'Invoca duas chamas que orbitam o corpo e queimam inimigos por contato. Enquanto houver chamas, recebe bônus de VEL, DEF e SpD.'
   };
   const conversion = move.conversion;

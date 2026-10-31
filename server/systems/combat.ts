@@ -62,7 +62,9 @@ function stat(unit: CombatUnit, key: StatKey): number {
   }
   const synergySpeed=key==='speed'?base*(unit.synergy?.speedBonus||0):0;
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
-  return Math.max(0, base + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
+  const rage=(key==='atk'||key==='speed')&&unit.family==='mankey'
+    ?base*(unit.rageStacks||0)*(ATTACKS.moves['furious-leap'].ragePercentByStage?.[unit.stage]??0)*(unit.rageEmpowered?(ATTACKS.moves['furious-leap'].reviveRageMultiplier??1.5):1):0;
+  return Math.max(0, base + rage + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -349,7 +351,7 @@ function tickFieldEffect(battle:Battle,fx:CombatEffect,oldTime:number,dt:number)
             const remaining=enemy.hp;enemy.hp=0;
             source.metrics.dealt+=remaining;source.metrics.specialDealt+=remaining;enemy.metrics.taken+=remaining;
             floatingDamage(battle,enemy,remaining,'special');
-            if(!onSynergyDeath(battle,source,enemy,{deal,heal,effect,stat}))knockout(battle,source,enemy,remaining);
+            if(!preventDefinitiveDeath(battle,source,enemy))knockout(battle,source,enemy,remaining);
           }
         }
       }
@@ -715,6 +717,26 @@ function landProjectiles(battle: Battle, dt: number): void {
   }
 }
 
+/** Annihilape's one-time delayed recovery takes precedence over Ghost synergy.
+ * All later KOs are definitive; the ghost synergy continues normally for other units. */
+function preventDefinitiveDeath(battle:Battle,killer:CombatUnit,target:CombatUnit):boolean {
+ if(target.family==='mankey'&&target.stage===2){
+  if(!target.rageRebirth?.used){
+   target.rageRebirth={used:true,pending:true,at:battle.elapsed+(ATTACKS.moves['furious-leap'].reviveDelay??1)};
+   target.energy=0;target.furyLeap=undefined;target.jumpHeight=0;
+   target.dig=null;target.ghost=null;target.absorb=undefined;
+   target.poison=null;target.damageOverTime=null;target.itemBurn=null;
+   target.barriers=[];target.barrier=null;target.statuses={};
+   // Avoid premature Ghost revives on the final knockout.
+   if(target.synergy)target.synergy.revived=true;
+   return true;
+  }
+  if(target.rageRebirth.pending)return true;
+  if(target.synergy)target.synergy.revived=true;
+ }
+ return onSynergyDeath(battle,killer,target,{deal,heal,effect,stat});
+}
+
 function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage: number): void {
   poisonousDeath(battle,target,stat(target,'spa'));
   if(target.absorb){releaseAbsorb(battle,target);}
@@ -814,6 +836,8 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (target.ditto?.active && target.hp > 0 && target.hp / target.maxHp < (ATTACKS.moves['ditto-transform'].revertHealthRatio ?? .3)) revertDitto(battle,target);
   // Exactly one energy point per *effective damage event*, not per damage amount.
   // Barrier absorption counts; a fully prevented hit does not. No further events are emitted.
+  if(mode==='normal'&&source.playerId!==target.playerId&&source.id!==target.id && damage+absorbedTotal>0 && target.family==='mankey')
+    target.rageStacks=(target.rageStacks||0)+1;
   if (damage + absorbedTotal > 0)
     if (!blocksEnergy(target,battle.elapsed)) target.energy = Math.min(target.energyNeeded,target.energy+1);
   if (damage > 0) floatingDamage(battle, target, damage, magical ? 'special' : 'physical');
@@ -821,7 +845,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (damage > target.maxHp * .2 && target.hp > 0 && !target.leap && !target.combo) animate(target, 'Hurt', .28, target.spinTime > 0 ? 'Withdraw' : undefined);
   onSynergyHit(battle,source,target,hpBefore,damage+absorbedTotal,mode==='normal', {deal,heal,effect,stat});
   onAugmentDamage(battle,target);
-  if(target.hp<=0 && !onSynergyDeath(battle,source,target,{deal,heal,effect,stat}))knockout(battle,source,target,damage);
+  if(target.hp<=0 && !preventDefinitiveDeath(battle,source,target))knockout(battle,source,target,damage);
   if (!magical && !charged && mode==='normal' && STATUS_RULES.sleeping.wakeOnPhysicalBasic && damage+absorbedTotal>0) wakeFromBasic(target);
   const actual=damage+absorbedTotal;
   if(mode==='normal'&&actual>0&&target.persianPursuit&&target.hp>0&&source.playerId!==target.playerId){
@@ -1169,6 +1193,14 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
     }
   }
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='furious-leap' && target){
+    const spot=furyLanding(battle,source,target,3.5,false);
+    if(!spot){ animate(source,'Attack',.34);return; }
+    source.furyLeap={phase:'strike',fromX:source.x,fromY:source.y,toX:spot.x,toY:spot.y,
+      elapsed:0,duration:move.jumpDuration??.32,targetId:target.id};
+    animate(source,'Attack',move.jumpDuration??.32);
+    return;
+  }
   if(move.effect==='terrain-poison-shot' && target){
     animate(source,'Shoot',.43);
     projectile(battle,source,target,'poison',move.baseDamage+s*move.specialRatio,true,true,1,undefined,source,moveId,'poison','terrain-poison');
@@ -1686,7 +1718,7 @@ function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
     for (const enemy of battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u) && distance(u,source)<=(move.splashRange||1.45)))
       deal(battle,source,enemy,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,getStageData(source.family,source.stage).chargedType);
     source.hp=Math.max(0,source.hp-source.maxHp*(move.selfHpCost||0));
-    if(source.hp<=0) {source.hp=0;if(!onSynergyDeath(battle,source,source,{deal,heal,effect,stat}))knockout(battle,source,source,0);}
+    if(source.hp<=0) {source.hp=0;if(!preventDefinitiveDeath(battle,source,source))knockout(battle,source,source,0);}
     return true;
   }
   const a=stat(source,'atk');
@@ -1797,6 +1829,50 @@ function gasTick(battle: Battle, source: CombatUnit, dt: number): void {
   }
   effect(battle,source,source,'gas',radius);
   source.gasCharge=null;
+}
+
+/** Stable grid search uses physical clearance, existing obstacle/hex bounds and deterministic ties. */
+function furyLanding(battle:Battle,unit:CombatUnit,center:{x:number;y:number},maxDistance:number,retreat:boolean):{x:number;y:number}|null {
+ const bounds=arenaBoundary(battle);
+ const offsets=battle.participants.length>2?[-4.35,4.35]:[0];
+ const choices:Array<{x:number;y:number;score:number}>=[];
+ for(const offset of offsets)for(let row=0;row<8;row++)for(let col=0;col<7;col++){
+  const pos=gridXY(col,row),x=pos.x+offset,y=pos.y;
+  if(x<bounds.minX||x>bounds.maxX||y<bounds.minY||y>bounds.maxY||!clearStep(battle,unit,x,y))continue;
+  const dist=Math.hypot(x-center.x,y-center.y);
+  if(retreat){
+   const travel=Math.hypot(x-unit.x,y-unit.y);
+   if(travel>.4 && travel<=maxDistance){
+    const closest=Math.min(...battle.units.filter(e=>e.playerId!==unit.playerId&&isTargetable(e)).map(e=>distance(e,{x,y})),5);
+    choices.push({x,y,score:-closest+travel*.04});
+   }
+  }else if(dist<1.65 && Math.hypot(x-unit.x,y-unit.y)<=maxDistance){
+   choices.push({x,y,score:dist+Math.hypot(x-unit.x,y-unit.y)*.03});
+  }
+ }
+ choices.sort((a,b)=>a.score-b.score||a.y-b.y||a.x-b.x);
+ return choices[0]||null;
+}
+function furyLeapTick(battle:Battle,source:CombatUnit,dt:number):void {
+ const state=source.furyLeap;if(!state)return;
+ state.elapsed=Math.min(state.duration,state.elapsed+dt);
+ const t=state.duration>0?state.elapsed/state.duration:1;
+ source.x=state.fromX+(state.toX-state.fromX)*t;
+ source.y=state.fromY+(state.toY-state.fromY)*t;
+ source.jumpHeight=Math.sin(Math.PI*t)*.85;
+ if(t<1)return;
+ source.jumpHeight=0;
+ const move=ATTACKS.moves['furious-leap'];
+ if(state.phase==='strike'){
+  const target=battle.units.find(u=>u.id===state.targetId&&isTargetable(u));
+  if(target && distance(source,target)<1.8){
+   deal(battle,source,target,(move.damageByStage?.[source.stage]??move.baseDamage)+stat(source,'spa')*(move.damageRatioByStage?.[source.stage]??move.specialRatio),true,true,getStageData(source.family,source.stage).chargedType);
+   effect(battle,source,target,'impact',.45);
+  }
+  const retreat=furyLanding(battle,source,source,move.jumpSearchRadius??2.4,true);
+  if(retreat){source.furyLeap={phase:'retreat',fromX:source.x,fromY:source.y,toX:retreat.x,toY:retreat.y,elapsed:0,duration:move.landingDuration??.30};animate(source,'Attack',move.landingDuration??.30);}
+  else source.furyLeap=undefined;
+ }else{source.furyLeap=undefined;animate(source,'Idle',.18);}
 }
 
 function leapTick(battle: Battle, source: CombatUnit, dt: number): void {
@@ -2051,8 +2127,9 @@ function stormTick(battle: Battle,source: CombatUnit,dt: number): void {
 }
 
 function resolve(battle: Battle): void {
+  if(battle.units.some(u=>u.rageRebirth?.pending))return;
   if ((battle.effects.some(fx => fx.pendingHit || (fx.piercing && fx.time < fx.duration)) ||
-    battle.units.some(u => u.charge || u.dig || u.ghost || u.storm)) && battle.elapsed < 120) return;
+    battle.units.some(u => u.charge || u.dig || u.ghost || u.storm || u.furyLeap || u.rageRebirth?.pending)) && battle.elapsed < 120) return;
   const living = battle.participants.filter(id => battle.units.some(u => u.playerId === id && u.hp > 0));
   if (living.length > 1 && battle.elapsed < 120) return;
   const score = (id: string) => battle.units.filter(u => u.playerId === id).reduce((sum, u) => sum + Math.max(0, u.hp) / u.maxHp, 0);
@@ -2078,7 +2155,7 @@ function resolve(battle: Battle): void {
     unit.pendingPollen = null;
     unit.buffs = []; unit.defenseShreds = []; unit.barriers = []; unit.guardUntil = 0;
     unit.combo = null;
-    unit.leap = null;
+    unit.leap = null;unit.furyLeap=undefined;
     unit.charge = null;
     unit.scizorAction=undefined;unit.scizorPending=false;
     unit.dig = null; unit.ghost = null; unit.fear = null; unit.storm = null; unit.psychicImbuement = null; unit.refractionUntil = 0;
@@ -2104,12 +2181,12 @@ function tickOutcome(battle: Battle, dt: number): void {
     const targets = battle.participants.filter(id => id !== battle.winner);
     for (const unit of battle.units.filter(u => u.hp > 0 && u.playerId === battle.winner)) {
       animate(unit, 'Shoot', .45);
-      const id = targets[unit.col % targets.length];
-      if (!id) continue;
-      const target = trainerSpot(battle.participants.indexOf(id), battle.participants.length > 2);
-      battle.effects.push({ id: `${battle.id}:trainer:${unit.id}`, x: unit.x, y: unit.y,
-        targetX: target.x, targetY: target.y, family: unit.family,
-        kind: 'trainer-hit', time: 0, duration: 1.03, value: 0 });
+      for(const id of targets){
+        const target=trainerSpot(battle.participants.indexOf(id),battle.participants.length>2);
+        battle.effects.push({id:`${battle.id}:trainer:${unit.id}:${id}`,sourceId:unit.id,targetId:id,
+          x:unit.x,y:unit.y,targetX:target.x,targetY:target.y,family:unit.family,stage:unit.stage,
+          kind:'trainer-hit',time:0,duration:1.03,value:0});
+      }
     }
   }
 }
@@ -2136,7 +2213,7 @@ function tickAbsorb(battle:Battle,source:CombatUnit):void {
   if(source.stage>0&&source.family==='grimer'&&victim.hp>0 && victim.hp/victim.maxHp<(move.executeThreshold??.1)){
    const lost=victim.hp;victim.hp=0;victim.metrics.taken+=lost;source.metrics.dealt+=lost;source.metrics.specialDealt+=lost;
    floatingDamage(battle,victim,lost,'special');poisonousHealth(battle,victim,stat(victim,'spa'));
-   if(!onSynergyDeath(battle,source,victim,{deal,heal,effect,stat}))knockout(battle,source,victim,lost);
+   if(!preventDefinitiveDeath(battle,source,victim))knockout(battle,source,victim,lost);
    heal(battle,source,source.maxHp*(move.executeHealRatio??.2),source);
   }
   releaseAbsorb(battle,source);
@@ -2159,7 +2236,7 @@ function tickVine(battle:Battle,source:CombatUnit):void {
    source.metrics.dealt+=lost;source.metrics.specialDealt+=lost;
    floatingDamage(battle,target,lost,'special');
    poisonousHealth(battle,target,stat(target,'spa'));
-   if(!onSynergyDeath(battle,source,target,{deal,heal,effect,stat}))knockout(battle,source,target,lost);
+   if(!preventDefinitiveDeath(battle,source,target))knockout(battle,source,target,lost);
    heal(battle,source,source.maxHp*(move.executeHealRatio??.10),source);
    // The target's dying position is visualized as the pull endpoint in the same frame.
    effect(battle,source,target,'vine-pull',lost);
@@ -2170,6 +2247,15 @@ export function tickBattle(battle: Battle, dt: number): void {
   if (battle.resolved) { tickOutcome(battle, dt); return; }
   battle.elapsed += dt;
   battle.introElapsed += dt;
+  for(const unit of battle.units){
+    if(unit.rageRebirth?.pending && battle.elapsed>=unit.rageRebirth.at){
+      unit.rageRebirth.pending=false;
+      unit.hp=Math.max(1,unit.maxHp*(ATTACKS.moves['furious-leap'].reviveHpFraction??.10));
+      unit.rageEmpowered=true;unit.energy=0;unit.attackClock=.35;
+      unit.flash=.38;unit.animation=null;
+      effect(battle,unit,unit,'ghost-revive',0);
+    }
+  }
   for(const unit of battle.units){
     const now=fleeing(unit);
     if(now&&!unit.babyFlee){
@@ -2349,6 +2435,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.support) { supportTick(battle, unit, dt); continue; }
     if (unit.combo) { comboTick(battle, unit, dt); continue; }
     if (unit.gasTime > 0) { gasTick(battle, unit, dt); continue; }
+    if (unit.furyLeap) { furyLeapTick(battle,unit,dt); continue; }
     if (unit.leap) { leapTick(battle, unit, dt); continue; }
     if (unit.pendingPollen) { pollenTick(battle, unit, dt); continue; }
     if (unit.spinTime > 0) { spinTick(battle, unit, dt); continue; }
@@ -2410,6 +2497,9 @@ export function tickBattle(battle: Battle, dt: number): void {
       unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown;continue;
     }
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded && move.effect === 'scizor-double'){
+      unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown;continue;
+    }
+    if (unit.attackClock<=0 && unit.energy>=unit.energyNeeded && move.effect==='furious-leap' && d<=3.5){
       unit.energy=0;spell(battle,unit,target);unit.attackClock=unit.cooldown;continue;
     }
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded && move.effect === 'stomp' && d <= (move.jumpRange || 3)) {
@@ -2498,7 +2588,7 @@ export function tickBattle(battle: Battle, dt: number): void {
 }
 
 export function forceResolveBattle(battle: Battle): void {
-  if (!battle.resolved) { battle.elapsed = 120; resolve(battle); }
+  if (!battle.resolved) { battle.elapsed = Math.max(battle.elapsed,120); resolve(battle); }
 }
 
 export function battleMetrics(battle: Battle): Record<string, Record<string, CombatMetrics>> {

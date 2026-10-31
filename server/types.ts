@@ -44,6 +44,7 @@ export interface Player {
   health: number;
   gold: number;
   level: number;
+  trainerXp: number;
   units: Pokemon[];
   shop: Array<ShopOffer | null>;
   locked: boolean;
@@ -181,6 +182,10 @@ export interface CombatUnit {
   navBlockedFor?:number;
   persianPursuit?: {targetId:string; elapsed:number; stuck:number};
   babyFlee?: boolean;
+  rageStacks?: number;
+  rageEmpowered?: boolean;
+  rageRebirth?: { used:boolean;pending:boolean; at:number };
+  furyLeap?: { phase:'strike'|'retreat'; fromX:number;fromY:number;toX:number;toY:number;elapsed:number;duration:number;targetId?:string };
   flameJet?: { remaining:number; accumulator:number; visualClock:number; dx:number; dy:number; duration:number; };
   wasMoving?:boolean;
   poisonLastTile?:string;
@@ -381,6 +386,7 @@ export type GameCommand =
   | { kind:'sandbox-augment'; ownerId:'p0'|'p1'; id:string; enabled:boolean }
   | { kind: 'buy'; slot: number; offerId: string }
   | { kind: 'reroll' }
+  | { kind: 'buy-xp' }
   | { kind: 'augment-reroll'; slot: number }
   | { kind: 'augment-choose'; slot: number }
   | { kind: 'lock' }
