@@ -14,6 +14,7 @@ function readPreferences(): PlayerPreferences {
 export class PlayerSettings {
   private value = readPreferences();
   private panel = document.getElementById('playerSettings')!;
+  private onClosed:(()=>void)|null=null;
   private volume = document.getElementById('playerVolume') as HTMLInputElement;
   private fps = document.getElementById('playerFps') as HTMLInputElement;
   constructor(private onVolume: (value: number) => void, private onFps: (value: number) => void) {
@@ -33,7 +34,8 @@ export class PlayerSettings {
   get frameRate(): number { return this.value.fps; }
   isOpen(): boolean { return !this.panel.classList.contains('hidden'); }
   open(): void { this.panel.classList.remove('hidden'); this.volume.focus(); }
-  close(): void { this.panel.classList.add('hidden'); }
+  setOnClosed(handler:(()=>void)|null):void{this.onClosed=handler;}
+  close(): void { const wasOpen=this.isOpen();this.panel.classList.add('hidden');if(wasOpen)this.onClosed?.(); }
   private change(key: keyof PlayerPreferences, input: HTMLInputElement): void {
     this.value[key] = clamp(Number(input.value), key === 'fps' ? 30 : 0, key === 'fps' ? 120 : 100);
     this.updateLabels();

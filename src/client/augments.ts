@@ -1,7 +1,6 @@
 import config from '../../config/augments.json';
 import type { GameCommand,GameSnapshot } from '../../server/types';
 import type { Arena } from './arena';
-import { trainerSpot } from '../../server/combat/trainer-position';
 
 const byId=new Map(config.augments.map(a=>[a.id,a]));
 const safe=(s:string)=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
@@ -96,7 +95,6 @@ export class AugmentView {
   if(!state || state.phase==='finished'){this.hideTooltip();this.stacks.innerHTML='';delete this.stacks.dataset.owners;return;}
   const battle=state.visibleBattle;
   const participants=state.sandbox?['p0','p1']:state.phase==='combat' && battle && !battle.resolved ? battle.participants : [state.observedId];
-  const quad=participants.length>2;
   const ids=participants.filter(id=>state.players.some(p=>p.id===id));
   const key=`${state.phase}:${battle&&state.phase==='combat'&&!battle.resolved?battle.id:'planning'}:${state.observedId}:`+ids.map(id=>`${id}:${state.players.find(p=>p.id===id)?.augments?.join(',')||''}`).join('|');
   if(this.stacks.dataset.owners!==key){
@@ -116,16 +114,14 @@ export class AugmentView {
   const baseScale=Math.min(.9,Math.max(.58,arena.worldScale()));
   ids.forEach((id,i)=>{
     const el=this.stacks.querySelector<HTMLElement>(`[data-augment-owner="${id}"]`);if(!el)return;
-    const slot=participants.indexOf(id),pos=trainerSpot(slot,quad);
-    // World coordinates: each player's own LEFT edge, also in 14x8 quadruples.
-    const edgeX=quad?(slot<2?-8.65:-.55):-4.65;
-    const edgeY=pos.y>0?1.15:-1.15;
-    const point=arena.toScreen(edgeX,edgeY);
+    const owner=arena.ownerPlacement(id);
+    const point=arena.toScreen(owner.augments.x,owner.augments.y);
     el.style.left=`${canvas.left-app.left+point.x}px`;
     el.style.top=`${canvas.top-app.top+point.y}px`;
     el.style.setProperty('--augment-scale',String(baseScale));
-    el.classList.toggle('left-owner',pos.x<0);
-    el.classList.toggle('top-owner',pos.y<0);
+    el.classList.toggle('left-owner',owner.side==='left');
+    el.classList.toggle('right-owner',owner.side==='right');
+    el.classList.toggle('top-owner',owner.augments.y<0);
   });
   if(this.tooltip.classList.contains('active')){
    const active=document.activeElement;

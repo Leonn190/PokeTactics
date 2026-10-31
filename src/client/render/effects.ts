@@ -31,6 +31,15 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
         ctx.quadraticCurveTo(start.x+ux*.6-uy/normal*cellScale*.3,start.y+uy*.6+ux/normal*cellScale*.3-cellScale*.22,x,y);ctx.stroke();
         ctx.beginPath();ctx.arc(x,y,Math.max(3,cellScale*.08),0,PI2);ctx.fill();ctx.restore();continue;
       }
+      if(fx.kind==='vine-pull'){
+        const k=Math.min(1,Math.max(0,t));
+        const x=to.x+(from.x-to.x)*(1-(1-k)*(1-k));
+        const y=to.y+(from.y-to.y)*(1-(1-k)*(1-k))-cellScale*.25;
+        ctx.save();ctx.globalAlpha=(1-k)*.82;ctx.strokeStyle='#81df66';ctx.shadowColor='#6de66b';ctx.shadowBlur=14;
+        ctx.lineWidth=Math.max(2,cellScale*.042);ctx.beginPath();ctx.moveTo(to.x,to.y-cellScale*.25);
+        ctx.quadraticCurveTo((from.x+to.x)*.5,(from.y+to.y)*.5-cellScale*.52,x,y);ctx.stroke();
+        ctx.fillStyle='#b8f68b';ctx.beginPath();ctx.arc(x,y,Math.max(3,cellScale*(.06+(1-k)*.12)),0,PI2);ctx.fill();ctx.restore();continue;
+      }
       if(fx.kind==='flame-jet' || fx.kind==='electric-punch'){
         ctx.save();
         if(fx.kind==='flame-jet'){

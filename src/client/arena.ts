@@ -215,8 +215,25 @@ export class Arena {
   }
 
   worldScale():number{return this.cellScale/70;}
+  /** Both augments and inventory use the same slot-based layout: all sidebars
+   * stay outside the hex boundaries, including 14-column quad battles. */
+  ownerPlacement(id:string):{rack:{x:number;y:number};augments:{x:number;y:number};side:'left'|'right'} {
+    const battle=this.snapshot?.visibleBattle;
+    const active=!!battle && this.snapshot?.phase!=='planning' && !battle.resolved;
+    const ids=active?battle!.participants:[this.view.scoutId];
+    const slot=ids.indexOf(id);
+    if(slot<0)return {rack:{x:ITEM_RACK_WORLD.x,y:ITEM_RACK_WORLD.y},augments:{x:-5.05,y:1.25},side:'left'};
+    if(ids.length>2){
+      const left=slot<2,upper=slot===1||slot===2;
+      return {rack:{x:left?-9.65:9.65,y:upper?-2.55:2.55},
+        augments:{x:left?-9.65:9.65,y:upper?-1.35:1.35},side:left?'left':'right'};
+    }
+    const upper=ids.length===2 && id!==this.view.scoutId;
+    return {rack:{x:-6.45,y:upper?-3.12:3.45},
+      augments:{x:-5.15,y:upper?-1.45:1.45},side:'left'};
+  }
   /** An HTML item tray uses the exact same world-to-screen projection as sprites. */
-  placeWorldRack(node:HTMLElement,x=ITEM_RACK_WORLD.x,y=ITEM_RACK_WORLD.y):void {
+  placeWorldRack(node:HTMLElement,x:number=ITEM_RACK_WORLD.x,y:number=ITEM_RACK_WORLD.y):void {
     const point=this.toScreen(x,y), rect=this.canvas.getBoundingClientRect(), app=document.getElementById('app')!.getBoundingClientRect();
     node.style.left=`${rect.left-app.left+point.x}px`;
     node.style.top=`${rect.top-app.top+point.y}px`;
@@ -242,7 +259,7 @@ export class Arena {
     const rect = this.canvas.getBoundingClientRect();
     const pointerX = clientX - rect.left, pointerY = clientY - rect.top;
     const focalPoint = this.fromScreen(pointerX, pointerY);
-    this.zoom = Math.max(.45, Math.min(1.38, this.zoom + (delta > 0 ? -.09 : .09)));
+    this.zoom = Math.max(.63, Math.min(1.56, this.zoom + (delta > 0 ? -.09 : .09)));
     const projected = this.toScreen(focalPoint.x, focalPoint.y);
     this.cameraOffset.x += pointerX - projected.x;
     this.cameraOffset.y += pointerY - projected.y;
@@ -533,21 +550,70 @@ export class Arena {
     const ctx=this.context,r=this.cellScale*.54;
     for(const tile of Object.values(tiles)){
       const point=gridXY(tile.col,tile.row),screen=this.toScreen(point.x,flip?-point.y:point.y);
-      const fade=Math.min(1,Math.max(0,(tile.until-battle!.elapsed)/.4));
-      const pulse=.92+.08*Math.sin(time*3+tile.col*.83+tile.row);
+      const fade=Math.min(1,Math.max(0,(tile.until-battle!.elapsed)/.44));
+      const pulse=.94+.06*Math.sin(time*2.4+tile.col*.83+tile.row);
+      const strength=tile.intensity;
       ctx.save();ctx.globalAlpha=fade*pulse;
-      ctx.beginPath();
-      for(let v=0;v<6;v++){const angle=v*PI2/6+Math.PI/6;
-        if(!v)ctx.moveTo(screen.x+Math.cos(angle)*r,screen.y+Math.sin(angle)*r);
-        else ctx.lineTo(screen.x+Math.cos(angle)*r,screen.y+Math.sin(angle)*r);
+      const radius=r*(.94+.025*Math.sin(time*1.6+tile.col+tile.row));
+      const path=()=>{ctx.beginPath();for(let v=0;v<6;v++){
+        const a=v*PI2/6+Math.PI/6;
+        const x=screen.x+Math.cos(a)*radius,y=screen.y+Math.sin(a)*radius;
+        if(v===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }ctx.closePath();};
+      path();
+      const pool=ctx.createRadialGradient(screen.x-radius*.22,screen.y-radius*.22,0,screen.x,screen.y,radius);
+      pool.addColorStop(0,strength===1?'#c58af87a':strength===2?'#b45aea9c':'#b047d8b8');
+      pool.addColorStop(.72,strength===1?'#944dc74b':strength===2?'#8033b17c':'#7225b2a0');
+      pool.addColorStop(1,'#4c1b7b26');ctx.fillStyle=pool;ctx.fill();
+      ctx.strokeStyle=strength===1?'#d9a8ee65':strength===2?'#d8a3ff96':'#eba6ffbb';
+      ctx.lineWidth=Math.max(1,this.cellScale*.028);ctx.stroke();ctx.clip();
+      // Fixed, deterministic ripples: no per-frame particle objects and no visual noise.
+      ctx.lineWidth=Math.max(.7,this.cellScale*.014);ctx.strokeStyle='#e4b4ff78';
+      for(let i=0;i<2+strength;i++){
+        const a=i*2.39+tile.row*1.17+tile.col*2.03;
+        const dist=radius*(.16+.13*i);
+        const x=screen.x+Math.cos(a)*dist,y=screen.y+Math.sin(a)*dist*.72;
+        ctx.beginPath();ctx.ellipse(x,y,radius*(.10+.025*strength),radius*.042,Math.sin(a),0,PI2);ctx.stroke();
       }
-      ctx.closePath();
-      ctx.fillStyle=tile.intensity===1?'#84d89a65':tile.intensity===2?'#43b47599':'#297648d1';
-      ctx.strokeStyle=tile.intensity===3?'#d4a1e3ad':'#92efad99';ctx.lineWidth=1.5;
-      ctx.fill();ctx.stroke();
-      if(tile.intensity===3){ctx.fillStyle='#b17bddbb';
-        for(let i=0;i<3;i++){const a=time*.6+i*2.09+tile.row;
-          ctx.beginPath();ctx.arc(screen.x+Math.cos(a)*r*.40,screen.y+Math.sin(a)*r*.35,r*.07,0,PI2);ctx.fill();}
+      for(let i=0;i<strength+1;i++){
+        const a=time*(i%2?.38:-.29)+i*2.51+tile.col*1.71+tile.row*.33;
+        const x=screen.x+Math.cos(a)*radius*.50,y=screen.y+Math.sin(a)*radius*.34;
+        const bubbleRadius=Math.max(1,this.cellScale*(.024+.012*(i%2)));
+        ctx.fillStyle='#ddb7ff88';ctx.beginPath();ctx.arc(x,y,bubbleRadius,0,PI2);ctx.fill();
+        ctx.strokeStyle='#f8daff99';ctx.lineWidth=Math.max(.8,this.cellScale*.012);ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  private drawVines(time:number):void {
+    const battle=this.snapshot?.visibleBattle;
+    if(!battle||battle.resolved||this.snapshot?.phase!=='combat')return;
+    const flipped=battle.participants.length===2&&battle.playerB===this.view.scoutId;
+    const ctx=this.context;
+    for(const source of battle.units){
+      if(!source.vine||source.hp<=0)continue;
+      const target=battle.units.find(unit=>unit.id===source.vine?.targetId&&unit.hp>0);
+      if(!target)continue;
+      const a=this.toScreen(source.x,flipped?-source.y:source.y);
+      const b=this.toScreen(target.x,flipped?-target.y:target.y);
+      const dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy)||1;
+      const nx=-dy/dist,ny=dx/dist;
+      const sway=Math.sin(time*2.5+source.x)*this.cellScale*.085;
+      const midX=(a.x+b.x)*.5+nx*sway,midY=(a.y+b.y)*.5+ny*sway-this.cellScale*.22;
+      const fade=Math.min(1,Math.max(0,(battle.elapsed-source.vine.attachedAt)/.25));
+      ctx.save();ctx.globalAlpha=fade;ctx.lineCap='round';ctx.lineJoin='round';
+      ctx.shadowColor='#48bc5c';ctx.shadowBlur=this.cellScale*.1;
+      ctx.lineWidth=Math.max(3,this.cellScale*.075);ctx.strokeStyle='#236d37';
+      ctx.beginPath();ctx.moveTo(a.x,a.y-this.cellScale*.23);ctx.quadraticCurveTo(midX,midY,b.x,b.y-this.cellScale*.24);ctx.stroke();
+      ctx.shadowBlur=0;ctx.lineWidth=Math.max(1.2,this.cellScale*.026);ctx.strokeStyle='#a0e36b';ctx.stroke();
+      // Leaves are placed at the same fractional positions, so the rope costs no particles.
+      for(const f of [.29,.58,.82]){
+        const x=(1-f)*(1-f)*a.x+2*(1-f)*f*midX+f*f*b.x;
+        const y=(1-f)*(1-f)*(a.y-this.cellScale*.23)+2*(1-f)*f*midY+f*f*(b.y-this.cellScale*.24);
+        const side=Math.sin(time*2+f*15)>0?1:-1;
+        ctx.fillStyle=f>.5?'#72bb57':'#4a9645';ctx.beginPath();
+        ctx.ellipse(x+nx*side*this.cellScale*.065,y+ny*side*this.cellScale*.065,
+          this.cellScale*.09,this.cellScale*.04,Math.atan2(dy,dx)+side*.7,0,Math.PI*2);ctx.fill();
       }
       ctx.restore();
     }
@@ -1123,6 +1189,7 @@ export class Arena {
       drawMarkers.push(marker);
     }
     drawMarkers.sort((a, b) => a.y - b.y);
+    this.drawVines(this.frame);
     for (const marker of drawMarkers) this.drawUnit(marker, this.frame);
     this.drawAbsorptions(this.frame);
     if(battle&&this.snapshot?.phase!=='planning')this.drawObstacles(battle,this.frame);

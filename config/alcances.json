@@ -1,28 +1,52 @@
 {
   "levels": [
     {
-      "name": "Curto",
-      "value": 0.6
+      "name": "1",
+      "value": 0.5
     },
     {
-      "name": "Médio",
-      "value": 1.2
+      "name": "2",
+      "value": 1.5
     },
     {
-      "name": "Médio Alto",
-      "value": 2
+      "name": "3",
+      "value": 2.5
     },
     {
-      "name": "Alto",
-      "value": 3.8
+      "name": "4",
+      "value": 3.5
     },
     {
-      "name": "Muito Alto",
-      "value": 5
+      "name": "5",
+      "value": 4.5
     },
     {
-      "name": "Extremo",
+      "name": "6",
+      "value": 5.5
+    },
+    {
+      "name": "7",
       "value": 6.5
+    },
+    {
+      "name": "8",
+      "value": 7.5
+    },
+    {
+      "name": "9",
+      "value": 8.5
+    },
+    {
+      "name": "10",
+      "value": 9.5
+    },
+    {
+      "name": "11",
+      "value": 10.5
+    },
+    {
+      "name": "12",
+      "value": 11.5
     }
   ]
 }

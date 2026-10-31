@@ -14,7 +14,7 @@ export const ANIMATIONS = animationConfig;
 export const RENDER_SETTINGS = renderConfig;
 /** Physical item platform, shared by canvas projection and authoritative trainer collision. */
 export const ITEM_RACK_WORLD = {x:-6.25,y:4.12,radiusX:1.40,radiusY:.86} as const;
-export type StageData = { elements: Element[]; rangeClass: RangeClass; range: number; energy: number; move: string; chargedType: Element; chargedAnimation: string; basic: BasicAttackData };
+export type StageData = { elements: Element[]; rangeLevel: number; range: number; energy: number; move: string; chargedType: Element; chargedAnimation: string; basic: BasicAttackData };
 export interface SpeciesData {
   names: string[];
   pokedexIds: number[];
@@ -23,7 +23,7 @@ export interface SpeciesData {
   glow: string;
   base: Stats;
   range: number;
-  rangeClass: RangeClass;
+  rangeLevel: number;
   energy: number;
   attack: string;
   ability: string;
@@ -42,7 +42,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -88,7 +88,7 @@ export type MoveData = {
   basicSpaFraction?:number;shotCountByStage?:number[];shotAngleDegrees?:number;shotRange?:number;shotRadius?:number;closeEnemyRadius?:number;teleportMinDistance?:number;
   initialSecondsByStage?:number[];centerIntensityByStage?:number[];adjacentIntensityByStage?:number[];
   absorbDuration?:number;absorbTickInterval?:number;absorbDamageBase?:number;absorbDamageRatio?:number;
-  absorbDamageReduction?:number;executeHealRatio?:number;
+  absorbDamageReduction?:number;executeHealRatio?:number;maxDistance?:number;
   continuationMultiplier?: number; levelBonusCap?: number; revertHealthRatio?: number;
 };
 
@@ -96,17 +96,15 @@ export const ATTACKS = movesConfig as unknown as {
   basic: { name: string; offensiveRatio: number; energyGain: number };
   moves: Record<string, MoveData>;
 };
-export type RangeClass = 'Curto' | 'Médio' | 'Médio Alto' | 'Alto' | 'Muito Alto' | 'Extremo';
-export const RANGES = rangeConfig.levels as Array<{name:RangeClass;value:number}>;
-export function rangeValue(name:RangeClass):number {const entry=RANGES.find(r=>r.name===name);if(!entry)throw Error(`Unknown range class: ${name}`);return entry.value;}
-export function steppedRange(name:RangeClass,steps:number):number {
- const index=RANGES.findIndex(r=>r.name===name);
- return RANGES[Math.min(RANGES.length-1,Math.max(0,index+steps))].value;
+/** Public range is a positive integer; combat uses the corresponding world-space distance. */
+export const RANGES = rangeConfig.levels as Array<{name:string;value:number}>;
+export function effectiveRange(level:number):number {
+ const integer=Math.max(1,Math.floor(Number.isFinite(level)?level:1));
+ return integer-0.5;
 }
-export function rangeLabel(value:number, rangeClass?:RangeClass):string {
- const level=rangeClass||RANGES.find(r=>r.value===value)?.name;
- return level?`${level} (${value.toFixed(1)} casas)`:`${value.toFixed(1)} casas`;
-}
+export function rangeValue(level:number):number {return effectiveRange(level);}
+export function steppedRange(level:number,steps:number):number {return effectiveRange(Math.max(1,level+steps));}
+export function rangeLabel(value:number):string {return String(Math.max(1,Math.round(value+0.5)));}
 export const RULES = rulesConfig;
 export const TERRAIN = terrainConfig;
 export const PHASES = phaseConfig as unknown as {
@@ -126,7 +124,7 @@ export const SPECIES = Object.fromEntries(Object.entries(pokemonConfig.species).
 ])) as Record<Family, SpeciesData>;
 
 /** One immutable stage configuration per family/form. Data is shared by client and server.
- * Range classifications are authoritative; projectile identity is independent of range.
+ * Integer range levels are authoritative; projectile identity is independent of range.
  * Explicit stats/category remain authoritative to preserve existing balance. */
 const stageCache = new Map<string, StageData>();
 export function getStageData(family: Family, stage: number): StageData {
@@ -137,8 +135,8 @@ export function getStageData(family: Family, stage: number): StageData {
   if (cached) return cached;
   const override = species.stages?.[index] || {};
   const elements = override.elements || species.elements;
-  const rangeClass = (override.rangeClass || species.rangeClass) as RangeClass;
-  const range = rangeValue(rangeClass);
+  const rangeLevel = override.rangeLevel ?? species.rangeLevel;
+  const range = effectiveRange(rangeLevel);
   const basicOriginal = override.basic || species.basic;
   // The old range number must never silently convert a melee attacker into a gunner.
   const ranged = !!basicOriginal?.projectile || basicOriginal?.animation === 'Shoot' || basicOriginal?.animation === 'SpAttack';
@@ -149,7 +147,7 @@ export function getStageData(family: Family, stage: number): StageData {
     ...(ranged ? { projectile: 'basic-projectile' as const } : {})
   };
   const result: StageData = {
-    elements, range, rangeClass, energy: override.energy ?? species.energy,
+    elements, range, rangeLevel, energy: override.energy ?? species.energy,
     move: override.move || species.attack,
     chargedType: override.chargedType || elements[0],
     chargedAnimation: override.chargedAnimation || 'Attack',

@@ -181,6 +181,7 @@ export interface CombatUnit {
   poisonThresholds?:number;
   poisonDeathEmitted?:boolean;
   absorb?:{targetId:string;until:number;nextTick:number;originalStunUntil:number};
+  vine?:{targetId:string;attachedAt:number};
   lastCombatTargetId?:string;
   scizorPending?:boolean;
   scizorAction?:{targetId:string;fromX:number;fromY:number;toX:number;toY:number;elapsed:number;dashTime:number;hitsDone:number;nextHit:number};
@@ -232,7 +233,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact' | 'meteor-fall' | 'meteor-warning' | 'meteor-fragment' | 'meteor-impact' | 'cone-slash' | 'scizor-dash' | 'scizor-impact' | 'claw-strip' | 'electro-shot' | 'electro-field' | 'electro-pulse' | 'electro-absorb' | 'flame-jet' | 'electric-punch' | 'psychic-shot';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact' | 'meteor-fall' | 'meteor-warning' | 'meteor-fragment' | 'meteor-impact' | 'cone-slash' | 'scizor-dash' | 'scizor-impact' | 'claw-strip' | 'electro-shot' | 'electro-field' | 'electro-pulse' | 'electro-absorb' | 'flame-jet' | 'electric-punch' | 'psychic-shot' | 'vine-pull';
   magnet?:{ownerId:string;radius:number;attractionRadius:number;absorptionRadius:number;
     pullSpeed:number;pulseRaw:number;pulseCount:number;pulseIndex:number;interval:number};
   magnetPull?:{orbId:string;fromX:number;fromY:number;toX:number;toY:number;startTime:number;duration:number};
@@ -340,6 +341,7 @@ export interface GameSnapshot {
   stage: number;
   stageType: StageType;
   stageName: string;
+  augmentRarities?:Record<number,AugmentChoice['rarity']>;
   accelerated: boolean;
   observedId: string;
   players: Player[];
@@ -364,6 +366,7 @@ export type GameCommand =
   | { kind:'sandbox-start'|'sandbox-restart' }
   | { kind:'sandbox-add'; ownerId:'p0'|'p1'; family:Family; stage:number; col?:number; row?:number }
   | { kind:'sandbox-move'; unitId:string; ownerId:'p0'|'p1'; col:number; row:number }
+  | { kind:'sandbox-transfer'; unitId:string; toOwnerId:'p0'|'p1'; position:UnitPosition }
   | { kind:'sandbox-remove'; unitId:string; ownerId:'p0'|'p1' }
   | { kind:'sandbox-stage'; unitId:string; ownerId:'p0'|'p1'; stage:number }
   | { kind:'sandbox-item'; color?:ItemColor; recipe?:string }
@@ -384,5 +387,5 @@ export type GameCommand =
   | { kind: 'move-trainer'; x: number; y: number }
   | { kind: 'mime-pillar'; unitId: string; index: number; col: number; row: number };
 
-export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect'; mode?:'normal'|'sandbox' } | { type: 'watch'; playerId: string };
+export type ClientToServer = { type: 'command'; command: GameCommand } | { type: 'connect'; mode?:'normal'|'sandbox' } | { type: 'watch'; playerId: string } | { type:'pause'; paused:boolean };
 export type ServerToClient = { type: 'snapshot'; snapshot: GameSnapshot } | { type: 'rejected'; reason: string };

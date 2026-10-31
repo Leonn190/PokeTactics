@@ -20,6 +20,12 @@ const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk
 const base = import.meta.env.BASE_URL;
 const typeIcon = (type: Element, size = 18): string => `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
 const icon = itemImage;
+/** The same item slots are used for your tray and for read-only enemy trays. */
+export function itemRackSlots(items:EquippedItem[],selectedId:string|null=null,readonly=false):string {
+ const slots=items.map(item=>`<${readonly?'span':'button type="button"'} class="inventory-slot inventory-item ${selectedId===item.id?'selected':''}" ${readonly?'':'data-inventory-item="'+safe(item.id)+'"'} title="${safe(itemTooltip(item))}">${icon(item)}</${readonly?'span':'button'}>`);
+ while(slots.length<ITEMS.inventorySlots)slots.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
+ return `<div class="inventory-grid" role="group" aria-label="Itens no chão">${slots.join('')}</div>`;
+}
 function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
   const s = SPECIES[family];
   const id = s.pokedexIds[Math.min(stage, s.pokedexIds.length - 1)];
@@ -185,8 +191,7 @@ export class Hud {
       this.lastLootMessage=snapshot.lootMessageId;this.toast(snapshot.lootMessage);
     }
     const inventory=player.itemInventory||[];
-    const equippedLabel=(item:EquippedItem)=>item.recipe ? RECIPES[item.recipe]?.description||'Item completo':ITEMS.components[item.components[0]].name;
-    const cells:string[]=inventory.map(item=>`<button type="button" class="inventory-slot inventory-item ${view.inventoryItemId===item.id?'selected':''}" data-inventory-item="${item.id}" title="${safe(itemTooltip(item))}" aria-label="${safe(equippedLabel(item))}">${icon(item)}</button>`);
+    const itemGrid=itemRackSlots(inventory,view.inventoryItemId,false).replace(/(<button[^>]+data-inventory-item="sandbox:[^"]+"[^>]*>[\s\S]*?)(<\/button>)/g,'$1<span class="infinite-marker">∞</span>$2');
     const balls:string[]=[];
     for(const ball of BALLS){
       const count=player.consumables?.[ball]||0;
@@ -195,8 +200,7 @@ export class Hud {
       const files:Record<BallKind,string>={pokeball:'poke-ball',greatball:'great-ball',ultraball:'ultra-ball',masterball:'master-ball'};
       balls.push(`<button class="inventory-slot inventory-ball ${view.selectedBall===ball?'selected':''}" data-inventory-ball="${ball}" title="${safe(names[ball])}: duplique um Pokémon elegível" aria-label="${safe(names[ball])}, ${count} disponíveis"><img src="${base}pokebolas/${files[ball]}.png" alt="" draggable="false"><small>×${count}</small></button>`);
     }
-    while(cells.length<ITEMS.inventorySlots)cells.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
-    this.updateHTML('inventoryContents',`<div class="inventory-grid" role="group" aria-label="Itens no chão">${cells.join('')}</div>${balls.length?`<div class="ball-ground" role="group" aria-label="Pokébolas no chão">${balls.join('')}</div>`:''}`);
+    this.updateHTML('inventoryContents',`${itemGrid}${balls.length?`<div class="ball-ground" role="group" aria-label="Pokébolas no chão">${balls.join('')}</div>`:''}`);
     element('inventoryCounter').textContent=`${inventoryUsed(player)}/${ITEMS.inventorySlots}`;
     // Branch evolutions now resolve immediately in the authoritative engine.
     element('eeveeEvolution').classList.add('hidden');
@@ -264,7 +268,7 @@ export class Hud {
       // legacy species.range: it throws in rangeLabel and used to freeze the entire HUD.
       const stage=getStageData(offer.family,0);
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
-      return `<button class="shop-card" data-shop="${i}" data-shop-offer="${offer.id}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${stage.energy} de energia • alcance ${rangeLabel(stage.range,stage.rangeClass)} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, influence.shares)).toFixed(1)}%">
+      return `<button class="shop-card" data-shop="${i}" data-shop-offer="${offer.id}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${stage.energy} de energia • alcance ${rangeLabel(stage.range)} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, influence.shares)).toFixed(1)}%">
           <div class="shop-portrait">${portrait(offer.family, 100)}</div><div class="shop-card-footer"><span class="shop-name">${data.names[0]}</span>
           <span class="shop-type">${data.elements.map(type => typeIcon(type, 18)).join('')}</span>
           <span class="shop-cost"><i>◈</i>${offer.price}</span></div></button>`;
@@ -463,9 +467,9 @@ export class Hud {
     const hpPercent = Math.min(100, hp / maxHp * 100);
     const energyPercent = Math.min(100, energy / energyNeeded * 100);
     const refraction=combatant?.family==='staryu'&&combatant.stage===1&&combatant.refractionUntil>combatant.itemNow;
-    const stageRange=refraction ? steppedRange(stage.rangeClass,1) : stage.range;
+    const stageRange=refraction ? steppedRange(stage.rangeLevel,1) : stage.range;
     const basicRange=combatant?.range??(stageRange+(pokemon.equipment||[]).filter(item=>item.recipe==='red+red').length*numberParam('longbow','range'));
-    const rangeTitle=rangeLabel(basicRange,basicRange===stageRange ? (refraction ? 'Muito Alto' : stage.rangeClass) : undefined);
+    const rangeTitle=rangeLabel(basicRange);
     return `<div class="inspector-top">${portrait(displayFamily, 56, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · XP ${pokemon.xp} · Alcance ${rangeTitle}</div></div></div>
       <div class="inspector-resources" aria-label="Vida e energia">
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
@@ -478,7 +482,7 @@ export class Hud {
         const item=pokemon.equipment?.[index];
         return `<button class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Slot livre'}" ${owner==='VOCÊ'?'':'disabled'}>${item?icon(item):'+'}</button>`;
       }).join('')}<div class="inspector-slot inspector-basic-tile" title="Ataque regular físico (ATK) · valor bruto após atributos e equipamentos, antes da defesa do alvo"><span>⚔</span><b>${basic.value}</b></div></div><small>${owner==='VOCÊ'?'Clique para remover • arraste um item da mochila para equipar':''}</small></div>
-      <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range,stage.rangeClass)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
+      <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
       ${(displayStage<data.names.length-1||!!data.babyEvolution) ? `<div class="inspector-evolution">Evolução: ${this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.units.filter(u=>u.family===pokemon.family&&u.stage===pokemon.stage).length||1} / ${evolutionCopies(displayFamily,displayStage,!!this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.augments?.includes('P11'))} cópias</div>`:''}<div class="inspector-footer"><div class="inspector-types">${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
   }
 }

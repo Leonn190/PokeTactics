@@ -161,7 +161,7 @@ export class Configurator {
    this.tab==='items'?this.items():this.tab==='effects'?this.effects():this.tab==='synergies'?this.synergies():this.tab==='loot'?recursive('espolios.json','ESPÓLIOS E RECOMPENSAS'):
    this.tab==='rules'?recursive('regras_gerais.json','REGRAS GERAIS E ECONOMIA',Object.keys(documentOf('regras_gerais.json')).filter(k=>k!=='shopOddsByLevel')):
    this.tab==='phases'?recursive('fases.json','CAPÍTULOS, FASES E ADVERSÁRIOS')+section('ITEM INICIAL GARANTIDO',choose('fases.json',['firstBattleItem','color'],[['green','Verde'],['blue','Azul'],['purple','Roxo'],['orange','Laranja'],['yellow','Amarelo'],['red','Vermelho']])):
-   this.tab==='ranges'?recursive('alcances.json','CLASSES DE ALCANCE'):
+   this.tab==='ranges'?recursive('alcances.json','CONVERSÃO DE ALCANCE (USO INTERNO)'):
    recursive('ataques.json','ATAQUES REGULARES', ['basic'])+recursive('pokemons.json','REFERÊNCIAS GLOBAIS', ['other'])+
      recursive('regras_gerais.json','PARÂMETROS COMPLEMENTARES', ['matchmaking'])+
      recursive('renderizacao.json','RENDERIZAÇÃO E ITENS FÍSICOS',['itemWorldScale'])+
@@ -201,7 +201,7 @@ export class Configurator {
    ${section('ATRIBUTOS BÁSICOS',`<div class="cfg-fields">${stats.map(key=>field('pokemons.json',statPath(key),{hp:'VIDA',atk:'ATK',def:'DEF',spa:'SpA',spd:'SpD',speed:'VEL'}[key])).join('')}</div>`,'Valores consumidos pelo motor de combate, separados por evolução.')}
    ${section('ATAQUE REGULAR',`<div class="cfg-kv"><span>Atributo</span><strong>${safe(stage.basic?.stat||s.basic?.stat||'atk').toUpperCase()}</strong><span>Tipo de golpe</span><strong>${safe((stage.basic?.category||s.basic?.category)==='special'?'Especial':'Físico')}</strong></div><div class="cfg-fields">${fields('ataques.json',['basic'],documentOf('ataques.json').basic)}</div>`,'Parâmetros compartilhados entre as espécies.')}
    ${section('HABILIDADE · '+move.name,`<p class="cfg-context">${safe(moveId)} · Valores utilizados diretamente pelo servidor.</p>${stageMatrix}<div class="cfg-fields">${fields('ataques.json',['moves',moveId],otherMove)}</div>`,'Se outra forma usar a mesma habilidade, seus valores também serão afetados.')}
-   ${section('ENERGIA E ALCANCE',`<div class="cfg-fields">${typeof stage.energy==='number'?field('pokemons.json',['species',e.family,'stages',e.stage,'energy'],'CUSTO DE ENERGIA'):field('pokemons.json',['species',e.family,'energy'],'CUSTO DE ENERGIA')}</div><p class="cfg-context">CLASSE: ${safe(stage.rangeClass||s.rangeClass)} · Os valores efetivos são editáveis na aba Alcances.</p>`)}
+   ${section('ENERGIA E ALCANCE',`<div class="cfg-fields">${typeof stage.energy==='number'?field('pokemons.json',['species',e.family,'stages',e.stage,'energy'],'CUSTO DE ENERGIA'):field('pokemons.json',['species',e.family,'energy'],'CUSTO DE ENERGIA')}${field('pokemons.json',['species',e.family,'stages',e.stage,'rangeLevel'],'ALCANCE (1, 2, 3...)')}</div><p class="cfg-context">O número é exibido ao jogador; o motor converte automaticamente para a distância física.</p>`)}
    ${section('EVOLUÇÃO, RARIDADE E TAMANHO',`<div class="cfg-fields">
       ${e.stage<s.names.length-1?field('pokemons.json',['species',e.family,'evolutionCopies',e.stage],'CÓPIAS PARA EVOLUIR'):''}
       <label class="cfg-field"><span class="cfg-field-label">RARIDADE DA FAMÍLIA</span>${choose('pokemons.json',['species',e.family,'rarity'],rarities.map((name,i)=>[i+1,name]))}</label>

@@ -2,6 +2,7 @@ import './augments.css';
 import { AugmentView } from './augments';
 import { Arena, type ClientView } from './arena';
 import { Hud } from './hud';
+import { ObservedItemRacks } from './item-racks';
 import { Menus } from './menus';
 import { PlayerSettings } from './player-settings';
 import { SandboxView } from './sandbox';
@@ -25,8 +26,26 @@ const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, draggi
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
+const opponentItems=new ObservedItemRacks();
 const audio = new GameAudio();
 const playerSettings = new PlayerSettings(volume => audio.setVolume(volume), fps => arena.setFrameRate(fps));
+const pause=document.createElement('div');
+pause.id='gamePause';pause.className='game-pause-backdrop hidden';pause.setAttribute('role','dialog');pause.setAttribute('aria-modal','true');pause.setAttribute('aria-labelledby','gamePauseTitle');
+pause.innerHTML=`<div class="game-pause-panel"><span class="game-pause-kicker">POKÉTACTICS</span><h2 id="gamePauseTitle">MENU DE PAUSA</h2><button type="button" data-pause="resume">VOLTAR</button><button type="button" data-pause="settings">CONFIGURAÇÕES</button><button type="button" class="game-pause-leave" data-pause="leave">SAIR DA PARTIDA</button></div>`;
+document.getElementById('app')!.append(pause);
+let settingsFromPause=false;
+function showPause(visible:boolean):void {
+  pause.classList.toggle('hidden',!visible);
+  worker?.postMessage({type:'pause',paused:visible||settingsFromPause} satisfies ClientToServer);
+  if(visible)pause.querySelector<HTMLButtonElement>('[data-pause="resume"]')?.focus();
+}
+playerSettings.setOnClosed(()=>{if(settingsFromPause){settingsFromPause=false;showPause(true);}});
+pause.addEventListener('click',event=>{
+  const action=(event.target as HTMLElement).closest<HTMLButtonElement>('[data-pause]')?.dataset.pause;
+  if(action==='resume'){settingsFromPause=false;showPause(false);}
+  else if(action==='settings'){settingsFromPause=true;showPause(false);playerSettings.open();}
+  else if(action==='leave'){settingsFromPause=false;showPause(false);closeMatch();}
+});
 // Count actual drawn frames instead of displaying the selected FPS cap.
 const fpsReadout=document.getElementById('gameFpsCounter')!;
 let framesDrawn=0,windowStart=performance.now(),smoothedFps=75;
@@ -67,12 +86,12 @@ function independently(name:string,callback:()=>void):void {
   catch(error){if(!errorBoundaries.has(name))console.error(`[PokéTactics V22.6] ${name}`,error);errorBoundaries.add(name);}
 }
 function placeWorldWidgets():void {
-  independently('Posicionar itens',()=>arena.placeWorldRack(document.getElementById('itemInventory')!));
+  independently('Posicionar itens',()=>{const own=arena.ownerPlacement('p0');arena.placeWorldRack(document.getElementById('itemInventory')!,own.rack.x,own.rack.y);opponentItems.position(arena);});
   independently('Posicionar augments',()=>augments.positionStacks(arena));
 }
 
 function send(command: GameCommand): void {
-  if (!state || !worker || (view.scoutId!=='p0' && command.kind!=='augment-choose' && command.kind!=='augment-reroll') || state.phase === 'finished' || state.players[0].eliminated) return;
+  if (!state || !worker || !pause.classList.contains('hidden') || settingsFromPause || (view.scoutId!=='p0' && command.kind!=='augment-choose' && command.kind!=='augment-reroll') || state.phase === 'finished' || state.players[0].eliminated) return;
   if (command.kind === 'buy') audio.play('buy');
   worker.postMessage({ type: 'command', command } satisfies ClientToServer);
 }
@@ -83,12 +102,13 @@ function watch(playerId: string): void {
 
 function launchMatch(mode:'normal'|'sandbox'='normal'): void {
   audio.play('start');
+  settingsFromPause=false;pause.classList.add('hidden');
   worker?.terminate();
   view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
   framesDrawn=0;windowStart=performance.now();smoothedFps=75;fpsReadout.textContent='FPS: —';
   lastSnapshotSerial=-1;lastWorldLayout='';hud.reset();errorBoundaries.clear();
-  augments.reset();sandbox.reset();
+  augments.reset();sandbox.reset();opponentItems.reset();
   requestAnimationFrame(placeWorldWidgets);
   worker = new Worker(new URL('../../server/sim.worker.ts', import.meta.url), { type: 'module' });
   const currentWorker = worker;
@@ -109,6 +129,7 @@ function launchMatch(mode:'normal'|'sandbox'='normal'): void {
     independently('Relógio',()=>hud.renderClock(incoming));
     independently('Arena',()=>arena.acceptSnapshot(incoming));
     independently('Augments',()=>augments.render(incoming,arena));
+    independently('Itens de outros jogadores',()=>opponentItems.render(incoming,arena,view.scoutId));
     const layout=[incoming.phase,incoming.observedId,incoming.visibleBattle?.participants.join(',')].join(':');
     if(lastWorldLayout!==layout){lastWorldLayout=layout;placeWorldWidgets();}
   });
@@ -118,10 +139,10 @@ function launchMatch(mode:'normal'|'sandbox'='normal'): void {
 const menus = new Menus(()=>launchMatch('normal'), () => playerSettings.open(),()=>launchMatch('sandbox'));
 const sandbox=new SandboxView(command=>send(command),()=>closeMatch());
 function closeMatch():void {
-  playerSettings.close();audio.play('finish');
+  settingsFromPause=false;pause.classList.add('hidden');playerSettings.close();audio.play('finish');
   worker?.terminate();worker=null;state=null;arena.snapshot=null;arena.setActive(false);
   view.scoutId='p0';view.selectedId=null;clearDrag();clearItemDrag();view.selectedBall=null;view.inventoryItemId=null;
-  augments.reset();sandbox.reset();hud.reset();lastSnapshotSerial=-1;lastWorldLayout='';
+  augments.reset();sandbox.reset();opponentItems.reset();hud.reset();lastSnapshotSerial=-1;lastWorldLayout='';
   document.getElementById('finalBanner')!.classList.add('hidden');menus.showHome();
 }
 document.addEventListener('click', event => {
@@ -348,8 +369,14 @@ function finishDrag(event: PointerEvent): void {
     else if (target === canvas) {
       if(enemyOwner){
         const hex=arena.pickEnemyHex(event.clientX,event.clientY);
+        const own=arena.pickHex(event.clientX,event.clientY);
         if(hex)send({kind:'sandbox-move',ownerId:'p1',unitId:id,col:hex.col,row:3-hex.row});
+        else if(own)send({kind:'sandbox-transfer',unitId:id,toOwnerId:'p0',position:{area:'board',...own}});
         clearDrag();hud.render(state,view);return;
+      }
+      if(state.sandbox&&state.phase==='planning'){
+        const other=arena.pickEnemyHex(event.clientX,event.clientY);
+        if(other){send({kind:'sandbox-transfer',unitId:id,toOwnerId:'p1',position:{area:'board',col:other.col,row:3-other.row}});clearDrag();hud.render(state,view);return;}
       }
       const benchIndex = arena.pickBench(event.clientX, event.clientY);
       if (benchIndex !== null) { const position={area:'bench' as const,index:benchIndex};arena.previewMove(id,position);send({kind:'move',unitId:id,position}); }
@@ -429,17 +456,16 @@ canvas.addEventListener('wheel', event => {
   placeWorldWidgets();
 }, { passive: false });
 document.addEventListener('keydown', event => {
-  if (playerSettings.isOpen() || !state || event.repeat || state.phase === 'finished') return;
-  if ((event.target as HTMLElement).closest('input,textarea,select,[contenteditable]'))return;
+  if (!state || event.repeat || state.phase === 'finished' || playerSettings.isOpen())return;
+  if(event.key==='Escape'){
+    if(!pause.classList.contains('hidden')){event.preventDefault();showPause(false);return;}
+    if ((event.target as HTMLElement).closest('input,textarea,select,[contenteditable]') || !document.getElementById('eeveeEvolution')!.classList.contains('hidden') || !document.getElementById('settingsScreen')!.classList.contains('hidden') || document.querySelector('dialog[open]') || !!document.querySelector('.augment-overlay:not(.hidden)'))return;
+    event.preventDefault();clearDrag();clearItemDrag();showPause(true);return;
+  }
+  if(!pause.classList.contains('hidden') || (event.target as HTMLElement).closest('input,textarea,select,[contenteditable]'))return;
   if (event.key.toLowerCase() === 'd') send({ kind: 'reroll' });
   if (event.key.toLowerCase() === 'e' && view.selectedId && !view.inventoryItemId && !view.selectedBall) {
-    send({ kind: 'sell', unitId: view.selectedId });
-    view.selectedId = null;
-  }
-  if (event.key === 'Escape') {
-    if(view.inventoryItemId||view.selectedBall){view.inventoryItemId=null;view.selectedBall=null;hud.render(state,view);event.preventDefault();return;}
-    if ((event.target as HTMLElement).closest('input, textarea, select, [contenteditable]') || !document.getElementById('eeveeEvolution')!.classList.contains('hidden') || !document.getElementById('settingsScreen')!.classList.contains('hidden') || document.querySelector('dialog[open]') || !!document.querySelector('.augment-overlay:not(.hidden)'))return;
-    event.preventDefault();playerSettings.open();return;
+    send({ kind: 'sell', unitId: view.selectedId }); view.selectedId = null;
   }
 });
 

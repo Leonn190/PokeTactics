@@ -1,4 +1,4 @@
-import { AUGMENT_MAP, applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
+import { AUGMENT_MAP, applyPokemonAugments, applyEvolutionAugments, addLevels, battleExperience, chapterPayment, hasAugment, immediateAugment, interestCap, nextTrainerLevel, drawAugmentRarity, offerAugments, purchasedPokemon, rerollAugment, startedPreparation, tierParam } from './systems/augments';
 import { inventoryUsed,canReceive } from './systems/inventory';
 import { BENCH_SIZE, BOARD_COLUMNS, BOARD_ROWS, calculateStats, EEVEE_BRANCHES, LEGENDARY_FAMILIES, PHASES, RULES, ITEM_RACK_WORLD, SHOP_FAMILIES, SHOP_SIZE, SPECIES, evolutionCopies } from './data';
 import { rollFamily, evolutionByInfluence } from './shop';
@@ -52,6 +52,7 @@ export class GameEngine {
   private battles: Battle[] = [];
   private opponentId: string | null = null;
   private lastOpponentId: string | null = null;
+  private augmentRarities:Record<number,import('./systems/augments').AugmentRarity>={};
   private visualEvents: UnitVisualEvent[] = [];
   private schedules: string[][][] = [];
   private encounterCounts = new Map<string, number>();
@@ -81,6 +82,7 @@ export class GameEngine {
       this.duration=86400;this.opponentId='p1';this.lastOpponentId='p1';
       this.players[0].name='VOCÊ';this.players[1].name='EQUIPE INIMIGA';
       for(const player of this.players){player.level=6;player.gold=1_000_000;player.health=RULES.startingHealth;player.augments=[];player.augmentChoice=undefined;}
+      this.players[0].itemInventory=ITEM_COLORS.map(color=>makeComponent(`sandbox:${color}`,color));
       this.refreshShop(this.players[0]);
       this.log='Modo Teste · preparação livre';
       return;
@@ -95,10 +97,11 @@ export class GameEngine {
   }
 
   private startAugmentChapter(chapter:number):void {
+    const rarity=this.augmentRarities[chapter]??(this.augmentRarities[chapter]=drawAugmentRarity(chapter,()=>this.rng.next()));
     for(const player of this.players){
       if(player.eliminated||player.augmentChoice?.chapter===chapter)continue;
       player.currentRound=this.round;
-      player.augmentChoice=offerAugments(player,chapter,()=>this.rng.next());
+      player.augmentChoice=offerAugments(player,chapter,()=>this.rng.next(),rarity);
       if(player.id!=='p0')this.chooseAugment(player,this.rng.int(3));
     }
   }
@@ -573,6 +576,22 @@ export class GameEngine {
       this.log='Modo Teste · confronto iniciado';return null;
     }
     if(this.phase!=='planning')return 'Edite as equipes durante a preparação';
+    if(command.kind==='sandbox-transfer'){
+      const from=this.players.find(player=>player.units.some(unit=>unit.id===command.unitId));
+      const to=this.players.find(player=>player.id===command.toOwnerId);
+      if(!from||!to)return 'Pokémon não encontrado';
+      const unit=from.units.find(unit=>unit.id===command.unitId)!;
+      const position=command.position;
+      if(position.area==='board'){
+        if(!Number.isInteger(position.col)||!Number.isInteger(position.row)||position.col<0||position.row<0||position.col>=BOARD_COLUMNS||position.row>=BOARD_ROWS)return 'Hexágono inválido';
+        if(from!==to&&to.units.filter(other=>other.position.area==='board').length>=to.level)return `Limite de equipe: ${to.level}`;
+      }else if(!Number.isInteger(position.index)||position.index<0||position.index>=BENCH_SIZE)return 'Banco inválido';
+      const displaced=to.units.find(other=>other.id!==unit.id&&samePosition(other.position,position));
+      if(displaced)return 'Casa ocupada: escolha outro hexágono';
+      if(from!==to){from.units=from.units.filter(other=>other.id!==unit.id);to.units.push(unit);}
+      unit.position={...position};
+      return null;
+    }
     if(command.kind==='sandbox-item'){
       const inventory=this.players[0].itemInventory||=[];
       if(!canReceive(this.players[0],1))return 'Área de itens cheia: equipe um item antes de criar outro';
@@ -593,16 +612,18 @@ export class GameEngine {
       const unit=owner.units.find(x=>x.id===command.unitId);
       if(!item||!unit)return 'Item ou Pokémon inválido';
       const gear=unit.equipment||=[];
+      unit.equipment=gear;
+      const actualItem=this.sandbox&&item.id.startsWith('sandbox:')?makeComponent(this.id(),item.components[0]):item;
       const existing=item.kind==='component'?gear.find(x=>x.kind==='component'):undefined;
       if(existing){
-        const combined=craft(this.id(),item,existing);
+        const combined=craft(this.id(),actualItem,existing);
         if(!combined)return 'Combinação inválida';
         gear.splice(gear.indexOf(existing),1,combined);
       }else{
         if(gear.length>=ITEMS.maxSlots)return 'Máximo de equipamentos';
-        gear.push(item);
+        gear.push(actualItem);
       }
-      human.itemInventory=human.itemInventory!.filter(x=>x.id!==item.id);
+      if(!item.id.startsWith('sandbox:'))human.itemInventory=human.itemInventory!.filter(x=>x.id!==item.id);
       return null;
     }
     if(command.kind==='sandbox-equip'){
@@ -697,19 +718,20 @@ export class GameEngine {
       if (!item || !target) return 'Item ou Pokémon inválido';
       if (this.phase !== 'planning' && target.position.area === 'board') return 'Equipamentos de Pokémon em combate estão travados';
       const equipped=target.equipment ||= [];
+      const actualItem=this.sandbox&&item.id.startsWith('sandbox:')?makeComponent(this.id(),item.components[0]):item;
       const slot=command.ontoSlot;
       const already=slot!==undefined && Number.isInteger(slot) && slot>=0 && slot<equipped.length ? equipped[slot] : null;
       const component=already || (item.kind === 'component' ? equipped.find(i=>i.kind==='component') : null);
       if (item.kind === 'component' && component?.kind === 'component') {
-        const assembled=craft(this.id(),item,component);
+        const assembled=craft(this.id(),actualItem,component);
         if (!assembled) return 'Receita inválida';
         const index=equipped.findIndex(i=>i.id===component.id);
         equipped[index]=assembled;
       } else {
         if (equipped.length>=ITEMS.maxSlots) return 'Limite de dois equipamentos';
-        equipped.push(item);
+        equipped.push(actualItem);
       }
-      human.itemInventory=human.itemInventory!.filter(i=>i.id!==item.id);
+      if(!this.sandbox||!item.id.startsWith('sandbox:'))human.itemInventory=human.itemInventory!.filter(i=>i.id!==item.id);
       this.releasePendingItems(human);
       return null;
     }
@@ -718,8 +740,10 @@ export class GameEngine {
       if (!unit || !Number.isInteger(command.slot) || command.slot<0 || command.slot>=(unit.equipment?.length||0)) return 'Equipamento inválido';
       if (this.phase !== 'planning' && unit.position.area==='board') return 'Equipamentos travados durante combate';
       human.itemInventory ||= [];
-      if(!canReceive(human,1))return `Mochila cheia (${ITEMS.inventorySlots} itens)`;
-      human.itemInventory.push(unit.equipment!.splice(command.slot,1)[0]);
+      const unequipped=unit.equipment![command.slot];
+      if(!(this.sandbox&&unequipped.kind==='component')&&!canReceive(human,1))return `Mochila cheia (${ITEMS.inventorySlots} itens)`;
+      unit.equipment!.splice(command.slot,1);
+      if(!(this.sandbox&&unequipped.kind==='component'))human.itemInventory.push(unequipped);
       return null;
     }
     if (command.kind === 'use-ball') {
@@ -1067,11 +1091,12 @@ export class GameEngine {
       stage: ((this.round - 1) % PHASES.stagesPerChapter) + 1,
       stageType: currentStage(this.round).type,
       stageName: currentStage(this.round).name,
+      augmentRarities:{...this.augmentRarities},
       accelerated: this.phase === 'combat' && this.clock >= roundTimers(this.round).combatSeconds,
       observedId: watched,
       players: this.players.map(p => ({
         ...p, units: p.units, // postMessage immediately structured-clones this ephemeral view
-        itemInventory:p.id==='p0' ? (p.itemInventory||[]) : [],
+        itemInventory:p.itemInventory||[],
         consumables:p.id==='p0' ? p.consumables as NonNullable<Player['consumables']> : {pokeball:0,greatball:0,ultraball:0,masterball:0},
         shop: p.id === 'p0' ? p.shop : []
       })),

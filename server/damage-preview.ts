@@ -23,6 +23,7 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
   const special = (label: string, value: number) => entry(label, value, 'special');
   switch (move.effect) {
     case 'psychic-teleport':return stage===0?[]:[special(`DANO POR DISPARO × ${move.shotCountByStage?.[stage]||0}`,move.baseDamage+s*move.specialRatio)];
+    case 'absorbing-vine':return [special('DANO AO CONECTAR',(move.damageByStage?.[stage]??move.baseDamage)+s*move.specialRatio),entry('CURA AO EXECUTAR',stats.hp*(move.executeHealRatio??.10),'heal')];
     case 'flame-jet':return [special('DANO POR INSTÂNCIA',move.baseDamage+s*move.specialRatio)];
     case 'electric-punch':return [special('PANCADA NO ALVO',move.baseDamage+s*move.specialRatio),special('DANO ADJACENTE', (move.baseDamage+s*move.specialRatio)*(move.secondaryRatioByStage?.[stage]||0))];
     case 'flame-orbit': return [special('DANO ESPECIAL POR CONTATO',move.baseDamage+s*move.specialRatio)];

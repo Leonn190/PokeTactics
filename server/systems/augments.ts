@@ -21,16 +21,20 @@ const applicable=(id:string,chapter:number):boolean => {
   return !!v&&(v==='all'||v==='C1'&&chapter===1||v==='C2'&&chapter===2||v==='C3+'&&chapter>=3);
 };
 /** Select three distinct, currently legal cards; each choice has exactly one tier. */
-export function offerAugments(player:Player,chapter:number,random:()=>number):AugmentChoice {
+/** A single rarity draw belongs to the chapter, not to each player. */
+export function drawAugmentRarity(chapter:number,random:()=>number):AugmentRarity {
  const weights=config.chapterRarityWeights[String(chapter) as '1'|'2']||config.chapterRarityWeights['3+'];
- const groups=Object.entries(weights).map(([rarity,weight])=>({rarity:rarity as AugmentRarity,weight,
-   pool:AUGMENTS.filter(a=>a.rarity===rarity&&applicable(a.id,chapter)&&!hasAugment(player,a.id))})).filter(x=>x.pool.length>=3);
- if(!groups.length)throw Error(`Sem três augments elegíveis para capítulo ${chapter}`);
- let draw=random()*groups.reduce((sum,group)=>sum+group.weight,0);
- const chosen=groups.find(group=>(draw-=group.weight)<0)||groups[groups.length-1];
- const pool=[...chosen.pool];
- const offers=Array.from({length:3},()=>pool.splice(Math.floor(random()*pool.length),1)[0].id);
- return {chapter,rarity:chosen.rarity as AugmentRarity,offers,rerolled:[false,false,false],status:'pending'};
+ const groups=Object.entries(weights).filter(([rarity,weight])=>weight>0 && AUGMENTS.filter(a=>a.rarity===rarity&&applicable(a.id,chapter)).length>=3);
+ if(!groups.length)throw Error(`Sem augments elegíveis para capítulo ${chapter}`);
+ let draw=random()*groups.reduce((sum,[,weight])=>sum+weight,0);
+ return (groups.find(([,weight])=>(draw-=weight)<0)||groups[groups.length-1])[0] as AugmentRarity;
+}
+export function offerAugments(player:Player,chapter:number,random:()=>number,rarity:AugmentRarity):AugmentChoice {
+ const pool=AUGMENTS.filter(a=>a.rarity===rarity&&applicable(a.id,chapter)&&!hasAugment(player,a.id));
+ if(pool.length<3)throw Error(`Sem três augments ${rarity} elegíveis para capítulo ${chapter}`);
+ const remaining=[...pool];
+ const offers=Array.from({length:3},()=>remaining.splice(Math.floor(random()*remaining.length),1)[0].id);
+ return {chapter,rarity,offers,rerolled:[false,false,false],status:'pending'};
 }
 export function rerollAugment(choice:AugmentChoice,player:Player,slot:number,random:()=>number):string|null {
  if(choice.status!=='pending'||!Number.isInteger(slot)||slot<0||slot>2||choice.rerolled[slot])return 'Reroll indisponível';

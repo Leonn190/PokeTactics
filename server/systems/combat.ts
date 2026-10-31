@@ -811,7 +811,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if(mode==='normal'&&actual>0&&target.persianPursuit&&target.hp>0&&source.playerId!==target.playerId){
     const cfg=ATTACKS.moves['claw-strip'];const stage=getStageData(source.family,source.stage);
     // A real, nearby strike from a short-range combatant, never DoT/reflection or a ranged shot.
-    if(stage.rangeClass==='Curto'&&!stage.basic.projectile&&distance(source,target)<=(cfg.interruptRange!)){
+    if(stage.rangeLevel===1&&!stage.basic.projectile&&distance(source,target)<=(cfg.interruptRange!)){
       target.persianPursuit=undefined;target.preferredTargetId=source.id;
       claw(battle,target,source);
     }
@@ -1156,6 +1156,19 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   if(move.effect==='terrain-poison-shot' && target){
     animate(source,'Shoot',.43);
     projectile(battle,source,target,'poison',move.baseDamage+s*move.specialRatio,true,true,1,undefined,source,moveId,'poison','terrain-poison');
+    return;
+  }
+  if(move.effect==='absorbing-vine'){
+    // Pick a random eligible foe from within both the actual range and rope length.
+    const available=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u)
+      &&distance(source,u)<=Math.min(source.range,move.maxDistance??2));
+    if(!available.length)return;
+    // Uses battle seed and caster hit serial for deterministic target choice.
+    const n=(battle.seed ^ Math.imul(++source.hitSerial,0x9e3779b9))>>>0;
+    const victim=available[n%available.length];
+    source.vine={targetId:victim.id,attachedAt:battle.elapsed};
+    deal(battle,source,victim,(move.damageByStage?.[source.stage]??move.baseDamage)+stat(source,'spa')*move.specialRatio,true,true,'grass');
+    animate(source,stage.chargedAnimation,.50);
     return;
   }
   if(move.effect==='sludge-absorb' && target){
@@ -2113,6 +2126,30 @@ function tickAbsorb(battle:Battle,source:CombatUnit):void {
   releaseAbsorb(battle,source);
  }
 }
+/** Persistent vine. Checks total HP after any source of damage, not only the caster's. */
+function tickVine(battle:Battle,source:CombatUnit):void {
+ const link=source.vine;
+ if(!link)return;
+ const target=battle.units.find(u=>u.id===link.targetId);
+ const move=ATTACKS.moves['absorbing-vine'];
+ if(!target||!isTargetable(target)||source.hp<=0||battle.resolved||
+    distance(source,target)>(move.maxDistance??2)){
+   source.vine=undefined;return;
+ }
+ if(target.hp>0 && target.hp/Math.max(1,target.maxHp)<(move.executeThreshold??.06)){
+   const lost=target.hp;
+   // Use the normal death hooks and metric flow; death triggers only once.
+   target.hp=0;target.metrics.taken+=lost;
+   source.metrics.dealt+=lost;source.metrics.specialDealt+=lost;
+   floatingDamage(battle,target,lost,'special');
+   poisonousHealth(battle,target,stat(target,'spa'));
+   if(!onSynergyDeath(battle,source,target,{deal,heal,effect,stat}))knockout(battle,source,target,lost);
+   heal(battle,source,source.maxHp*(move.executeHealRatio??.10),source);
+   // The target's dying position is visualized as the pull endpoint in the same frame.
+   effect(battle,source,target,'vine-pull',lost);
+   source.vine=undefined;
+ }
+}
 export function tickBattle(battle: Battle, dt: number): void {
   if (battle.resolved) { tickOutcome(battle, dt); return; }
   battle.elapsed += dt;
@@ -2137,6 +2174,7 @@ export function tickBattle(battle: Battle, dt: number): void {
   }}
   tickTerrain(battle,(source,target,raw)=>{deal(battle,source,target,raw,true,true,'poison','dot');});
   for(const unit of battle.units)if(unit.absorb)tickAbsorb(battle,unit);
+  for(const unit of battle.units)if(unit.vine)tickVine(battle,unit);
   summonPreparedPillars(battle,deal);
   expireObstacles(battle);
   tickSynergies(battle,dt,{deal,heal,effect,stat});

@@ -1036,6 +1036,23 @@
       "absorbDamageReduction": 0.15,
       "executeThreshold": 0.1,
       "executeHealRatio": 0.2
+    },
+    "absorbing-vine": {
+      "name": "Cipó Absorvente",
+      "effect": "absorbing-vine",
+      "baseDamage": 10,
+      "specialRatio": 0.22,
+      "damageByStage": [
+        10,
+        16
+      ],
+      "executeThreshold": 0.06,
+      "executeHealRatio": 0.1,
+      "maxDistance": 2,
+      "healByStage": [
+        0,
+        0
+      ]
     }
   }
 }

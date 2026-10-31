@@ -4,6 +4,7 @@ import { RENDER_SETTINGS } from './data';
 import type { ClientToServer, ServerToClient } from './types';
 
 let game:GameEngine|null=null;
+let paused=false;
 let watchedPlayer = 'p0';
 const send = (message: ServerToClient) => self.postMessage(message);
 const publish = () => {if(game)send({type:'snapshot',snapshot:game.snapshot(watchedPlayer)});};
@@ -19,7 +20,8 @@ let tickErrorReported=false;
 
 self.addEventListener('message', (event: MessageEvent<ClientToServer>) => {
   try {
-    if (event.data.type === 'connect') {game=new GameEngine(Date.now(),event.data.mode==='sandbox');watchedPlayer='p0';}
+    if (event.data.type === 'connect') {game=new GameEngine(Date.now(),event.data.mode==='sandbox');watchedPlayer='p0';paused=false;accumulatedMs=0;previousTime=performance.now();}
+    if(event.data.type==='pause'){paused=event.data.paused;accumulatedMs=0;previousTime=performance.now();}
     if (!game)return;
     if (event.data.type === 'watch') {
       const playerId = event.data.playerId;
@@ -40,6 +42,7 @@ setInterval(() => {
   const now = performance.now();
   const elapsedMs = Math.max(0, Math.min(250, now - previousTime));
   previousTime = now;
+  if(paused){accumulatedMs=0;return;}
   accumulatedMs += elapsedMs;
   let steps = 0;
   try {
