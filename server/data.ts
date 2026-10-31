@@ -111,8 +111,15 @@ export function rangeValue(level:number):number {return effectiveRange(level);}
 export function steppedRange(level:number,steps:number):number {return effectiveRange(Math.max(1,level+steps));}
 export function rangeLabel(value:number):string {
  if(!Number.isFinite(value))return '1';
+ const last=RANGES.length-1;
+ if(last>0 && value>=RANGES[last].value){
+  const spacing=RANGES[last].value-RANGES[last-1].value;
+  const extra=spacing>0?Math.max(0,Math.round((value-RANGES[last].value)/spacing)):0;
+  if(extra>0)return String(RANGES.length+extra);
+ }
  let best=0;
- for(let i=1;i<RANGES.length;i++)if(Math.abs(RANGES[i].value-value)<Math.abs(RANGES[best].value-value))best=i;
+ // Exact midpoints favor the higher level, matching the former integer labels.
+ for(let i=1;i<RANGES.length;i++)if(Math.abs(RANGES[i].value-value)<=Math.abs(RANGES[best].value-value))best=i;
  return RANGES[best]?.name || '1';
 }
 export const RULES = rulesConfig;
