@@ -75,3 +75,66 @@ export function countClosestThreats(battle: Battle, source: CombatUnit, limit: n
   }
   return Math.min(limit,count);
 }
+
+
+/** TFT-style sticky focus. Retarget if the victim dies, if another enemy is
+ * already attackable after it leaves range, or after chasing one hex.
+ * Blocked melee units can abandon an inaccessible victim after a short delay.
+ * Decisions use battle time and stable unit order, never animation frames. */
+export function selectCombatTarget(
+ battle:Battle,source:CombatUnit,
+ inRange:(enemy:CombatUnit)=>boolean,
+ eligible:(enemy:CombatUnit)=>boolean
+):CombatUnit|null {
+ const candidates=battle.units.filter(enemy=>enemy.playerId!==source.playerId&&eligible(enemy));
+ if(!candidates.length){
+  source.combatTargetId=undefined;
+  source.basicTargetWasInRange=false;
+  source.chaseOriginX=undefined;source.chaseOriginY=undefined;
+  return null;
+ }
+ const closest=(units:CombatUnit[])=>units.reduce((best,unit)=>{
+  if(!best)return unit;
+  const d=(unit.x-source.x)**2+(unit.y-source.y)**2;
+  const b=(best.x-source.x)**2+(best.y-source.y)**2;
+  return d<b?unit:best;
+ },null as CombatUnit|null);
+ const inRangeEnemies=candidates.filter(inRange);
+ let target=candidates.find(enemy=>enemy.id===source.combatTargetId) || null;
+ if(!target){
+  target=closest(inRangeEnemies) || closest(candidates);
+  source.basicTargetWasInRange=false;
+  source.chaseOriginX=undefined;source.chaseOriginY=undefined;
+ }
+ if(!target)return null;
+ // Prefer an enemy already hittable instead of walking past it to chase a distant one.
+ if(!inRange(target) && inRangeEnemies.length)target=closest(inRangeEnemies)||target;
+ if(!inRange(target)){
+  if(source.basicTargetWasInRange){
+   // Do not chase a fleeing victim when a different enemy is already hittable.
+   target=closest(inRangeEnemies)||target;
+   source.chaseOriginX=source.x;source.chaseOriginY=source.y;
+  }else if(source.chaseOriginX!==undefined && source.chaseOriginY!==undefined &&
+      Math.hypot(source.x-source.chaseOriginX,source.y-source.chaseOriginY)>=1.04){
+   target=closest(inRangeEnemies)||closest(candidates)||target;
+   source.chaseOriginX=source.x;source.chaseOriginY=source.y;
+  }
+  if((source.navBlockedFor||0)>=.8 && candidates.length>1){
+   const alternate=closest(inRangeEnemies.filter(other=>other!==target))
+     ||closest(candidates.filter(other=>other!==target));
+   if(alternate)target=alternate;
+  }
+ }
+ if(target.id!==source.combatTargetId){
+  source.obstacleRoute=undefined;
+  source.navBlockedFor=0;
+  source.chaseOriginX=undefined;source.chaseOriginY=undefined;
+ }
+ source.combatTargetId=target.id;
+ source.basicTargetWasInRange=inRange(target);
+ if(source.basicTargetWasInRange){
+  source.chaseOriginX=undefined;source.chaseOriginY=undefined;
+  source.navBlockedFor=0;
+ }
+ return target;
+}

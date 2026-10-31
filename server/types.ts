@@ -173,6 +173,12 @@ export interface CombatUnit {
   attackSpeedDebuffUntil: number;
   dig: DigState | null;
   preferredTargetId?:string;
+  /** Sticky regular-attack target and one-hex chase memory (simulation only). */
+  combatTargetId?:string;
+  basicTargetWasInRange?:boolean;
+  chaseOriginX?:number;
+  chaseOriginY?:number;
+  navBlockedFor?:number;
   persianPursuit?: {targetId:string; elapsed:number; stuck:number};
   babyFlee?: boolean;
   flameJet?: { remaining:number; accumulator:number; visualClock:number; dx:number; dy:number; duration:number; };

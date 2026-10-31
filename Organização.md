@@ -158,3 +158,12 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 - **Assets:** a família nova usa dex 63/64/65. Quando não há metadados PMD locais, o renderizador existente usa PNG canônico como fallback. Preservar `public/`.
 
 **Revisão funcional indicada:** reroll/compra imediata, loja travada, itens e Pokébolas, drop inválido, múltiplas fusões, empates de influência, teleporte e tiros angulados. Não adicionar suites nem pastas de testes.
+
+## V23.6 — combate com navegação tática
+
+- **Alcance numérico:** o valor efetivo é lido de config/alcances.json por server/data.ts#effectiveRange. O valor exibido continua sendo o nível inteiro. server/combat/basic-range.ts acrescenta somente a folga necessária para os corpos se tocarem (soma dos raios físicos e tolerância pequena), sem reabrir a antiga distância corpo a corpo fixa de 1.055.
+- **Foco de alvo:** server/combat/targeting.ts#selectCombatTarget conserva o alvo entre ticks; quando ele sai do alcance, prioriza outro já atacável e limita a perseguição antes de reavaliar. Unidades que ficam sem progresso podem trocar o alvo. Preferências específicas de habilidade (Meowth/Diglett) continuam no combate.
+- **Caminho:** server/combat/obstacles.ts#routeAround reutiliza a malha 7×8 (e a conexão das duas arenas na luta quádrupla), busca do caminho de menor custo por Dijkstra, obstáculos e ocupação temporária das unidades. Ele não tenta caminhar até o centro ocupado do alvo. A rota é invalidada por geometria alterada, deslocamento do alvo, passagem de tempo ou ocupação do próximo ponto.
+- **Deslocamento:** server/systems/combat.ts#walkStep interpola a posição física pelos waypoints de hexágonos e, ao alcançar o último hex, termina a aproximação até a distância de contato. clearStep e resolveBodies ainda impedem sobreposições; a seleção de caminho não modifica cooldown, dano, snapshots ou tempo lógico.
+- **Exceções:** Surf, investida, salto, teleporte, voo, medo, fuga baby, perseguição específica de Persian e outras habilidades com locomoção própria permanecem nos handlers existentes. Novas regras de movimentação regular não devem substituir esses estados.
+- **Validação esperada:** conferir duelos alcance 1 (pequeno/pequeno e grande/grande), ranged 2+, obstáculos de Mr. Mime, aglomeração, arena quádrupla e troca de alvo por morte/fora de alcance. Rodar npm run validate:config, npm run check e npm run build; nenhum arquivo de testes é adicionado.

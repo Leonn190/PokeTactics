@@ -95,45 +95,113 @@ export function summonPreparedPillars(battle:Battle,deal:(battle:Battle,source:C
  }
  if(battle.obstacles.length)battle.obstacleVersion=(battle.obstacleVersion||0)+1;
 }
-/** Small deterministic hex A*. Consulted only when a physical obstacle blocks engagement.
- * Replan on geometry version, changing target position, or after 0.55 logical seconds. */
-export function routeAround(battle:Battle,unit:CombatUnit,target:CombatUnit):{x:number;y:number}|null {
+/** Route ordinary walking through the existing hex board (7x8, or two boards
+ * linked across the centre for four-player fights). Units occupy cells logically
+ * during planning, but their physical X/Y is interpolated towards waypoints.
+ * This is intentionally NOT used by dashes, Surf, flight, fear or teleporting. */
+export function routeAround(battle:Battle,unit:CombatUnit,target:CombatUnit,reach=unit.range):{x:number;y:number}|null {
+ const radius=collisionRadius(unit.family,unit.stage);
+ const solid=(other:CombatUnit)=>other.hp>0 && !other.ghost && !other.dig && !other.charge &&
+   !other.leap && !other.fear && !other.hitmonAction &&
+   !(other.synergy?.flight || (other.synergy?.intangibleUntil && other.synergy.intangibleUntil>battle.elapsed));
+ const bodies=battle.units.filter(other=>other!==unit&&solid(other));
+ const occupied=(x:number,y:number)=>bodies.some(other=>
+   (other.x-x)**2+(other.y-y)**2<(Math.max(.48,radius+collisionRadius(other.family,other.stage)+.08))**2);
  const cached=unit.obstacleRoute;
- if(cached&&cached.version===(battle.obstacleVersion||0)&&cached.targetId===target.id
-   && Math.hypot(cached.targetX-target.x,cached.targetY-target.y)<.6&&cached.expires>battle.elapsed){
-  while(cached.points.length&&Math.hypot(cached.points[0].x-unit.x,cached.points[0].y-unit.y)<.15)cached.points.shift();
-  if(cached.points[0])return cached.points[0];
+ if(cached && cached.version===(battle.obstacleVersion||0) && cached.targetId===target.id &&
+   Math.hypot(cached.targetX-target.x,cached.targetY-target.y)<.38 && cached.expires>battle.elapsed){
+  while(cached.points.length && Math.hypot(cached.points[0].x-unit.x,cached.points[0].y-unit.y)<.17)cached.points.shift();
+  if(!cached.points.length)return null;
+  if(!occupied(cached.points[0].x,cached.points[0].y))return cached.points[0];
  }
- const nodes:Array<{x:number;y:number;col:number;row:number}>=[];
- const offsets=battle.participants.length>2?[-4.35,4.35]:[0];
- for(const offset of offsets)for(let row=0;row<8;row++)for(let col=0;col<7;col++){
-  const q=gridXY(col,row),x=q.x+offset,y=q.y;
-  if(firstObstacle(battle,unit.playerId,x,y,x,y,collisionRadius(unit.family,unit.stage)*.7))continue;
-  nodes.push({x,y,row,col});
+ const multi=battle.participants.length>2;
+ const count=multi?2:1;
+ const nodes:Array<{x:number;y:number;row:number;col:number;board:number}>=[];
+ for(let board=0;board<count;board++)for(let row=0;row<8;row++)for(let col=0;col<7;col++){
+  const p=gridXY(col,row);
+  nodes.push({x:p.x+(multi?(board===0?-4.35:4.35):0),y:p.y,row,col,board});
  }
- if(!nodes.length)return null;
- const start=nodes.reduce((best,node,i)=>dist2(node.x,node.y,unit.x,unit.y)<dist2(nodes[best].x,nodes[best].y,unit.x,unit.y)?i:best,0);
- const goals=nodes.map((node,i)=>({i,dist:Math.hypot(node.x-target.x,node.y-target.y)}))
-   .filter(o=>o.dist<=Math.max(.7,unit.range+.34)&&!firstObstacle(battle,unit.playerId,nodes[o.i].x,nodes[o.i].y,target.x,target.y))
-   .sort((a,b)=>a.dist-b.dist||a.i-b.i);
- const goal=goals[0]?.i??nodes.reduce((best,node,i)=>dist2(node.x,node.y,target.x,target.y)<dist2(nodes[best].x,nodes[best].y,target.x,target.y)?i:best,0);
- const open=[start], g=new Array(nodes.length).fill(Infinity), prev=new Array(nodes.length).fill(-1),closed=new Set<number>();g[start]=0;
- while(open.length){
-  open.sort((a,b)=>(g[a]+Math.hypot(nodes[a].x-nodes[goal].x,nodes[a].y-nodes[goal].y))-(g[b]+Math.hypot(nodes[b].x-nodes[goal].x,nodes[b].y-nodes[goal].y))||a-b);
-  const i=open.shift()!;if(i===goal)break;if(closed.has(i))continue;closed.add(i);
-  const here=nodes[i];
-  for(let j=0;j<nodes.length;j++){
-   if(i===j||closed.has(j))continue;
-   const there=nodes[j], d=Math.hypot(there.x-here.x,there.y-here.y);
-   if(d<.35||d>1.2||firstObstacle(battle,unit.playerId,here.x,here.y,there.x,there.y,.13))continue;
-   const score=g[i]+d;
-   if(score+1e-8>=g[j])continue;g[j]=score;prev[j]=i;if(!open.includes(j))open.push(j);
+ const blocked=nodes.map(p=>occupied(p.x,p.y) ||
+   firstObstacle(battle,unit.playerId,p.x,p.y,p.x,p.y,radius*.75)!==null);
+ const nearest=(x:number,y:number)=>nodes.reduce((best,p,i)=>
+   dist2(x,y,p.x,p.y)<dist2(x,y,nodes[best].x,nodes[best].y)?i:best,0);
+ const start=nearest(unit.x,unit.y);
+ blocked[start]=false;
+ const edge=(board:number,row:number,col:number)=>board*56+row*7+col;
+ const best=Array(nodes.length).fill(Infinity) as number[];
+ const previous=Array(nodes.length).fill(-1) as number[];
+ const visited=Array(nodes.length).fill(false) as boolean[];
+ best[start]=0;
+ // Small fixed board: Dijkstra finds an accessible *attack position*, not the
+ // enemy's occupied centre. Fixed neighbour order makes replay deterministic.
+ for(let step=0;step<nodes.length;step++){
+  let current=-1;
+  for(let i=0;i<nodes.length;i++){
+   if(visited[i]||!Number.isFinite(best[i]))continue;
+   if(current<0||best[i]<best[current])current=i;
+  }
+  if(current<0)break;
+  visited[current]=true;
+  const here=nodes[current];
+  const c=here.col,r=here.row,b=here.board;
+  const neighbors:number[]=[];
+  if(c>0)neighbors.push(edge(b,r,c-1));
+  if(c<6)neighbors.push(edge(b,r,c+1));
+  for(const nextRow of [r-1,r+1])if(nextRow>=0&&nextRow<8){
+   const diagonal=r%2===0?c-1:c+1;
+   neighbors.push(edge(b,nextRow,c));
+   if(diagonal>=0&&diagonal<7)neighbors.push(edge(b,nextRow,diagonal));
+  }
+  if(multi && b===0 && c===6)neighbors.push(edge(1,r,0));
+  if(multi && b===1 && c===0)neighbors.push(edge(0,r,6));
+  for(const next of neighbors){
+   if(blocked[next]||visited[next])continue;
+   const p=nodes[next];
+   if(firstObstacle(battle,unit.playerId,here.x,here.y,p.x,p.y,radius*.72))continue;
+   const cost=best[current]+Math.hypot(p.x-here.x,p.y-here.y);
+   if(cost+1e-8<best[next]){best[next]=cost;previous[next]=current;}
   }
  }
- if(start!==goal&&prev[goal]<0)return null;
- const path:number[]=[];let i=goal;
- while(i!==start&&i>=0&&path.length<nodes.length){path.unshift(i);i=prev[i];}
- const waypoints=path.map(i=>({x:nodes[i].x,y:nodes[i].y}));
- unit.obstacleRoute={version:battle.obstacleVersion||0,targetId:target.id,targetX:target.x,targetY:target.y,points:waypoints,expires:battle.elapsed+.55};
- return waypoints[0]||null;
+ const blockedCorridor=(from:{x:number;y:number})=>{
+  if(firstObstacle(battle,unit.playerId,from.x,from.y,target.x,target.y,radius*.65))return true;
+  const dx=target.x-from.x,dy=target.y-from.y,len=dx*dx+dy*dy;
+  return bodies.some(other=>{
+   if(other===target||len<1e-8)return false;
+   const t=Math.max(0,Math.min(1,((other.x-from.x)*dx+(other.y-from.y)*dy)/len));
+   if(t<=.02||t>=.98)return false;
+   const x=from.x+t*dx,y=from.y+t*dy;
+   return dist2(x,y,other.x,other.y)<(radius+collisionRadius(other.family,other.stage)+.02)**2;
+  });
+ };
+ let goal=-1,score=Infinity;
+ const permitted=Math.max(.1,reach)+.55;
+ for(let i=0;i<nodes.length;i++){
+  if(!Number.isFinite(best[i])||blocked[i])continue;
+  const d=Math.hypot(nodes[i].x-target.x,nodes[i].y-target.y);
+  if(d>permitted||blockedCorridor(nodes[i]))continue;
+  const cost=best[i]+Math.max(0,d-reach)*3.5+d*.04;
+  if(cost<score-1e-8){goal=i;score=cost;}
+ }
+ // If every ideal attack cell is occupied, move towards the closest reachable
+ // staging cell; never run A* into the target or push through another Pokémon.
+ if(goal<0)for(let i=0;i<nodes.length;i++){
+  if(!Number.isFinite(best[i])||blocked[i])continue;
+  const d=Math.hypot(nodes[i].x-target.x,nodes[i].y-target.y);
+  const cost=best[i]+Math.max(0,d-reach)*3.5;
+  if(cost<score-1e-8){goal=i;score=cost;}
+ }
+ const points:Array<{x:number;y:number}>=[];
+ if(goal>=0){
+  let current=goal;
+  while(current!==start && current>=0 && points.length<nodes.length){
+   points.unshift({x:nodes[current].x,y:nodes[current].y});
+   current=previous[current];
+  }
+  if(current!==start)points.length=0;
+ }
+ unit.obstacleRoute={
+  version:battle.obstacleVersion||0,targetId:target.id,targetX:target.x,targetY:target.y,
+  points,expires:battle.elapsed+.40
+ };
+ return points[0]||null;
 }

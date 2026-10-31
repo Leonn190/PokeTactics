@@ -5,7 +5,7 @@ import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gri
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
-import { distance, closestTwo, bestEnemyCluster, bestEggCenter, woundedAllies, countClosestThreats } from '../combat/targeting';
+import { distance, closestTwo, bestEnemyCluster, bestEggCenter, woundedAllies, countClosestThreats, selectCombatTarget } from '../combat/targeting';
 import { effect, floatingDamage } from '../combat/effects';
 import { heal } from '../combat/healing';
 import { trainerSpot } from '../combat/trainer-position';
@@ -25,6 +25,22 @@ export { trainerSpot } from '../combat/trainer-position';
 const baby = (unit: CombatUnit): boolean => !!SPECIES[unit.family].babyEvolution;
 const fleeing = (unit: CombatUnit): boolean => baby(unit) && unit.hp>0 && unit.hp < unit.maxHp * RULES.baby.fleeHpFraction;
 const movementSpeed = (unit: CombatUnit):number => RULES.movement.unitsPerSecond * (baby(unit)?RULES.baby.moveSpeedMultiplier:1) * (unit.slow?.65:1);
+/** A physical interpolation step towards a hex waypoint (or the final contact).
+ * Refuses colliding/boundary-crossing movement; pathfinding chooses a different cell. */
+function walkStep(
+ battle:Battle,unit:CombatUnit,point:{x:number;y:number},dt:number,
+ bounds:{minX:number;maxX:number;minY:number;maxY:number},stopDistance=0
+):boolean {
+ const dx=point.x-unit.x,dy=point.y-unit.y,len=Math.hypot(dx,dy);
+ if(len<=stopDistance+.001)return false;
+ const travel=Math.min(dt*movementSpeed(unit),len-stopDistance);
+ if(travel<=.001)return false;
+ const x=unit.x+dx/len*travel,y=unit.y+dy/len*travel;
+ if(x<bounds.minX||x>bounds.maxX||y<bounds.minY||y>bounds.maxY)return false;
+ if(!clearStep(battle,unit,x,y))return false;
+ unit.x=x;unit.y=y;
+ return true;
+}
 const moveIdOf = (unit: CombatUnit): string => unit.bossMove || (unit.family==='tyrogue' ? (unit.metrics.casts%2===0?'hitmonchan-uppercut':'hitmonlee-spin-kick') : getStageData(unit.family, unit.stage).move);
 const combatCooldown = (unit: CombatUnit, now: number): number =>
   attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
@@ -2362,13 +2378,10 @@ export function tickBattle(battle: Battle, dt: number): void {
       unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);
       continue;
     }
-    let target: CombatUnit | null = null;
-    let distanceSq = Infinity;
-    for (const enemy of battle.units) {
-      if (enemy.playerId === unit.playerId || !isTargetable(enemy)) continue;
-      const squared = (enemy.x - unit.x) ** 2 + (enemy.y - unit.y) ** 2;
-      if (squared < distanceSq) { target = enemy; distanceSq = squared; }
-    }
+    // Target focus persists across ticks; nearby motion alone is not a reason to switch.
+    let target=selectCombatTarget(battle,unit,
+      enemy=>basicInRange(unit,enemy,battle.elapsed),isTargetable);
+    let distanceSq=target?(target.x-unit.x)**2+(target.y-unit.y)**2:Infinity;
     if(unit.family==='meowth'&&unit.preferredTargetId){
       const preferred=battle.units.find(u=>u.id===unit.preferredTargetId&&isTargetable(u));
       if(preferred){target=preferred;distanceSq=(target.x-unit.x)**2+(target.y-unit.y)**2;}
@@ -2408,31 +2421,27 @@ export function tickBattle(battle: Battle, dt: number): void {
     const obstruction=firstObstacle(battle,unit.playerId,unit.x,unit.y,target.x,target.y);
     if (!basicInRange(unit,target,battle.elapsed) || obstruction) {
       const reach=basicApproachDistance(unit,target,battle.elapsed);
-      let travel=Math.min(Math.max(0,d-reach),dt*movementSpeed(unit));
       const bounds=arenaBoundary(battle);
-      const waypoint=obstruction ? routeAround(battle,unit,target) : null;
-      const moveTarget=waypoint||target;
-      const movingDistance=Math.hypot(moveTarget.x-unit.x,moveTarget.y-unit.y)||.001;
-      if(waypoint)travel=Math.min(dt*movementSpeed(unit),movingDistance);
-      const dx=(moveTarget.x-unit.x)/movingDistance,dy=(moveTarget.y-unit.y)/movingDistance;
-      // Local steering around nearby units; never move into another body.
-      // Stable order + deterministic angles keeps replays identical across clients.
-      let next:{x:number;y:number}|null=null;
-      for(const angle of [0,.45,-.45,.9,-.9,1.35,-1.35]){
-        const vx=dx*Math.cos(angle)-dy*Math.sin(angle);
-        const vy=dx*Math.sin(angle)+dy*Math.cos(angle);
-        const nx=unit.x+vx*travel,ny=unit.y+vy*travel;
-        if(nx<bounds.minX||nx>bounds.maxX||ny<bounds.minY||ny>bounds.maxY)continue;
-        if(!clearStep(battle,unit,nx,ny))continue;
-        next={x:nx,y:ny};break;
+      // Long approaches follow the hex grid; the final fraction of a cell
+      // closes the gap to physical contact instead of attacking from 1.055 away.
+      const planned=!!obstruction || d>reach+.30 || !!unit.obstacleRoute?.points.length;
+      const waypoint=planned?routeAround(battle,unit,target,reach):null;
+      unit.moving=waypoint
+        ?walkStep(battle,unit,waypoint,dt,bounds)
+        :!obstruction&&walkStep(battle,unit,target,dt,bounds,reach);
+      if(!unit.moving && !planned){
+        // A body has entered the direct lane: find another hex, not a random angle.
+        const detour=routeAround(battle,unit,target,reach);
+        if(detour)unit.moving=walkStep(battle,unit,detour,dt,bounds);
       }
-      if(next){unit.x=next.x;unit.y=next.y;}
-      unit.moving=!!next&&travel>.001;
+      if(!unit.moving && waypoint)unit.obstacleRoute=undefined;
+      unit.navBlockedFor=unit.moving?0:(unit.navBlockedFor||0)+dt;
       if(unit.family==='diglett'){
         if(unit.moving)unit.wasMoving=true;else emergeAfterWalk(battle,unit);
       }
       continue;
     }
+    unit.navBlockedFor=0;
     if(unit.family==='diglett'&&unit.wasMoving){emergeAfterWalk(battle,unit);continue;}
     if (unit.attackClock > 0) continue;
     if (unit.energy >= unit.energyNeeded && move.effect !== 'ditto-transform'
