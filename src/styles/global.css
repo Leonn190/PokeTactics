@@ -875,3 +875,174 @@
 @media(max-height:740px){
   #unitInspector.unit-inspector{bottom:205px;max-height:calc(100vh - 365px)}
 }
+
+
+/* V25.2 — single combat leaderboard, taller ranking and a two-action shop. */
+#rightPanel.right-panel,
+#app:has(#unitInspector:not(.hidden)) #rightPanel.right-panel{
+  width:338px;height:min(520px,calc(100% - 350px));min-height:0;
+  max-height:calc(100% - 328px);overflow:hidden;
+  border:1px solid #78988d90;border-radius:11px;
+  background:linear-gradient(165deg,#1b353bf5,#0d1f2af9 78%);
+  box-shadow:0 12px 36px #000a,inset 0 1px #d2efe320;
+}
+#rightPanel .right-panel-tabs{height:45px;flex:none;background:#0c2028}
+#rightPanel .right-tab{font:800 12px 'Barlow Condensed',sans-serif;letter-spacing:1px}
+#rightPanel .right-tab.active{color:#f9dca2;background:linear-gradient(180deg,#36504b,#1d3034)}
+#rightPanel #rankPanel{min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#608c83 #10232a}
+#rightPanel .panel-subtitle{padding:12px 14px 8px;color:#aec8bf;font-size:10px}
+#rightPanel .rank-rows{padding:6px 9px 11px}
+#rightPanel .rank-row{height:45px;gap:6px;padding:0 8px;margin:0 0 3px;
+  border-radius:7px;background:#17343a61;border:1px solid #486b6b44}
+#rightPanel .rank-row:nth-child(odd){background:#27424a70}
+#rightPanel .rank-row.you{background:#6252386b;border-color:#e4c0808c}
+#rightPanel .rank-row.scouting{border-color:#82d7bc98}
+#rightPanel .rank-position{width:16px;flex:none;color:#c2d3cf;font-size:16px}
+#rightPanel .rank-token{width:25px;height:25px}
+#rightPanel .rank-name{font-size:17px}
+#rightPanel .rank-hp{font-size:19px;min-width:28px;font-variant-numeric:tabular-nums}
+#rightPanel .rank-combat-status{flex-basis:69px;width:69px;font-size:10px}
+#rightPanel .rank-streak{flex:none;display:inline-flex;align-items:center;justify-content:center;
+  gap:3px;min-width:33px;padding:3px 5px;border-radius:6px;
+  border:1px solid #d2a96e69;background:#674d2c80;color:#f7d79a;
+  font:800 12px 'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums}
+#rightPanel .rank-streak.losing{border-color:#ca727876;background:#572f3b85;color:#f4a9b0}
+
+/* Combat has no opponent drawer: all participants share the same scrollable rank. */
+#rightPanel #combatPanel{height:100%;min-height:0;overflow:hidden}
+#rightPanel .combat-perspective{min-height:39px;height:39px;justify-content:space-between;
+  padding:0 11px;gap:8px;background:#142a32;border-bottom:1px solid #57737178}
+#rightPanel .combat-perspective>span:first-child{font-size:12px;color:#e9d4a4}
+#rightPanel .combat-teams-key{display:flex;align-items:center;gap:4px;flex:none;
+  font:800 9px 'Barlow Condensed',sans-serif;color:#aac7c1}
+#rightPanel .combat-teams-key i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:3px}
+#rightPanel .combat-teams-key .ally{background:#65acfb}
+#rightPanel .combat-teams-key .enemy{background:#ed8584}
+#rightPanel .combat-rows{flex:1;min-height:0;overflow-y:auto;padding:8px 9px;
+  scrollbar-width:thin;scrollbar-color:#739991 #10252d;overscroll-behavior:contain}
+#rightPanel .combat-entry{position:relative;margin:0 0 5px;padding:5px 8px 7px;
+  border:1px solid #7293a159;border-left:3px solid #65aef7;border-radius:7px;
+  background:linear-gradient(100deg,#264f786b,#162c3b88);
+  box-shadow:inset 0 1px #ffffff12;outline-offset:1px}
+#rightPanel .combat-entry.enemy{border-left-color:#ec747b;border-color:#bd626871;
+  background:linear-gradient(100deg,#743b446e,#3724318f)}
+#rightPanel .combat-entry:focus-visible{outline:2px solid #f2d69c}
+#rightPanel .combat-entry:hover,#rightPanel .combat-entry:focus-visible{filter:brightness(1.12);border-color:#d1d6b191}
+#rightPanel .combat-line{min-height:29px;margin:0 0 4px;gap:7px}
+#rightPanel .combat-position{flex:none;width:15px;color:#94b2b9;
+  font:800 13px 'Barlow Condensed',sans-serif;text-align:center}
+#rightPanel .combat-mini-shape,#rightPanel .combat-mini-shape .pokemon-portrait{width:30px;height:30px}
+#rightPanel .combat-name{min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:13px;color:#e5eef1}
+#rightPanel .combat-val{font-size:16px;font-variant-numeric:tabular-nums;color:#f5dfac;white-space:nowrap}
+#rightPanel .combat-track,#rightPanel .damage-split{height:6px;background:#0a1923;border-radius:8px}
+#rightPanel .combat-fill{background:linear-gradient(90deg,#5eaa8d,#9cebc1)!important}
+#rightPanel .combat-breakdown{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 7px;
+  max-height:0;opacity:0;overflow:hidden;transition:max-height .16s ease,opacity .16s ease}
+#rightPanel .combat-entry:hover .combat-breakdown,
+#rightPanel .combat-entry:focus .combat-breakdown,
+#rightPanel .combat-entry:focus-within .combat-breakdown{
+  max-height:95px;opacity:1;margin-top:7px;padding-top:6px;border-top:1px solid #91aeb04b}
+#rightPanel .combat-breakdown span{display:flex;justify-content:space-between;gap:3px;min-width:0;
+  font:800 10px 'Barlow Condensed',sans-serif;color:#acc5c7;white-space:nowrap}
+#rightPanel .combat-breakdown b{color:#f3d6aa;font-size:12px;font-variant-numeric:tabular-nums}
+#rightPanel .metric-legend{flex-wrap:wrap;gap:6px;padding:8px 0 3px;font-size:9px}
+#rightPanel .combat-empty{padding:17px 9px;text-align:center;color:#a6c0be;font:700 12px 'Barlow Condensed'}
+
+/* The gold/income ledger sits over two identically sized purchase controls. */
+#shopFooter .shop-actions{width:116px;gap:6px;margin-top:-40px;height:calc(100% + 40px)}
+#shopFooter .shop-ledger{flex:none;min-height:65px;gap:3px;padding:7px 9px;
+  display:flex;align-items:stretch;justify-content:center;
+  border:1px solid #8176548c;border-radius:8px;background:linear-gradient(155deg,#2a2d28,#14252b);
+  box-shadow:inset 0 1px #ffdf9c24}
+#shopFooter .shop-ledger .gold-inline{justify-content:center;gap:5px;height:27px}
+#shopFooter .shop-ledger .gold-inline b{font-size:29px}
+#shopFooter .shop-ledger .gold-inline span{font-size:9px}
+#shopFooter .shop-ledger .income-tip{align-self:center;display:flex;align-items:center;justify-content:center;
+  border:0;border-top:1px solid #718c805a;width:100%;padding-top:5px}
+#shopFooter .shop-ledger .economy-small{font-size:12px;letter-spacing:.2px}
+#shopFooter .shop-ledger .income-breakdown{bottom:calc(100% + 6px);left:0}
+#shopFooter .trainer-xp-buy,#shopFooter .reroll-btn{box-sizing:border-box;flex:1 1 0;width:100%;
+  min-height:0;border-radius:8px;box-shadow:inset 0 1px #ffffff30,0 3px 10px #0005;
+  transition:filter .14s ease,transform .14s ease}
+#shopFooter .trainer-xp-buy{display:flex;flex-direction:column;align-items:stretch;justify-content:center;
+  gap:2px;padding:5px 8px;border:1px solid #8bc5b3b0;
+  background:linear-gradient(165deg,#367063,#1b4248);color:#e8fff3}
+#shopFooter .trainer-xp-buy:hover:not(:disabled){filter:brightness(1.18);transform:translateY(-1px)}
+#shopFooter .trainer-xp-buy:disabled{opacity:.52;cursor:default}
+#shopFooter .trainer-xp-head{display:flex;align-items:center;justify-content:space-between;gap:4px}
+#shopFooter .trainer-xp-head .level-inline{font-size:10px;color:#c2ebdb}
+#shopFooter .trainer-xp-head .level-inline b{font-size:16px;color:#fff1bd;margin-left:3px}
+#shopFooter .xp-price{font:800 12px 'Barlow Condensed',sans-serif;color:#ffdd91}
+#shopFooter .trainer-xp-action{display:block;text-align:center;
+  font:900 15px/1 'Barlow Condensed',sans-serif;letter-spacing:.5px;color:#f3fff1}
+#shopFooter .trainer-xp-caption{font:800 9px/1 'Barlow Condensed',sans-serif;color:#b4ded2;text-align:center}
+#shopFooter .trainer-xp-track{display:block;width:100%;height:5px;border-color:#638d7f66}
+#shopFooter .trainer-xp-track i{display:block;height:100%}
+#shopFooter .reroll-btn{display:flex;flex-direction:row;align-items:center;justify-content:center;
+  align-content:center;gap:3px 5px;flex-wrap:wrap;padding:6px 3px}
+#shopFooter .reroll-btn .reroll-icon{font-size:24px}
+#shopFooter .reroll-btn b{font-size:16px}
+#shopFooter .reroll-btn small{width:100%;font-size:11px;text-align:center}
+#shopFooter .bottom-header{padding-left:124px;padding-right:94px}
+#shopFooter .shop-chances{flex:0 1 auto;justify-content:flex-start;gap:4px}
+#shopFooter .rarity-chance{flex:0 1 auto;max-width:105px;min-width:65px;gap:4px;
+  padding:3px 5px;border-radius:5px}
+#shopFooter .rarity-chance b{font-size:13px}
+#shopFooter #typeInfluence{right:-29px;top:-30px;width:100px;height:100px}
+.type-wheel-chart .type-wheel-center{position:relative;display:block;width:25px;height:25px;z-index:2;
+  border:2px solid #b3c7bd9e;border-radius:50%;background:radial-gradient(circle at 30% 25%,#405d63,#0b1d26 85%);
+  box-shadow:0 2px 7px #000a;pointer-events:none}
+.type-wheel-chart .type-wheel-slice{position:absolute;z-index:1;display:grid;place-items:center;
+  width:22px;height:22px;border:0;border-radius:50%;background:#0b25386e;
+  box-shadow:0 1px 3px #0008;pointer-events:none;transform:translate(-50%,-50%)}
+.type-wheel-chart .type-wheel-slice .type-icon{width:20px;height:20px;filter:drop-shadow(0 1px 3px #000b)}
+#unitInspector.unit-inspector{right:calc(338px + 30px)}
+
+@media(max-width:1300px){
+  #rightPanel.right-panel,#app:has(#unitInspector:not(.hidden)) #rightPanel.right-panel{width:300px}
+  #rightPanel .rank-combat-status{flex-basis:62px;width:62px;font-size:10px}
+  #unitInspector.unit-inspector{right:calc(300px + 26px)}
+  #shopFooter .shop-actions{width:105px}
+  #shopFooter .bottom-header{padding-left:113px;padding-right:88px}
+  #shopFooter .rarity-chance{min-width:49px;padding:3px 4px}
+  #shopFooter #typeInfluence{right:-16px;top:-24px;width:85px;height:85px}
+}
+@media(max-width:980px){
+  #rightPanel.right-panel,#app:has(#unitInspector:not(.hidden)) #rightPanel.right-panel{
+    width:238px;height:calc(100% - 390px);max-height:calc(100% - 390px);min-height:0}
+  #rightPanel .rank-row{height:43px;gap:3px;padding:0 4px}
+  #rightPanel .rank-token{width:20px;height:20px}
+  #rightPanel .rank-position{width:12px;font-size:13px}
+  #rightPanel .rank-name{font-size:14px}
+  #rightPanel .rank-streak{font-size:10px;min-width:27px;padding:2px}
+  #rightPanel .rank-combat-status{flex-basis:51px;width:51px;font-size:9px}
+  #rightPanel .rank-hp{font-size:16px;min-width:20px}
+  #rightPanel .combat-perspective{padding:0 7px}
+  #rightPanel .combat-perspective>span:first-child{font-size:10px}
+  #rightPanel .combat-teams-key{font-size:8px}
+  #rightPanel .combat-breakdown{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #unitInspector.unit-inspector{right:calc(238px + 24px);max-width:calc(100vw - 275px)}
+  #shopFooter .shop-actions{width:89px;gap:4px;margin-top:-36px;height:calc(100% + 36px)}
+  #shopFooter .shop-ledger{min-height:55px;padding:4px 3px}
+  #shopFooter .shop-ledger .gold-inline b{font-size:23px}
+  #shopFooter .shop-ledger .economy-small{font-size:10px}
+  #shopFooter .trainer-xp-buy{padding:3px 4px;gap:1px}
+  #shopFooter .trainer-xp-action{font-size:12px}
+  #shopFooter .trainer-xp-head .level-inline b{font-size:13px}
+  #shopFooter .reroll-btn b{font-size:13px}
+  #shopFooter .bottom-header{padding-left:96px;padding-right:73px}
+  #shopFooter .rarity-chance{min-width:38px;max-width:65px;padding:2px}
+  #shopFooter #typeInfluence{right:0;top:-34px;width:70px;height:70px}
+  .type-wheel-chart .type-wheel-slice{width:18px;height:18px}
+  .type-wheel-chart .type-wheel-slice .type-icon{width:16px;height:16px}
+  .type-wheel-chart .type-wheel-center{width:18px;height:18px}
+}
+@media(max-height:740px){
+  #rightPanel.right-panel,#app:has(#unitInspector:not(.hidden)) #rightPanel.right-panel{
+    height:calc(100% - 340px);max-height:calc(100% - 340px)}
+  #shopFooter .shop-ledger{min-height:54px}
+  #shopFooter .shop-actions{gap:4px}
+}
+@media(prefers-reduced-motion:reduce){
+  #rightPanel .combat-breakdown,#shopFooter .trainer-xp-buy{transition:none}
+}
