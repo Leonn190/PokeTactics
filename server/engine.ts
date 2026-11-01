@@ -486,6 +486,7 @@ export class GameEngine {
 
   /** Coordinates visible to the player; duels are mirrored when they spawn above. */
   private collectibleGold(): GoldDrop[] {
+    if(this.players[0].eliminated)return [];
     const battle = this.battles.find(b => b.participants.includes('p0'));
     const flipped = !!battle && battle.participants.length === 2 && battle.playerB === 'p0';
     const live = this.phase === 'planning' || !battle ? [] : battle.goldDrops
@@ -506,13 +507,15 @@ export class GameEngine {
       const rx=(nextX-ITEM_RACK_WORLD.x)/ITEM_RACK_WORLD.radiusX;
       const ry=(nextY-ITEM_RACK_WORLD.y)/ITEM_RACK_WORLD.radiusY;
       const ellipse=rx*rx+ry*ry;
-      if(ellipse<1){
+      if(ellipse<1 && !this.players[0].eliminated){
         const mag=Math.sqrt(ellipse)||.00001;
         nextX=ITEM_RACK_WORLD.x+rx/mag*ITEM_RACK_WORLD.radiusX*1.02;
         nextY=ITEM_RACK_WORLD.y+ry/mag*ITEM_RACK_WORLD.radiusY*1.02;
       }
       this.trainer.x=nextX;this.trainer.y=nextY;
     }
+    // A visitor may walk but cannot collect coins or use the old item platform.
+    if(this.players[0].eliminated)return;
     for (const loot of canCollectLoot ? this.savedLoot : []) {
       if (!loot.claimed && Math.hypot(this.trainer.x-loot.x,this.trainer.y-loot.y) <= .38) this.rewardLoot(loot);
     }
@@ -710,6 +713,14 @@ export class GameEngine {
   command(command: GameCommand): string | null {
     if(command.kind.startsWith('sandbox-'))return this.sandboxCommand(command);
     const human = this.players[0];
+    // Spectator movement is the only accepted game command after elimination.
+    // It remains authoritative even while observing a different arena.
+    if(command.kind==='move-trainer'){
+      if(!Number.isFinite(command.x) || !Number.isFinite(command.y))return 'Destino inválido';
+      this.trainer.targetX=Math.max(-10,Math.min(10,command.x));
+      this.trainer.targetY=Math.max(-4.5,Math.min(4.65,command.y));
+      return null;
+    }
     if (human.eliminated || this.phase === 'finished') return 'A partida já terminou para você';
     if(command.kind==='augment-choose'||command.kind==='augment-reroll'){
       if(this.phase!=='planning'||human.augmentChoice?.chapter!==chapterForRound(this.round))return 'Fora da fase de escolha';
@@ -727,12 +738,6 @@ export class GameEngine {
       if(human.units.some(other=>other.id!==mime.id&&(other.family==='mr-mime'||other.family==='mime-jr')&&other.position.area==='board'&&
         (other.mimePillars||[{col:2,row:1},{col:4,row:2}]).some(p=>p.col===command.col&&p.row===command.row)))return 'Outra estrutura já ocupa a casa';
       marks[command.index]={col:command.col,row:command.row};mime.mimePillars=marks;
-      return null;
-    }
-    if (command.kind === 'move-trainer') {
-      if (!Number.isFinite(command.x) || !Number.isFinite(command.y)) return 'Destino inválido';
-      this.trainer.targetX = Math.max(-10, Math.min(10, command.x));
-      this.trainer.targetY = Math.max(-4.5, Math.min(4.65, command.y));
       return null;
     }
     // Ramos múltiplos evoluem automaticamente pela influência dos tipos, nunca por escolha manual.
@@ -1151,7 +1156,10 @@ export class GameEngine {
   }
 
   tick(dt: number, canCollectLoot = true): void {
-    if (this.phase === 'finished') return;
+    if (this.phase === 'finished'){
+      if(this.players[0].eliminated)this.tickTrainer(Math.max(0,Math.min(.1,dt)),false);
+      return;
+    }
     const step = Math.max(0, Math.min(0.1, dt));
     this.tickTrainer(step, canCollectLoot);
     for (const animation of this.visualEvents) animation.age += step;
@@ -1199,7 +1207,7 @@ export class GameEngine {
         ...p, units: p.units, // postMessage immediately structured-clones this ephemeral view
         itemInventory:p.itemInventory||[],
         consumables:p.id==='p0' ? p.consumables as NonNullable<Player['consumables']> : {pokeball:0,greatball:0,ultraball:0,masterball:0},
-        shop: p.id === 'p0' ? p.shop : []
+        shop: p.id === 'p0' && !p.eliminated ? p.shop : []
       })),
       opponentId: this.sandbox?'p1':this.phase === 'planning' ? null : this.opponentId,
       lastOpponentId: this.lastOpponentId,
@@ -1219,7 +1227,7 @@ export class GameEngine {
         })) : {},
       log: this.log, winnerId: this.winnerId,
       trainer: { ...this.trainer }, collectibleGold: this.collectibleGold(),
-      collectibleLoot:this.savedLoot.filter(d=>!d.claimed).map(d=>({...d,reward:{...d.reward}})),lootMessage:this.lootMessage,lootMessageId:this.lootMessageId
+      collectibleLoot:this.players[0].eliminated?[]:this.savedLoot.filter(d=>!d.claimed).map(d=>({...d,reward:{...d.reward}})),lootMessage:this.players[0].eliminated?'':this.lootMessage,lootMessageId:this.lootMessageId
     };
   }
 }
