@@ -481,7 +481,7 @@
           "rangeLevel": 2,
           "move": "solar-beam",
           "chargedType": "grass",
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "Charge"
         },
         {
           "elements": [
@@ -491,7 +491,7 @@
           "rangeLevel": 3,
           "move": "solar-beam",
           "chargedType": "grass",
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "Charge"
         },
         {
           "elements": [
@@ -501,7 +501,7 @@
           "rangeLevel": 4,
           "move": "solar-beam",
           "chargedType": "grass",
-          "chargedAnimation": "SpAttack"
+          "chargedAnimation": "Charge"
         }
       ],
       "physicalSizes": [
