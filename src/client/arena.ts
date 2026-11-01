@@ -812,9 +812,9 @@ export class Arena {
     ctx.fillText(`${count} / ${player.level}`,pos.x,pos.y);ctx.restore();
   }
 
-  private drawEquipmentIcons(unit:Marker,x:number,y:number):void {
+  private drawEquipmentIcons(unit:Marker,x:number,y:number,barWidth:number):void {
     const gear=unit.equipment||[];if(!gear.length)return;
-    const scale=Math.max(13,Math.min(20,this.cellScale*.27));
+    const scale=Math.max(11,Math.min(18,(barWidth-6)/(ITEMS.maxSlots*1.08)));
     const total=Math.min(ITEMS.maxSlots,gear.length),ctx=this.context;
     for(let i=0;i<total;i++){
       const raw=itemSprite(gear[i]);if(!raw)continue;
@@ -954,26 +954,41 @@ export class Arena {
     }
     if(ghost?.phase==='appear')ctx.restore();
     if (unit.bench) return;
-    const barWidth = Math.max(35, radius * 2.35);
+// Three equipment sprites fit the bar, even on smaller Pokémon.
+    // Life is above energy; all equipment sits below the bars.
+    const barWidth = Math.max(62, radius * 2.35);
     const bx = p.x - barWidth / 2;
-    const baseY = spriteTop - (this.snapshot?.phase === 'planning' ? 7 : 10);
-    this.drawEquipmentIcons(unit,p.x,baseY-Math.max(15,this.cellScale*.29));
+    const baseY = spriteTop - Math.max(33, this.cellScale * .5);
+    const scale = Math.max(1, unit.maxHp);
+    const green = Math.max(0, Math.min(1, unit.hp / scale));
+    const shield = (unit.barrier?.hp || 0) + (unit.barriers || []).reduce((total,b)=>total+b.hp,0);
+    const white = Math.max(0, Math.min(1-green, shield/scale));
+    const participants = this.snapshot?.visibleBattle?.participants || [];
+    const rivalIndex = participants.filter(id=>id!==this.view.scoutId).indexOf(unit.ownerId);
+    const teamColor = unit.own ? '#72e3a0' : (['#ff766a','#f4df70','#ffa34b'][Math.max(0,rivalIndex)] || '#ff947d');
+    ctx.save();
+    ctx.fillStyle = '#08151ee9';
+    ctx.strokeStyle = '#7a9a938f';
+    ctx.lineWidth = 1;
+    ctx.beginPath();ctx.roundRect(bx-2,baseY-2,barWidth+4,18,4);ctx.fill();ctx.stroke();
+    ctx.fillStyle = '#142831';
+    ctx.fillRect(bx,baseY,barWidth,7);
+    ctx.fillStyle = teamColor;
+    ctx.fillRect(bx,baseY,barWidth*green,7);
+    if(white>0){ctx.fillStyle='#f3f8ff';ctx.fillRect(bx+barWidth*green,baseY,barWidth*white,7);}
+    if(shield>Math.max(0,scale-unit.hp)){
+      ctx.fillStyle='#f3f8ff';ctx.fillRect(bx,baseY-1,barWidth,1);
+    }
+    ctx.fillStyle='#091923';ctx.fillRect(bx,baseY+9,barWidth,4);
+    ctx.fillStyle='#79caff';
+    ctx.fillRect(bx,baseY+9,barWidth*Math.max(0,Math.min(1,unit.energy/Math.max(1,unit.required))),4);
+    ctx.restore();
+    this.drawEquipmentIcons(unit,p.x,baseY+18,barWidth);
     if (this.snapshot?.phase !== 'planning') {
-      ctx.fillStyle = '#101f20d9'; ctx.fillRect(bx - 1, baseY - 1, barWidth + 2, 7);
-      const scale=Math.max(1,unit.maxHp);
-      const green=Math.max(0,Math.min(1,unit.hp/scale));
-      const shield = (unit.barrier?.hp || 0) + (unit.barriers || []).reduce((total,b) => total+b.hp,0);
-      const white=Math.max(0,Math.min(1-green,shield/scale));
-      const participants=this.snapshot?.visibleBattle?.participants||[];
-      const rivalIndex=participants.filter(id=>id!==this.view.scoutId).indexOf(unit.ownerId);
-      const teamColor=unit.own?'#74e6a9':(['#ff766a','#f4df70','#ffa34b'][Math.max(0,rivalIndex)]||'#ff947d');
-      ctx.fillStyle = teamColor; ctx.fillRect(bx, baseY, barWidth*green, 5);
-      if (white>0) {ctx.fillStyle='#f1f9ff';ctx.fillRect(bx+barWidth*green,baseY,barWidth*white,5);}
-      if (shield>Math.max(0,scale-unit.hp)) {
-        ctx.fillStyle='#f1f9ff';ctx.fillRect(bx,baseY-2,barWidth,1);
-      }
-      ctx.fillStyle='#06121bcf';
-      for (let hp=150;hp<scale;hp+=150) ctx.fillRect(bx+barWidth*hp/scale-.65,baseY,1.3,5);
+      ctx.save();
+      ctx.fillStyle='#071820d9';
+      for(let hp=150;hp<scale;hp+=150)ctx.fillRect(bx+barWidth*hp/scale-.65,baseY,1.3,7);
+      ctx.restore();
       if (unit.psychicImbuement && unit.psychicImbuement.until > (this.snapshot?.visibleBattle?.elapsed || 0)) {
         const life = unit.psychicImbuement.until - (this.snapshot?.visibleBattle?.elapsed || 0);
         ctx.save();ctx.globalAlpha=.28+.12*Math.sin(time*7);ctx.strokeStyle='#e99fe8';ctx.lineWidth=2;
@@ -985,8 +1000,6 @@ export class Arena {
         ctx.fillStyle = '#b76de4'; ctx.beginPath(); ctx.arc(bx + barWidth + 4, baseY + 2, 3.1, 0, PI2); ctx.fill();
       }
       if(unit.synergy?.chilled && unit.synergy.chilled.until>(this.snapshot?.visibleBattle?.elapsed||0)){ctx.fillStyle='#b3f1ff';ctx.fillRect(bx+barWidth+2,baseY-6,4,4);}
-      ctx.fillStyle = '#132a31c9'; ctx.fillRect(bx, baseY + 7, barWidth, 3);
-      ctx.fillStyle = '#80ccfa'; ctx.fillRect(bx, baseY + 7, barWidth * Math.min(1, unit.energy / unit.required), 3);
       if(unit.babyFlee){ctx.fillStyle='#ffe9bd';ctx.font=`800 ${Math.max(9,this.cellScale*.12)}px sans-serif`;ctx.textAlign='center';ctx.fillText('FUGINDO',p.x,baseY-4);}
 
       const statuses = [
@@ -1003,11 +1016,18 @@ export class Arena {
         ctx.strokeText(label,p.x,baseY-23); ctx.fillStyle = '#e5deba';ctx.fillText(label,p.x,baseY-23);
       }
     }
-    // O nível acompanha a cabeça do Pokémon e não a posição fixa da célula.
-    ctx.fillStyle = '#f7e5ac'; ctx.font = `800 ${Math.max(9, this.cellScale * .155)}px 'Barlow Condensed'`;
-    ctx.textAlign = 'center'; ctx.strokeStyle = '#091c1b'; ctx.lineWidth = 3;
-    const labelY = baseY - (this.snapshot?.phase === 'planning' ? 1 : 4);
-    ctx.strokeText(`${unit.level}`, p.x, labelY); ctx.fillText(`${unit.level}`, p.x, labelY);
+// TFT-like circular level medallion attached to the left side of the bars.
+    const badgeX=bx-7,badgeY=baseY+6;
+    ctx.save();
+    ctx.fillStyle='#060c14';
+    ctx.strokeStyle='#a9b9a9';
+    ctx.lineWidth=1.35;
+    ctx.beginPath();ctx.arc(badgeX,badgeY,10,0,PI2);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.font=`900 ${Math.max(11,Math.min(14,this.cellScale*.18))}px 'Barlow Condensed',sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(String(unit.level),badgeX,badgeY+.6);
+    ctx.restore();
   }
 
   private drawTrainerAvatar(playerId: string, x: number, y: number, time: number, label: string): void {
