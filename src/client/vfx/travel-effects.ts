@@ -17,6 +17,17 @@ export function renderTravelEffects(ctx: CanvasRenderingContext2D, fx: CombatEff
         ctx.beginPath();ctx.ellipse(0,-8,radius*.8,radius*1.45,0,0,Math.PI*2);ctx.fill();
         ctx.restore();return true;
       }
+      if(fx.kind==='solar-beam'){
+        const tip={x:from.x+(to.x-from.x)*t,y:from.y+(to.y-from.y)*t};
+        const alpha=Math.min(1,fx.time/.09)*Math.min(1,(fx.duration-fx.time)/.1);
+        ctx.save();ctx.lineCap='round';ctx.globalAlpha=Math.max(0,alpha);
+        ctx.shadowColor='#ffe979';ctx.shadowBlur=22;
+        for(const [width,color] of [[.37,'#5add6180'],[.23,'#e3f775'],[.105,'#fffbd1']] as const){
+          ctx.strokeStyle=color;ctx.lineWidth=Math.max(2,cellScale*width);
+          ctx.beginPath();ctx.moveTo(from.x,from.y-cellScale*.24);ctx.lineTo(tip.x,tip.y-cellScale*.24);ctx.stroke();
+        }
+        ctx.restore();return true;
+      }
       if(fx.kind==='psychic-shot'){
         const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-cellScale*.28;
         const dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy)||1;
