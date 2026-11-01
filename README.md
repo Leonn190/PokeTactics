@@ -80,3 +80,15 @@ Cada compra confirma o identificador da oferta efetivamente exibida, evitando co
 ### V23.6 — movimentação e alcance
 
 A movimentação normal de combate passou a planejar trajetos pelos hexágonos, desviando de unidades e obstáculos enquanto mantém o movimento visual suave. O alcance 1 agora permite ataques quando os corpos estão realmente próximos, sem voltar à distância fixa antiga; a escolha do alvo é persistente e reavaliada em caso de fuga, morte ou bloqueio. Valores de alcance vêm de config/alcances.json. Habilidades de deslocamento especial mantêm suas próprias regras.
+
+## V24.5 — Vileplume e melhorias visuais
+
+- A família **Oddish → Gloom → Vileplume** entra na loja como comum e herda o Morteiro de Pólen (dano em área e cura de aliados).
+- **Bulbasaur → Ivysaur → Venusaur** agora usam **Raio Solar**, um disparo perfurante de grama com alcance evolutivo 2/3/4 e parâmetros de dano em `config/ataques.json`.
+- Loja remodelada: seis cartas com portraits PMD quadrados preservados, faixa inferior preta exclusiva para nome/tipos/preço e realce por raridade; chances continuam acessíveis.
+- Influência de tipos exibida em gráfico circular no canto direito superior da loja; apresenta no máximo quatro tipos e informa os percentuais reais no detalhe.
+- Ficha com seis atributos, poder total, crítico, dano crítico, vampirismo e atributos secundários; bônus externos a nível/IV ficam laranja, penalidades vermelhas.
+- Até **três equipamentos por Pokémon**, inclusive nas regras, na ficha e nos ícones em arena.
+- Itens e componentes mostram descrições detalhadas em tooltips por mouse/foco, incluindo efeitos de receitas. Habilidade continua um botão textual com explicação ao passar o mouse ou clicar.
+
+A simulação segue no Worker local. O manifesto PMD é regenerado pelos scripts `predev`/`prebuild` a partir dos assets locais; nenhuma arte de terceiros é substituída.
