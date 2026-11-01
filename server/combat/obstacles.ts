@@ -179,6 +179,7 @@ export function routeAround(battle:Battle,unit:CombatUnit,target:CombatUnit,reac
  // An attack destination must have both legal reach and an unobstructed strike
  // (the victim's occupied centre is never itself a walkable goal).
  let goal=-1,score=Infinity;
+ let finalApproach:{x:number;y:number}|null=null;
  const canStrike=(p:{x:number;y:number})=>
    Math.hypot(p.x-target.x,p.y-target.y)<=reach+.02 &&
    !firstObstacle(battle,unit.playerId,p.x,p.y,target.x,target.y);
@@ -193,8 +194,28 @@ export function routeAround(battle:Battle,unit:CombatUnit,target:CombatUnit,reac
   const cost=best[i]+Math.hypot(p.x-target.x,p.y-target.y)*.03;
   if(cost<score-1e-8){goal=i;score=cost;}
  }
- // When every firing cell is occupied, stage towards the closest reachable
- // approach instead of repeatedly planning an empty path to the current cell.
+ // A melee attack position normally lies *between* hex centres. Without a
+ // continuous contact ring, adjacent hexes are too far away for range 1 and
+ // units can idle beside their opponent forever.
+ if(goal<0 && reach<1.45){
+  const contact=radius+collisionRadius(target.family,target.stage)+.04;
+  const approachRadius=Math.max(contact,reach-.025);
+  const bounds={minX:multi?-8.25:-3.95,maxX:multi?8.25:3.95,minY:-3.62,maxY:3.62};
+  for(let angle=0;angle<16;angle++){
+   const theta=angle*Math.PI/8;
+   const endpoint={x:target.x+approachRadius*Math.cos(theta),y:target.y+approachRadius*Math.sin(theta)};
+   if(endpoint.x<bounds.minX+radius || endpoint.x>bounds.maxX-radius ||
+     endpoint.y<bounds.minY+radius || endpoint.y>bounds.maxY-radius ||
+     occupied(endpoint.x,endpoint.y) || !canStrike(endpoint))continue;
+   for(let i=0;i<nodes.length;i++){
+    if(!Number.isFinite(best[i])||blocked[i]||!clearLane(nodes[i],endpoint))continue;
+    const cost=best[i]+Math.hypot(nodes[i].x-endpoint.x,nodes[i].y-endpoint.y);
+    if(cost<score-1e-8){goal=i;score=cost;finalApproach=endpoint;}
+   }
+  }
+ }
+ // When every attack position is obstructed, stage towards the closest
+ // reachable approach instead of repeatedly planning an empty route.
  if(goal<0){
   score=Infinity;
   const currentDistance=Math.hypot(unit.x-target.x,unit.y-target.y);
@@ -215,6 +236,7 @@ export function routeAround(battle:Battle,unit:CombatUnit,target:CombatUnit,reac
    points.unshift({x:nodes[current].x,y:nodes[current].y});
    current=previous[current];
   }
+  if(finalApproach)points.push(finalApproach);
   while(points.length && Math.hypot(points[0].x-unit.x,points[0].y-unit.y)<.14)points.shift();
  }
  unit.obstacleRoute={
