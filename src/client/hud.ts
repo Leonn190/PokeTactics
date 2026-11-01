@@ -256,14 +256,18 @@ export class Hud {
       .sort((a,b)=>(influence.points[b]||0)-(influence.points[a]||0)||a.localeCompare(b)).slice(0,4);
     const visibleTotal=topTypes.reduce((sum,type)=>sum+(influence.points[type]||0),0);
     let sweep=0;
+    const wheelIcons:string[]=[];
     const wheelStops=topTypes.map(type=>{
       const from=sweep;
       sweep+=(influence.points[type]||0)/visibleTotal*100;
+      const angle=(from+sweep)*Math.PI/100-Math.PI/2;
+      const x=50+33*Math.cos(angle), y=50+33*Math.sin(angle);
+      wheelIcons.push(`<span class="type-wheel-slice" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">${typeIcon(type,20)}</span>`);
       return `${ELEMENTS[type].color} ${from.toFixed(3)}% ${sweep.toFixed(3)}%`;
     });
     const legend=topTypes.map(type=>`<div class="type-wheel-legend-row"><i style="background:${ELEMENTS[type].color}"></i>${typeIcon(type,16)}<span>${safe(ELEMENTS[type].name)}</span><b>${((influence.shares[type]||0)*100).toFixed(1)}%</b></div>`).join('');
     const summary=topTypes.length?topTypes.map(type=>`${ELEMENTS[type].name} ${((influence.shares[type]||0)*100).toFixed(0)}%`).join(', '):'Sem tipos ativos';
-    this.updateHTML('typeInfluence',`<div class="type-wheel" tabindex="0" role="img" aria-label="Influência dos tipos: ${safe(summary)}" title="${safe(summary)}"><div class="type-wheel-chart" style="background:conic-gradient(${wheelStops.length?wheelStops.join(','):'#334952 0% 100%'})"><span>TIPOS</span></div><div class="type-wheel-popover" role="tooltip"><strong>INFLUÊNCIA DA EQUIPE</strong>${legend||'<small>Coloque Pokémon no campo ou banco</small>'}<small>Exibe até 4 tipos. Fatias proporcionais aos tipos exibidos; percentuais reais da equipe.</small></div></div>`);
+    this.updateHTML('typeInfluence',`<div class="type-wheel" tabindex="0" role="img" aria-label="Influência dos tipos: ${safe(summary)}" title="${safe(summary)}"><div class="type-wheel-chart" style="background:conic-gradient(${wheelStops.length?wheelStops.join(','):'#334952 0% 100%'})">${wheelIcons.join('')}<span class="type-wheel-center" aria-hidden="true"></span></div><div class="type-wheel-popover" role="tooltip"><strong>INFLUÊNCIA DA EQUIPE</strong>${legend||'<small>Coloque Pokémon no campo ou banco</small>'}<small>Exibe até 4 tipos. Fatias proporcionais aos tipos exibidos; percentuais reais da equipe.</small></div></div>`);
     const freeShopReroll=(player.augmentCounters?.['B02:free']||0)>0;
     element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || (!freeShopReroll&&player.gold < RULES.rerollCost) || player.eliminated);
     element('rerollButton').setAttribute('title',freeShopReroll?'Atualização gratuita do Comprador Persistente':`Atualizar loja por ${RULES.rerollCost} de ouro`);
