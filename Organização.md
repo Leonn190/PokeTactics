@@ -185,3 +185,12 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 - Posicionamento: ficha ao lado do painel de jogadores/combate, inclusive quando a extensão de comparação com adversário está aberta, com rolagem própria em altura reduzida.
 - Arena (src/client/arena.ts): vida sobre energia, equipamentos abaixo das barras, círculo preto lateral com nível branco. Largura mínima comporta três ícones. Durante preparação, as barras usam os valores visuais já disponíveis nos marcadores, sem simular atributos do motor.
 - Revisão: planejamento, combate 1v1 e quádruplo, observação, tooltips, equipamento e larguras/alturas diferentes. Verificar npm run validate:config, npm run check e npm run build.
+
+
+## V25.2 — painéis de jogadores, combate e loja
+
+- **Jogadores:** `src/client/hud.ts#renderRanking` exibe sequência de vitórias ou derrotas ao lado dos nomes; o cache da região inclui `streak`. O painel direito ficou ligeiramente mais largo e alto, com rolagem onde necessária.
+- **Combate:** `renderCombat` mostra um único ranking de até 15 Pokémon, ordenado pelo indicador selecionado e com cores distintas para a equipe observada (azul) e os demais participantes (vermelho). Inclui batalhas com participantes múltiplos e bots; cada entrada permite consultar dano físico/especial, defesa física/especial, cura e barreira em foco ou hover. A extensão adversária foi removida, sem alterar as métricas do motor.
+- **Loja:** `src/pages/index.astro` posiciona ouro e renda acima de dois botões com espaço equivalente (XP e rolagem). O botão de XP contém nível, XP atual, barra e custo; a renda mantém seu popover. A bússola segue `typeInfluence`, agora com ícones no centro das fatias e centro visual menor, sem texto. Raridades mais compactas.
+- **Responsividade:** os ajustes estão no bloco V25.2 de `src/styles/global.css`; preservar a posição da ficha ao lado do painel e o inventário físico sobre a arena.
+- **Validação:** executar `npm run validate:config`, `npm run check` e `npm run build`, conferindo visualmente combate normal/quádruplo, scouting, compras de XP, renda e tela reduzida. As regras e a configuração não foram alteradas.

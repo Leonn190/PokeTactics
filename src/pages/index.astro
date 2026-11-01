@@ -81,14 +81,9 @@ const baseURL = import.meta.env.BASE_URL;
       </aside>
 
       <aside id="rightPanel" class="right-panel glass" aria-label="Classificação e dados de combate">
-        <button id="combatSideButton" class="combat-side-tab hidden" title="Expandir comparação com a equipe adversária" aria-label="Mostrar equipe adversária" aria-expanded="false" aria-controls="opponentCombatPanel">‹</button>
-        <aside id="opponentCombatPanel" class="combat-extension glass hidden" aria-label="Estatísticas da equipe adversária">
-          <div class="combat-extension-heading" id="combatSideLabel">ADVERSÁRIO</div>
-          <div id="opponentCombatRows" class="combat-rows"></div>
-        </aside>
         <div class="right-panel-tabs"><button id="tabRank" class="right-tab active" data-panel="rank">CLASSIFICAÇÃO</button><button id="tabCombat" class="right-tab" data-panel="combat">COMBATE</button></div>
         <section id="rankPanel"><div class="panel-subtitle"><span>JOGADORES</span><span>VIDA</span></div><div id="rankRows" class="rank-rows"></div></section>
-        <section id="combatPanel" class="combat-panel hidden"><div class="combat-perspective"><span id="combatOwnLabel">SUA EQUIPE</span></div><div id="combatRows" class="combat-rows"></div><div class="combat-bottom-tabs"><button data-metric="status" class="metric-tab active" title="Vida restante">STATUS</button><button data-metric="damage" class="metric-tab" title="Dano físico e especial causado">DANO</button><button data-metric="mitigation" class="metric-tab" title="Mitigação por DEF (amarelo), SPD (azul) e cura (verde)">MITIGAÇÃO</button></div></section>
+        <section id="combatPanel" class="combat-panel hidden"><div class="combat-perspective"><span>RANK GERAL · ATÉ 15 POKÉMON</span><span class="combat-teams-key"><i class="ally"></i> ALIADO <i class="enemy"></i> RIVAL</span></div><div id="combatRows" class="combat-rows"></div><div class="combat-bottom-tabs"><button data-metric="status" class="metric-tab active" title="Vida restante">STATUS</button><button data-metric="damage" class="metric-tab" title="Dano físico e especial causado">DANO</button><button data-metric="mitigation" class="metric-tab" title="Mitigação por DEF (amarelo), SPD (azul) e cura (verde)">MITIGAÇÃO</button></div></section>
         <div id="scoutBadge" class="scout-badge hidden"><span id="scoutName"></span><button id="returnBoard">VOLTAR ↲</button></div>
       </aside>
 
@@ -107,7 +102,16 @@ const baseURL = import.meta.env.BASE_URL;
         </div>
         <div class="shop-row">
           <div class="shop-actions">
-            <div class="shop-ledger"><div class="level-inline">NÍVEL <b id="levelNumber">1</b></div><div class="trainer-xp-module"><div class="trainer-xp-caption" id="trainerXpCaption">0 / 4 XP</div><div class="trainer-xp-track"><i id="trainerXpFill"></i></div><button type="button" id="buyXpButton" class="trainer-xp-buy">COMPRAR XP <span>◈ 4</span></button></div><div class="gold-inline"><i>◈</i><b id="goldCount">9</b><span>OURO</span></div><div class="income-tip" tabindex="0" aria-label="Detalhes da renda"><span class="economy-small">RENDA <b id="incomeCount">+5</b> ⓘ</span><div id="incomeBreakdown" class="income-breakdown" role="tooltip"></div></div></div>
+            <div class="shop-ledger">
+              <div class="gold-inline"><i>◈</i><b id="goldCount">9</b><span>OURO</span></div>
+              <div class="income-tip" tabindex="0" aria-label="Detalhes da renda"><span class="economy-small">RENDA <b id="incomeCount">+5</b> ⓘ</span><div id="incomeBreakdown" class="income-breakdown" role="tooltip"></div></div>
+            </div>
+            <button type="button" id="buyXpButton" class="trainer-xp-buy" title="Comprar experiência para o treinador">
+              <span class="trainer-xp-head"><span class="level-inline">NÍVEL <b id="levelNumber">1</b></span><span id="buyXpCost" class="xp-price">◈ 4</span></span>
+              <span class="trainer-xp-action" id="buyXpAction">COMPRAR XP</span>
+              <span class="trainer-xp-caption" id="trainerXpCaption">0 / 4 XP</span>
+              <span class="trainer-xp-track"><i id="trainerXpFill"></i></span>
+            </button>
             <button id="rerollButton" class="reroll-btn" title="Atualizar loja por 2 de ouro"><span class="reroll-icon">⟳</span><b>ROLETAR</b><small>◈ 2</small></button>
           </div>
           <div id="shopCards" class="shop-cards" aria-label="Loja de seis Pokémon"></div>
