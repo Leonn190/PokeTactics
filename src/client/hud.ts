@@ -10,7 +10,7 @@ import { LOOT } from '../../server/systems/loot';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
 import { trainerXpNeeded } from '../../server/trainer-xp';
 import { moveDescription } from './menus';
-import { previewAbility, previewBasic } from '../../server/damage-preview';
+import { previewAbility } from '../../server/damage-preview';
 import { damageHtml, damageRows } from './damage-labels';
 import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats, EquippedItem, BallKind, Player } from '../../server/types';
 import type { ClientView } from './arena';
@@ -19,6 +19,21 @@ const element = <T extends HTMLElement>(id: string): T => document.getElementByI
 const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"','&quot;');
 const modifierClass = (value:number,baseValue:number):string => value>baseValue+.001?'stat-mod-up':value<baseValue-.001?'stat-mod-down':'';
 const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk: 'ATK', def: 'DEF', spa: 'SPA', spd: 'SPD' };
+/** Small monochrome vector pictograms, sized and tinted by the character sheet. */
+const STAT_GLYPHS = {
+  atk: 'M5 3l9 9-2 2-9-9 2-2zm5 10l4 4m-8 3l3-5',
+  def: 'M12 2L4 5v6c0 5 3.3 8.2 8 11 4.7-2.8 8-6 8-11V5l-8-3zm0 4v11',
+  spa: 'M12 2l2.3 7.7L22 12l-7.7 2.3L12 22l-2.3-7.7L2 12l7.7-2.3L12 2z',
+  spd: 'M12 2l8 4v6c0 4.2-3 7.5-8 10-5-2.5-8-5.8-8-10V6l8-4zm-4 10h8m-4-4v8',
+  speed: 'M3 12h12m-5-6l6 6-6 6M4 7h5M4 17h5',
+  critChance: 'M12 2v4m0 12v4M2 12h4m12 0h4M12 7a5 5 0 100 10 5 5 0 000-10zm0 3v4m-2-2h4',
+  critDamage: 'M12 2l2.6 6.9L22 12l-7.4 3.1L12 22l-2.6-6.9L2 12l7.4-3.1L12 2zm-2 8l4 4m0-4l-4 4',
+  vampirism: 'M12 2C9 7 5 11 5 15a7 7 0 0014 0c0-4-4-8-7-13zm-3 13c0 2 1 3 3 3',
+  durability: 'M12 2l8 5v6c0 4-3 7-8 9-5-2-8-5-8-9V7l8-5zm-4 10l3 3 5-6',
+  amplification: 'M12 2l4 8h-3v5l6-2-7 9-7-9 6 2v-5H8l4-8z'
+} as const;
+const statIcon=(key:keyof typeof STAT_GLYPHS):string =>
+  '<svg class="inspector-stat-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="'+STAT_GLYPHS[key]+'"/></svg>';
 
 const base = import.meta.env.BASE_URL;
 const typeIcon = (type: Element, size = 18): string => `<img class="type-icon" src="${base}tipos/${type}.svg" width="${size}" height="${size}" alt="${safe(ELEMENTS[type].name)}" title="${safe(ELEMENTS[type].name)}" />`;
@@ -472,7 +487,6 @@ export class Hud {
     const displayFamily=combatant?.family||pokemon.family;
     const displayStage=combatant?.stage??pokemon.stage;
     const displayLevel=combatant?.level??pokemon.level;
-    const data = SPECIES[displayFamily];
     const formId=combatant?.formId||pokemon.formId;
     const mewtwoMode=combatant?.mewtwoMode || (displayFamily==='mewtwo'&&pokemon.position.area==='board'?(pokemon.position.row<=1?'melee':'ranged'):undefined);
     const stage = getStageData(displayFamily,displayStage,formId,mewtwoMode);
@@ -482,8 +496,6 @@ export class Hud {
     const power = totalPower(stats);
     const move = ATTACKS.moves[stage.move];
     const description = moveDescription(move);
-    const battleStats=combatant ? {...stats,atk:Math.max(0,stats.atk+Math.min(stats.atk*.3,combatant.buffs.filter(b=>b.stat==='atk'&&b.until>combatant.itemNow).reduce((sum,b)=>sum+b.amount,0))+bonusStat(combatant,'atk',combatant.itemNow,combatant.focusCount)+(combatant.synergy?.inherit.atk||0))}:stats;
-    const basic = previewBasic(displayFamily,displayStage,battleStats);
     const preview = previewAbility(displayFamily,displayStage,stats,formId,mewtwoMode);
     const hp = combatant?.hp??stats.hp;
     const maxHp = Math.max(1,combatant?.maxHp??stats.hp);
@@ -497,19 +509,54 @@ export class Hud {
     const rangeTitle=rangeLabel(basicRange);
     const percents=effectivePercents(combatant||{equipment:pokemon.equipment||[],itemStacks:{},itemTimers:{}},combatant?.itemNow||0);
     const powerClass=modifierClass(power,totalPower(naturalStats));
-    return `<div class="inspector-top">${portrait(displayFamily, 64, displayStage,formId)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage,formId))}${combatant?.ditto?.active?' · DITTO':''}${formId?'<small class="mega-label">✦ MEGA</small>':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · XP ${pokemon.xp} · Alcance ${rangeTitle}${mewtwoMode?' · '+mewtwoMode.toUpperCase():''}</div></div></div>
-      <div class="inspector-resources" aria-label="Vida e energia">
-        <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
-        <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>
+const statCards = (['atk','def','spa','spd','speed'] as const).map(key =>
+      `<div class="inspector-stat" title="${STAT_LABELS[key]} · IV ${pokemon.iv[key]}%">
+        <div class="inspector-stat-heading">${statIcon(key)}<span>${STAT_LABELS[key]}</span></div>
+        <b class="${modifierClass(stats[key],naturalStats[key])}">${Math.round(stats[key])}</b>
+        <small>IV ${pokemon.iv[key]}%</small>
+      </div>`).join('');
+    const percentCards = ([
+      ['critChance','CRÍTICO'],['critDamage','DANO CRÍT'],['vampirism','VAMP'],
+      ['durability','DURAB'],['amplification','AMPLIF']
+    ] as const).map(([key,label]) =>
+      `<div class="inspector-percent" title="${label}">
+        <div class="inspector-stat-heading">${statIcon(key)}<small>${label}</small></div>
+        <b class="${modifierClass(percents[key],ITEMS.defaults[key])}" data-percent="${key}">${(percents[key]*100).toFixed(0)}%</b>
+      </div>`).join('');
+    const slots = Array.from({length:ITEMS.maxSlots},(_,index)=>{
+      const item=pokemon.equipment?.[index];
+      const tag=owner==='VOCÊ'?'button':'span';
+      return `<${tag} ${tag==='button'?'type="button"':''} class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Espaço livre'}" ${item?'data-item-tooltip="'+safe(itemTooltip(item))+'"':''} ${tag==='span'?'tabindex="0" aria-disabled="true"':''}>${item?icon(item):'<span class="inspector-empty-slot">+</span>'}</${tag}>`;
+    }).join('');
+    return `<div class="inspector-top">
+      <div class="inspector-portrait">${portrait(displayFamily,64,displayStage,formId)}</div>
+      <div class="inspector-identity">
+        <div class="inspector-name" title="${safe(displayName(displayFamily,displayStage,formId))}">${safe(displayName(displayFamily,displayStage,formId))}${combatant?.ditto?.active?' · DITTO':''}${formId?'<small class="mega-label">✦ MEGA</small>':''}</div>
+        <div class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,19)).join('')}${mewtwoMode?'<span class="inspector-mode">'+safe(mewtwoMode.toUpperCase())+'</span>':''}</div>
       </div>
-      <div class="inspector-totals"><span>PODER TOTAL <b class="${powerClass}">${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span>${Object.values(pokemon.iv).every(v=>v===100)?'<span>✦ IV PERFEITO</span>':''}</div>
-      <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b class="${modifierClass(stats[key],naturalStats[key])}">${stats[key]} <small>${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
-      <div class="inspector-percentages">${([['critChance','CRÍT'],['critDamage','DANO CRÍT'],['vampirism','VAMP'],['durability','DURAB'],['amplification','AMPLIF']] as const).map(([key,label])=>`<div class="inspector-percent"><small>${label}</small><b class="${modifierClass(percents[key],ITEMS.defaults[key])}" data-percent="${key}">${(percents[key]*100).toFixed(0)}%</b></div>`).join('')}</div>
-      <div class="inspector-equipment"><span>EQUIPAMENTOS E ATAQUE</span><div class="inspector-equipment-row">${Array.from({length:ITEMS.maxSlots},(_,index)=>{
-        const item=pokemon.equipment?.[index];
-        return `<${owner==='VOCÊ'?'button type="button"':'span'} class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Slot livre'}" ${item?'data-item-tooltip="'+safe(itemTooltip(item))+'"':''} ${owner==='VOCÊ'?'':'tabindex="0" aria-disabled="true"'}>${item?icon(item):'+'}</${owner==='VOCÊ'?'button':'span'}>`;
-      }).join('')}<div class="inspector-slot inspector-basic-tile" title="Ataque regular físico (ATK) · valor bruto após atributos e equipamentos, antes da defesa do alvo"><span>⚔</span><b>${basic.value}</b></div></div><small>${owner==='VOCÊ'?'Clique para remover • arraste um item da mochila para equipar':''}</small></div>
-      <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
-      ${(displayStage<data.names.length-1||!!data.babyEvolution) ? `<div class="inspector-evolution">Evolução: ${this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.units.filter(u=>u.family===pokemon.family&&u.stage===pokemon.stage).length||1} / ${evolutionCopies(displayFamily,displayStage,!!this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.augments?.includes('P11'))} cópias</div>`:''}<div class="inspector-footer"><div class="inspector-types">${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;
+      <div class="inspector-level" title="${pokemon.xp} XP"><small>NÍVEL</small><b>${displayLevel}</b></div>
+    </div>
+    <div class="inspector-resources" aria-label="Vida e energia">
+      <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
+      <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>
+    </div>
+    <div class="inspector-equipment">
+      <div class="inspector-equipment-row" aria-label="Até três itens equipados">${slots}</div>
+      <div class="inspector-equipment-summary">
+        <div><span>IV MÉDIO</span><b>${ivAverage.toFixed(1).replace('.',',')}${Object.values(pokemon.iv).every(v=>v===100)?' ✦':''}</b></div>
+        <div><span>PODER TOTAL</span><b class="${powerClass}">${power.toLocaleString('pt-BR')}</b></div>
+      </div>
+    </div>
+    <div class="inspector-stats" aria-label="Atributos e IV individuais">${statCards}</div>
+    <div class="inspector-percentages" aria-label="Atributos percentuais">${percentCards}</div>
+    <div class="inspector-ability-wrap">
+      <span class="inspector-ability-label">HABILIDADE CARREGADA</span>
+      <div class="inspector-ability-row">
+        <button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer a habilidade">${safe(move.name)}</button>
+        <div class="inspector-range" title="Alcance de ataque regular: ${rangeTitle}"><small>ALCANCE</small><b>${rangeTitle}</b></div>
+        <div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div>
+      </div>
+    </div>`;
+
   }
 }
