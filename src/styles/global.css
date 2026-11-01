@@ -1051,3 +1051,18 @@
   #rightPanel.right-panel,#app:has(#unitInspector:not(.hidden)) #rightPanel.right-panel{
     height:calc(100% - 390px);max-height:calc(100% - 390px)}
 }
+
+/* V25.3 — eliminação e espectador */
+.elimination-overlay{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:22px;background:radial-gradient(ellipse at center,#3a1821a6,#050b14e8 72%);backdrop-filter:blur(4px);animation:elimination-fade .45s ease both}
+.elimination-panel{width:min(530px,96vw);padding:39px 34px 33px;text-align:center;border:1px solid #bc707c9e;border-top:3px solid #df8d87;border-radius:15px;background:linear-gradient(155deg,#32212eea 0%,#111c2bf7 72%);box-shadow:0 32px 90px #000c,0 0 65px #e65f4b1c,inset 0 1px #fff2;animation:elimination-reveal .62s cubic-bezier(.2,.82,.3,1) both}
+.elimination-eyebrow{display:block;color:#eab9a4;font:800 10px Inter,sans-serif;letter-spacing:3.3px}
+.elimination-panel h2{font:800 clamp(37px,5.2vw,58px)/.98 'Barlow Condensed',sans-serif;letter-spacing:1.8px;color:#ffe3d7;margin:14px 0 17px;text-shadow:0 5px 23px #f16b5a49}
+.elimination-panel p{font:800 13px Inter,sans-serif;letter-spacing:2px;color:#c0cbd1;margin:0 0 27px}
+.elimination-actions{display:flex;gap:11px;justify-content:center;flex-wrap:wrap}
+.elimination-actions button{min-width:195px;min-height:49px;padding:13px 15px;border-radius:7px;font:800 11px Inter,sans-serif;letter-spacing:.8px;transition:transform .15s,filter .15s;cursor:pointer}
+.elimination-actions button:hover{transform:translateY(-2px);filter:brightness(1.12)}
+.elimination-spectate{background:linear-gradient(125deg,#b6dbb1,#6fabaa);color:#152e2d;border:1px solid #e1f8d3}
+.elimination-home{background:#26313d;color:#e6e6e8;border:1px solid #87929a}
+@keyframes elimination-fade{from{opacity:0}to{opacity:1}}
+@keyframes elimination-reveal{from{opacity:0;transform:translateY(30px) scale(.93);filter:blur(4px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@media(prefers-reduced-motion:reduce){.elimination-overlay,.elimination-panel{animation:none}.elimination-actions button{transition:none}}
