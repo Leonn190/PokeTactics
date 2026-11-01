@@ -99,3 +99,8 @@ A simulação segue no Worker local. O manifesto PMD é regenerado pelos scripts
 A ficha apresenta um cabeçalho com nome, retrato, tipos e nível destacado, depois vida/energia, três itens com IV médio e poder total, e dez atributos com pictogramas em duas fileiras de cinco. ATK, DEF, SPA, SPD e VEL exibem seus IVs; os outros cinco são crítico, dano crítico, vampirismo, durabilidade e amplificação. A habilidade continua como botão textual com detalhes flutuantes e ganha um quadrado de alcance ao lado. A ficha foi posicionada para não cobrir a classificação nem o comparativo de combate.
 
 O quadrado de ataque regular e os textos de clicar para remover/vender deixam de aparecer. Sobre cada Pokémon da arena, vida e energia ficam uma sobre a outra, o nível surge em medalhão circular escuro no canto esquerdo e até três itens aparecem abaixo das barras. São mudanças apenas de interface: nenhuma regra de batalha ou item foi alterada.
+
+
+### Interface V25.2
+
+O painel de jogadores exibe sequências de vitórias/derrotas. O painel de combate agora é um ranking único, com até 15 Pokémon, cores para aliado/adversário e detalhes de dano, defesa e cura ao passar o mouse ou focar uma unidade. Na loja, ouro e renda ficam acima dos botões de comprar XP e roletar; a bússola circular apresenta ícones dos tipos nas fatias coloridas.
