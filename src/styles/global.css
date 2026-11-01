@@ -850,13 +850,13 @@
    adversary comparison opens it shifts left of BOTH right-side columns. */
 @media(min-width:1301px){
   #app:has(#opponentCombatPanel:not(.hidden)) #unitInspector.unit-inspector{
-    right:calc(2 * 314px + 42px)}
+    right:670px}
 }
 @media(min-width:981px) and (max-width:1300px){
   #unitInspector.unit-inspector{right:calc(273px + 26px);width:354px;
     max-width:calc(100vw - 325px)}
   #app:has(#opponentCombatPanel:not(.hidden)) #unitInspector.unit-inspector{
-    right:calc(2 * 273px + 38px)}
+    right:584px}
 }
 @media(max-width:980px){
   #unitInspector.unit-inspector{right:calc(220px + 24px);width:330px;
@@ -870,8 +870,8 @@
   #unitInspector .inspector-equipment-summary span{font-size:9px}
   #unitInspector .inspector-equipment-summary b{font-size:15px}
   #app:has(#opponentCombatPanel:not(.hidden)) #unitInspector.unit-inspector{
-    left:8px;right:auto;width:min(330px,calc(100vw - 480px));max-width:none}
+    left:8px;right:auto;width:min(330px,calc(100vw - 550px));max-width:none}
 }
 @media(max-height:740px){
-  #unitInspector.unit-inspector{bottom:205px;max-height:calc(100vh - 300px)}
+  #unitInspector.unit-inspector{bottom:205px;max-height:calc(100vh - 365px)}
 }
