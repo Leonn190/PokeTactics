@@ -739,3 +739,8 @@
   #shopFooter .shop-actions{margin-top:-36px;height:calc(100% + 36px)}
   #unitInspector.unit-inspector{max-height:calc(100vh - 220px);bottom:200px}
 }
+
+/* V25 — Mega Evolução */
+.mega-stone-icon { display:inline-grid;place-items:center;font-size:22px;filter:drop-shadow(0 0 7px #cf8fff); }
+.mega-label {display:inline-block;margin:0 5px;padding:1px 5px;border:1px solid #b68bff;border-radius:7px;color:#ead4ff;font-size:10px;letter-spacing:.07em;vertical-align:middle;background:#7b39ba36;}
+.inventory-item:has(.mega-stone-icon) {border-color:#b28ced!important;box-shadow:inset 0 0 8px #8e52d655;}

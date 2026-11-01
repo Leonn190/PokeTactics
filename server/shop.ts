@@ -6,7 +6,7 @@ export function typeInfluence(player: Pick<Player, 'units'>): { points: Partial<
   const points: Partial<Record<Element, number>> = {};
   for (const unit of player.units) {
     const weight = unit.position.area === 'board' ? RULES.typeShopBias.activePoints : RULES.typeShopBias.benchPoints;
-    for (const type of getStageData(unit.family, unit.stage).elements) points[type] = (points[type] || 0) + weight;
+    for (const type of getStageData(unit.family, unit.stage,unit.formId).elements) points[type] = (points[type] || 0) + weight;
   }
   const total = Object.values(points).reduce((a, b) => a + b, 0);
   const shares: Partial<Record<Element, number>> = {};

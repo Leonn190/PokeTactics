@@ -15,13 +15,18 @@ export function previewBasic(family: Family, stage: number, stats: Stats): Damag
 }
 
 /** Raw values before enemy mitigation. Special effects are annotated by hit/DPS. */
-export function previewAbility(family: Family, stage: number, stats: Stats): DamagePreview[] {
-  const stageData = getStageData(family, stage);
+export function previewAbility(family: Family, stage: number, stats: Stats, formId?:string, mewtwoMode?:'melee'|'ranged'): DamagePreview[] {
+  const stageData = getStageData(family, stage,formId,mewtwoMode);
   const move: MoveData = ATTACKS.moves[stageData.move];
   const a = stats.atk, s = stats.spa;
   const physical = (label: string, value: number) => entry(label, value, 'physical');
   const special = (label: string, value: number) => entry(label, value, 'special');
   switch (move.effect) {
+    case 'mewtwo-barrage':return [special('RAJADA (3 + 5)',move.baseDamage+s*move.specialRatio),special('PROJÉTIL FINAL PERFORANTE',(move.finalDamage||0)+s*(move.finalSpaRatio||0))];
+    case 'mewtwo-impact':return [physical('SOCO EM ÁREA',move.baseDamage+a*(move.attackRatio||0)),entry('BARREIRA',stats.hp*(move.barrierMaxHpFraction||0),'heal')];
+    case 'moltres-fire':return [special('AURA POR INTERVALO',(move.auraBase||0)+s*(move.auraSpaRatio||0)),special('QUEIMADURA POR SEGUNDO',(move.burnBase||0)+s*(move.burnSpaRatio||0))];
+    case 'zapdos-storm':return [special('DANO POR CASA',move.baseDamage+s*move.specialRatio)];
+    case 'articuno-blizzard':return [special('DANO INICIAL EM ÁREA',move.baseDamage+s*move.specialRatio)];
     case 'psychic-teleport':return stage===0?[]:[special(`DANO POR DISPARO × ${move.shotCountByStage?.[stage]||0}`,move.baseDamage+s*move.specialRatio)];
     case 'absorbing-vine':return [special('DANO AO CONECTAR',(move.damageByStage?.[stage]??move.baseDamage)+s*move.specialRatio),entry('CURA AO EXECUTAR',stats.hp*(move.executeHealRatio??.10),'heal')];
     case 'flame-jet':return [special('DANO POR INSTÂNCIA',move.baseDamage+s*move.specialRatio)];

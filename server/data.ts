@@ -8,6 +8,7 @@ import renderConfig from '../config/renderizacao.json';
 import rangeConfig from '../config/alcances.json';
 import terrainConfig from '../config/terrenos.json';
 import type { Element, Family, Rarity, StageType, Stats } from './types';
+import { alternativeForm } from './forms';
 
 export type BasicAttackData = { stat: 'atk' | 'spa'; category: 'physical' | 'special'; animation: string; projectile?: string };
 export const ANIMATIONS = animationConfig;
@@ -42,7 +43,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam' | 'mewtwo-barrage' | 'mewtwo-impact' | 'moltres-fire' | 'zapdos-storm' | 'articuno-blizzard';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -91,6 +92,9 @@ export type MoveData = {
   absorbDamageReduction?:number;executeHealRatio?:number;maxDistance?:number;
   ragePercentByStage?:number[]; reviveDelay?:number; reviveHpFraction?:number; reviveRageMultiplier?:number;
   beamRangeByStage?:number[]; beamRadius?:number; beamDuration?:number;
+  firstShots?:number;secondShots?:number;angle1?:number;angle2?:number;phaseGap?:number;shotDelay?:number;projectileSpeed?:number;projectileRadius?:number;finalDamage?:number;finalSpaRatio?:number;finalRadius?:number;
+  auraInterval?:number;auraBase?:number;auraSpaRatio?:number;auraRadius?:number;burnSeconds?:number;burnBase?:number;burnSpaRatio?:number;barrierPerBurn?:number;barrierCapFraction?:number;barrierMaxHpFraction?:number;barrierSeconds?:number;
+  cells?:number;strikeInterval?:number;paralysisSeconds?:number;energyDrainFraction?:number;freezeSeconds?:number;iceSeconds?:number;slowFraction?:number;areaRadius?:number;
   jumpDuration?:number; landingDuration?:number; jumpSearchRadius?:number;
   continuationMultiplier?: number; levelBonusCap?: number; revertHealthRatio?: number;
 };
@@ -147,28 +151,29 @@ export const SPECIES = Object.fromEntries(Object.entries(pokemonConfig.species).
  * Integer range levels are authoritative; projectile identity is independent of range.
  * Explicit stats/category remain authoritative to preserve existing balance. */
 const stageCache = new Map<string, StageData>();
-export function getStageData(family: Family, stage: number): StageData {
+export function getStageData(family: Family, stage: number, formId?:string, mewtwoMode?:'melee'|'ranged'): StageData {
   const species = SPECIES[family];
   const index = Math.min(Math.max(0, stage), species.names.length - 1);
-  const key = `${family}:${index}`;
+  const key = `${family}:${index}:${formId||''}:${mewtwoMode||''}`;
   const cached = stageCache.get(key);
   if (cached) return cached;
   const override = species.stages?.[index] || {};
-  const elements = override.elements || species.elements;
-  const rangeLevel = override.rangeLevel ?? species.rangeLevel;
+  const form=alternativeForm(family,index,formId);
+  const elements = form?.elements || override.elements || species.elements;
+  const rangeLevel = family==='mewtwo' && mewtwoMode==='melee' ? 1 : override.rangeLevel ?? species.rangeLevel;
   const range = effectiveRange(rangeLevel);
   const basicOriginal = override.basic || species.basic;
   // The old range number must never silently convert a melee attacker into a gunner.
-  const ranged = !!basicOriginal?.projectile || basicOriginal?.animation === 'Shoot' || basicOriginal?.animation === 'SpAttack';
+  const ranged = !(family==='mewtwo' && mewtwoMode==='melee') && (!!basicOriginal?.projectile || basicOriginal?.animation === 'Shoot' || basicOriginal?.animation === 'SpAttack');
   const basic: BasicAttackData = {
     stat: 'atk', // authoritative universal rule; visual element stays unchanged
     category: 'physical',
-    animation: basicOriginal?.animation || (ranged ? ANIMATIONS.basic.rangedAnimation : ANIMATIONS.basic.meleeAnimation),
+    animation: family==='mewtwo' && mewtwoMode==='melee' ? ANIMATIONS.basic.meleeAnimation : basicOriginal?.animation || (ranged ? ANIMATIONS.basic.rangedAnimation : ANIMATIONS.basic.meleeAnimation),
     ...(ranged ? { projectile: 'basic-projectile' as const } : {})
   };
   const result: StageData = {
     elements, range, rangeLevel, energy: override.energy ?? species.energy,
-    move: override.move || species.attack,
+    move: family==='mewtwo'&&mewtwoMode==='melee'?'mewtwo-impact':override.move || species.attack,
     chargedType: override.chargedType || elements[0],
     chargedAnimation: override.chargedAnimation || 'Attack',
     basic
@@ -209,9 +214,9 @@ export const BOARD_COLUMNS = RULES.boardColumns;
 export const BOARD_ROWS = RULES.boardRows;
 
 /** Níveis além de 100 são intencionais: chefes PvE continuam escalando a cada capítulo. */
-export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false, effectiveIv = false): Stats {
+export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false, effectiveIv = false, formId?:string): Stats {
   const species = SPECIES[family];
-  const base = (boss && species.bossBase) || species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
+  const base = (!boss && alternativeForm(family,stage,formId)?.base) || (boss && species.bossBase) || species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
   const formula = RULES.statFormula;
   const levelScale = 1 + Math.max(0, level - 1) * formula.levelPerPoint;
   return Object.fromEntries((Object.keys(base) as Array<keyof Stats>).map(key => [
@@ -219,8 +224,8 @@ export function calculateStats(family: Family, level: number, iv: Stats, stage: 
   ])) as unknown as Stats;
 }
 
-export function displayName(family: Family, stage: number): string {
-  return SPECIES[family].names[Math.min(SPECIES[family].names.length - 1, stage)];
+export function displayName(family: Family, stage: number, formId?:string): string {
+  return alternativeForm(family,stage,formId)?.name || SPECIES[family].names[Math.min(SPECIES[family].names.length - 1, stage)];
 }
 
 export function gridXY(col: number, row: number): { x: number; y: number } {

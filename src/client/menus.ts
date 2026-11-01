@@ -1,4 +1,5 @@
 import type { Configurator } from './configurator/editor';
+import { alternativeForm,MEGA } from '../../server/forms';
 import { ATTACKS, ELEMENTS, getStageData, rangeLabel, RARITY_COLORS, SPECIES, evolutionCopies } from '../../server/data';
 import type { MoveData } from '../../server/data';
 import { previewAbility, previewBasic } from '../../server/damage-preview';
@@ -10,17 +11,23 @@ const escapeHTML = (value: string) => value.replaceAll('&', '&amp;').replaceAll(
 const baseUrl = import.meta.env.BASE_URL;
 const rarityNames = ['COMUM', 'INCOMUM', 'RARO', 'ÉPICO', 'LENDÁRIO'];
 const statNames: Record<keyof Stats, string> = { hp:'VIDA', atk:'ATAQUE', def:'DEFESA', spa:'AT. ESP.', spd:'DEF. ESP.', speed:'VELOCIDADE' };
-type Entry = { family: Family; stage: number; name: string; dex: number };
+type Entry = { family: Family; stage: number; name: string; dex: number; formId?:string };
 const entries: Entry[] = (Object.keys(SPECIES) as Family[]).flatMap(family => SPECIES[family].names.map((name, stage) => ({
   family, stage, name, dex: SPECIES[family].pokedexIds[stage]
-}))).sort((a,b) => a.dex - b.dex || a.name.localeCompare(b.name));
+}))).concat(MEGA.forms.map(form=>({family:form.family as Family,stage:form.stage,name:form.name,dex:form.pokedexId,formId:form.id}))).sort((a,b) => a.dex - b.dex || a.name.localeCompare(b.name));
 
-function portrait(dex: number, name: string, className: string): string {
-  return `<img class="${className}" src="${baseUrl}portrait/${String(dex).padStart(4,'0')}/Normal.png" alt="${escapeHTML(name)}" loading="lazy" draggable="false" />`;
+function portrait(dex: number, name: string, className: string,formId?:string): string {
+  const url=formId?`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${dex}.png`:`${baseUrl}portrait/${String(dex).padStart(4,'0')}/Normal.png`;
+  return `<img class="${className}" src="${url}" alt="${escapeHTML(name)}" loading="lazy" draggable="false" />`;
 }
 
 export function moveDescription(move: MoveData): string {
   const effects: Record<MoveData['effect'], string> = {
+    'mewtwo-barrage':'Lança 3 projéteis angulados, depois 5 e um grande projétil perfurante, com impacto real e dano especial.',
+    'mewtwo-impact':'Soco físico em área: empurra inimigos uma casa e concede barreira.',
+    'moltres-fire':'Passiva: aura de fogo periódica. Ativa: incendeia inimigos próximos e recebe barreira por adversário queimado.',
+    'zapdos-storm':'Escolhe 10 casas aleatórias. Raios da direita para a esquerda causam dano, reduzem a energia atual em 50% e paralisam.',
+    'articuno-blizzard':'Tempestade em área: dano e congelamento inicial; gelo persistente desacelera os inimigos.',
     'bite-shred':'Morde um alvo e reduz sua DEF por alguns segundos.',
     'wind-tornado':'Lança um tornado que atravessa adversários, reduz a velocidade deles em 50% e desacelera enquanto atravessa cada um.',
     drain:'Drena vida do inimigo e restaura a própria vida.',
@@ -189,7 +196,7 @@ export class Menus {
       const species = SPECIES[entry.family];
       if (this.filter === 'shop' && !species.shop) return false;
       if (this.filter === 'legendary' && species.rarity !== 5) return false;
-      const move = ATTACKS.moves[getStageData(entry.family,entry.stage).move];
+      const move = ATTACKS.moves[getStageData(entry.family,entry.stage,entry.formId).move];
       return !query || `${entry.name} ${species.names.join(' ')} ${species.elements.map(type=>ELEMENTS[type].name).join(' ')} ${move.name}`.toLocaleLowerCase('pt-BR').includes(query);
     });
     $('rosterCount').textContent = `${showing.length} / ${entries.length} POKÉMON`;
@@ -197,22 +204,22 @@ export class Menus {
       const species = SPECIES[entry.family];
       const index = entries.indexOf(entry);
       const active = this.selected === entry;
-      return `<button class="roster-card ${active ? 'active' : ''}" data-index="${index}" style="--pokemon-color:${species.glow};--rarity-color:${RARITY_COLORS[species.rarity-1]}"><span class="roster-dex">#${String(entry.dex).padStart(3,'0')}</span>${portrait(entry.dex,entry.name,'roster-card-art')}<strong>${escapeHTML(entry.name)}</strong><small>${rarityNames[species.rarity-1]}</small></button>`;
+      return `<button class="roster-card ${active ? 'active' : ''}" data-index="${index}" style="--pokemon-color:${species.glow};--rarity-color:${RARITY_COLORS[species.rarity-1]}"><span class="roster-dex">#${String(entry.dex).padStart(3,'0')}</span>${portrait(entry.dex,entry.name,'roster-card-art',entry.formId)}<strong>${escapeHTML(entry.name)}</strong><small>${rarityNames[species.rarity-1]}</small></button>`;
     }).join('') || '<p class="roster-empty">Nenhum Pokémon encontrado. Tente outro nome ou filtro.</p>';
   }
 
   private renderDetails(): void {
-    const { family, stage, name, dex } = this.selected;
+    const { family, stage, name, dex, formId } = this.selected;
     const species = SPECIES[family];
-    const data = getStageData(family, stage);
+    const data = getStageData(family, stage,formId);
     const move = ATTACKS.moves[data.move];
-    const stats = species.stageBases?.[stage] || species.base;
+    const stats = alternativeForm(family,stage,formId)?.base || species.stageBases?.[stage] || species.base;
     const total = Math.round(stats.hp / 5 + stats.atk + stats.def + stats.spa + stats.spd + stats.speed);
-    const damage = previewAbility(family, stage, stats);
+    const damage = previewAbility(family, stage, stats,formId);
     const basic = previewBasic(family, stage, stats);
     const chain = species.eeveeBranch ? ['Eevee', name] : species.names;
     const copies = evolutionCopies(family,stage);
-    $('rosterDetails').innerHTML = `<div class="detail-splash" style="--detail-glow:${species.glow}"><div class="detail-title"><span>#${String(dex).padStart(3,'0')} • ${rarityNames[species.rarity-1]}</span><h3>${escapeHTML(name)}</h3><div class="detail-types">${data.elements.map(t => `<span style="--type:${ELEMENTS[t].color}">${ELEMENTS[t].name}</span>`).join('')}</div></div>${portrait(dex,name,'detail-art')}</div>
+    $('rosterDetails').innerHTML = `<div class="detail-splash" style="--detail-glow:${species.glow}"><div class="detail-title"><span>#${String(dex).padStart(3,'0')} • ${rarityNames[species.rarity-1]}</span><h3>${escapeHTML(name)}</h3><div class="detail-types">${data.elements.map(t => `<span style="--type:${ELEMENTS[t].color}">${ELEMENTS[t].name}</span>`).join('')}</div></div>${portrait(dex,name,'detail-art',formId)}</div>
       <div class="detail-scroll">
       <div class="detail-section"><span class="detail-label">LINHA EVOLUTIVA</span><div class="detail-evolution">${chain.map((n,i) => `${i ? '<span class="detail-arrow">›</span>' : ''}<span class="${n === name ? 'current' : ''}">${escapeHTML(n)}</span>`).join('')}</div>${species.eeveeBranch ? `<p class="detail-tip">Evolui de Eevee, reunindo ${evolutionCopies('eevee')} cópias e escolhendo o ramo.</p>` : chain.length === 1 ? '<p class="detail-tip">Forma final: pode absorver uma cópia idêntica para ganhar +5 níveis.</p>' : `<p class="detail-tip">Evolução por ${copies} cópias da mesma forma. Formas finais idênticas se fundem: +5 níveis.</p>`}</div>
       <div class="detail-section"><div class="detail-heading"><span class="detail-label">STATUS BASE</span><strong>${total} <small>PODER</small></strong></div><div class="detail-stats">${(Object.keys(statNames) as Array<keyof Stats>).map(key => `<div class="detail-stat"><span>${statNames[key]}</span><div class="detail-stat-track"><i style="width:${Math.min(100,stats[key]/(key === 'hp' ? 600 : 120)*100)}%"></i></div><b>${stats[key]}</b></div>`).join('')}</div><p class="detail-tip">Atributos sem IV e sem bônus de nível • HP conta como 1/5 do poder total.</p></div>

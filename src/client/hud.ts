@@ -1,4 +1,5 @@
 import { itemImage } from './item-sprites';
+import { alternativeForm } from '../../server/forms';
 import { SynergyPanel } from './synergies/panel';
 import { interestCap,hasAugment } from '../../server/systems/augments';
 import { inventoryUsed,BALLS } from '../../server/systems/inventory';
@@ -28,10 +29,12 @@ export function itemRackSlots(items:EquippedItem[],selectedId:string|null=null,r
  while(slots.length<ITEMS.inventorySlots)slots.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
  return `<div class="inventory-grid" role="group" aria-label="Itens no chão">${slots.join('')}</div>`;
 }
-function portrait(family: keyof typeof SPECIES, size: number, stage = 0): string {
+function portrait(family: keyof typeof SPECIES, size: number, stage = 0, formId?:string): string {
   const s = SPECIES[family];
-  const id = s.pokedexIds[Math.min(stage, s.pokedexIds.length - 1)];
-  return `<img class="pokemon-portrait" src="${base}portrait/${String(id).padStart(4, '0')}/Normal.png" width="${size}" height="${size}" alt="${safe(s.names[Math.min(stage, s.names.length - 1)])}" loading="lazy" draggable="false" />`;
+  const form=alternativeForm(family,stage,formId);
+  const id = form?.pokedexId||s.pokedexIds[Math.min(stage, s.pokedexIds.length - 1)];
+  const src=form?`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`:`${base}portrait/${String(id).padStart(4, '0')}/Normal.png`;
+  return `<img class="pokemon-portrait" src="${src}" width="${size}" height="${size}" alt="${safe(s.names[Math.min(stage, s.names.length - 1)])}" loading="lazy" draggable="false" />`;
 }
 
 export class Hud {
@@ -380,8 +383,8 @@ export class Hud {
         ? `<div class="damage-split mitigation-split"><div class="mitigation-def" style="width:${physicalMitigated / max * 100}%"></div><div class="mitigation-spd" style="width:${specialMitigated / max * 100}%"></div><div class="mitigation-heal" style="width:${healed / max * 100}%"></div></div>`
         : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round((isStatus ? hp / maxHp : value / max) * 100)}%;background:${isStatus ? '#83d49f' : SPECIES[unit.family].glow}"></div></div>`;
       return `<div class="combat-entry"><div class="combat-line">
-        <span class="combat-mini-shape">${portrait(unit.family, 31, unit.stage)}</span>
-        <span class="combat-name">${displayName(unit.family, unit.stage)}</span><span class="combat-val">${valueText}</span></div>${bar}${this.metric === 'mitigation' && barrierAbsorbed > 0 ? `<span class="barrier-absorbed" title="Dano absorvido por barreira, não incluído na mitigação de DEF/SpD">◇ Barreira absorvida: ${Math.round(barrierAbsorbed)}</span>` : ''}</div>`;
+        <span class="combat-mini-shape">${portrait(unit.family, 31, unit.stage,unit.formId)}</span>
+        <span class="combat-name">${displayName(unit.family, unit.stage,unit.formId)}</span><span class="combat-val">${valueText}</span></div>${bar}${this.metric === 'mitigation' && barrierAbsorbed > 0 ? `<span class="barrier-absorbed" title="Dano absorvido por barreira, não incluído na mitigação de DEF/SpD">◇ Barreira absorvida: ${Math.round(barrierAbsorbed)}</span>` : ''}</div>`;
     }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : this.metric === 'mitigation' ? '<div class="metric-legend"><span><i class="def"></i>DEF</span><span><i class="spd"></i>SPD</span><span><i class="heal"></i>CURA</span></div>' : '')
       : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
     const ownHtml = combatHtml(ownEntries), enemyHtml = combatHtml(enemyEntries);
@@ -440,8 +443,8 @@ export class Hud {
   }
 
   private renderInspectorResources(battle: CombatUnit | undefined, pokemon: Pokemon): void {
-    const stats = battle?.stats || bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage),pokemon.equipment);
-    const energyNeeded = Math.max(1, battle?.energyNeeded ?? getStageData(pokemon.family, pokemon.stage).energy);
+    const stats = battle?.stats || bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage,false,false,pokemon.formId),pokemon.equipment);
+    const energyNeeded = Math.max(1, battle?.energyNeeded ?? getStageData(pokemon.family, pokemon.stage,pokemon.formId).energy);
     const hp = Math.max(0, battle?.hp ?? stats.hp);
     const maxHp = Math.max(1, battle?.maxHp ?? stats.hp);
     const energy = Math.max(0, battle?.energy ?? 0);
@@ -462,7 +465,7 @@ export class Hud {
 
   private fromCombat(unit: CombatUnit): Pokemon {
     return { id: unit.sourceId, family: unit.family, stage: unit.stage, level: unit.level,
-      iv: unit.iv, equipment:unit.equipment, xp: 0, position: { area: 'board', col: unit.col, row: unit.row } };
+      iv: unit.iv, formId:unit.formId,equipment:unit.equipment, xp: 0, position: { area: 'board', col: unit.col, row: unit.row } };
   }
 
   private inspector(pokemon: Pokemon, owner: string, combatant?: CombatUnit): string {
@@ -470,16 +473,18 @@ export class Hud {
     const displayStage=combatant?.stage??pokemon.stage;
     const displayLevel=combatant?.level??pokemon.level;
     const data = SPECIES[displayFamily];
-    const stage = getStageData(displayFamily,displayStage);
-    const naturalStats=calculateStats(displayFamily,displayLevel,combatant?.iv||pokemon.iv,displayStage);
-    const stats = combatant?.stats || bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage),pokemon.equipment);
+    const formId=combatant?.formId||pokemon.formId;
+    const mewtwoMode=combatant?.mewtwoMode || (displayFamily==='mewtwo'&&pokemon.position.area==='board'?(pokemon.position.row<=1?'melee':'ranged'):undefined);
+    const stage = getStageData(displayFamily,displayStage,formId,mewtwoMode);
+    const naturalStats=calculateStats(displayFamily,displayLevel,combatant?.iv||pokemon.iv,displayStage,false,false,formId);
+    const stats = combatant?.stats || bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage,false,false,pokemon.formId),pokemon.equipment);
     const ivAverage = Object.values(pokemon.iv).reduce((a, b) => a + b, 0) / Object.keys(pokemon.iv).length;
     const power = totalPower(stats);
     const move = ATTACKS.moves[stage.move];
     const description = moveDescription(move);
     const battleStats=combatant ? {...stats,atk:Math.max(0,stats.atk+Math.min(stats.atk*.3,combatant.buffs.filter(b=>b.stat==='atk'&&b.until>combatant.itemNow).reduce((sum,b)=>sum+b.amount,0))+bonusStat(combatant,'atk',combatant.itemNow,combatant.focusCount)+(combatant.synergy?.inherit.atk||0))}:stats;
     const basic = previewBasic(displayFamily,displayStage,battleStats);
-    const preview = previewAbility(displayFamily,displayStage,stats);
+    const preview = previewAbility(displayFamily,displayStage,stats,formId,mewtwoMode);
     const hp = combatant?.hp??stats.hp;
     const maxHp = Math.max(1,combatant?.maxHp??stats.hp);
     const energy = combatant?.energy??0;
@@ -492,7 +497,7 @@ export class Hud {
     const rangeTitle=rangeLabel(basicRange);
     const percents=effectivePercents(combatant||{equipment:pokemon.equipment||[],itemStacks:{},itemTimers:{}},combatant?.itemNow||0);
     const powerClass=modifierClass(power,totalPower(naturalStats));
-    return `<div class="inspector-top">${portrait(displayFamily, 64, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · XP ${pokemon.xp} · Alcance ${rangeTitle}</div></div></div>
+    return `<div class="inspector-top">${portrait(displayFamily, 64, displayStage,formId)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage,formId))}${combatant?.ditto?.active?' · DITTO':''}${formId?'<small class="mega-label">✦ MEGA</small>':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · XP ${pokemon.xp} · Alcance ${rangeTitle}${mewtwoMode?' · '+mewtwoMode.toUpperCase():''}</div></div></div>
       <div class="inspector-resources" aria-label="Vida e energia">
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
         <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>

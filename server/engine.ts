@@ -8,6 +8,7 @@ import { totalPower } from './formulas';
 import { craft, makeComponent, ITEM_COLORS, RECIPES, ITEMS } from './systems/items';
 import { LOOT, eligibleForLoot, rollColor, rollReward } from './systems/loot';
 import { chapterForRound, roundTimers } from './chapter-timers';
+import { eligibleForm,alternativeForm,nextFormStage } from './forms';
 import type { Battle, Family, GameCommand, GameSnapshot, GoldDrop, LootDrop, LootReward, BallKind, Phase, Player, Pokemon, ShopOffer, StageResult, Stats, UnitPosition, UnitVisualEvent } from './types';
 
 class Rng {
@@ -86,7 +87,7 @@ export class GameEngine {
       this.duration=86400;this.opponentId='p1';this.lastOpponentId='p1';
       this.players[0].name='VOCÊ';this.players[1].name='EQUIPE INIMIGA';
       for(const player of this.players){player.level=6;player.gold=1_000_000;player.health=RULES.startingHealth;player.augments=[];player.augmentChoice=undefined;}
-      this.players[0].itemInventory=ITEM_COLORS.map(color=>makeComponent(`sandbox:${color}`,color));
+      this.players[0].itemInventory=[...ITEM_COLORS.map(color=>makeComponent(`sandbox:${color}`,color)),{id:'sandbox:mega-stone',kind:'mega-stone',components:[]}];
       this.refreshShop(this.players[0]);
       this.log='Modo Teste · preparação livre';
       return;
@@ -251,6 +252,7 @@ export class GameEngine {
             const iv=Object.fromEntries((Object.keys(anchor.iv) as Array<keyof Stats>).map(stat=>[stat,RULES.baby.perfectEvolutionIV])) as Stats;
             const evolved:Pokemon={id:this.id(),family:babyDestination,stage:0,iv,
               level:Math.max(...sources.map(u=>u.level)),xp:Math.max(...sources.map(u=>u.xp)),position:{...anchor.position}};
+            evolved.formId=nextFormStage(evolved.family,evolved.stage,anchor.formId);
             evolved.equipment=this.preserveEquipment(player,sources);
             evolved.acquiredChapter=Math.min(...sources.map(u=>u.acquiredChapter||1));
             evolved.appliedAugments=[...new Set(sources.flatMap(u=>u.appliedAugments||[]))];
@@ -258,7 +260,7 @@ export class GameEngine {
             player.units.push(evolved);
             this.visualEvents.push({id:this.id(),unitId:evolved.id,ownerId:player.id,kind:'evolve',age:0,
               sources:sources.map(u=>({id:u.id,family:u.family,stage:u.stage,level:u.level,position:{...u.position}})),
-              pokemon:{family:evolved.family,stage:0,level:evolved.level,position:{...evolved.position}}});
+              pokemon:{family:evolved.family,stage:0,formId:evolved.formId,level:evolved.level,position:{...evolved.position}}});
             if(player.id==='p0')this.log=`${SPECIES[babyDestination].names[0]} nasceu com IV 100!`;
             changed=true;
           }
@@ -281,6 +283,8 @@ export class GameEngine {
             level: Math.max(...triple.map(u => u.level)),
             xp: Math.max(...triple.map(u => u.xp)), position: { ...anchor.position }
           };
+          // Transformed copies take precedence even when the anchor was not transformed.
+          evolved.formId=nextFormStage(family,stage+1,triple.find(u=>alternativeForm(family,stage+1,u.formId))?.formId);
           evolved.equipment = this.preserveEquipment(player, triple);
           evolved.acquiredChapter=Math.min(...triple.map(u=>u.acquiredChapter||1));
           evolved.appliedAugments=[...new Set(triple.flatMap(u=>u.appliedAugments||[]))];
@@ -290,7 +294,7 @@ export class GameEngine {
             id: this.id(), unitId: evolved.id, ownerId: player.id, kind: 'evolve', age: 0,
             delay: triple.some(u => this.visualEvents.some(e => e.kind === 'summon' && e.unitId === u.id && e.age < .2)) ? .63 : 0,
             sources: triple.map(u => ({ id: u.id, family: u.family, stage: u.stage, level: u.level, position: { ...u.position } })),
-            pokemon: { family: evolved.family, stage: evolved.stage, level: evolved.level, position: { ...evolved.position } }
+            pokemon: { family: evolved.family, stage: evolved.stage, formId:evolved.formId, level: evolved.level, position: { ...evolved.position } }
           });
           if (player.id === 'p0') this.log = `${SPECIES[family].names[stage + 1]} evoluiu!`;
           changed = true;
@@ -312,6 +316,7 @@ export class GameEngine {
     player.units = player.units.filter(unit => !four.includes(unit));
     const evolved: Pokemon = { id:this.id(), family:branch, stage:family==='scyther'||family==='tyrogue'?0:1, iv,
       level:Math.max(...four.map(u => u.level)), xp:Math.max(...four.map(u => u.xp)), position:{...anchor.position} };
+    evolved.formId=nextFormStage(evolved.family,evolved.stage,four.find(u=>alternativeForm(evolved.family,evolved.stage,u.formId))?.formId);
     evolved.equipment = this.preserveEquipment(player,four);
     evolved.acquiredChapter=Math.min(...four.map(u=>u.acquiredChapter||1));
     evolved.appliedAugments=[...new Set(four.flatMap(u=>u.appliedAugments||[]))];
@@ -355,7 +360,7 @@ export class GameEngine {
     const player = this.players.find(p=>p.id === drop.ownerId);
     if (!player || player.eliminated) return false;
     const reward = drop.reward;
-    if(!canReceive(player,reward.kind==='component'?1:0,reward.bonusBall)){drop.pending=true;return false;}
+    if(!canReceive(player,reward.kind==='component'||reward.kind==='mega-stone'?1:0,reward.bonusBall)){drop.pending=true;return false;}
     if (reward.kind === 'pokemon') {
       if (!reward.family) return false;
       const pos = this.freePlaceForReward(player);
@@ -365,12 +370,15 @@ export class GameEngine {
       applyPokemonAugments(player,unit,chapterForRound(this.round));
       player.units.push(unit);
       this.visualEvents.push({ id:this.id(), unitId:unit.id, ownerId:player.id, kind:'summon', age:0,
-        pokemon:{family:unit.family,stage:unit.stage,level:unit.level,position:{...unit.position}} });
+        pokemon:{family:unit.family,stage:unit.stage,formId:unit.formId,level:unit.level,position:{...unit.position}} });
       this.merge(player);
       this.lootMessage = `Espólio: ${SPECIES[reward.family].names[0]}`;
     } else if (reward.kind === 'gold') {
       player.gold += reward.amount || 0;
       this.lootMessage = `Espólio: +${reward.amount} ouro`;
+    } else if(reward.kind==='mega-stone'){
+      (player.itemInventory||=[]).push({id:this.id(),kind:'mega-stone',components:[]});
+      this.lootMessage='Espólio: Mega Pedra';
     } else {
       player.itemInventory ||= [];
       player.itemInventory.push(makeComponent(this.id(),reward.color || ITEM_COLORS[0]));
@@ -522,12 +530,13 @@ export class GameEngine {
   private fuseFinalForms(player: Player, source: Pokemon, target: Pokemon): boolean {
     if (source.id === target.id || source.family !== target.family || source.stage !== target.stage) return false;
     if (source.family === 'eevee' || source.stage < SPECIES[source.family].names.length - 1) return false;
-    const stronger = source.level > target.level ? source : target;
+    const stronger = source.formId && !target.formId?source:target.formId && !source.formId?target:source.level > target.level ? source : target;
     const consumed = stronger.id === source.id ? target : source;
     const where = { ...target.position };
     const sources = [source, target].map(unit => ({ id: unit.id, family: unit.family, stage: unit.stage, level: unit.level, position: { ...unit.position } }));
     player.units = player.units.filter(unit => unit.id !== consumed.id);
     const preserved = this.preserveEquipment(player,[stronger,consumed]);
+    stronger.formId=nextFormStage(stronger.family,stronger.stage,stronger.formId||consumed.formId);
     stronger.equipment = preserved;
     stronger.position = where;
     const fusionLevels = hasAugment(player,'S08') ? tierParam('S08','levels',1) : RULES.fusionLevels;
@@ -537,7 +546,7 @@ export class GameEngine {
       for(const key of keys)stronger.iv[key]=Math.min(100,stronger.iv[key]+tierParam('S08','iv',1));
     }
     this.visualEvents.push({ id: this.id(), unitId: stronger.id, ownerId: player.id, kind: 'fusion', age: 0, sources,
-      pokemon: { family: stronger.family, stage: stronger.stage, level: stronger.level, position: { ...stronger.position } } });
+      pokemon: { family: stronger.family, stage: stronger.stage, formId:stronger.formId, level: stronger.level, position: { ...stronger.position } } });
     if (player.id === 'p0') this.log = `${SPECIES[stronger.family].names[Math.min(stronger.stage, SPECIES[stronger.family].names.length - 1)]} • +${fusionLevels} níveis pela fusão!`;
     return true;
   }
@@ -595,7 +604,8 @@ export class GameEngine {
     if(command.kind==='sandbox-item'){
       const inventory=this.players[0].itemInventory||=[];
       if(!canReceive(this.players[0],1))return 'Área de itens cheia: equipe um item antes de criar outro';
-      if(command.color){
+      if(command.megaStone){inventory.push({id:this.id(),kind:'mega-stone',components:[]});}
+      else if(command.color){
         if(!ITEM_COLORS.includes(command.color))return 'Componente inválido';
         inventory.push(makeComponent(this.id(),command.color));
       }else if(command.recipe&&RECIPES[command.recipe]){
@@ -611,6 +621,7 @@ export class GameEngine {
       const item=human.itemInventory?.find(x=>x.id===command.itemId);
       const unit=owner.units.find(x=>x.id===command.unitId);
       if(!item||!unit)return 'Item ou Pokémon inválido';
+      if(item.kind==='mega-stone')return this.applyMegaStone(owner,unit,item);
       const gear=unit.equipment||=[];
       unit.equipment=gear;
       const actualItem=this.sandbox&&item.id.startsWith('sandbox:')?makeComponent(this.id(),item.components[0]):item;
@@ -682,6 +693,20 @@ export class GameEngine {
     return 'Comando indisponível';
   }
 
+  private applyMegaStone(owner:Player,unit:Pokemon,item:import('./types').EquippedItem):string|null {
+    if(this.phase!=='planning')return 'Mega Evolução somente na preparação';
+    if(item.kind!=='mega-stone')return 'O item não é uma Mega Pedra';
+    if(unit.formId)return 'Este Pokémon já está transformado';
+    if(unit.level<10)return 'Mega Pedra exige Pokémon de nível 10 ou superior';
+    const form=eligibleForm(unit);
+    if(!form)return 'Este estágio não possui Mega Evolução';
+    unit.formId=form.id;
+    if(!this.sandbox||!item.id.startsWith('sandbox:'))this.players[0].itemInventory=this.players[0].itemInventory!.filter(i=>i.id!==item.id);
+    this.visualEvents.push({id:this.id(),unitId:unit.id,ownerId:owner.id,kind:'evolve',age:0,pokemon:{family:unit.family,stage:unit.stage,formId:unit.formId,level:unit.level,position:{...unit.position}}});
+    this.log=`${form.name} megaevoluiu!`;
+    return null;
+  }
+
   command(command: GameCommand): string | null {
     if(command.kind.startsWith('sandbox-'))return this.sandboxCommand(command);
     const human = this.players[0];
@@ -712,10 +737,17 @@ export class GameEngine {
     }
     // Ramos múltiplos evoluem automaticamente pela influência dos tipos, nunca por escolha manual.
     if (command.kind === 'choose-eevee') return 'A evolução agora é automática pela barra de tipos';
+    if(command.kind==='mega-evolve'){
+      const item=human.itemInventory?.find(i=>i.id===command.itemId);
+      const unit=human.units.find(u=>u.id===command.unitId);
+      if(!item||!unit)return 'Mega Pedra ou Pokémon indisponível';
+      return this.applyMegaStone(human,unit,item);
+    }
     if (command.kind === 'equip-item') {
       const item=human.itemInventory?.find(i=>i.id===command.itemId);
       const target=human.units.find(u=>u.id===command.unitId);
       if (!item || !target) return 'Item ou Pokémon inválido';
+      if(item.kind==='mega-stone')return this.applyMegaStone(human,target,item);
       if (this.phase !== 'planning' && target.position.area === 'board') return 'Equipamentos de Pokémon em combate estão travados';
       const equipped=target.equipment ||= [];
       const actualItem=this.sandbox&&item.id.startsWith('sandbox:')?makeComponent(this.id(),item.components[0]):item;
@@ -851,7 +883,7 @@ export class GameEngine {
     // Deploy the strongest available units; the same positional rules apply to CPUs.
     const favorites = [...player.units].sort((a, b) => {
       const score = (u: Pokemon) => {
-        const stats = calculateStats(u.family, u.level, u.iv, u.stage);
+        const stats = calculateStats(u.family, u.level, u.iv, u.stage,false,false,u.formId);
         return u.stage * 500 + totalPower(stats) + SPECIES[u.family].rarity * 15;
       };
       return score(b) - score(a);

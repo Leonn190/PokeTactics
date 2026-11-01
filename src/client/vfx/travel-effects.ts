@@ -28,6 +28,12 @@ export function renderTravelEffects(ctx: CanvasRenderingContext2D, fx: CombatEff
         }
         ctx.restore();return true;
       }
+      if(fx.kind==='psychic-final'){
+        const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-cellScale*.28;
+        ctx.save();ctx.shadowColor='#ba87ff';ctx.shadowBlur=28;ctx.strokeStyle='#c18bff';ctx.lineWidth=Math.max(4,cellScale*.22);
+        ctx.beginPath();ctx.moveTo(from.x,from.y-cellScale*.28);ctx.lineTo(x,y);ctx.stroke();
+        ctx.fillStyle='#f7ddff';ctx.beginPath();ctx.arc(x,y,Math.max(6,cellScale*.22),0,PI2);ctx.fill();ctx.restore();return true;
+      }
       if(fx.kind==='psychic-shot'){
         const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-cellScale*.28;
         const dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy)||1;

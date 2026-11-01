@@ -1,6 +1,6 @@
 import type { Family, UnitPosition, UnitVisualEvent } from '../../../server/types';
 
-export type Portrait = { id: string; family: Family; stage: number; level: number; position: UnitPosition };
+export type Portrait = { id: string; family: Family; stage: number; formId?:string;level: number; position: UnitPosition };
 type Point = { x: number; y: number };
 type DrawSprite = (x: number, y: number, pokemon: Portrait, opacity: number, scale: number) => void;
 type DrawBall = (x: number, y: number, radius: number) => void;

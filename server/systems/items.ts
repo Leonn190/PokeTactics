@@ -97,6 +97,7 @@ export function shieldMultiplier(unit: CombatUnit): number {
   return 1 + effectCount(unit,'adaptive_shield') * numberParam('adaptive_shield','receivedHealShield');
 }
 export function itemTooltip(item: EquippedItem): string {
+  if(item.kind==='mega-stone')return 'MEGA PEDRA\nArraste até um Pokémon compatível de nível 10 ou mais. Transformação permanente e sem ocupar equipamento.';
   const parts = item.components.map(c => ITEMS.components[c]).map(c=>`+${c.value} ${c.stat.toUpperCase()}`).join(' • ');
   if (item.kind==='component') {
     const name=ITEMS.components[item.components[0]].name;

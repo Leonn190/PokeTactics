@@ -48,8 +48,8 @@ export class SynergyPanel {
    const ownershipChanged=ownershipKey!==this.latestOwnership;this.latestOwnership=ownershipKey;
    for(const unit of watched.units){
      if(unit.position.area!=='board')continue;
-     const key=`${unit.family}:${unit.stage}`;if(unique.has(key))continue;unique.add(key);
-     for(const element of getStageData(unit.family,unit.stage).elements){
+     const key=`${unit.family}:${unit.stage}:${unit.formId||''}`;if(unique.has(key))continue;unique.add(key);
+     for(const element of getStageData(unit.family,unit.stage,unit.formId).elements){
        this.counts[element]=(this.counts[element]||0)+1;
        (this.contributing[element]||=[]).push({family:unit.family,stage:unit.stage});
      }

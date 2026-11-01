@@ -904,7 +904,7 @@
         144
       ],
       "rarity": 5,
-      "shop": false,
+      "shop": true,
       "glow": "#65d8fa",
       "base": {
         "hp": 580,
@@ -914,8 +914,8 @@
         "spd": 120,
         "speed": 88
       },
-      "energy": 70,
-      "attack": "legendary-ice",
+      "energy": 75,
+      "attack": "articuno-blizzard",
       "elements": [
         "ice",
         "flying"
@@ -937,7 +937,15 @@
             "ice",
             "flying"
           ],
-          "rangeLevel": 4
+          "rangeLevel": 3,
+          "move": "articuno-blizzard",
+          "basic": {
+            "stat": "atk",
+            "category": "physical",
+            "animation": "Shoot",
+            "projectile": "basic-projectile"
+          },
+          "chargedAnimation": "SpAttack"
         }
       ],
       "physicalSizes": [
@@ -946,7 +954,10 @@
       "evolutionCopies": [
         3
       ],
-      "rangeLevel": 4
+      "rangeLevel": 3,
+      "bossMove": "legendary-ice",
+      "bossRange": 4,
+      "bossEnergy": 70
     },
     "zapdos": {
       "names": [
@@ -956,7 +967,7 @@
         145
       ],
       "rarity": 5,
-      "shop": false,
+      "shop": true,
       "glow": "#ffcd52",
       "base": {
         "hp": 560,
@@ -966,8 +977,8 @@
         "spd": 107,
         "speed": 113
       },
-      "energy": 70,
-      "attack": "legendary-electric",
+      "energy": 85,
+      "attack": "zapdos-storm",
       "elements": [
         "electric",
         "flying"
@@ -989,7 +1000,15 @@
             "electric",
             "flying"
           ],
-          "rangeLevel": 4
+          "rangeLevel": 2,
+          "move": "zapdos-storm",
+          "basic": {
+            "stat": "atk",
+            "category": "physical",
+            "animation": "Shoot",
+            "projectile": "basic-projectile"
+          },
+          "chargedAnimation": "SpAttack"
         }
       ],
       "physicalSizes": [
@@ -998,7 +1017,10 @@
       "evolutionCopies": [
         3
       ],
-      "rangeLevel": 4
+      "rangeLevel": 2,
+      "bossMove": "legendary-electric",
+      "bossRange": 4,
+      "bossEnergy": 70
     },
     "moltres": {
       "names": [
@@ -1008,7 +1030,7 @@
         146
       ],
       "rarity": 5,
-      "shop": false,
+      "shop": true,
       "glow": "#ff5a43",
       "base": {
         "hp": 560,
@@ -1018,8 +1040,8 @@
         "spd": 99,
         "speed": 101
       },
-      "energy": 70,
-      "attack": "legendary-fire",
+      "energy": 80,
+      "attack": "moltres-sacred-fire",
       "elements": [
         "fire",
         "flying"
@@ -1041,7 +1063,15 @@
             "fire",
             "flying"
           ],
-          "rangeLevel": 4
+          "rangeLevel": 2,
+          "move": "moltres-sacred-fire",
+          "basic": {
+            "stat": "atk",
+            "category": "physical",
+            "animation": "Shoot",
+            "projectile": "basic-projectile"
+          },
+          "chargedAnimation": "SpAttack"
         }
       ],
       "physicalSizes": [
@@ -1050,7 +1080,10 @@
       "evolutionCopies": [
         3
       ],
-      "rangeLevel": 4
+      "rangeLevel": 2,
+      "bossMove": "legendary-fire",
+      "bossRange": 4,
+      "bossEnergy": 70
     },
     "mewtwo": {
       "names": [
@@ -1060,7 +1093,7 @@
         150
       ],
       "rarity": 5,
-      "shop": false,
+      "shop": true,
       "glow": "#9865e4",
       "base": {
         "hp": 650,
@@ -1070,8 +1103,8 @@
         "spd": 108,
         "speed": 120
       },
-      "energy": 75,
-      "attack": "legendary-psychic",
+      "energy": 85,
+      "attack": "mewtwo-psychic",
       "elements": [
         "psychic"
       ],
@@ -1091,7 +1124,15 @@
           "elements": [
             "psychic"
           ],
-          "rangeLevel": 6
+          "rangeLevel": 5,
+          "move": "mewtwo-psychic",
+          "basic": {
+            "stat": "atk",
+            "category": "physical",
+            "animation": "Shoot",
+            "projectile": "basic-projectile"
+          },
+          "chargedAnimation": "Shoot"
         }
       ],
       "physicalSizes": [
@@ -1100,7 +1141,10 @@
       "evolutionCopies": [
         3
       ],
-      "rangeLevel": 6
+      "rangeLevel": 5,
+      "bossMove": "legendary-psychic",
+      "bossRange": 6,
+      "bossEnergy": 75
     },
     "mew": {
       "names": [

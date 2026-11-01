@@ -3,9 +3,9 @@ export type Family = keyof typeof pokemonConfig.species;
 export type ItemColor = 'green' | 'blue' | 'purple' | 'orange' | 'yellow' | 'red';
 export type BallKind = 'pokeball' | 'greatball' | 'ultraball' | 'masterball';
 export type LootColor = 'gray' | 'blue' | 'yellow';
-export interface EquippedItem { id: string; kind: 'component' | 'complete'; components: ItemColor[]; recipe?: string }
+export interface EquippedItem { id: string; kind: 'component' | 'complete' | 'mega-stone'; components: ItemColor[]; recipe?: string }
 export interface PercentStats { vampirism: number; critChance: number; critDamage: number; durability: number; amplification: number }
-export interface LootReward { kind: 'gold'|'pokemon'|'component'; amount?: number; family?: Family; rarity?: Rarity; color?: ItemColor; bonusBall?: BallKind }
+export interface LootReward { kind: 'gold'|'pokemon'|'component'|'mega-stone'; amount?: number; family?: Family; rarity?: Rarity; color?: ItemColor; bonusBall?: BallKind }
 export interface LootDrop { id: string; ownerId: string; x: number; y: number; color: LootColor; claimed: boolean; reward: LootReward; pending?: boolean }
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
@@ -21,6 +21,7 @@ export interface Pokemon {
   id: string;
   family: Family;
   stage: number;
+  formId?: string;
   level: number;
   xp: number;
   iv: Stats;
@@ -131,6 +132,7 @@ export interface CombatUnit {
   playerId: string;
   family: Family;
   stage: number;
+  formId?: string;
   level: number;
   iv: Stats;
   col: number;
@@ -182,6 +184,8 @@ export interface CombatUnit {
   navBlockedFor?:number;
   persianPursuit?: {targetId:string; elapsed:number; stuck:number};
   babyFlee?: boolean;
+  mewtwoMode?: 'melee'|'ranged';
+  legendClock?: number;
   rageStacks?: number;
   rageEmpowered?: boolean;
   rageRebirth?: { used:boolean;pending:boolean; at:number };
@@ -244,7 +248,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact' | 'meteor-fall' | 'meteor-warning' | 'meteor-fragment' | 'meteor-impact' | 'cone-slash' | 'scizor-dash' | 'scizor-impact' | 'claw-strip' | 'electro-shot' | 'electro-field' | 'electro-pulse' | 'electro-absorb' | 'flame-jet' | 'electric-punch' | 'psychic-shot' | 'vine-pull' | 'solar-beam';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact' | 'meteor-fall' | 'meteor-warning' | 'meteor-fragment' | 'meteor-impact' | 'cone-slash' | 'scizor-dash' | 'scizor-impact' | 'claw-strip' | 'electro-shot' | 'electro-field' | 'electro-pulse' | 'electro-absorb' | 'flame-jet' | 'electric-punch' | 'psychic-shot' | 'psychic-final' | 'vine-pull' | 'solar-beam';
   magnet?:{ownerId:string;radius:number;attractionRadius:number;absorptionRadius:number;
     pullSpeed:number;pulseRaw:number;pulseCount:number;pulseIndex:number;interval:number};
   magnetPull?:{orbId:string;fromX:number;fromY:number;toX:number;toY:number;startTime:number;duration:number};
@@ -260,6 +264,7 @@ export interface CombatEffect {
   duration: number;
   value: number;
   piercing?: { sourceId: string; raw: number; attackType: Element; hitIds: string[] };
+  legendary?: {kind:'psychic'|'lightning'|'blizzard';sourceId:string;activateAt:number;raw:number;radius:number;hitIds:string[];drain?:number;statusSeconds?:number;iceSeconds?:number;slow?:number;};
   wind?: { sourceId:string; raw:number; attackType:Element; dx:number; dy:number; speed:number;
     traveled:number; maxDistance:number; radius:number; hitIds:string[]; slowFactor:number; speedFactor:number; };
   obstacleImpact?:boolean;
@@ -334,8 +339,8 @@ export interface UnitVisualEvent {
   ownerId: string;
   kind: 'summon' | 'evolve' | 'fusion' | 'trainer-damage';
   age: number;
-  sources?: Array<{ family: Family; stage: number; position: UnitPosition; level: number; id?: string }>;
-  pokemon?: { family: Family; stage: number; position: UnitPosition; level: number };
+  sources?: Array<{ family: Family; stage: number; formId?:string; position: UnitPosition; level: number; id?: string }>;
+  pokemon?: { family: Family; stage: number; formId?:string; position: UnitPosition; level: number };
   delay?: number; // stagger evolution after a simultaneous purchase
   value?: number; // effective HP lost by trainer, not the pre-clamp formula
   battleId?: string;
@@ -380,7 +385,7 @@ export type GameCommand =
   | { kind:'sandbox-transfer'; unitId:string; toOwnerId:'p0'|'p1'; position:UnitPosition }
   | { kind:'sandbox-remove'; unitId:string; ownerId:'p0'|'p1' }
   | { kind:'sandbox-stage'; unitId:string; ownerId:'p0'|'p1'; stage:number }
-  | { kind:'sandbox-item'; color?:ItemColor; recipe?:string }
+  | { kind:'sandbox-item'; color?:ItemColor; recipe?:string; megaStone?:boolean }
   | { kind:'sandbox-equip-item'; ownerId:'p0'|'p1'; unitId:string; itemId:string }
   | { kind:'sandbox-equip'; ownerId:'p0'|'p1'; unitId:string; color?:ItemColor; recipe?:string; slot?:number }
   | { kind:'sandbox-augment'; ownerId:'p0'|'p1'; id:string; enabled:boolean }
@@ -394,6 +399,7 @@ export type GameCommand =
   | { kind: 'sell'; unitId: string }
   | { kind: 'choose-eevee'; branch: Family }
   | { kind: 'equip-item'; itemId: string; unitId: string; ontoSlot?: number }
+  | { kind: 'mega-evolve'; itemId: string; unitId: string }
   | { kind: 'unequip-item'; unitId: string; slot: number }
   | { kind: 'use-ball'; ball: BallKind; unitId: string }
   | { kind: 'move-trainer'; x: number; y: number }

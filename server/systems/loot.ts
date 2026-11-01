@@ -1,6 +1,7 @@
 /** Seeded loot tables. Weights are normalized for every color independently. */
 import settings from '../../config/espolios.json';
 import { ITEM_COLORS } from './items';
+import { MEGA } from '../forms';
 import { SHOP_FAMILIES, SPECIES } from '../data';
 import type { Family, ItemColor, LootColor, LootReward, Rarity, StageType, BallKind } from '../types';
 export const LOOT = settings;
@@ -19,6 +20,7 @@ export function rollColor(random:()=>number, chapter: number): LootColor {
   return weighted(LOOT_COLORS.map(color=>({ color,weight:weights[color] || 0 })),random).color;
 }
 export function rollReward(color: LootColor, random:()=>number): LootReward {
+  if(random()<(MEGA.lootChance[color]||0))return {kind:'mega-stone'};
   const reward=weighted(LOOT.rolls[color],random);
   const bonus=LOOT.ballBonusChance[color] as Record<string,number>;
   const ball=Object.entries(bonus).find(([,chance])=>random()<chance)?.[0] as BallKind | undefined;

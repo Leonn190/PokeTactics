@@ -5,7 +5,7 @@ import { distance } from './targeting';
 
 /** Equipment and temporary bonuses remain world-distance modifiers. */
 export function effectiveBasicRange(unit:CombatUnit,now:number):number {
- const base=getStageData(unit.family,unit.stage);
+ const base=getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode);
  const bonus=unit.range-base.range;
  const advanced=unit.family==='staryu' && unit.stage===1 && unit.refractionUntil>now
    ? steppedRange(base.rangeLevel,1) : base.range;

@@ -1,0 +1,444 @@
+{
+  "minLevel": 10,
+  "lootChance": {
+    "gray": 0,
+    "blue": 0.002,
+    "yellow": 0.026
+  },
+  "forms": [
+    {
+      "id": "mega-charizard-x",
+      "family": "charmander",
+      "stage": 2,
+      "name": "Mega Charizard X",
+      "elements": [
+        "fire",
+        "dragon"
+      ],
+      "base": {
+        "hp": 600,
+        "atk": 146,
+        "def": 116,
+        "spa": 132,
+        "spd": 104,
+        "speed": 121
+      },
+      "pokedexId": 10034
+    },
+    {
+      "id": "mega-alakazam",
+      "family": "abra",
+      "stage": 2,
+      "name": "Mega Alakazam",
+      "elements": [
+        "psychic"
+      ],
+      "base": {
+        "hp": 430,
+        "atk": 63,
+        "def": 75,
+        "spa": 170,
+        "spd": 117,
+        "speed": 171
+      },
+      "pokedexId": 10037
+    },
+    {
+      "id": "mega-gengar",
+      "family": "gastly",
+      "stage": 2,
+      "name": "Mega Gengar",
+      "elements": [
+        "ghost",
+        "poison"
+      ],
+      "base": {
+        "hp": 475,
+        "atk": 85,
+        "def": 95,
+        "spa": 175,
+        "spd": 108,
+        "speed": 150
+      },
+      "pokedexId": 10038
+    },
+    {
+      "id": "mega-steelix",
+      "family": "onix",
+      "stage": 1,
+      "name": "Mega Steelix",
+      "elements": [
+        "steel",
+        "ground"
+      ],
+      "base": {
+        "hp": 695,
+        "atk": 138,
+        "def": 210,
+        "spa": 75,
+        "spd": 104,
+        "speed": 48
+      },
+      "pokedexId": 10072
+    },
+    {
+      "id": "mega-aerodactyl",
+      "family": "aerodactyl",
+      "stage": 0,
+      "name": "Mega Aerodactyl",
+      "elements": [
+        "rock",
+        "flying"
+      ],
+      "base": {
+        "hp": 615,
+        "atk": 158,
+        "def": 110,
+        "spa": 94,
+        "spd": 109,
+        "speed": 150
+      },
+      "pokedexId": 10042
+    },
+    {
+      "id": "mega-mewtwo-y",
+      "family": "mewtwo",
+      "stage": 0,
+      "name": "Mega Mewtwo Y",
+      "elements": [
+        "psychic"
+      ],
+      "base": {
+        "hp": 745,
+        "atk": 132,
+        "def": 100,
+        "spa": 188,
+        "spd": 140,
+        "speed": 155
+      },
+      "pokedexId": 10044
+    },
+    {
+      "id": "galar",
+      "family": "articuno",
+      "stage": 0,
+      "name": "Articuno de Galar",
+      "elements": [
+        "psychic",
+        "flying"
+      ],
+      "base": {
+        "hp": 645,
+        "atk": 94,
+        "def": 108,
+        "spa": 143,
+        "spd": 130,
+        "speed": 113
+      },
+      "pokedexId": 10169
+    },
+    {
+      "id": "galar",
+      "family": "zapdos",
+      "stage": 0,
+      "name": "Zapdos de Galar",
+      "elements": [
+        "fighting",
+        "flying"
+      ],
+      "base": {
+        "hp": 640,
+        "atk": 133,
+        "def": 109,
+        "spa": 130,
+        "spd": 108,
+        "speed": 126
+      },
+      "pokedexId": 10170
+    },
+    {
+      "id": "galar",
+      "family": "moltres",
+      "stage": 0,
+      "name": "Moltres de Galar",
+      "elements": [
+        "dark",
+        "flying"
+      ],
+      "base": {
+        "hp": 650,
+        "atk": 115,
+        "def": 110,
+        "spa": 137,
+        "spd": 130,
+        "speed": 110
+      },
+      "pokedexId": 10171
+    },
+    {
+      "id": "alola",
+      "family": "rattata",
+      "stage": 0,
+      "name": "Rattata de Alola",
+      "elements": [
+        "dark",
+        "normal"
+      ],
+      "base": {
+        "hp": 270,
+        "atk": 61,
+        "def": 53,
+        "spa": 29,
+        "spd": 47,
+        "speed": 85
+      },
+      "pokedexId": 10091
+    },
+    {
+      "id": "alola",
+      "family": "rattata",
+      "stage": 1,
+      "name": "Raticate de Alola",
+      "elements": [
+        "dark",
+        "normal"
+      ],
+      "base": {
+        "hp": 430,
+        "atk": 110,
+        "def": 84,
+        "spa": 50,
+        "spd": 75,
+        "speed": 118
+      },
+      "pokedexId": 10092
+    },
+    {
+      "id": "galar",
+      "family": "koffing",
+      "stage": 1,
+      "name": "Weezing de Galar",
+      "elements": [
+        "poison",
+        "fairy"
+      ],
+      "base": {
+        "hp": 560,
+        "atk": 92,
+        "def": 132,
+        "spa": 104,
+        "spd": 133,
+        "speed": 52
+      },
+      "pokedexId": 10167
+    },
+    {
+      "id": "alola",
+      "family": "geodude",
+      "stage": 0,
+      "name": "Geodude de Alola",
+      "elements": [
+        "rock",
+        "electric"
+      ],
+      "base": {
+        "hp": 360,
+        "atk": 77,
+        "def": 116,
+        "spa": 36,
+        "spd": 51,
+        "speed": 34
+      },
+      "pokedexId": 10109
+    },
+    {
+      "id": "alola",
+      "family": "geodude",
+      "stage": 1,
+      "name": "Graveler de Alola",
+      "elements": [
+        "rock",
+        "electric"
+      ],
+      "base": {
+        "hp": 520,
+        "atk": 110,
+        "def": 136,
+        "spa": 42,
+        "spd": 79,
+        "speed": 46
+      },
+      "pokedexId": 10110
+    },
+    {
+      "id": "alola",
+      "family": "geodude",
+      "stage": 2,
+      "name": "Golem de Alola",
+      "elements": [
+        "rock",
+        "electric"
+      ],
+      "base": {
+        "hp": 675,
+        "atk": 130,
+        "def": 154,
+        "spa": 62,
+        "spd": 105,
+        "speed": 62
+      },
+      "pokedexId": 10111
+    },
+    {
+      "id": "hisui",
+      "family": "growlithe",
+      "stage": 0,
+      "name": "Growlithe de Hisui",
+      "elements": [
+        "fire",
+        "rock"
+      ],
+      "base": {
+        "hp": 380,
+        "atk": 77,
+        "def": 77,
+        "spa": 73,
+        "spd": 66,
+        "speed": 66
+      },
+      "pokedexId": 10229
+    },
+    {
+      "id": "hisui",
+      "family": "growlithe",
+      "stage": 1,
+      "name": "Arcanine de Hisui",
+      "elements": [
+        "fire",
+        "rock"
+      ],
+      "base": {
+        "hp": 680,
+        "atk": 140,
+        "def": 112,
+        "spa": 130,
+        "spd": 105,
+        "speed": 112
+      },
+      "pokedexId": 10230
+    },
+    {
+      "id": "alola",
+      "family": "vulpix",
+      "stage": 0,
+      "name": "Vulpix de Alola",
+      "elements": [
+        "ice"
+      ],
+      "base": {
+        "hp": 255,
+        "atk": 46,
+        "def": 54,
+        "spa": 71,
+        "spd": 79,
+        "speed": 77
+      },
+      "pokedexId": 10103
+    },
+    {
+      "id": "alola",
+      "family": "vulpix",
+      "stage": 1,
+      "name": "Ninetales de Alola",
+      "elements": [
+        "ice",
+        "fairy"
+      ],
+      "base": {
+        "hp": 480,
+        "atk": 77,
+        "def": 84,
+        "spa": 118,
+        "spd": 130,
+        "speed": 130
+      },
+      "pokedexId": 10104
+    },
+    {
+      "id": "alola",
+      "family": "diglett",
+      "stage": 0,
+      "name": "Diglett de Alola",
+      "elements": [
+        "ground",
+        "steel"
+      ],
+      "base": {
+        "hp": 245,
+        "atk": 62,
+        "def": 45,
+        "spa": 45,
+        "spd": 58,
+        "speed": 103
+      },
+      "pokedexId": 10105
+    },
+    {
+      "id": "alola",
+      "family": "diglett",
+      "stage": 1,
+      "name": "Dugtrio de Alola",
+      "elements": [
+        "ground",
+        "steel"
+      ],
+      "base": {
+        "hp": 465,
+        "atk": 125,
+        "def": 70,
+        "spa": 64,
+        "spd": 99,
+        "speed": 135
+      },
+      "pokedexId": 10106
+    },
+    {
+      "id": "alola",
+      "family": "grimer",
+      "stage": 0,
+      "name": "Grimer de Alola",
+      "elements": [
+        "poison",
+        "dark"
+      ],
+      "base": {
+        "hp": 400,
+        "atk": 93,
+        "def": 75,
+        "spa": 62,
+        "spd": 66,
+        "speed": 39
+      },
+      "pokedexId": 10112
+    },
+    {
+      "id": "alola",
+      "family": "grimer",
+      "stage": 1,
+      "name": "Muk de Alola",
+      "elements": [
+        "poison",
+        "dark"
+      ],
+      "base": {
+        "hp": 655,
+        "atk": 126,
+        "def": 107,
+        "spa": 89,
+        "spd": 117,
+        "speed": 60
+      },
+      "pokedexId": 10113
+    }
+  ]
+}

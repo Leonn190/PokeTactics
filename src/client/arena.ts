@@ -1,3 +1,4 @@
+import { alternativeForm } from '../../server/forms';
 import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, ITEM_RACK_WORLD, RULES, ATTACKS, physicalSize, collisionRadius } from '../../server/data';
 import { FrameScheduler } from './performance/frame-scheduler';
 import { PerformanceProfiler } from './performance/profiler';
@@ -40,7 +41,7 @@ export interface ClientView {
   hoveringBench: number | null;
 }
 
-type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy']; orbitFlames?: CombatUnit['orbitFlames']; equipment?: CombatUnit['equipment']; babyFlee?: boolean; statuses?: CombatUnit['statuses']; lullaby?: CombatUnit['lullaby']; starWard?: CombatUnit['starWard']; stunUntil?: number; itemBurn?: CombatUnit['itemBurn'] };
+type Marker = { id: string; ownerId: string; sourceId: string; x: number; y: number; family: Family; stage: number; formId?:string; mewtwoMode?:'melee'|'ranged'; own: boolean; level: number; hp: number; maxHp: number; energy: number; required: number; flash: number; bench?: boolean; moving?: boolean; facingX?: number; facingY?: number; animation?: CombatUnit['animation']; spinTime?: number; spinDuration?: number; jumpHeight?: number; knockUpTime?: number; knockUpDuration?: number; poison?: CombatUnit['poison']; barrier?: CombatUnit['barrier']; barriers?: CombatUnit['barriers']; buffs?: CombatUnit['buffs']; defenseShreds?: CombatUnit['defenseShreds']; guardUntil?: number; dig?: CombatUnit['dig']; ghost?: CombatUnit['ghost']; fear?: CombatUnit['fear']; psychicImbuement?: CombatUnit['psychicImbuement']; refractionUntil?: number; leap?: CombatUnit['leap']; attackSpeedDebuffUntil?: number; synergy?: CombatUnit['synergy']; orbitFlames?: CombatUnit['orbitFlames']; equipment?: CombatUnit['equipment']; babyFlee?: boolean; statuses?: CombatUnit['statuses']; lullaby?: CombatUnit['lullaby']; starWard?: CombatUnit['starWard']; stunUntil?: number; itemBurn?: CombatUnit['itemBurn'] };
 const PMD = pmdManifest as Record<string, PmdEntry>;
 const PI2 = Math.PI * 2;
 const BENCH_Y = 4.38;
@@ -401,7 +402,7 @@ export class Arena {
   /** Retorna o topo VISÍVEL do sprite para posicionar nível/vida/energia. */
   private drawPokemonSprite(x: number, y: number, unit: Marker, time: number): number {
     const ctx = this.context;
-    const id = SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
+    const id = alternativeForm(unit.family,unit.stage,unit.formId)?.pokedexId||SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
     const anims = PMD[String(id)];
     if (anims) {
       this.warmAnimationSheets(id, anims, unit.family, unit.stage);
@@ -481,7 +482,8 @@ export class Arena {
       return y - this.cellScale * .85;
     }
     // Lendários ainda não receberam sheets PMD; continuam como PNGs, sem figuras coloridas.
-    const path = SPECIES[unit.family].sprites[Math.min(unit.stage, SPECIES[unit.family].sprites.length - 1)];
+    const alt=alternativeForm(unit.family,unit.stage,unit.formId);
+    const path = alt?`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${alt.pokedexId}.png`:SPECIES[unit.family].sprites[Math.min(unit.stage, SPECIES[unit.family].sprites.length - 1)];
     // Missing PMD sheets remain ordinary sprite PNGs; try the canonical PokeAPI image if a local asset is absent.
     const localUrl = /^https?:\/\//.test(path) ? path : `${import.meta.env.BASE_URL}${path.replace(/^\.\//, '')}`;
     const primary = this.image(localUrl);
@@ -665,12 +667,12 @@ export class Arena {
     if (!snapshot) return [];
     const watched = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
     const planningKey=snapshot.phase==='planning' ? JSON.stringify([watched.units.map(u=>[
-      u.id,u.family,u.stage,u.level,u.position,u.equipment]),snapshot.sandbox?snapshot.players[1]?.units.map(u=>[u.id,u.family,u.stage,u.position,u.equipment]):null]) : '';
+      u.id,u.family,u.stage,u.formId,u.level,u.position,u.equipment]),snapshot.sandbox?snapshot.players[1]?.units.map(u=>[u.id,u.family,u.stage,u.formId,u.position,u.equipment]):null]) : '';
     if(snapshot.phase==='planning' && this.planningCache?.key===planningKey && this.planningCache.scout===this.view.scoutId)return this.planningCache.markers;
     const benchUnits = (units: Pokemon[], ownerId: string, own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
       const p = benchXY((u.position as Extract<UnitPosition, { area: 'bench' }>).index, enemy, offset);
-      return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage, level: u.level,
-        own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, equipment:u.equipment||[], flash: 0, bench: true } as Marker;
+      return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage,formId:u.formId,level: u.level,
+        own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage,u.formId).energy, equipment:u.equipment||[], flash: 0, bench: true } as Marker;
     });
     const liveUnits=watched.units.map(u=>this.pendingMove.has(u.id)?{...u,position:this.pendingMove.get(u.id)!.position}:u);
     const bench = benchUnits(liveUnits, watched.id, true, false, 0);
@@ -702,8 +704,8 @@ export class Arena {
       const pos = u.position as Extract<UnitPosition, { area: 'board' }>;
       const row = own ? 4 + pos.row : 3 - pos.row;
       const p = gridXY(pos.col, row);
-      return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage,
-        level: u.level, own, equipment:u.equipment||[],hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage).energy, flash: 0 };
+      return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage,formId:u.formId,
+        level: u.level, own, equipment:u.equipment||[],hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage,u.formId).energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
     const prepared = [...convert(liveUnits, true,watched.id), ...bench,
@@ -839,7 +841,7 @@ export class Arena {
     }
     // The PMD sprite itself already contains the ground under Diglett/Dugtrio.
     // Shadow markers are metadata, never an additional soil decal.
-    const dex=SPECIES[unit.family].pokedexIds[Math.min(unit.stage,SPECIES[unit.family].pokedexIds.length-1)];
+    const dex=alternativeForm(unit.family,unit.stage,unit.formId)?.pokedexId||SPECIES[unit.family].pokedexIds[Math.min(unit.stage,SPECIES[unit.family].pokedexIds.length-1)];
     const sheetSet=PMD[String(dex)];
     const action=unit.animation?.name || (unit.moving?'Walk':'Idle');
     const sheet=sheetSet?.[action] || sheetSet?.Idle;
@@ -852,7 +854,7 @@ export class Arena {
     drawContactShadow(ctx,p.x,p.y,radius,visualProfile(unit.family,unit.stage).shadow,liftForShadow,shade);
     const battle=this.snapshot?.visibleBattle;
     if(battle&&this.snapshot?.phase!=='planning'&&unit.synergy){
-      const elements=getStageData(unit.family,unit.stage).elements;
+      const elements=getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).elements;
       const tones:Record<string,string>={fire:'#ff9b5c',steel:'#c5e1e7',fighting:'#d98c63',psychic:'#f1b0f5',rock:'#cabb91',water:'#75d6ff',grass:'#8cec9c',electric:'#ffe580',flying:'#cde9ff',fairy:'#ffaaff',normal:'#d8ded0',ghost:'#bfa7ff',dark:'#8f85bd',bug:'#c9ef75',dragon:'#aba8ff',ground:'#d9ab81',poison:'#b777f2',ice:'#c7faff'};
       const active=elements.filter(type=>tierFor(type,battle.traitsByPlayer[unit.ownerId]?.[type]||0));
       active.slice(0,2).forEach((type,i)=>{
@@ -913,7 +915,7 @@ export class Arena {
     // interpolated body and continue rotating between simulation snapshots.
     if (unit.orbitFlames?.length) {
       const flipped=this.snapshot?.visibleBattle?.participants.length===2 && this.snapshot.visibleBattle.playerB===this.view.scoutId;
-      const ability=ATTACKS.moves[getStageData(unit.family,unit.stage).move];
+      const ability=ATTACKS.moves[getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).move];
       const orbit=ability.orbitRadius??.69;
       const speed=ability.rotationSpeed??3.5;
       const distance=orbit*(1+(collisionRadius(unit.family,unit.stage)-.295)*.45)*this.cellScale;
@@ -1088,7 +1090,7 @@ export class Arena {
         this.cellScale, (x, y, pokemon, opacity, scale) => {
           if (opacity <= 0) return;
           const marker: Marker = { id: pokemon.id, sourceId: pokemon.id, ownerId: event.ownerId,
-            x, y, family: pokemon.family, stage: pokemon.stage, level: pokemon.level, own: true,
+            x, y, family: pokemon.family, stage: pokemon.stage, formId:pokemon.formId,level: pokemon.level, own: true,
             hp: 1, maxHp: 1, energy: 0, required: getStageData(pokemon.family, pokemon.stage).energy,
             flash: 0, bench: pokemon.position.area === 'bench' };
           this.context.save(); this.context.globalAlpha = opacity;

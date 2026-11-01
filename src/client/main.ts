@@ -10,6 +10,7 @@ import { GameAudio } from './audio';
 import { BENCH_SIZE, SPECIES } from '../../server/data';
 import { ITEMS } from '../../server/systems/items';
 import pmdManifest from './pmd-manifest.json';
+import { eligibleForm } from '../../server/forms';
 import type { BallKind, ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
 // The provided PMD manifest does not yet include every portrait (notably
@@ -189,6 +190,7 @@ function validInventoryDrop(unitId:string|null,itemId:string|null,ball:BallKind|
   if(!unit||(state.phase!=='planning'&&unit.position.area==='board'))return false;
   if(itemId){
     const item=player.itemInventory?.find(i=>i.id===itemId);
+    if(item?.kind==='mega-stone')return !!eligibleForm(unit);
     return !!item&&((unit.equipment||[]).length<ITEMS.maxSlots || (item.kind==='component'&&!!unit.equipment?.some(e=>e.kind==='component')));
   }
   if(ball){

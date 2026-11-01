@@ -3,7 +3,7 @@ import type { Battle,CombatUnit,Element,Stats,StatKey } from '../../types';
 import { numeric, tierFor, param } from './registry';
 import { randomIndex } from './positioning';
 export function synergyTier(battle:Battle,unit:CombatUnit,type:Element){
- return getStageData(unit.family,unit.stage).elements.includes(type)?tierFor(type,battle.traitsByPlayer[unit.playerId]?.[type]||0):null;
+ return getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).elements.includes(type)?tierFor(type,battle.traitsByPlayer[unit.playerId]?.[type]||0):null;
 }
 export function teamTier(battle:Battle,playerId:string,type:Element){
  return tierFor(type,battle.traitsByPlayer[playerId]?.[type]||0);
@@ -75,7 +75,7 @@ export function updateSacredTiles(battle:Battle):void {
    if(already===desired)continue;
    const prev={...unit.iv},next={...unit.iv};
    for(const k of Object.keys(unit.iv) as StatKey[]){prev[k]+=already;next[k]+=desired;}
-   const before=calculateStats(unit.family,unit.level,prev,unit.stage,false,true),after=calculateStats(unit.family,unit.level,next,unit.stage,false,true);
+   const before=calculateStats(unit.family,unit.level,prev,unit.stage,false,true,unit.formId),after=calculateStats(unit.family,unit.level,next,unit.stage,false,true,unit.formId);
    for(const key of Object.keys(unit.stats) as StatKey[])unit.stats[key]+=after[key]-before[key];
    unit.maxHp+=after.hp-before.hp;unit.hp=Math.min(unit.maxHp,unit.hp+Math.max(0,after.hp-before.hp));
    unit.synergy!.sacredIv=desired;

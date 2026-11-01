@@ -1,7 +1,7 @@
 import { firstObstacle, expireObstacles, summonPreparedPillars, summonWalls, routeAround } from '../combat/obstacles';
 import { active, apply as applyStatus, incapacitated, blocksEnergy, expire as expireStatus, wakeFromBasic, STATUS_RULES } from '../combat/statuses';
 import { beginCombatAugments, onAugmentBasic, onAugmentCast, onAugmentDamage, onAugmentDeath, tickCombatAugments } from './augments';
-import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gridXY, SPECIES, RULES } from '../data';
+import { ANIMATIONS, ATTACKS, calculateStats, getStageData, collisionRadius, gridXY, SPECIES, RULES, effectiveRange } from '../data';
 import { attackCooldown, mitigatedDamage, stageValue, rawBasicDamage } from '../formulas';
 import type { Battle, CombatEffect, CombatMetrics, CombatUnit, Element, Player, Pokemon, StageType, StatKey } from '../types';
 import { chargedEffectiveness } from './effectiveness';
@@ -41,7 +41,7 @@ function walkStep(
  unit.x=x;unit.y=y;
  return true;
 }
-const moveIdOf = (unit: CombatUnit): string => unit.bossMove || (unit.family==='tyrogue' ? (unit.metrics.casts%2===0?'hitmonchan-uppercut':'hitmonlee-spin-kick') : getStageData(unit.family, unit.stage).move);
+const moveIdOf = (unit: CombatUnit): string => unit.bossMove || (unit.family==='tyrogue' ? (unit.metrics.casts%2===0?'hitmonchan-uppercut':'hitmonlee-spin-kick') : getStageData(unit.family, unit.stage,unit.formId,unit.mewtwoMode).move);
 const combatCooldown = (unit: CombatUnit, now: number): number =>
   attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
 const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !(unit.family==='diglett' && unit.moving) && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow);
@@ -64,7 +64,7 @@ function stat(unit: CombatUnit, key: StatKey): number {
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
   const rage=(key==='atk'||key==='speed')&&unit.family==='mankey'
     ?base*(unit.rageStacks||0)*(ATTACKS.moves['furious-leap'].ragePercentByStage?.[unit.stage]??0)*(unit.rageEmpowered?(ATTACKS.moves['furious-leap'].reviveRageMultiplier??1.5):1):0;
-  return Math.max(0, base + rage + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
+  return Math.max(0, base + rage + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -93,16 +93,17 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
   const { x, y } = multi ? { x: point.x + (slot < 2 ? -4.35 : 4.35), y: point.y } : point;
   const bossMew = boss && pokemon.family === 'mew';
   const equipment = (pokemon.equipment || []).map(item=>({...item,components:[...item.components]}));
-  const stats = bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage, bossMew),equipment);
-  const stage = getStageData(pokemon.family, pokemon.stage);
+  const mewtwoMode=pokemon.family==='mewtwo' && !boss ? (localRow<=1?'melee':'ranged') : undefined;
+  const stats = bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage, boss, false, pokemon.formId),equipment);
+  const stage = getStageData(pokemon.family, pokemon.stage,pokemon.formId,mewtwoMode);
   const maxHp = stats.hp;
   return {
     id: `${owner.id}:${pokemon.id}`, sourceId: pokemon.id, playerId: owner.id,
-    family: pokemon.family, stage: pokemon.stage, level: pokemon.level, iv: { ...pokemon.iv },
+    family: pokemon.family, stage: pokemon.stage, formId:pokemon.formId,mewtwoMode,level: pokemon.level, iv: { ...pokemon.iv },
     col, row, x, y, hp: maxHp, maxHp, energy: 0,
-    energyNeeded: bossMew ? SPECIES.mew.bossEnergy! : stage.energy, range: (bossMew ? SPECIES.mew.bossRange! : stage.range) + equipment.filter(i=>i.recipe && i.recipe==='red+red').length * numberParam('longbow','range'),
+    energyNeeded: boss&&SPECIES[pokemon.family].bossEnergy ? SPECIES[pokemon.family].bossEnergy! : stage.energy, range: (boss&&SPECIES[pokemon.family].bossRange ? effectiveRange(SPECIES[pokemon.family].bossRange!) : stage.range) + equipment.filter(i=>i.recipe && i.recipe==='red+red').length * numberParam('longbow','range'),
     equipment, itemStacks:{},itemTimers:{regeneration:ITEMS.combatIntroSeconds+numberParam('regeneration','interval'),scaling_spa:ITEMS.combatIntroSeconds+numberParam('scaling_spa','interval'),burn_aura:ITEMS.combatIntroSeconds+numberParam('burn_aura','interval')},itemNow:0,hitSerial:0,focusCount:0,
-    ...(bossMew ? { bossMove: SPECIES.mew.bossMove } : {}),
+    ...(boss && SPECIES[pokemon.family].bossMove ? {bossMove:SPECIES[pokemon.family].bossMove} : {}),
     stats, mimePillars:pokemon.mimePillars?.map(p=>({...p})), cooldown: attackCooldown(stats.speed),
     attackClock: 0.5 + (col % 4) * 0.13,
     // Entra já voltado ao lado adversário, sem tocar a animação Rotate de 360°.
@@ -253,7 +254,7 @@ function applyKnockup(battle: Battle, source: CombatUnit, target: CombatUnit, se
 }
 
 function applyShred(battle: Battle, caster: CombatUnit, target: CombatUnit): void {
-  const move = ATTACKS.moves[getStageData(caster.family,caster.stage).move];
+  const move = ATTACKS.moves[getStageData(caster.family,caster.stage,caster.formId,caster.mewtwoMode).move];
   const proposed = Math.floor((move.shredBase || 0) + stat(caster,'spa') * (move.shredRatio || 0));
   const cap = Math.floor(target.stats.def * .3);
   const amount = Math.min(proposed,cap,stat(target,'def'));
@@ -263,7 +264,7 @@ function applyShred(battle: Battle, caster: CombatUnit, target: CombatUnit): voi
 }
 
 function applyBallConversion(battle: Battle, caster: CombatUnit, amount: number): void {
-  const move = ATTACKS.moves[getStageData(caster.family,caster.stage).move];
+  const move = ATTACKS.moves[getStageData(caster.family,caster.stage,caster.formId,caster.mewtwoMode).move];
   const conversion = move.conversion;
   if (!conversion || conversion.kind === 'none') return;
   const allies = closestTwo(battle,caster);
@@ -493,6 +494,26 @@ function landProjectiles(battle: Battle, dt: number): void {
     }
     const oldTime = fx.time;
     fx.time += dt;
+    if(fx.legendary){
+      const spell=fx.legendary,caster=battle.units.find(u=>u.id===spell.sourceId);
+      if(!caster||fx.time<0)continue;
+      if(oldTime<spell.activateAt && fx.time>=spell.activateAt){
+        for(const enemy of battle.units){
+          if(enemy.playerId===caster.playerId||!isTargetable(enemy)||spell.hitIds.includes(enemy.id))continue;
+          if(Math.hypot(enemy.x-fx.targetX,enemy.y-fx.targetY)>spell.radius)continue;
+          spell.hitIds.push(enemy.id);deal(battle,caster,enemy,spell.raw,true,true,spell.kind==='lightning'?'electric':'ice');
+          if(spell.kind==='lightning'){enemy.energy=Math.max(0,enemy.energy*(1-(spell.drain||.5)));applyStatus(battle,enemy,'paralyzed',caster,spell.statusSeconds||1.4,fx.id+':'+enemy.id);}
+          else applyStatus(battle,enemy,'frozen',caster,spell.statusSeconds||1,fx.id+':'+enemy.id);
+        }
+      }
+      if(spell.kind==='blizzard'&&fx.time>=spell.activateAt){
+        for(const enemy of battle.units)if(enemy.playerId!==caster.playerId&&isTargetable(enemy)&&Math.hypot(enemy.x-fx.targetX,enemy.y-fx.targetY)<=spell.radius){
+          enemy.windSlow=Math.max(enemy.windSlow||0,spell.slow||.25);enemy.slow=Math.max(enemy.slow||0,.14);
+        }
+      }
+      continue;
+    }
+    if(fx.time<0)continue;
     if(fx.claw){tickClaw(battle,fx);continue;}
     if(fx.magnet){tickMagneticField(battle,fx);continue;}
     if(tickMagnetPull(battle,fx))continue;
@@ -531,7 +552,7 @@ function landProjectiles(battle: Battle, dt: number): void {
       const hit = fx.piercing;
       const caster = battle.units.find(u => u.id === hit.sourceId);
       if (!caster) continue;
-      const a = Math.min(1, oldTime / fx.duration), b = Math.min(1, fx.time / fx.duration);
+      const a = Math.max(0,Math.min(1, oldTime / fx.duration)), b = Math.max(0,Math.min(1, fx.time / fx.duration));
       if(magnetizeProjectile(battle,fx,caster.playerId,
         fx.x+(fx.targetX-fx.x)*a,fx.y+(fx.targetY-fx.y)*a,
         fx.x+(fx.targetX-fx.x)*b,fx.y+(fx.targetY-fx.y)*b)){
@@ -545,7 +566,7 @@ function landProjectiles(battle: Battle, dt: number): void {
         fx.time=fx.duration;effect(battle,caster,{x:bx,y:by},'wall-impact',0);}
       for (const target of battle.units) {
         if (target.playerId === caster.playerId || !isTargetable(target) || hit.hitIds.includes(target.id)) continue;
-        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > ((fx.kind==='psychic-shot'||fx.kind==='solar-beam') ? fx.value : .43) ** 2) continue;
+        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > ((fx.kind==='psychic-shot'||fx.kind==='psychic-final'||fx.kind==='solar-beam') ? fx.value : .43) ** 2) continue;
         if(firstObstacle(battle,caster.playerId,ax,ay,target.x,target.y))continue;
         hit.hitIds.push(target.id);
         deal(battle, caster, target, hit.raw, true, true, hit.attackType);
@@ -759,8 +780,8 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   const stinger=ATTACKS.moves['multi-jab'];
   const pierce=beedrill?Math.max(0,Math.min(stinger.pierceMax??.7,(stinger.pierceBase??0)+stat(source,'spa')*(stinger.pierceSpaRatio??0))):0;
   const defense = magical ? stat(target,'spd') : stat(target,'def')*(1-pierce);
-  const element = attackType || getStageData(source.family, source.stage).chargedType;
-  const typeFactor = charged ? chargedEffectiveness(element, getStageData(target.family, target.stage).elements) : 1;
+  const element = attackType || getStageData(source.family, source.stage,source.formId,source.mewtwoMode).chargedType;
+  const typeFactor = charged ? chargedEffectiveness(element, getStageData(target.family, target.stage,target.formId,target.mewtwoMode).elements) : 1;
   const attacker=effectivePercents(source,battle.elapsed);
   const defender=effectivePercents(target,battle.elapsed);
   if(target.flameJet && target.family==='magmar' && target.stage>0)
@@ -851,7 +872,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (!magical && !charged && mode==='normal' && STATUS_RULES.sleeping.wakeOnPhysicalBasic && damage+absorbedTotal>0) wakeFromBasic(target);
   const actual=damage+absorbedTotal;
   if(mode==='normal'&&actual>0&&target.persianPursuit&&target.hp>0&&source.playerId!==target.playerId){
-    const cfg=ATTACKS.moves['claw-strip'];const stage=getStageData(source.family,source.stage);
+    const cfg=ATTACKS.moves['claw-strip'];const stage=getStageData(source.family,source.stage,source.formId,source.mewtwoMode);
     // A real, nearby strike from a short-range combatant, never DoT/reflection or a ranged shot.
     if(stage.rangeLevel===1&&!stage.basic.projectile&&distance(source,target)<=(cfg.interruptRange!)){
       target.persianPursuit=undefined;target.preferredTargetId=source.id;
@@ -1180,8 +1201,95 @@ function psychicShots(battle:Battle,source:CombatUnit,target:CombatUnit,move:typ
   }
 }
 
+
+/** V25: timed legendary abilities use authoritative battle time and collision checks. */
+function legendaryProjectile(battle:Battle,source:CombatUnit,target:CombatUnit,angle:number,delay:number,raw:number,radius:number,pierce:boolean):void {
+ const direction=Math.atan2(target.y-source.y,target.x-source.x)+angle;
+ const dx=Math.cos(direction),dy=Math.sin(direction),start={x:source.x+dx*.25,y:source.y+dy*.25};
+ const bounds=arenaBoundary(battle);
+ const limit=Math.max(.25,Math.min(dx>0?(bounds.maxX-start.x)/dx:dx<0?(bounds.minX-start.x)/dx:Infinity,
+  dy>0?(bounds.maxY-start.y)/dy:dy<0?(bounds.minY-start.y)/dy:Infinity));
+ const move=ATTACKS.moves['mewtwo-psychic'];
+ battle.effects.push({id:`${battle.id}:mewtwo:${source.id}:${battle.effects.length}`,kind:pierce?'psychic-final':'psychic-shot',
+  sourceId:source.id,family:source.family,stage:source.stage,x:start.x,y:start.y,
+  targetX:start.x+dx*limit,targetY:start.y+dy*limit,time:-delay,
+  duration:Math.max(.08,limit/(move.projectileSpeed||9)),value:radius,
+  piercing:{sourceId:source.id,raw,attackType:'psychic',hitIds:[]}});
+}
+function legendaryAbility(battle:Battle,source:CombatUnit,target:CombatUnit|null,moveId:string):boolean {
+ const move=ATTACKS.moves[moveId];
+ if(move.effect==='mewtwo-barrage' && target){
+  const angle=(i:number,count:number,arc:number)=>(i-(count-1)/2)*arc*Math.PI/180;
+  const first=move.firstShots||3,second=move.secondShots||5;
+  for(let i=0;i<first;i++)legendaryProjectile(battle,source,target,angle(i,first,move.angle1||16),i*(move.shotDelay||.06),move.baseDamage+stat(source,'spa')*move.specialRatio,move.projectileRadius||.23,false);
+  for(let i=0;i<second;i++)legendaryProjectile(battle,source,target,angle(i,second,move.angle2||20),move.phaseGap!+i*(move.shotDelay||.06),move.baseDamage+stat(source,'spa')*move.specialRatio,move.projectileRadius||.23,false);
+  legendaryProjectile(battle,source,target,0,(move.phaseGap||.2)*2+second*(move.shotDelay||.06),
+   (move.finalDamage||100)+stat(source,'spa')*(move.finalSpaRatio||1.5),move.finalRadius||.45,true);
+  animate(source,'SpAttack',.8);return true;
+ }
+ if(move.effect==='mewtwo-impact'&&target){
+  const enemies=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u)&&distance(u,target)<=(move.splashRange||1.18));
+  for(const foe of enemies){deal(battle,source,foe,move.baseDamage+stat(source,'atk')*(move.attackRatio||1.5),false,true,'psychic');pushTarget(battle,source,foe,1);}
+  const amount=source.maxHp*(move.barrierMaxHpFraction||.13)*shieldMultiplier(source);
+  source.barrier={hp:Math.min(source.maxHp*.4,(source.barrier?.hp||0)+amount),maxHp:source.maxHp*.4,time:move.barrierSeconds||5};
+  effect(battle,source,target,'impact',move.splashRange||1.18);effect(battle,source,source,'shield',amount);
+  animate(source,'Punch',.38);return true;
+ }
+ if(move.effect==='moltres-fire'){
+  const radius=move.auraRadius||1.25;
+  const enemies=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u));
+  for(const foe of enemies)if(distance(source,foe)<=radius){
+   const amount=(move.burnBase||7)+stat(source,'spa')*(move.burnSpaRatio||.10);
+   if(!foe.damageOverTime||foe.damageOverTime.amount<=amount)foe.damageOverTime={amount,time:move.burnSeconds||3.5,sourceId:source.id};
+  }
+  const burning=enemies.filter(foe=>active(foe,'burning',battle.elapsed)).length;
+  const amount=Math.min(source.maxHp*(move.barrierCapFraction||.55),burning*(move.barrierPerBurn||65))*shieldMultiplier(source);
+  if(amount>0)source.barrier={hp:Math.max(amount,source.barrier?.hp||0),maxHp:amount,time:move.barrierSeconds||5};
+  effect(battle,source,source,'flame',radius);if(amount)effect(battle,source,source,'shield',amount);
+  animate(source,'SpAttack',.45);return true;
+ }
+ if(move.effect==='zapdos-storm'){
+  const spots:Array<{x:number;y:number;col:number;row:number}>=[];
+  const offset=battle.participants.length>2?[-4.35,4.35]:[0];
+  for(const shift of offset)for(let row=0;row<8;row++)for(let col=0;col<7;col++)spots.push({...gridXY(col,row),col,row,x:gridXY(col,row).x+shift});
+  let seed=(battle.seed^Math.imul(++source.hitSerial,0x9e3779b9))>>>0;
+  for(let i=spots.length-1;i>0;i--){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const j=seed%(i+1);[spots[i],spots[j]]=[spots[j],spots[i]];}
+  const cells=spots.slice(0,Math.min(spots.length,move.cells||10)).sort((a,b)=>b.x-a.x||a.y-b.y);
+  cells.forEach((cell,i)=>battle.effects.push({id:`${battle.id}:zapdos:${source.id}:${battle.effects.length}`,
+   sourceId:source.id,family:source.family,kind:'lightning',x:cell.x,y:cell.y-1.8,targetX:cell.x,targetY:cell.y,
+   value:1,time:-i*(move.strikeInterval||.17),duration:(move.warningSeconds||.22)+.32,
+   legendary:{kind:'lightning',sourceId:source.id,activateAt:move.warningSeconds||.22,raw:move.baseDamage+stat(source,'spa')*move.specialRatio,
+    radius:.48,hitIds:[],drain:move.energyDrainFraction||.5,statusSeconds:move.paralysisSeconds||1.4}}));
+  animate(source,'SpAttack',.48);return true;
+ }
+ if(move.effect==='articuno-blizzard'&&target){
+  const alternatives=battle.units.filter(u=>u.playerId!==source.playerId&&isTargetable(u)&&distance(source,u)<=source.range);
+  const radius=move.areaRadius||1.18;
+  const center=alternatives.sort((a,b)=>alternatives.filter(u=>distance(u,a)<=radius).length-alternatives.filter(u=>distance(u,b)<=radius).length||a.id.localeCompare(b.id))[alternatives.length-1]||target;
+  battle.effects.push({id:`${battle.id}:articuno:${source.id}:${battle.effects.length}`,
+   sourceId:source.id,family:source.family,kind:'frost',x:center.x,y:center.y,targetX:center.x,targetY:center.y,
+   value:radius,time:0,duration:(move.warningSeconds||.35)+(move.iceSeconds||3.5),
+   legendary:{kind:'blizzard',sourceId:source.id,activateAt:move.warningSeconds||.35,raw:move.baseDamage+stat(source,'spa')*move.specialRatio,
+    radius,hitIds:[],statusSeconds:move.freezeSeconds||1,iceSeconds:move.iceSeconds||3.5,slow:move.slowFraction||.25}});
+  animate(source,'SpAttack',.45);return true;
+ }
+ return false;
+}
+function tickLegendaryPassive(battle:Battle,source:CombatUnit):void {
+ if(source.family!=='moltres'||source.hp<=0||source.bossMove)return;
+ const move=ATTACKS.moves['moltres-sacred-fire'];
+ if(source.legendClock===undefined)source.legendClock=battle.elapsed+(move.auraInterval||.75);
+ if(battle.elapsed+1e-6<source.legendClock)return;
+ source.legendClock=battle.elapsed+(move.auraInterval||.75);
+ const radius=move.auraRadius||1.25;
+ for(const foe of battle.units)if(isTargetable(foe)&&foe.playerId!==source.playerId&&distance(source,foe)<=radius){
+  deal(battle,source,foe,(move.auraBase||14)+stat(source,'spa')*(move.auraSpaRatio||.24),true,false,'fire','dot');
+  effect(battle,source,foe,'flame',0);
+ }
+}
+
 function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): void {
-  const stage = getStageData(source.family, source.stage);
+  const stage = getStageData(source.family, source.stage,source.formId,source.mewtwoMode);
   const moveId = moveIdOf(source), move = ATTACKS.moves[moveId];
   source.metrics.casts++;
   onAugmentCast(battle,source);
@@ -1194,6 +1302,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
       effect(battle,source,target,'impact',numberParam('cast_wave','radius'));
     }
   }
+  if(legendaryAbility(battle,source,target,moveId))return;
   const a = stat(source,'atk'), s = stat(source,'spa');
   if(move.effect==='furious-leap' && target){
     const spot=furyLanding(battle,source,target,3.5,false);
@@ -1727,7 +1836,7 @@ function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
   if(pending.kind==='explosion') {
     effect(battle,source,source,'explosion',move.splashRange||1.45);
     for (const enemy of battle.units.filter(u=>u.playerId!==source.playerId && isTargetable(u) && distance(u,source)<=(move.splashRange||1.45)))
-      deal(battle,source,enemy,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,getStageData(source.family,source.stage).chargedType);
+      deal(battle,source,enemy,move.baseDamage+stat(source,'spa')*move.specialRatio,true,true,getStageData(source.family,source.stage,source.formId,source.mewtwoMode).chargedType);
     source.hp=Math.max(0,source.hp-source.maxHp*(move.selfHpCost||0));
     if(source.hp<=0) {source.hp=0;if(!preventDefinitiveDeath(battle,source,source))knockout(battle,source,source,0);}
     return true;
@@ -1764,7 +1873,7 @@ function pendingSkillTick(battle:Battle,source:CombatUnit):boolean {
 function pollenTick(battle: Battle, source: CombatUnit, dt: number): void {
   const pending = source.pendingPollen;
   if (!pending) return;
-  const move = ATTACKS.moves[getStageData(source.family, source.stage).move];
+  const move = ATTACKS.moves[getStageData(source.family, source.stage,source.formId,source.mewtwoMode).move];
   pending.remaining -= dt;
   const liveTarget = battle.units.find(u => u.id === pending.targetId && u.hp > 0);
   const center = pending.launched ? { x: pending.x, y: pending.y } : liveTarget || { x: pending.x, y: pending.y };
@@ -1784,7 +1893,7 @@ function pollenTick(battle: Battle, source: CombatUnit, dt: number): void {
 }
 
 function spinTick(battle: Battle, source: CombatUnit, dt: number): void {
-  const move = ATTACKS.moves[getStageData(source.family, source.stage).move];
+  const move = ATTACKS.moves[getStageData(source.family, source.stage,source.formId,source.mewtwoMode).move];
   const duration = Math.min(dt, source.spinTime);
   const dps = stageValue(move.damageByStage, source.stage) + stat(source,'spa') * move.specialRatio;
   for (const enemy of battle.units) {
@@ -1808,7 +1917,7 @@ function comboTick(battle: Battle, source: CombatUnit, dt: number): void {
   const combo = source.combo;
   if (!combo) return;
   combo.time -= dt;
-  const move = ATTACKS.moves[getStageData(source.family, source.stage).move];
+  const move = ATTACKS.moves[getStageData(source.family, source.stage,source.formId,source.mewtwoMode).move];
   while (source.combo && combo.time <= 0 && combo.hits > 0) {
     const target = battle.units.find(u => u.id === combo.targetId && u.hp > 0);
     if (!target || distance(source, target) > source.range + .5) { source.combo = null; break; }
@@ -1831,7 +1940,7 @@ function gasTick(battle: Battle, source: CombatUnit, dt: number): void {
     if (source.gasTime > 0) return;
   }
   source.gasTime=0;
-  const move = ATTACKS.moves[getStageData(source.family, source.stage).move];
+  const move = ATTACKS.moves[getStageData(source.family, source.stage,source.formId,source.mewtwoMode).move];
   const radius = stageValue(move.radiusByStage, source.stage, 1.85);
   const raw = stageValue(move.damageByStage, source.stage) + stat(source,'atk') * (move.gasAttackRatio ?? .25) + Math.min(move.chargeMaxDuration||3.5,source.gasCharge ? battle.elapsed-source.gasCharge.startedAt : 0)*(move.gasTimeRatio||0);
   for (const target of battle.units) {
@@ -1877,7 +1986,7 @@ function furyLeapTick(battle:Battle,source:CombatUnit,dt:number):void {
  if(state.phase==='strike'){
   const target=battle.units.find(u=>u.id===state.targetId&&isTargetable(u));
   if(target && distance(source,target)<1.8){
-   deal(battle,source,target,(move.damageByStage?.[source.stage]??move.baseDamage)+stat(source,'spa')*(move.damageRatioByStage?.[source.stage]??move.specialRatio),true,true,getStageData(source.family,source.stage).chargedType);
+   deal(battle,source,target,(move.damageByStage?.[source.stage]??move.baseDamage)+stat(source,'spa')*(move.damageRatioByStage?.[source.stage]??move.specialRatio),true,true,getStageData(source.family,source.stage,source.formId,source.mewtwoMode).chargedType);
    effect(battle,source,target,'impact',.45);
   }
   const retreat=furyLanding(battle,source,source,move.jumpSearchRadius??2.4,true);
@@ -1897,7 +2006,7 @@ function leapTick(battle: Battle, source: CombatUnit, dt: number): void {
   if (t < 1) return;
   source.leap = null;
   source.jumpHeight = 0;
-  const move = ATTACKS.moves[getStageData(source.family, source.stage).move];
+  const move = ATTACKS.moves[getStageData(source.family, source.stage,source.formId,source.mewtwoMode).move];
   effect(battle, source, source, 'stomp', move.splashRange || 1.75);
   for (const target of battle.units) {
     if (target.playerId === source.playerId || target.hp <= 0 || distance(source, target) > (move.splashRange || 1.75)) continue;
@@ -2032,7 +2141,7 @@ function startGhost(battle: Battle, caster: CombatUnit, moveId: string): void {
   const scare=caster.family==='gastly' && caster.stage===2 && caster.ghostCasts%2===0;
   caster.ghost={phase:'fade',time:0,duration:.17,fromX:caster.x,fromY:caster.y,
     toX:destination.x,toY:destination.y,targetId:target.id,moveId,trailClock:0,scare};
-  animate(caster,getStageData(caster.family,caster.stage).chargedAnimation,.2);
+  animate(caster,getStageData(caster.family,caster.stage,caster.formId,caster.mewtwoMode).chargedAnimation,.2);
 }
 /** Push a frightened enemy up to one tile away, without overlapping another combatant. */
 function scareTarget(battle: Battle,caster: CombatUnit,victim: CombatUnit, duration:number): void {
@@ -2094,7 +2203,7 @@ function ghostTick(battle: Battle,caster: CombatUnit,dt: number): void {
             .slice(0,3-primary.length)];
         for(const victim of victims) deal(battle,caster,victim,move.baseDamage+stat(caster,'spa')*move.specialRatio,true,true,'ghost');
       }
-      animate(caster,getStageData(caster.family,caster.stage).chargedAnimation,.3);
+      animate(caster,getStageData(caster.family,caster.stage,caster.formId,caster.mewtwoMode).chargedAnimation,.3);
     }
   } else if(ghost.phase==='appear'&&ghost.time>=ghost.duration){caster.ghost=null;}
 }
@@ -2286,6 +2395,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     poisonousHealth(battle,unit,stat(unit,'spa'));
   }}
   tickTerrain(battle,(source,target,raw)=>{deal(battle,source,target,raw,true,true,'poison','dot');});
+  for(const unit of battle.units)tickLegendaryPassive(battle,unit);
   for(const unit of battle.units)if(unit.absorb)tickAbsorb(battle,unit);
   for(const unit of battle.units)if(unit.vine)tickVine(battle,unit);
   summonPreparedPillars(battle,deal);
@@ -2452,7 +2562,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.spinTime > 0) { spinTick(battle, unit, dt); continue; }
     unit.attackClock -= dt;
     unit.cooldown = combatCooldown(unit,battle.elapsed);
-    const stage = getStageData(unit.family, unit.stage);
+    const stage = getStageData(unit.family, unit.stage,unit.formId,unit.mewtwoMode);
     const move = ATTACKS.moves[moveIdOf(unit)];
     if (move.effect === 'ditto-transform')unit.energy=0;
     if (unit.attackClock <= 0 && unit.energy >= unit.energyNeeded &&

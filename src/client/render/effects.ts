@@ -12,11 +12,24 @@ const PI2 = Math.PI * 2;
 export function renderCombatEffects(context: CanvasRenderingContext2D, effects: CombatEffect[], flipY: boolean, toScreen: (x:number,y:number)=>{x:number;y:number}, cellScale: number, time: number, resolveTime?: (effect: CombatEffect) => number, parts?: (effect: CombatEffect) => BodyPoints | undefined): void {
     const ctx = context;
     for (const fx of effects) {
+      if(fx.time<0)continue;
       const t = Math.max(0, Math.min(1, (resolveTime ? resolveTime(fx) : fx.time) / fx.duration));
       const baseFrom = toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
-      const from = ['basic-projectile','dragon-orb','bone','egg','ball','psychic-blessing','psychic-shot','piercing-flame','solar-beam','lightning','poison','spell','electro-shot']
+      const from = ['basic-projectile','dragon-orb','bone','egg','ball','psychic-blessing','psychic-shot','psychic-final','piercing-flame','solar-beam','lightning','poison','spell','electro-shot']
         .includes(fx.kind) ? projectileOrigin(fx,baseFrom,to,cellScale,parts?.(fx)) : baseFrom;
+      if(fx.legendary){
+        const r=Math.max(4,fx.legendary.radius*cellScale);
+        const impact=fx.time>=fx.legendary.activateAt;
+        ctx.save();ctx.translate(to.x,to.y);ctx.globalAlpha=impact?.76:.25+.15*Math.sin(time*16);
+        ctx.strokeStyle=fx.legendary.kind==='lightning'?'#f8ec94':'#b9eaff';ctx.lineWidth=impact?3:2;
+        ctx.setLineDash(impact?[]:[6,5]);ctx.beginPath();ctx.ellipse(0,0,r,r*.67,0,0,PI2);ctx.stroke();ctx.setLineDash([]);
+        if(impact){if(fx.legendary.kind==='lightning'){
+          ctx.strokeStyle='#fef6a2';ctx.shadowColor='#f9dc56';ctx.shadowBlur=18;ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(0,-cellScale*2.4);
+          for(let i=1;i<=7;i++){const q=i/7;ctx.lineTo((i%2?1:-1)*cellScale*.14*(1-q),-cellScale*2.4*(1-q));}ctx.stroke();
+        }else{ctx.fillStyle='#afe5ff33';ctx.fill();for(let i=0;i<9;i++){const a=i*PI2/9+time*.5;ctx.fillStyle='#e1faff';ctx.beginPath();ctx.arc(Math.cos(a)*r*.75,Math.sin(a)*r*.44,Math.max(2,cellScale*.036),0,PI2);ctx.fill();}}}
+        ctx.restore();continue;
+      }
       // Real magnetized shots bend into an absorber; the server, not this drawing, cancels their hits.
       if(fx.magnetPull){
         const pull=fx.magnetPull;

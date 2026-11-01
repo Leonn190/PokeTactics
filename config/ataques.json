@@ -1098,6 +1098,71 @@
       ],
       "beamRadius": 0.43,
       "beamDuration": 0.42
+    },
+    "mewtwo-psychic": {
+      "name": "Rajada Psíquica",
+      "effect": "mewtwo-barrage",
+      "baseDamage": 19,
+      "specialRatio": 0.4,
+      "firstShots": 3,
+      "secondShots": 5,
+      "angle1": 16,
+      "angle2": 37,
+      "phaseGap": 0.22,
+      "shotDelay": 0.06,
+      "projectileSpeed": 9,
+      "projectileRadius": 0.23,
+      "finalDamage": 95,
+      "finalSpaRatio": 1.65,
+      "finalRadius": 0.42
+    },
+    "mewtwo-impact": {
+      "name": "Impacto Psíquico",
+      "effect": "mewtwo-impact",
+      "baseDamage": 110,
+      "attackRatio": 1.65,
+      "specialRatio": 0,
+      "splashRange": 1.18,
+      "barrierMaxHpFraction": 0.13,
+      "barrierSeconds": 5
+    },
+    "moltres-sacred-fire": {
+      "name": "Incêndio Sagrado",
+      "effect": "moltres-fire",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "auraInterval": 0.75,
+      "auraBase": 14,
+      "auraSpaRatio": 0.24,
+      "auraRadius": 1.25,
+      "burnSeconds": 3.5,
+      "burnBase": 7,
+      "burnSpaRatio": 0.1,
+      "barrierPerBurn": 65,
+      "barrierCapFraction": 0.55,
+      "barrierSeconds": 5
+    },
+    "zapdos-storm": {
+      "name": "Tempestade Elétrica",
+      "effect": "zapdos-storm",
+      "baseDamage": 95,
+      "specialRatio": 1.3,
+      "cells": 10,
+      "warningSeconds": 0.22,
+      "strikeInterval": 0.17,
+      "paralysisSeconds": 1.4,
+      "energyDrainFraction": 0.5
+    },
+    "articuno-blizzard": {
+      "name": "Tempestade Glacial",
+      "effect": "articuno-blizzard",
+      "baseDamage": 82,
+      "specialRatio": 1.15,
+      "warningSeconds": 0.35,
+      "freezeSeconds": 1.0,
+      "iceSeconds": 3.5,
+      "slowFraction": 0.25,
+      "areaRadius": 1.18
     }
   }
 }
