@@ -59,12 +59,10 @@ export class Hud {
   private readonly synergyPanel:SynergyPanel;
   private lastRank = '';
   private lastCombat = '';
-  private lastOpponentCombat = '';
   private lastInspector = '';
   private lastTimeline = '';
   private panel: 'rank' | 'combat' = 'rank';
   private metric: 'status' | 'damage' | 'mitigation' = 'status';
-  private showOpponent = false;
   private latestSnapshot: GameSnapshot | null = null;
   private latestView: ClientView | null = null;
   private toastTimer = 0;
@@ -88,15 +86,9 @@ export class Hud {
     document.querySelectorAll<HTMLButtonElement>('[data-metric]').forEach(button => button.addEventListener('click', () => {
       this.metric = button.dataset.metric as typeof this.metric;
       this.lastCombat = '';
-      this.lastOpponentCombat = '';
       document.querySelectorAll('[data-metric]').forEach(tab => tab.classList.toggle('active', tab === button));
       if (this.latestSnapshot && this.latestView) this.render(this.latestSnapshot, this.latestView);
     }));
-    element<HTMLButtonElement>('combatSideButton').addEventListener('click', () => {
-      this.showOpponent = !this.showOpponent;
-      this.lastOpponentCombat = '';
-      if (this.latestSnapshot && this.latestView) this.render(this.latestSnapshot, this.latestView);
-    });
     this.setPanel();
   }
 
@@ -142,7 +134,7 @@ export class Hud {
     this.region('shopInfo',()=>[human.gold,human.level,human.eliminated,human.locked,human.augmentCounters?.['B02:free'],snapshot.phase,influenceRoster],()=>this.renderShopInfo(snapshot,view));
     this.region('inventory',()=>[human.itemInventory,human.consumables,view.scoutId,view.selectedBall,view.inventoryItemId,this.inventoryPage,snapshot.lootMessageId],()=>this.renderInventory(snapshot,view));
     this.region('synergies',()=>[view.scoutId,watched.augments,watched.units.map(u=>[u.id,u.family,u.stage,u.position])],()=>this.renderSynergies(snapshot,view));
-    this.region('ranking',()=>[view.scoutId,snapshot.players.map(p=>[p.id,p.name,p.health,p.eliminated,p.placement]),snapshot.phase,snapshot.stageType,snapshot.possibleOpponents.p0,snapshot.battleStatuses,snapshot.visualEvents.filter(e=>e.kind==='trainer-damage'&&e.age<1.05).map(e=>[e.id,e.ownerId,e.age,e.value])],()=>this.renderRanking(snapshot,view));
+    this.region('ranking',()=>[view.scoutId,snapshot.players.map(p=>[p.id,p.name,p.health,p.eliminated,p.placement,p.streak]),snapshot.phase,snapshot.stageType,snapshot.possibleOpponents.p0,snapshot.battleStatuses,snapshot.visualEvents.filter(e=>e.kind==='trainer-damage'&&e.age<1.05).map(e=>[e.id,e.ownerId,e.age,e.value])],()=>this.renderRanking(snapshot,view));
     this.region('timeline',()=>[snapshot.chapter,snapshot.stage,snapshot.stageName,human.history],()=>this.renderTimeline(snapshot,view));
     this.region('status',()=>[view.scoutId,snapshot.phase,snapshot.accelerated,snapshot.stageName,snapshot.log,snapshot.visibleBattle?.goldDrops.map(d=>[d.claimed,d.ownerId]),snapshot.players.map(p=>[p.id,p.name])],()=>this.renderStatus(snapshot,view));
     const inspected = snapshot.players.flatMap(p=>p.units).find(u=>u.id===view.selectedId);
@@ -160,9 +152,9 @@ export class Hud {
     });
     // The inactive combat panel is not rendered every 85ms. Its cache is caught up
     // immediately when opened, including the latest damage metrics.
-    if(this.panel==='combat')this.region('combat',()=>[view.scoutId,this.metric,this.showOpponent,snapshot.phase,snapshot.observedId,
-      snapshot.opponentId,snapshot.lastOpponentId,snapshot.combatStats,rosterKey(watched),
-      activeBattle?.id,activeBattle?.units.map(u=>[u.id,u.sourceId,u.hp,u.maxHp,u.stats,u.equipment])],()=>this.renderCombat(snapshot,view));
+    if(this.panel==='combat')this.region('combat',()=>[view.scoutId,this.metric,snapshot.phase,snapshot.observedId,
+      snapshot.opponentId,snapshot.lastOpponentId,snapshot.combatStats,snapshot.players.map(p=>[p.id,rosterKey(p)]),
+      activeBattle?.id,activeBattle?.participants,activeBattle?.units.map(u=>[u.id,u.sourceId,u.playerId,u.hp,u.maxHp,u.stats,u.equipment])],()=>this.renderCombat(snapshot,view));
     this.region('final',()=>[snapshot.phase,snapshot.winnerId,human.placement,snapshot.players.map(p=>[p.id,p.name])],()=>this.renderFinal(snapshot,view));
   }
 
@@ -194,7 +186,7 @@ export class Hud {
     if(!this.failedRegions.has(name))console.error(`[HUD V22.6] Falha em ${name}; as outras regiões continuam atualizando`,error);
     this.failedRegions.add(name);
   }
-  private readonly regionTargets:Record<string,string[]>={"inventory": ["itemInventory", "shopFooter", "inventoryContents", "inventoryCounter", "eeveeEvolution"], "economy": ["phaseLabel", "roundLabel", "goldCount", "incomeCount", "incomeBreakdown", "levelNumber", "trainerXpCaption", "trainerXpFill", "buyXpButton"], "shopInfo": ["shopChances", "typeInfluence", "rerollButton", "lockButton"], "timeline": ["chapterTrack", "stageName"], "shopOffers": ["shopCards"], "synergies": ["traitRows"], "ranking": ["rankRows"], "combat": ["combatRows", "opponentCombatRows", "combatOwnLabel", "opponentCombatPanel"], "status": ["scoutBadge", "battleStatus"], "inspector": ["unitInspector"], "final": ["finalBanner"]};
+  private readonly regionTargets:Record<string,string[]>={"inventory": ["itemInventory", "shopFooter", "inventoryContents", "inventoryCounter", "eeveeEvolution"], "economy": ["phaseLabel", "roundLabel", "goldCount", "incomeCount", "incomeBreakdown", "levelNumber", "trainerXpCaption", "trainerXpFill", "buyXpButton"], "shopInfo": ["shopChances", "typeInfluence", "rerollButton", "lockButton"], "timeline": ["chapterTrack", "stageName"], "shopOffers": ["shopCards"], "synergies": ["traitRows"], "ranking": ["rankRows"], "combat": ["combatRows"], "status": ["scoutBadge", "battleStatus"], "inspector": ["unitInspector"], "final": ["finalBanner"]};
   reset():void {
     this.regionSignatures.clear();this.failedRegions.clear();this.fragmentCache.clear();
     this.latestSnapshot=null;this.latestView=null;this.lastLootMessage='';this.lastRank='';this.inventoryPage=0;
@@ -248,7 +240,8 @@ export class Hud {
     element('trainerXpFill').style.width=`${atMax?100:100*Math.min(1,player.trainerXp/needed)}%`;
     const buy=element<HTMLButtonElement>('buyXpButton');
     buy.disabled=atMax||player.gold<RULES.trainerProgression.buyXpCost||player.eliminated||snapshot.phase!=='planning';
-    buy.innerHTML=atMax?'NÍVEL MÁXIMO':`COMPRAR XP <span>◈ ${RULES.trainerProgression.buyXpCost}</span>`;
+    element('buyXpAction').textContent=atMax?'NÍVEL MÁXIMO':'COMPRAR XP';
+    element('buyXpCost').textContent=atMax?'✓':`◈ ${RULES.trainerProgression.buyXpCost}`;
 
   }
 
@@ -327,17 +320,18 @@ export class Hud {
     const pve = snapshot.stageType === 'bot' || snapshot.stageType === 'boss';
     const likely = new Set(snapshot.phase === 'planning' && !pve ? possibilities.flat() : []);
     // Preserve the DOM for unchanged ranking order: CSS dot animations do not restart on each snapshot.
-    const rankOrder = ranked.map((p,i)=>`${p.id}:${p.name}:${p.placement||i+1}:${p.eliminated}`).join('|')
+    const rankOrder = ranked.map((p,i)=>`${p.id}:${p.name}:${p.placement||i+1}:${p.eliminated}:${p.streak}`).join('|')
       + `|scout:${view.scoutId}|likely:${[...likely].sort().join(',')}`;
     const rankStatus = (id: string): string => snapshot.battleStatuses[id] === 'battling'
       ? 'Batalhando<span class="rank-dots"><i>.</i><i>.</i><i>.</i></span>'
       : snapshot.battleStatuses[id] === 'victorious' ? 'Vitorioso'
       : snapshot.battleStatuses[id] === 'defeated' ? 'Derrotado' : '';
+    const streakBadge=(p:Player):string => p.streak>0?`<span class="rank-streak winning" title="${p.streak} vitórias seguidas" aria-label="${p.streak} vitórias seguidas">🔥 ${p.streak}</span>`:p.streak<0?`<span class="rank-streak losing" title="${-p.streak} derrotas seguidas" aria-label="${-p.streak} derrotas seguidas">▼ ${-p.streak}</span>`:'';
     const shownHp=(p:Player):number => p.health;
     const rowHpClass = (health: number): string => health === 0 ? 'dead' : health < 30 ? 'low' : '';
     if (this.lastRank !== rankOrder || element('rankRows').children.length!==ranked.length || ranked.some((p,i)=>(element('rankRows').children[i] as HTMLElement | undefined)?.dataset.scout!==p.id)) {
       const ranks = ranked.map((p,i)=>`<button class="rank-row ${p.id==='p0'?'you':''} ${view.scoutId===p.id&&p.id!=='p0'?'scouting':''} ${p.eliminated?'out':''}" data-scout="${p.id}" title="${p.id==='p0'?'Sua arena':`Inspecionar arena de ${safe(p.name)}`}" >
-        <span class="rank-position">${p.placement||i+1}</span><span class="rank-token"></span><span class="rank-name">${safe(p.name)}</span><span class="rank-combat-status ${snapshot.battleStatuses[p.id]||''}">${rankStatus(p.id)}</span>${likely.has(p.id)?'<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>':''}<span class="rank-hp ${rowHpClass(shownHp(p))}">${shownHp(p)}</span></button>`).join('');
+        <span class="rank-position">${p.placement||i+1}</span><span class="rank-token"></span><span class="rank-name">${safe(p.name)}</span>${streakBadge(p)}<span class="rank-combat-status ${snapshot.battleStatuses[p.id]||''}">${rankStatus(p.id)}</span>${likely.has(p.id)?'<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>':''}<span class="rank-hp ${rowHpClass(shownHp(p))}">${shownHp(p)}</span></button>`).join('');
       element('rankRows').innerHTML = ranks;
       this.lastRank = rankOrder;
     } else {
@@ -363,59 +357,57 @@ export class Hud {
   }
 
   private renderCombat(snapshot:GameSnapshot,view:ClientView):void {
-    const watched=snapshot.players.find(p=>p.id===view.scoutId)||snapshot.players[0];
     const battle = snapshot.observedId === view.scoutId ? snapshot.visibleBattle : null;
-    const opponentId = battle?.participants.find(id => id !== view.scoutId)
-      || (view.scoutId === 'p0' ? snapshot.opponentId || snapshot.lastOpponentId : null);
-    const battleUnits = snapshot.observedId === view.scoutId ? snapshot.visibleBattle?.units || [] : [];
-    const entriesFor = (id: string) => {
+    const battleUnits = battle?.units || [];
+    // One leaderboard for every participant, including four-player encounters and bots.
+    const participants = battle?.participants?.length
+      ? battle.participants
+      : [view.scoutId, ...(view.scoutId === 'p0' ? [snapshot.opponentId || snapshot.lastOpponentId].filter((id): id is string => !!id) : [])];
+    const allEntries = [...new Set(participants)].flatMap(id => {
       const owner = snapshot.players.find(p => p.id === id);
-      const roster = owner?.units.filter(u => u.position.area === 'board') || battleUnits.filter(u => u.playerId === id).map(u => this.fromCombat(u));
+      const roster = owner?.units.filter(u => u.position.area === 'board')
+        || battleUnits.filter(u => u.playerId === id).map(u => this.fromCombat(u));
       const metricsByUnit = snapshot.combatStats[id] || {};
       return roster.map(unit => {
         const metrics = metricsByUnit[unit.id];
         const combatant = battleUnits.find(u => u.sourceId === unit.id && u.playerId === id);
-        const maxHp = combatant?.maxHp || bonusStats(calculateStats(unit.family, unit.level, unit.iv, unit.stage),unit.equipment).hp;
-        const hp = combatant ? Math.max(0, combatant.hp) : maxHp;
+        const maxHp = Math.max(1, combatant?.maxHp || bonusStats(calculateStats(unit.family,unit.level,unit.iv,unit.stage),unit.equipment).hp);
+        const hp = combatant ? Math.max(0,combatant.hp) : maxHp;
         const phys = metrics?.physicalDealt || 0, special = metrics?.specialDealt || 0;
         const physicalMitigated = metrics?.blockedPhysical || 0;
         const specialMitigated = metrics?.blockedSpecial || 0;
         const healed = metrics?.healed || 0;
         const barrierAbsorbed = metrics?.barrierAbsorbed || 0;
         const value = this.metric === 'status' ? hp : this.metric === 'damage' ? phys + special : physicalMitigated + specialMitigated + healed;
-        return { unit, value, hp, maxHp, phys, special, physicalMitigated, specialMitigated, healed, barrierAbsorbed };
-      }).sort((a, b) => b.value - a.value);
-    };
-    const ownEntries = entriesFor(view.scoutId);
-    const enemyEntries = opponentId ? entriesFor(opponentId) : [];
-    const max = Math.max(1, ...ownEntries.map(e => e.value), ...enemyEntries.map(e => e.value));
-    const combatHtml = (entries: ReturnType<typeof entriesFor>) => entries.length ? entries.map(({ unit, value, hp, maxHp, phys, special, physicalMitigated, specialMitigated, healed, barrierAbsorbed }) => {
-      const isDamage = this.metric === 'damage', isStatus = this.metric === 'status';
-      const valueText = isStatus ? `${Math.ceil(hp)}/${maxHp}` : String(Math.round(value));
-      const bar = isDamage
-        ? `<div class="damage-split"><div class="physical" style="width:${phys / max * 100}%"></div><div class="special" style="width:${special / max * 100}%"></div></div>`
-        : this.metric === 'mitigation'
-        ? `<div class="damage-split mitigation-split"><div class="mitigation-def" style="width:${physicalMitigated / max * 100}%"></div><div class="mitigation-spd" style="width:${specialMitigated / max * 100}%"></div><div class="mitigation-heal" style="width:${healed / max * 100}%"></div></div>`
-        : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round((isStatus ? hp / maxHp : value / max) * 100)}%;background:${isStatus ? '#83d49f' : SPECIES[unit.family].glow}"></div></div>`;
-      return `<div class="combat-entry"><div class="combat-line">
-        <span class="combat-mini-shape">${portrait(unit.family, 31, unit.stage,unit.formId)}</span>
-        <span class="combat-name">${displayName(unit.family, unit.stage,unit.formId)}</span><span class="combat-val">${valueText}</span></div>${bar}${this.metric === 'mitigation' && barrierAbsorbed > 0 ? `<span class="barrier-absorbed" title="Dano absorvido por barreira, não incluído na mitigação de DEF/SpD">◇ Barreira absorvida: ${Math.round(barrierAbsorbed)}</span>` : ''}</div>`;
-    }).join('') + (this.metric === 'damage' ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>' : this.metric === 'mitigation' ? '<div class="metric-legend"><span><i class="def"></i>DEF</span><span><i class="spd"></i>SPD</span><span><i class="heal"></i>CURA</span></div>' : '')
-      : '<div style="padding:12px;color:#7c9a9c;font-size:12px">Sem Pokémon em campo</div>';
-    const ownHtml = combatHtml(ownEntries), enemyHtml = combatHtml(enemyEntries);
-    this.updateHTML('combatRows',ownHtml);
-    this.updateHTML('opponentCombatRows',enemyHtml);
-    element('combatOwnLabel').textContent = `EQUIPE · ${watched.name}`;
-    element('combatSideLabel').textContent = `ADVERSÁRIO · ${snapshot.players.find(p => p.id === opponentId)?.name || opponentId?.replace('bot:', 'BOT ') || '—'}`;
-    const toggle = element<HTMLButtonElement>('combatSideButton');
-    toggle.classList.toggle('hidden', this.panel !== 'combat');
-    toggle.disabled = !opponentId;
-    toggle.classList.toggle('active', this.showOpponent && !!opponentId);
-    toggle.textContent = this.showOpponent ? '›' : '‹';
-    toggle.setAttribute('aria-expanded', String(this.showOpponent && !!opponentId));
-    toggle.setAttribute('aria-label', this.showOpponent ? 'Ocultar equipe adversária' : 'Mostrar equipe adversária');
-    element('opponentCombatPanel').classList.toggle('hidden', this.panel !== 'combat' || !this.showOpponent || !opponentId);
-
+        return {unit,ownerId:id,side:id===view.scoutId?'ally':'enemy',value,hp,maxHp,phys,special,physicalMitigated,specialMitigated,healed,barrierAbsorbed};
+      });
+    }).sort((a,b)=>b.value-a.value || a.ownerId.localeCompare(b.ownerId) || a.unit.id.localeCompare(b.unit.id));
+    const entries = allEntries.slice(0,15);
+    const max = Math.max(1,...entries.map(e=>e.value));
+    const rows = entries.map(({unit,side,value,hp,maxHp,phys,special,physicalMitigated,specialMitigated,healed,barrierAbsorbed},index)=>{
+      const isDamage=this.metric==='damage',isStatus=this.metric==='status';
+      const valueText=isStatus?`${Math.ceil(hp)}/${Math.ceil(maxHp)}`:String(Math.round(value));
+      const bar=isDamage
+        ? `<div class="damage-split"><div class="physical" style="width:${phys/max*100}%"></div><div class="special" style="width:${special/max*100}%"></div></div>`
+        : this.metric==='mitigation'
+        ? `<div class="damage-split mitigation-split"><div class="mitigation-def" style="width:${physicalMitigated/max*100}%"></div><div class="mitigation-spd" style="width:${specialMitigated/max*100}%"></div><div class="mitigation-heal" style="width:${healed/max*100}%"></div></div>`
+        : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round(hp/maxHp*100)}%"></div></div>`;
+      const name=safe(displayName(unit.family,unit.stage,unit.formId));
+      const details=`<div class="combat-breakdown" aria-label="Estatísticas detalhadas">
+        <span>FÍSICO <b>${Math.round(phys)}</b></span><span>ESPECIAL <b>${Math.round(special)}</b></span>
+        <span>DEF <b>${Math.round(physicalMitigated)}</b></span><span>SPD <b>${Math.round(specialMitigated)}</b></span>
+        <span>CURA <b>${Math.round(healed)}</b></span><span>BARREIRA <b>${Math.round(barrierAbsorbed)}</b></span>
+      </div>`;
+      const tooltip=`Dano físico: ${Math.round(phys)} | especial: ${Math.round(special)} | DEF: ${Math.round(physicalMitigated)} | SPD: ${Math.round(specialMitigated)} | Cura: ${Math.round(healed)} | Barreira: ${Math.round(barrierAbsorbed)}`;
+      return `<div class="combat-entry ${side}" tabindex="0" title="${safe(tooltip)}" aria-label="${name}: ${valueText}">
+        <div class="combat-line"><span class="combat-position">${index+1}</span><span class="combat-mini-shape">${portrait(unit.family,31,unit.stage,unit.formId)}</span>
+          <span class="combat-name">${name}</span><span class="combat-val">${valueText}</span></div>${bar}${details}</div>`;
+    }).join('');
+    const legend=this.metric==='damage'
+      ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>'
+      : this.metric==='mitigation'
+      ? '<div class="metric-legend"><span><i class="def"></i>DEF</span><span><i class="spd"></i>SPD</span><span><i class="heal"></i>CURA</span></div>' : '';
+    this.updateHTML('combatRows',rows ? rows+legend : '<div class="combat-empty">Nenhum Pokémon no campo</div>');
   }
 
   private renderStatus(snapshot:GameSnapshot,view:ClientView):void {
