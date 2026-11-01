@@ -954,7 +954,7 @@ export class Arena {
     }
     if(ghost?.phase==='appear')ctx.restore();
     if (unit.bench) return;
-// Three equipment sprites fit the bar, even on smaller Pokémon.
+    // Three equipment sprites fit the bar, even on smaller Pokémon.
     // Life is above energy; all equipment sits below the bars.
     const barWidth = Math.max(62, radius * 2.35);
     const bx = p.x - barWidth / 2;
@@ -1016,7 +1016,7 @@ export class Arena {
         ctx.strokeText(label,p.x,baseY-23); ctx.fillStyle = '#e5deba';ctx.fillText(label,p.x,baseY-23);
       }
     }
-// TFT-like circular level medallion attached to the left side of the bars.
+    // TFT-like circular level medallion attached to the left side of the bars.
     const badgeX=bx-7,badgeY=baseY+6;
     ctx.save();
     ctx.fillStyle='#060c14';
