@@ -3,7 +3,7 @@ import { alternativeForm } from '../../server/forms';
 import { SynergyPanel } from './synergies/panel';
 import { interestCap,hasAugment } from '../../server/systems/augments';
 import { inventoryUsed,BALLS } from '../../server/systems/inventory';
-import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, evolutionCopies, getStageData, ATTACKS, rangeLabel, steppedRange } from '../../server/data';
+import { calculateStats, displayName, ELEMENTS, PHASES, RARITY_COLORS, RULES, SPECIES, getStageData, ATTACKS, rangeLabel, steppedRange } from '../../server/data';
 import { totalPower } from '../../server/formulas';
 import { bonusStats, bonusStat, effectivePercents, itemTooltip, ITEM_COLORS, ITEMS, RECIPES, numberParam } from '../../server/systems/items';
 import { LOOT } from '../../server/systems/loot';
