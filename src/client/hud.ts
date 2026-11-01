@@ -197,8 +197,9 @@ export class Hud {
 
   private renderInventory(snapshot:GameSnapshot,view:ClientView):void {
     const player=snapshot.players[0];
-    element('shopFooter').classList.toggle('hidden',view.scoutId!=='p0');
-    element('itemInventory').classList.toggle('hidden',view.scoutId!=='p0');
+    const hideOwnAssets=view.scoutId!=='p0'||!!view.spectating||player.eliminated;
+    element('shopFooter').classList.toggle('hidden',hideOwnAssets);
+    element('itemInventory').classList.toggle('hidden',hideOwnAssets);
     if (snapshot.lootMessage && snapshot.lootMessageId!==this.lastLootMessage) {
       this.lastLootMessage=snapshot.lootMessageId;this.toast(snapshot.lootMessage);
     }
@@ -443,7 +444,8 @@ export class Hud {
 
   private renderFinal(snapshot:GameSnapshot,view:ClientView):void {
     const player=snapshot.players[0];
-    const final = snapshot.phase === 'finished';
+    const final = snapshot.phase === 'finished' && !player.eliminated;
+    // Eliminated players use the V25.3 spectate-or-home dialog instead.
     element('finalBanner').classList.toggle('hidden', !final);
     if (final) {
       const humanWon = snapshot.winnerId === 'p0';
