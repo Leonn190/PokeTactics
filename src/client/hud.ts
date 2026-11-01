@@ -509,7 +509,7 @@ export class Hud {
     const rangeTitle=rangeLabel(basicRange);
     const percents=effectivePercents(combatant||{equipment:pokemon.equipment||[],itemStacks:{},itemTimers:{}},combatant?.itemNow||0);
     const powerClass=modifierClass(power,totalPower(naturalStats));
-const statCards = (['atk','def','spa','spd','speed'] as const).map(key =>
+    const statCards = (['atk','def','spa','spd','speed'] as const).map(key =>
       `<div class="inspector-stat" title="${STAT_LABELS[key]} · IV ${pokemon.iv[key]}%">
         <div class="inspector-stat-heading">${statIcon(key)}<span>${STAT_LABELS[key]}</span></div>
         <b class="${modifierClass(stats[key],naturalStats[key])}">${Math.round(stats[key])}</b>
