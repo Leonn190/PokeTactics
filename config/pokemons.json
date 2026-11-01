@@ -205,9 +205,9 @@
       "./sprites/466.png"
     ],
     "oddish": [
-      "./sprites/43.png",
-      "./sprites/44.png",
-      "./sprites/45.png"
+      "./portrait/0043/Normal.png",
+      "./portrait/0044/Normal.png",
+      "./portrait/0045/Normal.png"
     ]
   },
   "species": {
