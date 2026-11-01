@@ -493,3 +493,35 @@ document.addEventListener('click',e=>{
  else {abilityPinned=false;abilityFloat.classList.add('hidden');}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){abilityPinned=false;abilityFloat.classList.add('hidden');}});
+
+/** Rich hover/focus tooltip shared by every inventory component and equipped item.
+ * The item description remains authoritative in server/systems/items.ts. */
+const itemFloat=document.createElement('div');
+itemFloat.className='floating-item-tooltip hidden';itemFloat.setAttribute('role','tooltip');document.body.append(itemFloat);
+let hoveredItem:HTMLElement|null=null;
+function positionItemTooltip(target:HTMLElement):void {
+  const detail=target.dataset.itemTooltip;
+  if(!detail)return;
+  hoveredItem=target;itemFloat.textContent=detail;itemFloat.classList.remove('hidden');
+  const rect=target.getBoundingClientRect(),bounds=itemFloat.getBoundingClientRect();
+  itemFloat.style.left=`${Math.max(10,Math.min(window.innerWidth-bounds.width-10,rect.left+rect.width/2-bounds.width/2))}px`;
+  itemFloat.style.top=`${Math.max(10,rect.top-bounds.height-9>10?rect.top-bounds.height-9:Math.min(window.innerHeight-bounds.height-10,rect.bottom+9))}px`;
+}
+function clearItemTooltip():void {hoveredItem=null;itemFloat.classList.add('hidden');}
+document.addEventListener('mouseover',event=>{
+  const slot=(event.target as HTMLElement).closest<HTMLElement>('[data-item-tooltip]');
+  if(slot && hoveredItem!==slot)positionItemTooltip(slot);
+});
+document.addEventListener('mouseout',event=>{
+  const slot=(event.target as HTMLElement).closest<HTMLElement>('[data-item-tooltip]');
+  if(slot && hoveredItem===slot && !(event.relatedTarget instanceof Node && slot.contains(event.relatedTarget)))clearItemTooltip();
+});
+document.addEventListener('focusin',event=>{
+  const slot=(event.target as HTMLElement).closest<HTMLElement>('[data-item-tooltip]');
+  if(slot)positionItemTooltip(slot);
+});
+document.addEventListener('focusout',event=>{
+  const slot=(event.target as HTMLElement).closest<HTMLElement>('[data-item-tooltip]');
+  if(slot && hoveredItem===slot)clearItemTooltip();
+});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')clearItemTooltip();});

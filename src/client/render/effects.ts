@@ -15,7 +15,7 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       const t = Math.max(0, Math.min(1, (resolveTime ? resolveTime(fx) : fx.time) / fx.duration));
       const baseFrom = toScreen(fx.x, flipY ? -fx.y : fx.y);
       const to = toScreen(fx.targetX, flipY ? -fx.targetY : fx.targetY);
-      const from = ['basic-projectile','dragon-orb','bone','egg','ball','psychic-blessing','psychic-shot','piercing-flame','lightning','poison','spell','electro-shot']
+      const from = ['basic-projectile','dragon-orb','bone','egg','ball','psychic-blessing','psychic-shot','piercing-flame','solar-beam','lightning','poison','spell','electro-shot']
         .includes(fx.kind) ? projectileOrigin(fx,baseFrom,to,cellScale,parts?.(fx)) : baseFrom;
       // Real magnetized shots bend into an absorber; the server, not this drawing, cancels their hits.
       if(fx.magnetPull){

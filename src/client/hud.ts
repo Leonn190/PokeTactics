@@ -15,7 +15,8 @@ import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats, Equi
 import type { ClientView } from './arena';
 
 const element = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
-const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+const safe = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"','&quot;');
+const modifierClass = (value:number,baseValue:number):string => value>baseValue+.001?'stat-mod-up':value<baseValue-.001?'stat-mod-down':'';
 const STAT_LABELS: Record<keyof Stats, string> = { hp: 'VIDA', speed: 'VEL', atk: 'ATK', def: 'DEF', spa: 'SPA', spd: 'SPD' };
 
 const base = import.meta.env.BASE_URL;
@@ -23,7 +24,7 @@ const typeIcon = (type: Element, size = 18): string => `<img class="type-icon" s
 const icon = itemImage;
 /** The same item slots are used for your tray and for read-only enemy trays. */
 export function itemRackSlots(items:EquippedItem[],selectedId:string|null=null,readonly=false):string {
- const slots=items.map(item=>`<${readonly?'span':'button type="button"'} class="inventory-slot inventory-item ${selectedId===item.id?'selected':''}" ${readonly?'':'data-inventory-item="'+safe(item.id)+'"'} title="${safe(itemTooltip(item))}">${icon(item)}</${readonly?'span':'button'}>`);
+ const slots=items.map(item=>`<${readonly?'span':'button type="button"'} class="inventory-slot inventory-item ${selectedId===item.id?'selected':''}" ${readonly?'':'data-inventory-item="'+safe(item.id)+'"'} title="${safe(itemTooltip(item))}" data-item-tooltip="${safe(itemTooltip(item))}">${icon(item)}</${readonly?'span':'button'}>`);
  while(slots.length<ITEMS.inventorySlots)slots.push('<span class="inventory-slot empty" aria-hidden="true"><i></i></span>');
  return `<div class="inventory-grid" role="group" aria-label="Itens no chão">${slots.join('')}</div>`;
 }
@@ -239,11 +240,19 @@ export class Hud {
     const rarities = ['COMUM', 'INCOMUM', 'RARO', 'ÉPICO', 'LENDÁRIO'];
     this.updateHTML('shopChances', rarities.map((label, i) => `<div class="rarity-chance" title="${label}: peso ${odds[i]}%${odds.reduce((a,b) => a+b,0) !== 100 ? ' (pesos normalizados no sorteio)' : ''}"><i style="background:${RARITY_COLORS[i]}"></i><span>${label}</span><b>${odds[i]}%</b></div>`).join(''));
     const influence = typeInfluence(player);
-    const topTypes = (Object.keys(influence.points) as Element[]).sort((a,b) => (influence.points[b] || 0) - (influence.points[a] || 0) || a.localeCompare(b)).slice(0, RULES.typeShopBias.maxShown);
-    this.updateHTML('typeInfluence', `<span class="influence-caption" title="Influência de tipos na loja: ativos valem ${RULES.typeShopBias.activePoints} pontos e banco ${RULES.typeShopBias.benchPoints}. Não concede bônus de combate.">TIPOS</span><div class="influence-track">${topTypes.length ? topTypes.map(type => {
-      const info = ELEMENTS[type], fraction = influence.shares[type] || 0;
-      return `<div class="influence-segment" style="width:${fraction * 100}%;--type-color:${info.color}" title="${info.name}: ${influence.points[type]} pontos • ${(fraction * 100).toFixed(1)}% da influência">${typeIcon(type, 16)}<span>${(fraction * 100).toFixed(0)}%</span></div>`;
-    }).join('') : '<span class="influence-empty">Sem tipos</span>'}</div>`);
+    const topTypes = (Object.keys(influence.points) as Element[])
+      .filter(type=>(influence.points[type]||0)>0)
+      .sort((a,b)=>(influence.points[b]||0)-(influence.points[a]||0)||a.localeCompare(b)).slice(0,4);
+    const visibleTotal=topTypes.reduce((sum,type)=>sum+(influence.points[type]||0),0);
+    let sweep=0;
+    const wheelStops=topTypes.map(type=>{
+      const from=sweep;
+      sweep+=(influence.points[type]||0)/visibleTotal*100;
+      return `${ELEMENTS[type].color} ${from.toFixed(3)}% ${sweep.toFixed(3)}%`;
+    });
+    const legend=topTypes.map(type=>`<div class="type-wheel-legend-row"><i style="background:${ELEMENTS[type].color}"></i>${typeIcon(type,16)}<span>${safe(ELEMENTS[type].name)}</span><b>${((influence.shares[type]||0)*100).toFixed(1)}%</b></div>`).join('');
+    const summary=topTypes.length?topTypes.map(type=>`${ELEMENTS[type].name} ${((influence.shares[type]||0)*100).toFixed(0)}%`).join(', '):'Sem tipos ativos';
+    this.updateHTML('typeInfluence',`<div class="type-wheel" tabindex="0" role="img" aria-label="Influência dos tipos: ${safe(summary)}" title="${safe(summary)}"><div class="type-wheel-chart" style="background:conic-gradient(${wheelStops.length?wheelStops.join(','):'#334952 0% 100%'})"><span>TIPOS</span></div><div class="type-wheel-popover" role="tooltip"><strong>INFLUÊNCIA DA EQUIPE</strong>${legend||'<small>Coloque Pokémon no campo ou banco</small>'}<small>Exibe até 4 tipos. Fatias proporcionais aos tipos exibidos; percentuais reais da equipe.</small></div></div>`);
     const freeShopReroll=(player.augmentCounters?.['B02:free']||0)>0;
     element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || (!freeShopReroll&&player.gold < RULES.rerollCost) || player.eliminated);
     element('rerollButton').setAttribute('title',freeShopReroll?'Atualização gratuita do Comprador Persistente':`Atualizar loja por ${RULES.rerollCost} de ouro`);
@@ -279,10 +288,9 @@ export class Hud {
       // legacy species.range: it throws in rangeLabel and used to freeze the entire HUD.
       const stage=getStageData(offer.family,0);
       const disabled = player.gold < offer.price || snapshot.phase === 'finished' || player.eliminated;
-      return `<button class="shop-card" data-shop="${i}" data-shop-offer="${offer.id}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled ? 'disabled' : ''} title="${data.ability} • ${stage.energy} de energia • alcance ${rangeLabel(stage.range)} • bônus de tipo no peso: +${(100 * typeBonus(offer.family, influence.shares)).toFixed(1)}%">
-          <div class="shop-portrait">${portrait(offer.family, 100)}</div><div class="shop-card-footer"><span class="shop-name">${data.names[0]}</span>
-          <span class="shop-type">${data.elements.map(type => typeIcon(type, 18)).join('')}</span>
-          <span class="shop-cost"><i>◈</i>${offer.price}</span></div></button>`;
+      return `<button class="shop-card" data-shop="${i}" data-shop-offer="${offer.id}" style="--rarity:${RARITY_COLORS[offer.rarity - 1]};--glow:${data.glow}" ${disabled?'disabled':''} title="${safe(data.ability)} • ${stage.energy} de energia • alcance ${rangeLabel(stage.range)} • bônus de tipo +${(100*typeBonus(offer.family,influence.shares)).toFixed(1)}%" aria-label="Comprar ${safe(data.names[0])} por ${offer.price} de ouro">
+        <div class="shop-portrait">${portrait(offer.family,128)}</div>
+        <div class="shop-card-footer"><div class="shop-card-identity"><span class="shop-name">${safe(data.names[0])}</span><span class="shop-type">${data.elements.map(type=>typeIcon(type,18)).join('')}</span></div><span class="shop-cost"><i>◈</i>${offer.price}</span></div></button>`;
     }).join('');
     this.updateHTML('shopCards', shopHtml);
 
@@ -448,7 +456,7 @@ export class Hud {
     const percents=effectivePercents(battle || {equipment:pokemon.equipment||[],itemStacks:{},itemTimers:{}},battle?.itemNow||0);
     for(const [key,value] of Object.entries(percents)) {
       const element=panel.querySelector<HTMLElement>(`[data-percent="${key}"]`);
-      if (element) element.textContent=`${(value*100).toFixed(0)}%`;
+      if (element){element.textContent=`${(value*100).toFixed(0)}%`;const original=ITEMS.defaults[key as keyof typeof ITEMS.defaults];element.classList.toggle('stat-mod-up',value>original+.0001);element.classList.toggle('stat-mod-down',value<original-.0001);}
     }
   }
 
@@ -463,6 +471,7 @@ export class Hud {
     const displayLevel=combatant?.level??pokemon.level;
     const data = SPECIES[displayFamily];
     const stage = getStageData(displayFamily,displayStage);
+    const naturalStats=calculateStats(displayFamily,displayLevel,combatant?.iv||pokemon.iv,displayStage);
     const stats = combatant?.stats || bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage),pokemon.equipment);
     const ivAverage = Object.values(pokemon.iv).reduce((a, b) => a + b, 0) / Object.keys(pokemon.iv).length;
     const power = totalPower(stats);
@@ -481,17 +490,19 @@ export class Hud {
     const stageRange=refraction ? steppedRange(stage.rangeLevel,1) : stage.range;
     const basicRange=combatant?.range??(stageRange+(pokemon.equipment||[]).filter(item=>item.recipe==='red+red').length*numberParam('longbow','range'));
     const rangeTitle=rangeLabel(basicRange);
-    return `<div class="inspector-top">${portrait(displayFamily, 56, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · XP ${pokemon.xp} · Alcance ${rangeTitle}</div></div></div>
+    const percents=effectivePercents(combatant||{equipment:pokemon.equipment||[],itemStacks:{},itemTimers:{}},combatant?.itemNow||0);
+    const powerClass=modifierClass(power,totalPower(naturalStats));
+    return `<div class="inspector-top">${portrait(displayFamily, 64, displayStage)}<div><div class="inspector-name">${safe(displayName(displayFamily, displayStage))}${combatant?.ditto?.active?' · DITTO':''}<span class="inspector-header-types">${stage.elements.map(t=>typeIcon(t,17)).join('')}</span></div><div class="inspector-sub">Nvl ${displayLevel} · XP ${pokemon.xp} · Alcance ${rangeTitle}</div></div></div>
       <div class="inspector-resources" aria-label="Vida e energia">
         <div class="inspector-resource"><span>VIDA</span><div class="inspector-resource-track"><i class="hp" style="width:${hpPercent}%"></i></div><b>${Math.ceil(hp)} / ${Math.ceil(maxHp)}</b></div>
         <div class="inspector-resource"><span>ENERGIA</span><div class="inspector-resource-track"><i class="energy" style="width:${energyPercent}%"></i></div><b>${Math.floor(energy)} / ${energyNeeded}</b></div>
       </div>
-      <div class="inspector-totals"><span>PODER TOTAL <b>${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span>${Object.values(pokemon.iv).every(v=>v===100)?'<span>✦ IV PERFEITO</span>':''}</div>
-      <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b>${stats[key]} <small style="color:#819a9a">${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
-      <div class="inspector-percentages">${([['vampirism','VAMP'],['critChance','CRÍT'],['critDamage','DANO CRÍT'],['durability','DURAB'],['amplification','AMPLIF']] as const).map(([key,label])=>`<div class="inspector-percent"><small>${label}</small><b data-percent="${key}">0%</b></div>`).join('')}</div>
+      <div class="inspector-totals"><span>PODER TOTAL <b class="${powerClass}">${power.toLocaleString('pt-BR')}</b></span><span>IV MÉDIO <b>${ivAverage.toFixed(1).replace('.', ',')}</b></span>${Object.values(pokemon.iv).every(v=>v===100)?'<span>✦ IV PERFEITO</span>':''}</div>
+      <div class="inspector-stats">${(Object.keys(stats) as Array<keyof Stats>).map(key => `<div class="inspector-stat" title="IV: ${pokemon.iv[key]}%"><small>${STAT_LABELS[key]}</small><b class="${modifierClass(stats[key],naturalStats[key])}">${stats[key]} <small>${pokemon.iv[key]} IV</small></b></div>`).join('')}</div>
+      <div class="inspector-percentages">${([['critChance','CRÍT'],['critDamage','DANO CRÍT'],['vampirism','VAMP'],['durability','DURAB'],['amplification','AMPLIF']] as const).map(([key,label])=>`<div class="inspector-percent"><small>${label}</small><b class="${modifierClass(percents[key],ITEMS.defaults[key])}" data-percent="${key}">${(percents[key]*100).toFixed(0)}%</b></div>`).join('')}</div>
       <div class="inspector-equipment"><span>EQUIPAMENTOS E ATAQUE</span><div class="inspector-equipment-row">${Array.from({length:ITEMS.maxSlots},(_,index)=>{
         const item=pokemon.equipment?.[index];
-        return `<button class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Slot livre'}" ${owner==='VOCÊ'?'':'disabled'}>${item?icon(item):'+'}</button>`;
+        return `<${owner==='VOCÊ'?'button type="button"':'span'} class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Slot livre'}" ${item?'data-item-tooltip="'+safe(itemTooltip(item))+'"':''} ${owner==='VOCÊ'?'':'tabindex="0" aria-disabled="true"'}>${item?icon(item):'+'}</${owner==='VOCÊ'?'button':'span'}>`;
       }).join('')}<div class="inspector-slot inspector-basic-tile" title="Ataque regular físico (ATK) · valor bruto após atributos e equipamentos, antes da defesa do alvo"><span>⚔</span><b>${basic.value}</b></div></div><small>${owner==='VOCÊ'?'Clique para remover • arraste um item da mochila para equipar':''}</small></div>
       <div class="inspector-ability-wrap"><span class="inspector-ability-label">HABILIDADE CARREGADA</span><button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer o ataque">${safe(move.name)}</button><div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div></div>
       ${(displayStage<data.names.length-1||!!data.babyEvolution) ? `<div class="inspector-evolution">Evolução: ${this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.units.filter(u=>u.family===pokemon.family&&u.stage===pokemon.stage).length||1} / ${evolutionCopies(displayFamily,displayStage,!!this.latestSnapshot?.players.find(p=>p.units.some(u=>u.id===pokemon.id))?.augments?.includes('P11'))} cópias</div>`:''}<div class="inspector-footer"><div class="inspector-types">${owner === 'VOCÊ' ? '<span>E para vender</span>' : ''}</div></div>`;

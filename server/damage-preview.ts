@@ -47,6 +47,7 @@ export function previewAbility(family: Family, stage: number, stats: Stats): Dam
     case 'flame-strike': return [physical('DANO',a*stageValue(move.damageRatioByStage,stage,1.55)),special('QUEIMADURA/SEGUNDO',(move.dotBase||0)+s*(move.dotRatio||0))];
     case 'shock': return [special('DANO INICIAL', s*stageValue(move.damageRatioByStage,stage,1.05)),
       special('DANO DO SALTO', s*stageValue(move.damageRatioByStage,stage,1.05)*stageValue(move.secondaryRatioByStage,stage,.5))];
+    case 'solar-beam': return [special(`RAIO SOLAR (ALCANCE ${stageValue(move.beamRangeByStage,stage,2)})`,stageValue(move.damageByStage,stage)+s*move.specialRatio)];
     case 'pollen': return [special('DANO EM ÁREA', stageValue(move.damageByStage,stage)+s*move.specialRatio),
       entry('CURA POR ALIADO',stageValue(move.healByStage,stage)+s*(move.healRatio || 0),'heal')];
     case 'spin': return [special('DANO POR SEGUNDO',stageValue(move.damageByStage,stage)+s*move.specialRatio)];

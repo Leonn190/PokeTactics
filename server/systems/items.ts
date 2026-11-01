@@ -97,6 +97,10 @@ export function shieldMultiplier(unit: CombatUnit): number {
   return 1 + effectCount(unit,'adaptive_shield') * numberParam('adaptive_shield','receivedHealShield');
 }
 export function itemTooltip(item: EquippedItem): string {
-  const parts = item.components.map(c => ITEMS.components[c]).map(c=>`+${c.value} ${c.stat.toUpperCase()}`).join(', ');
-  return parts + (item.recipe ? ` • ${RECIPES[item.recipe]?.description || ''}` : ' • Componente básico');
+  const parts = item.components.map(c => ITEMS.components[c]).map(c=>`+${c.value} ${c.stat.toUpperCase()}`).join(' • ');
+  if (item.kind==='component') {
+    const name=ITEMS.components[item.components[0]].name;
+    return `COMPONENTE ${name.toUpperCase()}\n${parts}\nCombine com outro componente para criar um item completo.`;
+  }
+  return `ITEM COMPLETO\n${parts}\n${item.recipe ? RECIPES[item.recipe]?.description || 'Efeito especial' : 'Efeito especial'}`;
 }

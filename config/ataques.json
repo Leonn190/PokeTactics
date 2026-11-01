@@ -1080,6 +1080,24 @@
       "jumpDuration": 0.32,
       "landingDuration": 0.3,
       "jumpSearchRadius": 2.4
+    },
+    "solar-beam": {
+      "name": "Raio Solar",
+      "effect": "solar-beam",
+      "baseDamage": 0,
+      "specialRatio": 0.76,
+      "damageByStage": [
+        48,
+        76,
+        110
+      ],
+      "beamRangeByStage": [
+        2,
+        3,
+        4
+      ],
+      "beamRadius": 0.43,
+      "beamDuration": 0.42
     }
   }
 }

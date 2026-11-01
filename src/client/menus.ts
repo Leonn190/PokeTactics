@@ -29,6 +29,7 @@ export function moveDescription(move: MoveData): string {
     chain:'Lança energia que salta entre inimigos próximos.',
     blast:'Desencadeia uma explosão de dano em área.',
     pollen:'Dispara pólen em área e cura aliados próximos.',
+    'solar-beam':'Dispara um raio solar perfurante em linha reta, atingindo inimigos ao longo do trajeto. O alcance aumenta de 2 para 3 e 4 conforme evolui.',
     spin:'Gira, atingindo adversários ao redor e fortalecendo a própria defesa.',
     'flame-strike':'Golpe de fogo poderoso contra um alvo.',
     shock:'Descarga elétrica que se propaga para outros inimigos.',

@@ -1,5 +1,5 @@
 {
-  "maxSlots": 2,
+  "maxSlots": 3,
   "defaults": {
     "vampirism": 0,
     "critChance": 0.25,

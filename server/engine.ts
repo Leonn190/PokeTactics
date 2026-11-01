@@ -728,7 +728,7 @@ export class GameEngine {
         const index=equipped.findIndex(i=>i.id===component.id);
         equipped[index]=assembled;
       } else {
-        if (equipped.length>=ITEMS.maxSlots) return 'Limite de dois equipamentos';
+        if (equipped.length>=ITEMS.maxSlots) return `Limite de ${ITEMS.maxSlots} equipamentos`;
         equipped.push(actualItem);
       }
       if(!this.sandbox||!item.id.startsWith('sandbox:'))human.itemInventory=human.itemInventory!.filter(i=>i.id!==item.id);

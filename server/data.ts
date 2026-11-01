@@ -42,7 +42,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -90,6 +90,7 @@ export type MoveData = {
   absorbDuration?:number;absorbTickInterval?:number;absorbDamageBase?:number;absorbDamageRatio?:number;
   absorbDamageReduction?:number;executeHealRatio?:number;maxDistance?:number;
   ragePercentByStage?:number[]; reviveDelay?:number; reviveHpFraction?:number; reviveRageMultiplier?:number;
+  beamRangeByStage?:number[]; beamRadius?:number; beamDuration?:number;
   jumpDuration?:number; landingDuration?:number; jumpSearchRadius?:number;
   continuationMultiplier?: number; levelBonusCap?: number; revertHealthRatio?: number;
 };
