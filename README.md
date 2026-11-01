@@ -92,3 +92,10 @@ A movimentação normal de combate passou a planejar trajetos pelos hexágonos, 
 - Itens e componentes mostram descrições detalhadas em tooltips por mouse/foco, incluindo efeitos de receitas. Habilidade continua um botão textual com explicação ao passar o mouse ou clicar.
 
 A simulação segue no Worker local. O manifesto PMD é regenerado pelos scripts `predev`/`prebuild` a partir dos assets locais; nenhuma arte de terceiros é substituída.
+
+
+## V25.1 — painel de Pokémon e leitura da arena
+
+A ficha apresenta um cabeçalho com nome, retrato, tipos e nível destacado, depois vida/energia, três itens com IV médio e poder total, e dez atributos com pictogramas em duas fileiras de cinco. ATK, DEF, SPA, SPD e VEL exibem seus IVs; os outros cinco são crítico, dano crítico, vampirismo, durabilidade e amplificação. A habilidade continua como botão textual com detalhes flutuantes e ganha um quadrado de alcance ao lado. A ficha foi posicionada para não cobrir a classificação nem o comparativo de combate.
+
+O quadrado de ataque regular e os textos de clicar para remover/vender deixam de aparecer. Sobre cada Pokémon da arena, vida e energia ficam uma sobre a outra, o nível surge em medalhão circular escuro no canto esquerdo e até três itens aparecem abaixo das barras. São mudanças apenas de interface: nenhuma regra de batalha ou item foi alterada.

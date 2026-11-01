@@ -744,3 +744,134 @@
 .mega-stone-icon { display:inline-grid;place-items:center;font-size:22px;filter:drop-shadow(0 0 7px #cf8fff); }
 .mega-label {display:inline-block;margin:0 5px;padding:1px 5px;border:1px solid #b68bff;border-radius:7px;color:#ead4ff;font-size:10px;letter-spacing:.07em;vertical-align:middle;background:#7b39ba36;}
 .inventory-item:has(.mega-stone-icon) {border-color:#b28ced!important;box-shadow:inset 0 0 8px #8e52d655;}
+
+
+/* V25.1 — TFT-inspired, compact five-column Pokémon sheet. All item
+   tooltips stay in the existing document-level portals. */
+#unitInspector.unit-inspector{
+  box-sizing:border-box;left:auto;right:calc(314px + 30px);top:auto;
+  bottom:clamp(206px,22vh,246px);width:386px;max-width:calc(100vw - 380px);
+  height:auto;max-height:min(425px,calc(100vh - 320px));
+  padding:12px 13px 13px;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:#718f83 #14252b;
+  border:1px solid #8eaf9b9c;border-radius:12px;
+  background:linear-gradient(165deg,#244543f7 0%,#122b34f8 47%,#091923f9 100%);
+  box-shadow:0 14px 38px #000c,inset 0 1px 0 #dfffe128;
+}
+#unitInspector .inspector-top{display:flex;align-items:center;gap:9px;min-height:52px;margin:0 0 9px}
+#unitInspector .inspector-portrait{flex:none;width:54px;height:54px;display:grid;place-items:center;
+  background:radial-gradient(circle,#42695b 0%,#1b3736 70%,#10252d 100%);
+  border:1px solid #92b2a45e;border-radius:9px;box-shadow:inset 0 0 12px #040d1170}
+#unitInspector .inspector-top .pokemon-portrait{display:block;width:52px;height:52px;max-width:100%;object-fit:contain}
+#unitInspector .inspector-identity{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;justify-content:center}
+#unitInspector .inspector-name{font:900 24px/1 'Barlow Condensed',sans-serif;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;color:#f3f5e8;text-shadow:0 2px 5px #031015}
+#unitInspector .inspector-header-types{display:flex;gap:5px;align-items:center;margin:0}
+#unitInspector .inspector-header-types .type-icon{width:19px;height:19px;filter:drop-shadow(0 1px 3px #000a)}
+#unitInspector .inspector-mode{font:800 9px/1 Inter,sans-serif;letter-spacing:.06em;color:#cbe2eb}
+#unitInspector .inspector-level{flex:none;min-width:49px;min-height:48px;padding:2px 5px;display:flex;
+  flex-direction:column;justify-content:center;align-items:center;gap:0;
+  border:1px solid #f5db9f9e;border-radius:9px;background:linear-gradient(160deg,#776140,#352d29 70%);
+  box-shadow:inset 0 1px #fff3,0 3px 8px #0007;color:#fff3cb}
+#unitInspector .inspector-level small{font:900 9px/1.15 'Barlow Condensed',sans-serif;letter-spacing:1px}
+#unitInspector .inspector-level b{font:900 29px/.97 'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums}
+#unitInspector .inspector-resources{display:grid;gap:5px;margin:0 0 10px}
+#unitInspector .inspector-resource{display:flex;align-items:center;gap:7px;font:800 10px 'Barlow Condensed',sans-serif}
+#unitInspector .inspector-resource span{width:47px;flex:none;letter-spacing:.06em;color:#b8d3c4}
+#unitInspector .inspector-resource b{min-width:74px;font:800 12px 'Barlow Condensed',sans-serif;
+  font-variant-numeric:tabular-nums;white-space:nowrap;color:#e9f5ed;text-align:right}
+#unitInspector .inspector-resource-track{height:10px;border:1px solid #6483798c;border-radius:4px;
+  background:#071820;box-shadow:inset 0 2px 3px #000a}
+#unitInspector .inspector-resource-track .hp{background:linear-gradient(180deg,#a0ffc6,#3eae79)}
+#unitInspector .inspector-resource-track .energy{background:linear-gradient(180deg,#a6e9ff,#4b9dd8)}
+#unitInspector .inspector-equipment{display:flex;align-items:stretch;gap:9px;margin:0 0 10px;
+  padding:0 0 9px;border-top:0;border-bottom:1px solid #71958548;flex-wrap:nowrap}
+#unitInspector .inspector-equipment-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  flex:0 0 51%;align-items:center;gap:6px;padding:0;min-width:0}
+#unitInspector .inspector-equipment-row .inspector-slot{box-sizing:border-box;min-width:0;width:100%;
+  height:49px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  background:linear-gradient(145deg,#1b373b,#091b26);border:1px solid #7eada18c;
+  border-radius:8px;box-shadow:inset 0 1px 6px #0009;cursor:default}
+#unitInspector .inspector-equipment-row .inspector-slot.occupied{border-color:#e5ce96a8}
+#unitInspector .inspector-equipment-row .gear-icon{width:100%;height:100%;min-width:0;min-height:0}
+#unitInspector .inspector-equipment-row .gear-icon img{max-width:42px;max-height:42px}
+#unitInspector .inspector-empty-slot{font:500 25px/1 'Barlow Condensed',sans-serif;color:#65847d}
+#unitInspector .inspector-equipment-summary{flex:1;min-width:0;display:grid;grid-template-rows:repeat(2,1fr);gap:4px}
+#unitInspector .inspector-equipment-summary>div{min-width:0;display:flex;justify-content:space-between;
+  align-items:center;gap:5px;padding:4px 8px;border:1px solid #597c7278;border-radius:6px;
+  background:#0d242d;color:#a7c5b8}
+#unitInspector .inspector-equipment-summary span{font:800 10px 'Barlow Condensed',sans-serif;
+  letter-spacing:.05em;white-space:nowrap}
+#unitInspector .inspector-equipment-summary b{font:900 17px 'Barlow Condensed',sans-serif;
+  color:#f8dcaa;white-space:nowrap;font-variant-numeric:tabular-nums}
+#unitInspector .inspector-stats,#unitInspector .inspector-percentages{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:0 0 7px}
+#unitInspector .inspector-stat,#unitInspector .inspector-percent{
+  box-sizing:border-box;min-width:0;min-height:65px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;padding:5px 2px 4px;
+  border:1px solid #52756d9c;border-radius:8px;
+  background:linear-gradient(165deg,#213d3f,#102630);
+  box-shadow:inset 0 1px 0 #ffffff13;text-align:center}
+#unitInspector .inspector-stat-heading{min-width:0;width:100%;display:flex;align-items:center;
+  justify-content:center;gap:3px;color:#aac7bf}
+#unitInspector .inspector-stat-icon{display:block;width:15px;height:15px;flex:none;color:#d8c38f}
+#unitInspector .inspector-stat-heading span,#unitInspector .inspector-stat-heading small{
+  font:900 10px/1 'Barlow Condensed',sans-serif;color:#bdcfc4;white-space:nowrap;letter-spacing:.015em}
+#unitInspector .inspector-stat b,#unitInspector .inspector-percent b{
+  font:900 18px/1.05 'Barlow Condensed',sans-serif;color:#f4f4e8;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+#unitInspector .inspector-stat>small{font:700 9px/1 'Barlow Condensed',sans-serif;color:#93b8a7}
+#unitInspector .inspector-percent{min-height:56px;gap:5px;margin:0}
+#unitInspector .inspector-percent .inspector-stat-icon{width:14px;height:14px;color:#87ccdc}
+#unitInspector .inspector-percent .inspector-stat-heading small{font-size:9px}
+#unitInspector .stat-mod-up{color:#f5af64!important}
+#unitInspector .stat-mod-down{color:#ff777e!important}
+#unitInspector .inspector-ability-wrap{margin:6px 0 0;position:relative}
+#unitInspector .inspector-ability-label{display:block;margin:0 0 5px;font:800 9px Inter,sans-serif;
+  color:#aac9ba;letter-spacing:1.2px}
+#unitInspector .inspector-ability-row{display:flex;align-items:stretch;gap:7px}
+#unitInspector .inspector-ability{flex:1;min-width:0;width:auto;min-height:43px;
+  padding:7px 11px;text-align:center;font:900 18px 'Barlow Condensed',sans-serif;
+  border:1px solid #b9ce98a8;border-radius:7px;color:#f8e7bd;
+  background:linear-gradient(155deg,#42634b,#23413e);
+  box-shadow:inset 0 1px #ffffff25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#unitInspector .inspector-ability:hover,#unitInspector .inspector-ability:focus-visible{
+  border-color:#f0df9a;background:linear-gradient(155deg,#50785c,#30504e)}
+#unitInspector .inspector-range{flex:0 0 51px;min-height:51px;aspect-ratio:1;box-sizing:border-box;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  border:1px solid #8dafa2a8;border-radius:7px;
+  background:linear-gradient(160deg,#193b42,#10242f)}
+#unitInspector .inspector-range small{font:800 8px/1 'Barlow Condensed',sans-serif;color:#9cbdaf;letter-spacing:.04em}
+#unitInspector .inspector-range b{font:900 21px/1 'Barlow Condensed',sans-serif;color:#f2e1a6}
+#unitInspector .inspector-ability-tooltip{display:none!important}
+#unitInspector .inspector-evolution,#unitInspector .inspector-footer{display:none}
+
+/* In normal combat the inspector is left of the ranking panel; when the
+   adversary comparison opens it shifts left of BOTH right-side columns. */
+@media(min-width:1301px){
+  #app:has(#opponentCombatPanel:not(.hidden)) #unitInspector.unit-inspector{
+    right:670px}
+}
+@media(min-width:981px) and (max-width:1300px){
+  #unitInspector.unit-inspector{right:calc(273px + 26px);width:354px;
+    max-width:calc(100vw - 325px)}
+  #app:has(#opponentCombatPanel:not(.hidden)) #unitInspector.unit-inspector{
+    right:584px}
+}
+@media(max-width:980px){
+  #unitInspector.unit-inspector{right:calc(220px + 24px);width:330px;
+    max-width:calc(100vw - 252px);padding:10px 9px}
+  #unitInspector .inspector-name{font-size:21px}
+  #unitInspector .inspector-stat-heading{gap:2px}
+  #unitInspector .inspector-stat-icon{width:13px;height:13px}
+  #unitInspector .inspector-stat-heading span,#unitInspector .inspector-stat-heading small{font-size:9px}
+  #unitInspector .inspector-stat b,#unitInspector .inspector-percent b{font-size:16px}
+  #unitInspector .inspector-equipment-summary>div{padding:3px 4px}
+  #unitInspector .inspector-equipment-summary span{font-size:9px}
+  #unitInspector .inspector-equipment-summary b{font-size:15px}
+  #app:has(#opponentCombatPanel:not(.hidden)) #unitInspector.unit-inspector{
+    left:8px;right:auto;width:min(330px,calc(100vw - 550px));max-width:none}
+}
+@media(max-height:740px){
+  #unitInspector.unit-inspector{bottom:205px;max-height:calc(100vh - 365px)}
+}

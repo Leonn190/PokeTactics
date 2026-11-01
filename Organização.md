@@ -176,3 +176,12 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 - **Ficha e itens:** `ITEMS.maxSlots=3` em `config/itens.json` segue como fonte de verdade para equipamento, fusão e espaços visuais; `src/client/arena.ts` agora mostra os três ícones. A ficha compara estatísticas já calculadas pelo motor com `calculateStats` de nível/IV para laranja/vermelho, e compara percentuais com as bases do arquivo de itens. Tooltips textuais reutilizam `server/systems/items.ts#itemTooltip` na arena de itens e nos slots equipados; `src/client/main.ts` os projeta para fora dos painéis sem alterá-los.
 - **Observação:** o painel de habilidades conserva o popover já existente. A área física de itens permanece ancorada na arena e acompanha câmera/zoom, não migra para o HUD.
 - **Validação:** `npm run validate:config`, `npm run check`, `npm run build`; revisar manualmente preparação, compra/reroll/trava, leitura da pizza, três slots, combate e alcance 2/3/4, tooltips e scouting. Se não houver checkout local, a execução deve ser registrada como pendente, nunca presumida.
+
+
+## V25.1 — ficha compacta e barras de unidade
+
+- Ficha (src/client/hud.ts, src/styles/global.css): nome, portrait, tipos e nível destacado; vida/energia e valores; três slots de itens e IV médio/poder total empilhados. ATK, DEF, SPA, SPD e VEL na primeira fileira, cada qual com IV; crítico, dano crítico, vampirismo, durabilidade e amplificação na segunda. Dez pictogramas SVG inline, preservando as cores de modificadores.
+- Habilidade: tooltip flutuante existente permanece, com caixa de alcance numérico ao lado do botão. Removidos o card de dano do ataque regular e os textos explicativos de remoção/venda. Atalhos e lógica de equipamento/venda não mudam.
+- Posicionamento: ficha ao lado do painel de jogadores/combate, inclusive quando a extensão de comparação com adversário está aberta, com rolagem própria em altura reduzida.
+- Arena (src/client/arena.ts): vida sobre energia, equipamentos abaixo das barras, círculo preto lateral com nível branco. Largura mínima comporta três ícones. Durante preparação, as barras usam os valores visuais já disponíveis nos marcadores, sem simular atributos do motor.
+- Revisão: planejamento, combate 1v1 e quádruplo, observação, tooltips, equipamento e larguras/alturas diferentes. Verificar npm run validate:config, npm run check e npm run build.
