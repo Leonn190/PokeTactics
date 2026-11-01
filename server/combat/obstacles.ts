@@ -112,6 +112,10 @@ export function routeAround(battle:Battle,unit:CombatUnit,target:CombatUnit,reac
   if(firstObstacle(battle,unit.playerId,from.x,from.y,to.x,to.y,radius*.8))return false;
   return !bodies.some(other=>{
    const required=radius+collisionRadius(other.family,other.stage)+.015;
+   const nearest=closestParameter(from.x,from.y,to.x,to.y,other.x,other.y);
+   if(nearest<=1e-5 &&
+     dist2(to.x,to.y,other.x,other.y)>dist2(from.x,from.y,other.x,other.y)+1e-8)
+     return false; // A unit touching a body must be allowed to move away.
    return collisionParameter(from.x,from.y,to.x,to.y,other.x,other.y,required)!==null;
   });
  };
