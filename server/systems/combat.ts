@@ -209,19 +209,21 @@ function bestCharge(battle: Battle, source: CombatUnit, primary: CombatUnit | nu
     b.hit.length - a.hit.length || Number(b.primaryHit) - Number(a.primaryHit) || b.travel - a.travel)[0] || null;
 }
 
-function piercingFire(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, moveId: string, type: Element): void {
+function piercingFire(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, moveId: string, type: Element,
+  maxRange=Infinity, visual: 'piercing-flame'|'solar-beam'='piercing-flame', radius=0, fixedDuration?:number): void {
   const d = Math.max(.001, distance(source, target));
   const dx = (target.x - source.x) / d, dy = (target.y - source.y) / d;
   const startX = source.x + dx * .34, startY = source.y + dy * .34;
   const bounds = arenaBoundary(battle);
-  const travel = Math.min(
+  const travel = Math.max(0,Math.min(
     dx > 0 ? (bounds.maxX - startX) / dx : dx < 0 ? (bounds.minX - startX) / dx : Infinity,
-    dy > 0 ? (bounds.maxY - startY) / dy : dy < 0 ? (bounds.minY - startY) / dy : Infinity);
+    dy > 0 ? (bounds.maxY - startY) / dy : dy < 0 ? (bounds.minY - startY) / dy : Infinity,
+    maxRange-.34));
   // At the same rate as the displayed projectile. Keep a fixed ray after launch.
   const fx: CombatEffect = {
     id: `${battle.id}:pierce:${battle.elapsed}:${battle.effects.length}`,
-    kind: 'piercing-flame', family: source.family, value: 0, time: 0,
-    duration: Math.max(.05, travel / 8.5), x: startX, y: startY,
+    kind: visual, family: source.family, value: radius, time: 0,
+    duration: fixedDuration ?? Math.max(.05, travel / 8.5), x: startX, y: startY,
     targetX: startX + dx * travel, targetY: startY + dy * travel,
     piercing: { sourceId: source.id, raw, attackType: type, hitIds: [] }
   };
@@ -543,7 +545,7 @@ function landProjectiles(battle: Battle, dt: number): void {
         fx.time=fx.duration;effect(battle,caster,{x:bx,y:by},'wall-impact',0);}
       for (const target of battle.units) {
         if (target.playerId === caster.playerId || !isTargetable(target) || hit.hitIds.includes(target.id)) continue;
-        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > (fx.kind==='psychic-shot' ? fx.value : .43) ** 2) continue;
+        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > ((fx.kind==='psychic-shot'||fx.kind==='solar-beam') ? fx.value : .43) ** 2) continue;
         if(firstObstacle(battle,caster.playerId,ax,ay,target.x,target.y))continue;
         hit.hitIds.push(target.id);
         deal(battle, caster, target, hit.raw, true, true, hit.attackType);
@@ -1484,6 +1486,15 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
       projectile(battle,source,target,'physical',move.baseDamage+a*(move.attackRatio||0)+s*move.specialRatio,false,true,.32,
         undefined,source,moveId,stage.chargedType,'single-knockup');
     }
+    return;
+  }
+  if (move.effect === 'solar-beam' && target) {
+    const reach=stageValue(move.beamRangeByStage,source.stage,2);
+    const damage=stageValue(move.damageByStage,source.stage)+s*move.specialRatio;
+    source.facingX=target.x-source.x;source.facingY=target.y-source.y;
+    animate(source,stage.chargedAnimation,move.beamDuration??.42);
+    // The same swept collision as piercing fire: the ray is capped to 2/3/4 tiles.
+    piercingFire(battle,source,target,damage,moveId,'grass',reach,'solar-beam',move.beamRadius??.43,move.beamDuration??.42);
     return;
   }
   if (move.effect === 'piercing-fire' && target) {
