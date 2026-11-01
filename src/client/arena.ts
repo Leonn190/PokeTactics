@@ -10,7 +10,7 @@ import { OrientationController } from './animation/orientation';
 import { drawUnitVisualEvent } from './animation/unit-visuals';
 import { paintArenaBackground } from './scene/background';
 import { drawCoin } from './scene/coin-renderer';
-import { bonusStats } from '../../server/systems/items';
+import { bonusStats, ITEMS } from '../../server/systems/items';
 import { itemSprite } from './item-sprites';
 import { renderTrainerAvatar } from './scene/trainer-renderer';
 import { renderFloatingNumber } from './vfx/floating-numbers';
@@ -813,7 +813,7 @@ export class Arena {
   private drawEquipmentIcons(unit:Marker,x:number,y:number):void {
     const gear=unit.equipment||[];if(!gear.length)return;
     const scale=Math.max(13,Math.min(20,this.cellScale*.27));
-    const total=Math.min(2,gear.length),ctx=this.context;
+    const total=Math.min(ITEMS.maxSlots,gear.length),ctx=this.context;
     for(let i=0;i<total;i++){
       const raw=itemSprite(gear[i]);if(!raw)continue;
       const url=`${import.meta.env.BASE_URL}${raw.replace(/^\//,'')}`;
