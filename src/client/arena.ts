@@ -665,7 +665,7 @@ export class Arena {
 
   private markers(): Marker[] {
     const snapshot = this.snapshot;
-    if (!snapshot) return [];
+    if (!snapshot || (this.view.spectating && this.view.scoutId==='p0')) return [];
     const watched = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
     const planningKey=snapshot.phase==='planning' ? JSON.stringify([watched.eliminated,this.view.spectating,watched.units.map(u=>[
       u.id,u.family,u.stage,u.formId,u.level,u.position,u.equipment]),snapshot.sandbox?snapshot.players[1]?.units.map(u=>[u.id,u.family,u.stage,u.formId,u.position,u.equipment]):null]) : '';
@@ -1175,10 +1175,12 @@ export class Arena {
     }
     if (this.quadActive && !emptyOwnBoard) {
       const participants = this.snapshot!.visibleBattle!.participants;
-      this.drawBench(false, -QUAD_OFFSET, participants[0] === 'p0');
-      this.drawBench(true, -QUAD_OFFSET, false);
-      this.drawBench(true, QUAD_OFFSET, false);
-      this.drawBench(false, QUAD_OFFSET, participants[3] === 'p0');
+      if(!(this.view.spectating && participants[0]==='p0'))
+        this.drawBench(false, -QUAD_OFFSET, participants[0] === 'p0' && !this.view.spectating);
+      if(!(this.view.spectating && participants[1]==='p0'))this.drawBench(true, -QUAD_OFFSET, false);
+      if(!(this.view.spectating && participants[2]==='p0'))this.drawBench(true, QUAD_OFFSET, false);
+      if(!(this.view.spectating && participants[3]==='p0'))
+        this.drawBench(false, QUAD_OFFSET, participants[3] === 'p0' && !this.view.spectating);
     } else if(!emptyOwnBoard) {
       this.drawBench(false, 0, this.view.scoutId === 'p0' && !this.view.spectating);
       if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId &&
