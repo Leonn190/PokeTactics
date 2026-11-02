@@ -2588,7 +2588,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     }
     // Target focus persists across ticks; nearby motion alone is not a reason to switch.
     let target=selectCombatTarget(battle,unit,
-      enemy=>basicInRange(unit,enemy,battle.elapsed),isTargetable);
+      enemy=>basicInRange(unit,enemy,battle.elapsed) && !firstObstacle(battle,unit.playerId,unit.x,unit.y,enemy.x,enemy.y),isTargetable);
     let distanceSq=target?(target.x-unit.x)**2+(target.y-unit.y)**2:Infinity;
     if(unit.family==='meowth'&&unit.preferredTargetId){
       const preferred=battle.units.find(u=>u.id===unit.preferredTargetId&&isTargetable(u));
@@ -2633,26 +2633,31 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (!basicInRange(unit,target,battle.elapsed) || obstruction) {
       const reach=basicApproachDistance(unit,target,battle.elapsed);
       const bounds=arenaBoundary(battle);
-      // Long approaches follow the hex grid; the final fraction of a cell
-      // closes the gap to physical contact instead of attacking from 1.055 away.
-      const planned=!!obstruction || d>reach+.30 || !!unit.obstacleRoute?.points.length;
-      const waypoint=planned?routeAround(battle,unit,target,reach):null;
-      unit.moving=waypoint
-        ?walkStep(battle,unit,waypoint,dt,bounds)
-        :!obstruction&&walkStep(battle,unit,target,dt,bounds,reach);
-      if(!unit.moving && !planned){
-        // A body has entered the direct lane: find another hex, not a random angle.
-        const detour=routeAround(battle,unit,target,reach);
-        if(detour)unit.moving=walkStep(battle,unit,detour,dt,bounds);
+      // Prefer direct movement; invoke the collision-aware hex planner only
+      // when a wall or another body actually prevents a straight approach.
+      const fromX=unit.x,fromY=unit.y;
+      if(!obstruction && walkStep(battle,unit,target,dt,bounds,reach)){
+        unit.moving=true;
+        unit.obstacleRoute=undefined;
+      }else{
+        const waypoint=routeAround(battle,unit,target,reach);
+        unit.moving=!!waypoint && walkStep(battle,unit,waypoint,dt,bounds);
+        if(!unit.moving && waypoint)unit.obstacleRoute=undefined;
       }
-      if(!unit.moving && waypoint)unit.obstacleRoute=undefined;
-      unit.navBlockedFor=unit.moving?0:(unit.navBlockedFor||0)+dt;
+      // Always face the actual walking direction while following a detour.
+      if(unit.moving){unit.facingX=unit.x-fromX;unit.facingY=unit.y-fromY;}
+      const remaining=Math.hypot(target.x-unit.x,target.y-unit.y);
+      const progressing=unit.navLastDistance===undefined || remaining<unit.navLastDistance-.008;
+      unit.navBlockedFor=progressing?0:(unit.navBlockedFor||0)+dt;
+      unit.navLastDistance=remaining;
       if(unit.family==='diglett'){
         if(unit.moving)unit.wasMoving=true;else emergeAfterWalk(battle,unit);
       }
       continue;
     }
     unit.navBlockedFor=0;
+    unit.navLastDistance=undefined;
+    unit.moving=false;
     if(unit.family==='diglett'&&unit.wasMoving){emergeAfterWalk(battle,unit);continue;}
     if (unit.attackClock > 0) continue;
     if (unit.energy >= unit.energyNeeded && move.effect !== 'ditto-transform'

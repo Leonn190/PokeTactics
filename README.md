@@ -104,3 +104,11 @@ O quadrado de ataque regular e os textos de clicar para remover/vender deixam de
 ### Interface V25.2
 
 O painel de jogadores exibe sequências de vitórias/derrotas. O painel de combate agora é um ranking único, com até 15 Pokémon, cores para aliado/adversário e detalhes de dano, defesa e cura ao passar o mouse ou focar uma unidade. Na loja, ouro e renda ficam acima dos botões de comprar XP e roletar; a bússola circular apresenta ícones dos tipos nas fatias coloridas.
+
+## V25.3 — IA de combate e espectadores
+
+- **Foco de combate:** alvos realmente atacáveis prevalecem sobre perseguições; o alvo atual continua estável enquanto a perseguição progride, com troca controlada quando fica inacessível.
+- **Movimentação:** o ataque regular tenta seguir em linha reta e só usa desvios nos obstáculos. O planejador parte da posição física atual, verifica colisões nos segmentos (não apenas nos hexágonos de destino) e busca pontos de contato contínuos para lutadores de alcance 1. As animações acompanham a direção real de caminhada.
+- **Eliminação:** ao perder a última vida, o jogador vê uma tela animada com sua colocação, “Espectar partida” e “Voltar ao menu”. Espectar oculta a própria loja, bandeja, tabuleiro e equipe, sem interromper o jogo dos demais.
+- **Visitação:** um espectador pode continuar clicando com o botão direito para andar e escolhendo arenas no ranking, mas não consegue comprar, roletar, reorganizar Pokémon nem coletar recompensas. O motor continua sendo a fonte única de verdade.
+- As habilidades de movimento especial e os valores de alcance/dano não foram alterados. Verificações previstas no CI: `npm run validate:config`, `npm run check` e `npm run build`; revisar manualmente duelos, quádruplos, corredores congestionados e eliminação durante o resultado.

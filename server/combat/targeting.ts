@@ -1,4 +1,5 @@
 import type { Battle, CombatUnit } from '../types';
+import { firstObstacle } from './obstacles';
 /** Deterministic target choice, shared by all abilities and basic-attack helpers. */
 export const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 const stableId = (a: CombatUnit, b: CombatUnit) => a.id.localeCompare(b.id);
@@ -77,10 +78,9 @@ export function countClosestThreats(battle: Battle, source: CombatUnit, limit: n
 }
 
 
-/** TFT-style sticky focus. Retarget if the victim dies, if another enemy is
- * already attackable after it leaves range, or after chasing one hex.
- * Blocked melee units can abandon an inaccessible victim after a short delay.
- * Decisions use battle time and stable unit order, never animation frames. */
+/** Sticky TFT-style focus with walkable-target awareness. Attackable enemies
+ * always take precedence over futile chases, while a healthy focus remains
+ * stable across harmless movement and animation ticks. */
 export function selectCombatTarget(
  battle:Battle,source:CombatUnit,
  inRange:(enemy:CombatUnit)=>boolean,
@@ -91,50 +91,56 @@ export function selectCombatTarget(
   source.combatTargetId=undefined;
   source.basicTargetWasInRange=false;
   source.chaseOriginX=undefined;source.chaseOriginY=undefined;
+  source.navLastDistance=undefined;source.obstacleRoute=undefined;
   return null;
  }
- const closest=(units:CombatUnit[])=>units.reduce((best,unit)=>{
-  if(!best)return unit;
-  const d=(unit.x-source.x)**2+(unit.y-source.y)**2;
-  const b=(best.x-source.x)**2+(best.y-source.y)**2;
-  return d<b?unit:best;
- },null as CombatUnit|null);
- const inRangeEnemies=candidates.filter(inRange);
- let target=candidates.find(enemy=>enemy.id===source.combatTargetId) || null;
+ const dist=(enemy:CombatUnit)=>Math.hypot(enemy.x-source.x,enemy.y-source.y);
+ const clearLine=(enemy:CombatUnit)=>!firstObstacle(battle,source.playerId,source.x,source.y,enemy.x,enemy.y);
+ const closest=(units:CombatUnit[])=>units.reduce((best,enemy)=>
+   !best || dist(enemy)<dist(best)-1e-8 ||
+   (Math.abs(dist(enemy)-dist(best))<1e-8 && stableId(enemy,best)<0)?enemy:best,
+   null as CombatUnit|null);
+ const hittable=candidates.filter(inRange);
+ const visible=candidates.filter(clearLine);
+ const defaultChoice=()=>closest(hittable)||closest(visible)||closest(candidates);
+ let target=candidates.find(enemy=>enemy.id===source.combatTargetId)||null;
  if(!target){
-  target=closest(inRangeEnemies) || closest(candidates);
+  target=defaultChoice();
   source.basicTargetWasInRange=false;
   source.chaseOriginX=undefined;source.chaseOriginY=undefined;
  }
  if(!target)return null;
- // Prefer an enemy already hittable instead of walking past it to chase a distant one.
- if(!inRange(target) && inRangeEnemies.length)target=closest(inRangeEnemies)||target;
+ // Avoid walking past an opponent that can already be hit.
+ if(!inRange(target)&&hittable.length)target=closest(hittable)||target;
  if(!inRange(target)){
   if(source.basicTargetWasInRange){
-   // Do not chase a fleeing victim when a different enemy is already hittable.
-   target=closest(inRangeEnemies)||target;
    source.chaseOriginX=source.x;source.chaseOriginY=source.y;
   }else if(source.chaseOriginX!==undefined && source.chaseOriginY!==undefined &&
-      Math.hypot(source.x-source.chaseOriginX,source.y-source.chaseOriginY)>=1.04){
-   target=closest(inRangeEnemies)||closest(candidates)||target;
+    Math.hypot(source.x-source.chaseOriginX,source.y-source.chaseOriginY)>=1.04){
+   const next=defaultChoice();
+   if(next)target=next;
    source.chaseOriginX=source.x;source.chaseOriginY=source.y;
   }
-  if((source.navBlockedFor||0)>=.8 && candidates.length>1){
-   const alternate=closest(inRangeEnemies.filter(other=>other!==target))
-     ||closest(candidates.filter(other=>other!==target));
-   if(alternate)target=alternate;
+  // If pathing has made no progress, switch only to a demonstrably reachable
+  // alternative. Never oscillate between two equally obstructed enemies.
+  if((source.navBlockedFor||0)>=.85 && candidates.length>1){
+   const alternative=closest(hittable.filter(other=>other!==target)) ||
+     closest(visible.filter(other=>other!==target));
+   if(alternative && (!clearLine(target) || dist(alternative)+.15<dist(target)))
+     target=alternative;
   }
  }
  if(target.id!==source.combatTargetId){
   source.obstacleRoute=undefined;
   source.navBlockedFor=0;
+  source.navLastDistance=undefined;
   source.chaseOriginX=undefined;source.chaseOriginY=undefined;
  }
  source.combatTargetId=target.id;
  source.basicTargetWasInRange=inRange(target);
  if(source.basicTargetWasInRange){
   source.chaseOriginX=undefined;source.chaseOriginY=undefined;
-  source.navBlockedFor=0;
+  source.navBlockedFor=0;source.navLastDistance=undefined;
  }
  return target;
 }

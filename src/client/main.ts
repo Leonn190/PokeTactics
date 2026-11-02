@@ -23,7 +23,7 @@ document.addEventListener('error',event=>{
  img.src=`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${Number(match[1])}.png`;
 },true);
 
-const view: ClientView = { scoutId: 'p0', selectedId: null, dragId: null, dragging: false, dragX: 0, dragY: 0, hoveringHex: null, hoveringBench: null, inventoryItemId:null,selectedBall:null };
+const view: ClientView = { scoutId: 'p0', spectating:false, selectedId: null, dragId: null, dragging: false, dragX: 0, dragY: 0, hoveringHex: null, hoveringBench: null, inventoryItemId:null,selectedBall:null };
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
@@ -77,6 +77,8 @@ let ghostStarted = 0;
 let ghostWidth = 96;
 let ghostHeight = 96;
 let state: GameSnapshot | null = null;
+let eliminationShown=false;
+const eliminationOverlay=document.getElementById('eliminationOverlay')!;
 let dragStarted = false;
 let pointerStart = { x: 0, y: 0 };
 let lastSnapshotSerial=-1;
@@ -92,7 +94,10 @@ function placeWorldWidgets():void {
 }
 
 function send(command: GameCommand): void {
-  if (!state || !worker || !pause.classList.contains('hidden') || settingsFromPause || (view.scoutId!=='p0' && command.kind!=='augment-choose' && command.kind!=='augment-reroll') || state.phase === 'finished' || state.players[0].eliminated) return;
+  if (!state || !worker || !pause.classList.contains('hidden') || settingsFromPause)return;
+  const spectatorWalk=view.spectating && state.players[0].eliminated && command.kind==='move-trainer';
+  if(!spectatorWalk && ((view.scoutId!=='p0' && command.kind!=='augment-choose' && command.kind!=='augment-reroll')
+    || state.phase==='finished' || state.players[0].eliminated))return;
   if (command.kind === 'buy') audio.play('buy');
   worker.postMessage({ type: 'command', command } satisfies ClientToServer);
 }
@@ -105,7 +110,8 @@ function launchMatch(mode:'normal'|'sandbox'='normal'): void {
   audio.play('start');
   settingsFromPause=false;pause.classList.add('hidden');
   worker?.terminate();
-  view.scoutId = 'p0'; view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
+  view.scoutId = 'p0';view.spectating=false;eliminationShown=false;eliminationOverlay.classList.add('hidden');
+  view.selectedId = null;view.inventoryItemId=null;view.selectedBall=null;clearItemDrag();
   state = null; arena.snapshot = null; arena.setActive(true);
   framesDrawn=0;windowStart=performance.now();smoothedFps=75;fpsReadout.textContent='FPS: —';
   lastSnapshotSerial=-1;lastWorldLayout='';hud.reset();errorBoundaries.clear();
@@ -120,6 +126,15 @@ function launchMatch(mode:'normal'|'sandbox'='normal'): void {
     if(!Number.isFinite(incoming.serial)||incoming.serial<=lastSnapshotSerial)return;
     lastSnapshotSerial=incoming.serial;
     state=incoming;
+    const eliminated=incoming.players[0].eliminated && !incoming.sandbox;
+    if(eliminated&&!view.spectating&&!eliminationShown){
+      eliminationShown=true;
+      clearDrag();clearItemDrag();view.selectedId=null;view.inventoryItemId=null;view.selectedBall=null;
+      document.getElementById('eliminationPlacement')!.textContent=
+        `COLOCAÇÃO: ${incoming.players[0].placement??'—'}º LUGAR`;
+      eliminationOverlay.classList.remove('hidden');
+      eliminationOverlay.querySelector<HTMLButtonElement>('#eliminationSpectate')?.focus();
+    }
     independently('Sandbox',()=>sandbox.render(incoming));
     if(view.selectedId && !state.players.some(p=>p.units.some(u=>u.id===view.selectedId))
       && !state.visibleBattle?.units.some(u=>u.id===view.selectedId||u.sourceId===view.selectedId))view.selectedId=null;
@@ -142,7 +157,8 @@ const sandbox=new SandboxView(command=>send(command),()=>closeMatch());
 function closeMatch():void {
   settingsFromPause=false;pause.classList.add('hidden');playerSettings.close();audio.play('finish');
   worker?.terminate();worker=null;state=null;arena.snapshot=null;arena.setActive(false);
-  view.scoutId='p0';view.selectedId=null;clearDrag();clearItemDrag();view.selectedBall=null;view.inventoryItemId=null;
+  view.scoutId='p0';view.spectating=false;eliminationShown=false;eliminationOverlay.classList.add('hidden');
+  view.selectedId=null;clearDrag();clearItemDrag();view.selectedBall=null;view.inventoryItemId=null;
   augments.reset();sandbox.reset();opponentItems.reset();hud.reset();lastSnapshotSerial=-1;lastWorldLayout='';
   document.getElementById('finalBanner')!.classList.add('hidden');menus.showHome();
 }
@@ -152,6 +168,17 @@ document.addEventListener('click', event => {
 });
 placeWorldWidgets();
 document.getElementById('finishedHomeButton')!.addEventListener('click', closeMatch);
+document.getElementById('eliminationHome')!.addEventListener('click',closeMatch);
+document.getElementById('eliminationSpectate')!.addEventListener('click',()=>{
+  if(!state||!state.players[0].eliminated)return;
+  view.spectating=true;
+  eliminationOverlay.classList.add('hidden');
+  clearDrag();clearItemDrag();view.selectedId=null;view.inventoryItemId=null;view.selectedBall=null;
+  const next=state.players.find(p=>p.id!=='p0'&&!p.eliminated);
+  if(next)watch(next.id);
+  hud.render(state,view);
+  placeWorldWidgets();
+});
 
 const inventoryContents = document.getElementById('inventoryContents')!;
 inventoryContents.addEventListener('click',event=>{
@@ -275,11 +302,13 @@ document.getElementById('rankRows')!.addEventListener('click', event => {
 });
 document.getElementById('returnBoard')!.addEventListener('click', () => {
   if (!state) return;
-  watch('p0'); view.selectedId=null; hud.render(state, view);
+  const returnId=state.players[0].eliminated
+    ?state.players.find(p=>p.id!=='p0'&&!p.eliminated)?.id||'p0':'p0';
+  watch(returnId); view.selectedId=null; hud.render(state, view);
 });
 
 function startDrag(id: string, event: PointerEvent): void {
-  if (!state || state.phase === 'finished') return;
+  if (!state || state.phase === 'finished' || state.players[0].eliminated) return;
   const unit = (state.sandbox?state.players.flatMap(p=>p.units):state.players[0].units).find(u => u.id === id);
   if (!unit || (unit.position.area === 'board' && (state.phase !== 'planning' || view.scoutId !== 'p0'))) return;
   view.selectedId = id;
@@ -448,9 +477,9 @@ canvas.addEventListener('dblclick', event => {
 
 canvas.addEventListener('contextmenu', event => {
   event.preventDefault();
-  if (view.scoutId !== 'p0') return;
-  // A moeda continua sendo coletada por colisão: o botão direito só define o destino.
-  const coin = arena.pickCoin(event.clientX, event.clientY);
+  if (view.scoutId !== 'p0' && !view.spectating) return;
+  // A visit can still move, but cannot claim the eliminated player's coins.
+  const coin = view.spectating?null:arena.pickCoin(event.clientX, event.clientY);
   send({ kind: 'move-trainer', ...(coin || arena.trainerDestination(event.clientX, event.clientY)) });
 });
 canvas.addEventListener('wheel', event => {

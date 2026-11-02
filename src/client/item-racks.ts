@@ -10,7 +10,7 @@ export class ObservedItemRacks {
  render(snapshot:GameSnapshot,arena:Arena,scoutId:string):void {
   const battle=snapshot.phase!=='planning'&&!snapshot.visibleBattle?.resolved?snapshot.visibleBattle:null;
   const ids=battle?.participants||[scoutId];
-  const visible=ids.filter(id=>snapshot.players.some(p=>p.id===id) && !(id==='p0'&&scoutId==='p0'));
+  const visible=ids.filter(id=>snapshot.players.some(p=>p.id===id&&!p.eliminated) && !(id==='p0'&&scoutId==='p0'));
   for(const node of Array.from(this.root.querySelectorAll<HTMLElement>('[data-rack-owner]')))if(!visible.includes(node.dataset.rackOwner||'')){
     this.lastSignatures.delete(node.dataset.rackOwner||'');node.remove();
   }

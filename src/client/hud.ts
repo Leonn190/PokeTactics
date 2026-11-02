@@ -124,6 +124,7 @@ export class Hud {
   render(snapshot:GameSnapshot,view:ClientView):void {
     this.latestSnapshot=snapshot;
     this.latestView=view;
+    document.querySelector('.traits-panel')?.classList.toggle('hidden',!!view.spectating&&view.scoutId==='p0');
     const human=snapshot.players[0];
     const watched=snapshot.players.find(p=>p.id===view.scoutId)||human;
     const rosterKey=(p:Player)=>p.units.map(u=>[u.id,u.family,u.stage,u.level,u.position,u.equipment,u.xp]);
@@ -132,7 +133,7 @@ export class Hud {
     this.region('economy',()=>[snapshot.phase,snapshot.accelerated,snapshot.chapter,snapshot.stage,human.gold,human.level,human.trainerXp,human.augments,human.streak,human.roundVictory],()=>this.renderEconomy(snapshot,view));
     this.region('shopOffers',()=>[shopKey,human.gold,human.eliminated,snapshot.phase,influenceRoster],()=>this.renderShopOffers(snapshot,view));
     this.region('shopInfo',()=>[human.gold,human.level,human.eliminated,human.locked,human.augmentCounters?.['B02:free'],snapshot.phase,influenceRoster],()=>this.renderShopInfo(snapshot,view));
-    this.region('inventory',()=>[human.itemInventory,human.consumables,view.scoutId,view.selectedBall,view.inventoryItemId,this.inventoryPage,snapshot.lootMessageId],()=>this.renderInventory(snapshot,view));
+    this.region('inventory',()=>[human.itemInventory,human.consumables,human.eliminated,view.spectating,view.scoutId,view.selectedBall,view.inventoryItemId,this.inventoryPage,snapshot.lootMessageId],()=>this.renderInventory(snapshot,view));
     this.region('synergies',()=>[view.scoutId,watched.augments,watched.units.map(u=>[u.id,u.family,u.stage,u.position])],()=>this.renderSynergies(snapshot,view));
     this.region('ranking',()=>[view.scoutId,snapshot.players.map(p=>[p.id,p.name,p.health,p.eliminated,p.placement,p.streak]),snapshot.phase,snapshot.stageType,snapshot.possibleOpponents.p0,snapshot.battleStatuses,snapshot.visualEvents.filter(e=>e.kind==='trainer-damage'&&e.age<1.05).map(e=>[e.id,e.ownerId,e.age,e.value])],()=>this.renderRanking(snapshot,view));
     this.region('timeline',()=>[snapshot.chapter,snapshot.stage,snapshot.stageName,human.history],()=>this.renderTimeline(snapshot,view));
@@ -197,8 +198,9 @@ export class Hud {
 
   private renderInventory(snapshot:GameSnapshot,view:ClientView):void {
     const player=snapshot.players[0];
-    element('shopFooter').classList.toggle('hidden',view.scoutId!=='p0');
-    element('itemInventory').classList.toggle('hidden',view.scoutId!=='p0');
+    const hideOwnAssets=view.scoutId!=='p0'||!!view.spectating||player.eliminated;
+    element('shopFooter').classList.toggle('hidden',hideOwnAssets);
+    element('itemInventory').classList.toggle('hidden',hideOwnAssets);
     if (snapshot.lootMessage && snapshot.lootMessageId!==this.lastLootMessage) {
       this.lastLootMessage=snapshot.lootMessageId;this.toast(snapshot.lootMessage);
     }
@@ -443,7 +445,8 @@ export class Hud {
 
   private renderFinal(snapshot:GameSnapshot,view:ClientView):void {
     const player=snapshot.players[0];
-    const final = snapshot.phase === 'finished';
+    const final = snapshot.phase === 'finished' && !player.eliminated;
+    // Eliminated players use the V25.3 spectate-or-home dialog instead.
     element('finalBanner').classList.toggle('hidden', !final);
     if (final) {
       const humanWon = snapshot.winnerId === 'p0';

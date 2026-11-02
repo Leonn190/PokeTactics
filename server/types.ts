@@ -182,6 +182,7 @@ export interface CombatUnit {
   chaseOriginX?:number;
   chaseOriginY?:number;
   navBlockedFor?:number;
+  navLastDistance?:number;
   persianPursuit?: {targetId:string; elapsed:number; stuck:number};
   babyFlee?: boolean;
   mewtwoMode?: 'melee'|'ranged';

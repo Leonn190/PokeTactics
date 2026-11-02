@@ -30,6 +30,7 @@ import pmdManifest from './pmd-manifest.json';
 
 export interface ClientView {
   scoutId: string;
+  spectating?:boolean;
   inventoryItemId?: string | null;
   selectedBall?: import('../../server/types').BallKind | null;
   selectedId: string | null;
@@ -291,7 +292,7 @@ export class Arena {
     return pick;
   }
   pickMimePillar(clientX:number,clientY:number):{unitId:string;index:number}|null {
-    if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0')return null;
+    if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0'||this.view.spectating)return null;
     const world=this.pointerWorld(clientX,clientY);
     for(const mime of this.snapshot.players[0].units){
       if(!['mr-mime','mime-jr'].includes(mime.family)||mime.position.area!=='board')continue;
@@ -304,7 +305,7 @@ export class Arena {
     return null;
   }
   private drawMimePillars(time:number):void {
-    if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0')return;
+    if(this.snapshot?.phase!=='planning'||this.view.scoutId!=='p0'||this.view.spectating)return;
     const ctx=this.context;
     for(const mime of this.snapshot.players[0].units){
       if(!['mr-mime','mime-jr'].includes(mime.family)||mime.position.area!=='board')continue;
@@ -339,7 +340,7 @@ export class Arena {
     }
   }
   pickBench(clientX: number, clientY: number): number | null {
-    if (this.view.scoutId !== 'p0') return null;
+    if (this.view.scoutId !== 'p0'||this.view.spectating) return null;
     const world = this.pointerWorld(clientX, clientY);
     const slot = this.quadActive ? this.snapshot?.visibleBattle?.participants.indexOf('p0') ?? -1 : 0;
     if (slot < 0) return null;
@@ -664,9 +665,9 @@ export class Arena {
 
   private markers(): Marker[] {
     const snapshot = this.snapshot;
-    if (!snapshot) return [];
+    if (!snapshot || (this.view.spectating && this.view.scoutId==='p0')) return [];
     const watched = snapshot.players.find(p => p.id === this.view.scoutId) || snapshot.players[0];
-    const planningKey=snapshot.phase==='planning' ? JSON.stringify([watched.units.map(u=>[
+    const planningKey=snapshot.phase==='planning' ? JSON.stringify([watched.eliminated,this.view.spectating,watched.units.map(u=>[
       u.id,u.family,u.stage,u.formId,u.level,u.position,u.equipment]),snapshot.sandbox?snapshot.players[1]?.units.map(u=>[u.id,u.family,u.stage,u.formId,u.position,u.equipment]):null]) : '';
     if(snapshot.phase==='planning' && this.planningCache?.key===planningKey && this.planningCache.scout===this.view.scoutId)return this.planningCache.markers;
     const benchUnits = (units: Pokemon[], ownerId: string, own: boolean, enemy: boolean, offset: number): Marker[] => units.filter(u => u.position.area === 'bench').map(u => {
@@ -674,7 +675,7 @@ export class Arena {
       return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage,formId:u.formId,level: u.level,
         own, hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage,u.formId).energy, equipment:u.equipment||[], flash: 0, bench: true } as Marker;
     });
-    const liveUnits=watched.units.map(u=>this.pendingMove.has(u.id)?{...u,position:this.pendingMove.get(u.id)!.position}:u);
+    const liveUnits=watched.eliminated?[]:watched.units.map(u=>this.pendingMove.has(u.id)?{...u,position:this.pendingMove.get(u.id)!.position}:u);
     const bench = benchUnits(liveUnits, watched.id, true, false, 0);
     const foeId = snapshot.sandbox?'p1':snapshot.visibleBattle?.participants.find(id => id !== this.view.scoutId) || null;
     const foePlayer = snapshot.players.find(p => p.id === foeId);
@@ -683,7 +684,8 @@ export class Arena {
     if (snapshot.phase !== 'planning' && snapshot.visibleBattle && snapshot.observedId === this.view.scoutId) {
       const observedOnTop = snapshot.visibleBattle.participants.length === 2 && snapshot.visibleBattle.playerB === this.view.scoutId;
       const poseTime = performance.now();
-      const battleMarkers = snapshot.visibleBattle.units.filter(u => u.hp > 0).map(u => {
+      const battleMarkers = snapshot.visibleBattle.units.filter(u => u.hp > 0 &&
+        !(this.view.spectating&&u.playerId==='p0')).map(u => {
         const pose = this.unitInterpolator.position(u.id, poseTime) || u;
         return { ...u, ownerId: u.playerId, x: pose.x, y: observedOnTop ? -pose.y : pose.y,
           own: u.playerId === this.view.scoutId, required: u.energyNeeded };
@@ -691,7 +693,7 @@ export class Arena {
       if (this.quadActive) {
         const quadBenches = snapshot.visibleBattle.participants.flatMap((id, slot) => {
           const player = snapshot.players.find(p => p.id === id);
-          const units = player?.units || snapshot.visibleBattle!.benches[id] || [];
+          const units = this.view.spectating&&id==='p0' ? [] : player?.units || snapshot.visibleBattle!.benches[id] || [];
           const enemy = slot === 1 || slot === 2;
           return benchUnits(units, id, id === this.view.scoutId, enemy, slot < 2 ? -QUAD_OFFSET : QUAD_OFFSET);
         });
@@ -722,7 +724,7 @@ export class Arena {
   }
 
   private drawCoins(): void {
-    if (!this.snapshot || this.view.scoutId !== 'p0') return;
+    if (!this.snapshot || this.view.scoutId !== 'p0' || this.view.spectating) return;
     for (const coin of this.snapshot.collectibleGold) {
       if (coin.claimed) continue;
       const p = this.toScreen(coin.x, coin.y);
@@ -731,7 +733,7 @@ export class Arena {
   }
 
   private drawLoot(time: number): void {
-    if (!this.snapshot || this.view.scoutId !== 'p0') return;
+    if (!this.snapshot || this.view.scoutId !== 'p0' || this.view.spectating) return;
     const ctx=this.context;
     const palettes={
       gray:{body:'#9daeba',bright:'#f7ffff',glow:'#ccedff',dark:'#596c7a'},
@@ -773,7 +775,7 @@ export class Arena {
   }
 
   private drawSacredTile(time:number):void {
-    if(!this.snapshot)return;
+    if(!this.snapshot || (this.view.spectating&&this.view.scoutId==='p0'))return;
     const snapshot=this.snapshot,watched=snapshot.players.find(p=>p.id===this.view.scoutId);
     if(!watched)return;
     const count=new Set(watched.units.filter(u=>u.position.area==='board'&&getStageData(u.family,u.stage).elements.includes('dragon')).map(u=>`${u.family}:${u.stage}`)).size;
@@ -800,7 +802,7 @@ export class Arena {
   }
 
   private drawCapacityOnGround():void {
-    if(this.snapshot?.phase!=='planning')return;
+    if(this.snapshot?.phase!=='planning'||this.view.spectating)return;
     const player=this.snapshot.players.find(p=>p.id===this.view.scoutId);
     if(!player)return;
     const count=player.units.filter(u=>u.position.area==='board').length;
@@ -1094,7 +1096,7 @@ export class Arena {
   }
 
   private drawUnitVisuals(now: number): void {
-    if (!this.snapshot) return;
+    if (!this.snapshot || (this.view.spectating&&this.view.scoutId==='p0')) return;
     const watched = this.snapshot.players.find(p => p.id === this.view.scoutId);
     if (!watched) return;
     const positionOf = (position: UnitPosition) => position.area === 'bench'
@@ -1164,21 +1166,27 @@ export class Arena {
     this.frame += dt;
     ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
     this.background();
-    this.hexGrid(this.frame);
-    this.drawTerrain(this.frame);
-    this.drawSacredTile(this.frame);
-    this.drawMimePillars(this.frame);
-    if (this.quadActive) {
-      const participants = this.snapshot!.visibleBattle!.participants;
-      this.drawBench(false, -QUAD_OFFSET, participants[0] === 'p0');
-      this.drawBench(true, -QUAD_OFFSET, false);
-      this.drawBench(true, QUAD_OFFSET, false);
-      this.drawBench(false, QUAD_OFFSET, participants[3] === 'p0');
-    } else {
-      this.drawBench(false, 0, this.view.scoutId === 'p0');
-      if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) this.drawBench(true);
+    const emptyOwnBoard=!!this.view.spectating && this.view.scoutId==='p0';
+    if(!emptyOwnBoard){
+      this.hexGrid(this.frame);
+      this.drawTerrain(this.frame);
+      this.drawSacredTile(this.frame);
+      this.drawMimePillars(this.frame);
     }
-    this.drawCapacityOnGround();
+    if (this.quadActive && !emptyOwnBoard) {
+      const participants = this.snapshot!.visibleBattle!.participants;
+      if(!(this.view.spectating && participants[0]==='p0'))
+        this.drawBench(false, -QUAD_OFFSET, participants[0] === 'p0' && !this.view.spectating);
+      if(!(this.view.spectating && participants[1]==='p0'))this.drawBench(true, -QUAD_OFFSET, false);
+      if(!(this.view.spectating && participants[2]==='p0'))this.drawBench(true, QUAD_OFFSET, false);
+      if(!(this.view.spectating && participants[3]==='p0'))
+        this.drawBench(false, QUAD_OFFSET, participants[3] === 'p0' && !this.view.spectating);
+    } else if(!emptyOwnBoard) {
+      this.drawBench(false, 0, this.view.scoutId === 'p0' && !this.view.spectating);
+      if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId &&
+        !(this.view.spectating && this.snapshot.visibleBattle.participants.some(id=>id==='p0')))this.drawBench(true);
+    }
+    if(!emptyOwnBoard)this.drawCapacityOnGround();
     this.spriteParts.clear();
     const markers = this.markers();
     const battle = this.snapshot?.visibleBattle;
@@ -1199,24 +1207,24 @@ export class Arena {
       drawMarkers.push(marker);
     }
     drawMarkers.sort((a, b) => a.y - b.y);
-    this.drawVines(this.frame);
+    if(!emptyOwnBoard)this.drawVines(this.frame);
     for (const marker of drawMarkers) this.drawUnit(marker, this.frame);
-    this.drawAbsorptions(this.frame);
-    if(battle&&this.snapshot?.phase!=='planning')this.drawObstacles(battle,this.frame);
+    if(!emptyOwnBoard)this.drawAbsorptions(this.frame);
+    if(!emptyOwnBoard&&battle&&this.snapshot?.phase!=='planning')this.drawObstacles(battle,this.frame);
     this.drawUnitVisuals(timestamp);
-    if (intro) this.drawArrival(battle!);
+    if (intro && !emptyOwnBoard) this.drawArrival(battle!);
     this.drawCoins();
     this.drawLoot(this.frame);
-    if (this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
+    if (!emptyOwnBoard && this.snapshot?.phase !== 'planning' && this.snapshot?.visibleBattle && this.snapshot.observedId === this.view.scoutId) {
       renderCombatEffects(this.context, this.snapshot.visibleBattle.effects,
         this.snapshot.visibleBattle.participants.length === 2 && this.snapshot.visibleBattle.playerB === this.view.scoutId,
         (x, y) => this.toScreen(x, y), this.cellScale, this.frame,
         fx => this.effectTimeline.time(fx, this.renderLead),
         fx => fx.sourceId?this.spriteParts.get(fx.sourceId):undefined);
     }
-    if (battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(dt, this.frame, battle);
+    if (!emptyOwnBoard && battle && this.snapshot?.phase !== 'planning') this.drawBattleTrainers(dt, this.frame, battle);
     else this.drawTrainers(dt, this.frame);
-    if (battle && this.snapshot?.phase !== 'planning') this.drawTrainerDamage(timestamp, battle);
+    if (!emptyOwnBoard && battle && this.snapshot?.phase !== 'planning') this.drawTrainerDamage(timestamp, battle);
     // Adaptive backing resolution: changes only after sustained heavy frames.
     // Canvas UI dimensions, Pokémon positions and art assets remain unchanged.
     const renderMs = performance.now() - frameStarted;
