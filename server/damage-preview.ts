@@ -140,6 +140,7 @@ export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow
     case 'moltres-fire':
       add('Dano da aura',move.auraBase||0,{spa:move.auraSpaRatio});
       add('Queimadura por segundo',move.burnBase||0,{spa:move.burnSpaRatio});
+      add('Barreira por inimigo queimado',move.barrierPerBurn||65,{},'Limitada pela porcentagem de Vida máxima configurada.');
       return rows;
     case 'mewtwo-impact':
       add('Dano do soco',base,{atk:a});
@@ -188,9 +189,17 @@ export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow
       add('Dano inicial',base,{spa:s});
       add('Dano por absorção',move.absorbDamageBase||0,{spa:move.absorbDamageRatio});
       return rows;
+    case 'hitmonchan-uppercut':
+      add('Dano do soco',base,{atk:a});
+      add('Atordoamento inicial',move.stunBase||0,{},`+ ${(move.stunSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, reduzido pela Vida do alvo e limitado pela habilidade.`,'s');
+      return rows;
     case 'hitmonlee-spin-kick':
       add('Dano por chute',base,{atk:a});
       add('Barreira (outra opção)',move.shieldBase||0,{spa:move.shieldSpaRatio});
+      return rows;
+    case 'scizor-double':
+      add('Dano por golpe',base,{spa:s});
+      add('Quantidade de golpes',move.hits||2);
       return rows;
     case 'brutal-kick':
       add('Dano do chute',base,{atk:a,spa:s});
