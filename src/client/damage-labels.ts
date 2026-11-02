@@ -1,4 +1,4 @@
-import { ATTACKS, displayName, getStageData, SPECIES } from '../../server/data';
+import { ATTACKS, EEVEE_BRANCHES, getStageData, SPECIES } from '../../server/data';
 import { abilityScaling, type AbilityScalingRow, type DamagePreview } from '../../server/damage-preview';
 import type { Family } from '../../server/types';
 
@@ -26,6 +26,30 @@ function formula(row: AbilityScalingRow): string {
   return tokens.join('<span class="ability-plus"> + </span>') || '<span class="ability-flat">—</span>';
 }
 
+type EvolutionStage = { family: Family; stage: number; name: string };
+
+/** The motor may evolve into a different family (babies, Eevee, Scyther,
+ * Tyrogue), not just increment the stage within the same family. */
+function evolutionLine(family: Family): EvolutionStage[] {
+  const species = SPECIES[family];
+  const self: EvolutionStage[] = species.names.map((name,stage)=>({family,stage,name}));
+  const branching: Family[] = family==='eevee' ? EEVEE_BRANCHES
+    : family==='scyther' ? ['scizor','kleavor']
+    : family==='tyrogue' ? ['hitmonchan','hitmonlee']
+    : species.babyEvolutionOptions || (species.babyEvolution ? [species.babyEvolution] : []);
+  if(branching.length) {
+    const next=branching.flatMap(nextFamily=>SPECIES[nextFamily].names.map((name,stage)=>({family:nextFamily,stage,name})));
+    return [...self,...next];
+  }
+  const origin=(Object.keys(SPECIES) as Family[]).find(candidate=>{
+    const source=SPECIES[candidate];
+    return source.babyEvolution===family || source.babyEvolutionOptions?.includes(family)
+      || (candidate==='eevee' && species.eeveeBranch)
+      || (candidate==='scyther' && (family==='scizor'||family==='kleavor'));
+  });
+  return origin ? [{family:origin,stage:0,name:SPECIES[origin].names[0]},...self] : self.length>1?self:[];
+}
+
 function stageSummary(family: Family, stage: number): {moveName:string; primary:string} {
   const move = ATTACKS.moves[getStageData(family,stage).move];
   const row=abilityScaling(move,stage)[0];
@@ -48,13 +72,15 @@ export function abilityCard(family: Family, stage: number, description: string, 
       `<div class="ability-scaling-row"><div class="ability-scaling-label">${escapeHTML(row.label)}</div><div class="ability-scaling-values">${formula(row)}</div>${row.note ? `<small class="ability-scaling-note">${escapeHTML(row.note)}</small>` : ''}</div>`
     ).join('')}</div>`
     : '<div class="ability-utility-note">Esta habilidade atua por efeito, sem dano direto calculado.</div>';
-  const evolution = species.names.length > 1
+  const stages = evolutionLine(family);
+  const evolution = stages.length > 1
     ? `<div class="ability-evolution"><div class="ability-section-title">EVOLUÇÃO <span>COEFICIENTES POR ESTÁGIO</span></div>
-      <div class="ability-evolution-grid">${species.names.map((name,index)=>{
-        const data=stageSummary(family,index);
-        return `<div class="ability-evolution-stage ${index===stage?'is-current':''}" title="${escapeHTML(data.moveName)}">
-          <small>${index===stage?'ATUAL':`ESTÁGIO ${index+1}`}</small>
-          <b>${escapeHTML(name)}</b>
+      <div class="ability-evolution-grid">${stages.map((entry,index)=>{
+        const data=stageSummary(entry.family,entry.stage);
+        const current=entry.family===family && entry.stage===stage;
+        return `<div class="ability-evolution-stage ${current?'is-current':''}" title="${escapeHTML(data.moveName)}">
+          <small>${current?'ATUAL':`FORMA ${index+1}`}</small>
+          <b>${escapeHTML(entry.name)}</b>
           <span>${escapeHTML(data.moveName)}</span>
           <div class="ability-evolution-power">${data.primary}</div>
         </div>`;
