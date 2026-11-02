@@ -50,10 +50,15 @@ function evolutionLine(family: Family): EvolutionStage[] {
   return origin ? [{family:origin,stage:0,name:SPECIES[origin].names[0]},...self] : self.length>1?self:[];
 }
 
-function stageSummary(family: Family, stage: number): {moveName:string; primary:string} {
+function stageSummary(family: Family, stage: number): {moveName:string; primary:string; extra?:string} {
   const move = ATTACKS.moves[getStageData(family,stage).move];
-  const row=abilityScaling(move,stage)[0];
-  return {moveName:move.name, primary:row ? formula(row) : '<span class="ability-flat">Efeito utilitário</span>'};
+  const rows=abilityScaling(move,stage);
+  const primary=rows[0] ? formula(rows[0]) : '<span class="ability-flat">Efeito utilitário</span>';
+  // A few abilities improve their number of hits, healing, protection or
+  // duration rather than their first damage line. Show that evolution too.
+  const priority=/Quantidade de tiros|Número de pulsos|Alvos por ataque|Alvos adicionais|Redução de dano|Duração do terreno|Duração do jato|ATK e VEL por acerto recebido|Dano adjacente|Cura por aliado|Barreira/;
+  const extra=rows.slice(1).find(row=>priority.test(row.label));
+  return {moveName:move.name,primary,...(extra?{extra:`${escapeHTML(extra.label)}: ${formula(extra)}`}:{})};
 }
 
 /** Shared rich TFT-style skill card for all normal stages, forms and Mewtwo modes. */
@@ -81,7 +86,7 @@ export function abilityCard(family: Family, stage: number, description: string, 
           <small>${current?'ATUAL':`FORMA ${index+1}`}</small>
           <b>${escapeHTML(entry.name)}</b>
           <span>${escapeHTML(data.moveName)}</span>
-          <div class="ability-evolution-power">${data.primary}</div>
+          <div class="ability-evolution-power">${data.primary}</div>${data.extra ? `<div class="ability-evolution-extra">${data.extra}</div>` : ''}
         </div>`;
       }).join('')}</div></div>`
     : '';
