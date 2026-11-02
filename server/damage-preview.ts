@@ -269,7 +269,13 @@ export function abilityScaling(move: MoveData, stage: number, family?: Family): 
   if(move.effect==='drain') add('Cura',move.healBase||0,{spa:move.healRatio});
   if(move.effect==='poison-shot' && move.shieldBase) add('Barreira',move.shieldBase,{def:move.shieldDefenseRatio,spa:move.shieldSpaRatio});
   if(move.effect==='jynx-kiss') add('Congelamento inicial',move.freezeBase||0,{},`+ ${(move.freezeSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, até o limite.`,'s');
-  if(move.effect==='gas') add('Barreira',move.shieldBase||0,{spa:move.shieldSpaRatio});
+  if(move.effect==='gas') {
+    // The gas releases after shielding; retained protection time directly
+    // increases its raw damage (up to the configured charge duration).
+    if(move.gasTimeRatio) add('Bônus por segundo protegido',move.gasTimeRatio,{},
+      `Acumula até ${(move.chargeMaxDuration??3.5).toLocaleString('pt-BR',{maximumFractionDigits:2})} segundos de proteção.`,' / s');
+    add('Barreira',move.shieldBase||0,{spa:move.shieldSpaRatio});
+  }
   if(move.effect==='bite-shred'||move.effect==='bone-throw') add('Redução da defesa',move.shredBase||0,{spa:move.shredRatio},'Aplicada ao alvo.');
   return rows;
 }
