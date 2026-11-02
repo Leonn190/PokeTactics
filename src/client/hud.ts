@@ -10,8 +10,7 @@ import { LOOT } from '../../server/systems/loot';
 import { shopOdds, typeBonus, typeInfluence } from '../../server/shop';
 import { trainerXpNeeded } from '../../server/trainer-xp';
 import { moveDescription } from './menus';
-import { previewAbility } from '../../server/damage-preview';
-import { damageHtml, damageRows } from './damage-labels';
+import { abilityCard, damageHtml } from './damage-labels';
 import type { CombatUnit, Element, GameSnapshot, Pokemon, ShopOffer, Stats, EquippedItem, BallKind, Player } from '../../server/types';
 import type { ClientView } from './arena';
 
@@ -495,7 +494,6 @@ export class Hud {
     const power = totalPower(stats);
     const move = ATTACKS.moves[stage.move];
     const description = moveDescription(move);
-    const preview = previewAbility(displayFamily,displayStage,stats,formId,mewtwoMode);
     const hp = combatant?.hp??stats.hp;
     const maxHp = Math.max(1,combatant?.maxHp??stats.hp);
     const energy = combatant?.energy??0;
@@ -553,7 +551,7 @@ export class Hud {
       <div class="inspector-ability-row">
         <button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer a habilidade">${safe(move.name)}</button>
         <div class="inspector-range" title="Alcance de ataque regular: ${rangeTitle}"><small>ALCANCE</small><b>${rangeTitle}</b></div>
-        <div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip"><strong>${safe(move.name)}</strong><div class="inspector-ability-meta">CUSTO: ${stage.energy} ENERGIA <span>•</span> ALCANCE: ${rangeLabel(stage.range)}</div><p>${safe(description)}</p><div class="inspector-damage-list">${damageRows(preview)}</div><small class="inspector-damage-note">Valores antes da defesa, tipos e escudos do alvo.</small></div>
+        <div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip">${abilityCard(displayFamily,displayStage,description,formId,mewtwoMode)}</div>
       </div>
     </div>`;
 
