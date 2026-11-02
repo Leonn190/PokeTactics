@@ -455,49 +455,95 @@
 .trait-rows{max-height:calc(100vh - 370px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#7b9c8b transparent}
 
 
-/* V22.5: tangible item peninsula. Projected world position and scale are
-   authoritative in Arena.placeWorldRack (never a fixed HUD coordinate). */
+/* V25.4: a TFT-2023-style item shelf connected to the physical wooden bench.
+   Arena.placeWorldRack remains the sole source of screen position and zoom. */
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .item-inventory,.item-inventory.view-only{
  position:absolute;z-index:21;left:0;top:0;right:auto!important;bottom:auto!important;
- width:154px;max-height:none!important;overflow:visible;padding:10px 10px 9px;
- color:#dff0cd;background:transparent;border:0;box-shadow:none;
+ width:164px;max-height:none!important;overflow:visible;padding:10px 10px 9px;
+ color:#f4ebcf;background:transparent;border:0;border-radius:11px;box-shadow:none;
  transform:translate(-50%,-50%) scale(var(--rack-world-scale,1));transform-origin:center;
- pointer-events:auto;opacity:1
+ pointer-events:auto;opacity:1;isolation:isolate
 }
 .item-inventory::before{
- content:'';position:absolute;inset:-12px -14px -14px;
- background:
-   radial-gradient(ellipse at 52% 28%,#73996b40 0%,transparent 55%),
-   radial-gradient(ellipse at 50% 54%,#294b3d 0%,#1d362e 60%,#10251f 78%,transparent 83%);
- border:2px solid #78947744;border-radius:47% 53% 45% 55% / 40% 42% 58% 60%;
- box-shadow:0 13px 13px #07171195,inset 0 3px 4px #c8dd9977,inset 0 -8px 10px #051912a6;
- transform:perspective(230px) rotateX(6deg);pointer-events:none;
+ content:'';position:absolute;inset:0;z-index:-1;
+ background:linear-gradient(150deg,#a28a5e 0%,#67583e 8%,#463d30 40%,#343b30 77%,#1b302a 100%);
+ border:3px solid #a89769;border-bottom-color:#394c38;border-radius:10px;
+ box-shadow:inset 0 2px #eddaa064,inset 0 -6px 8px #121f18bd,0 6px 0 #1c332a,0 13px 14px #061a13b8;
+ pointer-events:none
 }
+/* The short plank is behind the items and reaches the adjacent end of the bench. */
 .item-inventory::after{
- content:'';position:absolute;inset:-4px -8px -8px;
- border-bottom:3px solid #7395785c;border-radius:48%;pointer-events:none;
- box-shadow:0 3px 3px #091d1780;
+ content:'';position:absolute;z-index:-2;top:calc(50% - 15px);left:calc(100% - 5px);
+ width:124px;height:30px;pointer-events:none;
+ border:2px solid #ad986c;border-top-color:#d1bd83;border-bottom-color:#3a3425;
+ border-radius:3px 10px 10px 3px;
+ background:repeating-linear-gradient(90deg,#675b3f 0 18px,#756445 19px 21px,#4c4533 22px 24px);
+ box-shadow:inset 0 2px #d5c38e63,inset 0 -6px #272b2580,0 7px 0 #1a3026,0 12px 10px #04130d9e
 }
-.item-inventory .inventory-contents{position:relative;z-index:1;display:flex;flex-direction:column;gap:5px;overflow:visible}
-.item-inventory .inventory-grid{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 7px;align-items:center;justify-content:center}
-.item-inventory .inventory-slot{position:relative;width:100%;height:33px;min-width:0;display:flex;align-items:center;justify-content:center;
- background:radial-gradient(ellipse at center,#091d167e,#152a2070 55%,transparent 73%);
- border:1px solid #98b28a33;border-radius:50%;box-shadow:inset 0 2px 3px #07140fa5,0 2px 4px #0618118f;
- transition:transform .12s ease,filter .12s ease;cursor:grab;touch-action:none
+.item-inventory.rack-right::after{
+ left:auto;right:calc(100% - 5px);
+ border-radius:10px 3px 3px 10px
 }
-.item-inventory .inventory-slot.empty{background:radial-gradient(ellipse,#102f2251,transparent 70%);border:1px dashed #809b724c;opacity:.65}
-.item-inventory .inventory-slot.empty i{display:none}
-.item-inventory .inventory-slot:hover,.item-inventory .inventory-slot:focus-visible{transform:translateY(-3px) scale(1.06);border-color:#d7efb798;outline:0;filter:drop-shadow(0 0 6px #b5e5a5ad)}
-.item-inventory .inventory-slot.selected{border-color:#ffdd93;box-shadow:0 0 0 1px #ffe5aa9c,inset 0 0 10px #f8cc4266;filter:drop-shadow(0 0 8px #ffe8a2b0)}
-.item-inventory .inventory-slot .gear-icon{transform:scale(1.10)}
-.item-inventory .ball-ground{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;margin:0 -3px;padding:2px 3px;background:radial-gradient(ellipse at center,#152c226b,transparent 75%);border:0}
-.item-inventory .ball-ground .inventory-ball{height:27px;border-radius:50%;padding:0}
-.item-inventory .ball-ground .inventory-ball img{height:24px;width:24px;max-width:100%;object-fit:contain}
-.item-inventory .ball-ground .inventory-ball small{position:absolute;right:-3px;bottom:-4px;pointer-events:none;color:#ffe7a6;background:#173126de;border-radius:9px;padding:1px 3px;font:800 10px 'Barlow Condensed'}
-@media(max-width:980px){.item-inventory{width:128px;padding:7px 6px}
- .item-inventory .inventory-grid{gap:3px}.item-inventory .inventory-slot{height:29px}
- .item-inventory .ball-ground img{height:22px;width:22px}}
+.item-inventory .inventory-contents{
+ position:relative;z-index:1;display:flex;flex-direction:column;gap:5px;overflow:visible;
+ padding:5px 4px;
+ background:linear-gradient(135deg,#26372e,#172b25 70%,#20372b);
+ border:1px solid #a4936647;border-radius:5px;
+ box-shadow:inset 0 2px 9px #0b1712af,0 1px #d6c18b3b
+}
+.item-inventory .inventory-grid{
+ width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:5px 5px;align-items:center;justify-content:center
+}
+.item-inventory .inventory-slot{
+ position:relative;width:100%;height:31px;min-width:0;
+ display:flex;align-items:center;justify-content:center;padding:2px;
+ background:radial-gradient(ellipse at 50% 62%,#3b5747,#1d312a 75%);
+ border:1px solid #b4a77a70;border-bottom-color:#394b39;
+ border-radius:5px;box-shadow:inset 0 3px 5px #071811c7,0 1px #d9c49128;
+ transition:transform .12s ease,filter .12s ease;
+ cursor:grab;touch-action:none
+}
+.item-inventory .inventory-slot.empty{
+ background:radial-gradient(ellipse at 50% 85%,#3448396d,#172a237d 70%);
+ border:1px solid #8a956b5c;opacity:.8;cursor:default
+}
+.item-inventory .inventory-slot.empty i{
+ display:block;width:14px;height:14px;border:1px solid #9baa7d38;
+ border-radius:50%;transform:none
+}
+.item-inventory .inventory-item:hover,.item-inventory .inventory-ball:hover,
+.item-inventory .inventory-item:focus-visible,.item-inventory .inventory-ball:focus-visible{
+ transform:translateY(-2px) scale(1.06);border-color:#f1dfa2;
+ outline:0;filter:drop-shadow(0 0 6px #f2dc97a3)
+}
+.item-inventory .inventory-slot.selected{
+ border-color:#ffdc8d;box-shadow:0 0 0 1px #ffe5aa9c,inset 0 0 10px #c39e4d66;
+ filter:drop-shadow(0 0 8px #ffe8a29c)
+}
+.item-inventory .inventory-slot .gear-icon{transform:scale(1.08)}
+.item-inventory .ball-ground{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin:0;
+ padding:4px 2px 0;border-top:1px solid #bda97935;background:none
+}
+.item-inventory .ball-ground .inventory-ball{
+ height:25px;border-radius:5px;padding:1px;background:#243e32
+}
+.item-inventory .ball-ground .inventory-ball img{
+ height:22px;width:22px;max-width:100%;object-fit:contain
+}
+.item-inventory .ball-ground .inventory-ball small{
+ position:absolute;right:-3px;bottom:-4px;pointer-events:none;color:#ffe7a6;
+ background:#173126ed;border-radius:8px;padding:1px 3px;font:800 10px 'Barlow Condensed'
+}
+@media(max-width:980px){
+ .item-inventory{width:145px;padding:8px 7px}
+ .item-inventory::after{width:124px}
+ .item-inventory .inventory-grid{gap:3px}
+ .item-inventory .inventory-slot{height:29px}
+ .item-inventory .ball-ground img{height:21px;width:21px}
+}
 @media(min-width:981px) and (max-width:1900px){.traits-panel{max-height:min(280px,calc(100vh - 570px))}.trait-rows{max-height:min(240px,calc(100vh - 610px))}}
 
 /* V20.7: personal settings stay above the game and the technical editor. */

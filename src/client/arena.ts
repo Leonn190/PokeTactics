@@ -227,11 +227,12 @@ export class Arena {
     if(slot<0)return {rack:{x:ITEM_RACK_WORLD.x,y:ITEM_RACK_WORLD.y},augments:{x:-5.05,y:1.25},side:'left'};
     if(ids.length>2){
       const left=slot<2,upper=slot===1||slot===2;
-      return {rack:{x:left?-9.65:9.65,y:upper?-2.55:2.55},
+      // The item shelf sits next to its own bench, with a bridge towards the board.
+      return {rack:{x:left?-10.1:10.1,y:upper?-4.12:4.12},
         augments:{x:left?-9.65:9.65,y:upper?-1.35:1.35},side:left?'left':'right'};
     }
     const upper=ids.length===2 && id!==this.view.scoutId;
-    return {rack:{x:-6.45,y:upper?-3.12:3.45},
+    return {rack:{x:ITEM_RACK_WORLD.x,y:upper?-ITEM_RACK_WORLD.y:ITEM_RACK_WORLD.y},
       augments:{x:-5.15,y:upper?-1.45:1.45},side:'left'};
   }
   /** An HTML item tray uses the exact same world-to-screen projection as sprites. */
@@ -240,6 +241,7 @@ export class Arena {
     node.style.left=`${rect.left-app.left+point.x}px`;
     node.style.top=`${rect.top-app.top+point.y}px`;
     node.style.setProperty('--rack-world-scale',String(this.worldScale()*RENDER_SETTINGS.itemWorldScale));
+    node.classList.toggle('rack-right',x>0);
   }
 
   // Mesmo fator aplicado ao Pokémon que aparece fisicamente sobre a arena.
@@ -648,19 +650,53 @@ export class Arena {
     const ctx = this.context;
     const left = this.toScreen(offset - ARENA_HALF, (enemy ? -BENCH_Y : BENCH_Y) - .41);
     const right = this.toScreen(offset + ARENA_HALF, (enemy ? -BENCH_Y : BENCH_Y) + .41);
-    const field = ctx.createLinearGradient(0, left.y, 0, right.y);
-    field.addColorStop(0, '#38764c'); field.addColorStop(.6, '#2b6446'); field.addColorStop(1, '#1b4c3b');
-    ctx.fillStyle = field; ctx.strokeStyle = '#a1cf9f88'; ctx.lineWidth = 1.8;
-    ctx.beginPath(); ctx.roundRect(left.x, left.y, right.x - left.x, right.y - left.y, 8); ctx.fill(); ctx.stroke();
+    const width = right.x - left.x, height = right.y - left.y;
+    ctx.save();
+    // A raised wooden bench is flush with the stone field border; the item shelf joins its outer end.
+    ctx.shadowColor = '#071a15c9'; ctx.shadowBlur = 13; ctx.shadowOffsetY = 6;
+    ctx.fillStyle = '#182d26';
+    ctx.beginPath(); ctx.roundRect(left.x - 5, left.y - 5, width + 10, height + 11, 10); ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    const wood = ctx.createLinearGradient(0, left.y, 0, right.y);
+    wood.addColorStop(0, '#8c7950'); wood.addColorStop(.18, '#68553b');
+    wood.addColorStop(.58, '#4e4834'); wood.addColorStop(1, '#2b3028');
+    ctx.fillStyle = wood; ctx.strokeStyle = '#cbb984b0'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(left.x, left.y, width, height, 8); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#d7c49340'; ctx.lineWidth = 1;
+    for (let stripe = 1; stripe <= 3; stripe++) {
+      const y = left.y + height * stripe / 4;
+      ctx.beginPath(); ctx.moveTo(left.x + 7, y); ctx.lineTo(right.x - 7, y); ctx.stroke();
+    }
     for (let index = 0; index < 10; index++) {
       const { x, y } = benchXY(index, enemy, offset), p = this.toScreen(x, y);
-      const radiusX = this.cellScale * .405, radiusY = this.cellScale * .32;
+      const radiusX = this.cellScale * .401, radiusY = this.cellScale * .325;
       const selected = interactive && this.view.hoveringBench === index && !!this.view.dragId;
-      ctx.beginPath(); ctx.roundRect(p.x - radiusX, p.y - radiusY, radiusX * 2, radiusY * 2, 5);
-      ctx.fillStyle = selected ? '#bceca872' : index % 2 ? '#285c4257' : '#3e81524a';
-      ctx.strokeStyle = selected ? '#fff0ba' : '#a1dca03a'; ctx.lineWidth = selected ? 2 : 1;
+      const slot = ctx.createLinearGradient(0, p.y - radiusY, 0, p.y + radiusY);
+      slot.addColorStop(0, selected ? '#a9b981' : '#263c32');
+      slot.addColorStop(.5, selected ? '#657e54' : '#263d31');
+      slot.addColorStop(1, selected ? '#3f6848' : '#172d27');
+      ctx.fillStyle = slot;
+      ctx.strokeStyle = selected ? '#f6dc9c' : '#bea9788c';
+      ctx.lineWidth = selected ? 2.4 : 1.15;
+      ctx.beginPath(); ctx.roundRect(p.x - radiusX, p.y - radiusY, radiusX * 2, radiusY * 2, 6);
       ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = selected ? '#e6ffc9b8' : '#9bb07a3d';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(p.x - radiusX + 5, p.y - radiusY + 5);
+      ctx.lineTo(p.x + radiusX - 5, p.y - radiusY + 5);
+      ctx.stroke();
+      if (selected) {
+        ctx.fillStyle = '#eaf0b733';
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, radiusX * .65, radiusY * .52, 0, 0, PI2); ctx.fill();
+      }
     }
+    // End caps visually tie the bench to the matching timber item peninsula.
+    for (const x of [left.x + 5, right.x - 5]) {
+      ctx.fillStyle = '#d6c18a9c';
+      ctx.beginPath(); ctx.arc(x, left.y + height / 2, 2.1, 0, PI2); ctx.fill();
+    }
+    ctx.restore();
   }
 
   private markers(): Marker[] {
