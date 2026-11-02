@@ -549,7 +549,7 @@ export class Hud {
     <div class="inspector-ability-wrap">
       <span class="inspector-ability-label">HABILIDADE CARREGADA</span>
       <div class="inspector-ability-row">
-        <button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" title="Passe o mouse para conhecer a habilidade">${safe(move.name)}</button>
+        <button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" aria-label="Detalhes da habilidade ${safe(move.name)}">${safe(move.name)}</button>
         <div class="inspector-range" title="Alcance de ataque regular: ${rangeTitle}"><small>ALCANCE</small><b>${rangeTitle}</b></div>
         <div id="inspectorAbilityTooltip" class="inspector-ability-tooltip" role="tooltip">${abilityCard(displayFamily,displayStage,description,formId,mewtwoMode)}</div>
       </div>
