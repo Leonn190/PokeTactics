@@ -95,7 +95,7 @@ export type AbilityScalingRow = {
   note?: string;
 };
 
-export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow[] {
+export function abilityScaling(move: MoveData, stage: number, family?: Family): AbilityScalingRow[] {
   const rows: AbilityScalingRow[] = [];
   const add = (label: string, flat = 0, ratios: Partial<Pick<AbilityScalingRow,'atk'|'spa'|'def'|'hp'>> = {}, note?: string, suffix?: string): void => {
     rows.push({label, flat, ...ratios, ...(note ? {note} : {}), ...(suffix ? {suffix} : {})});
@@ -245,7 +245,7 @@ export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow
       return rows;
     case 'flame-jet':
       add('Dano por acerto',base,{spa:s});
-      add('Duração do jato',byStage(move.durationByStage,move.babyDuration||0),{},undefined,'s');
+      add('Duração do jato',family==='magby'?(move.babyDuration??2):byStage(move.durationByStage,3),{},undefined,'s');
       return rows;
     case 'terrain-poison-shot':
       add('Poder da semente venenosa',base,{spa:s});
