@@ -508,22 +508,36 @@ let abilityPinned=false;
 function showAbility(button:HTMLElement):void {
   const source=button.parentElement?.querySelector<HTMLElement>('.inspector-ability-tooltip');
   if(!source)return;
-  abilityFloat.innerHTML=source.innerHTML;abilityFloat.classList.remove('hidden');
-  const rect=button.getBoundingClientRect();const bounds=abilityFloat.getBoundingClientRect();
-  const width=Math.min(370,window.innerWidth-24);abilityFloat.style.width=`${Math.min(width,Math.max(235,rect.width+90))}px`;
-  const w=abilityFloat.getBoundingClientRect().width,h=abilityFloat.getBoundingClientRect().height;
-  abilityFloat.style.left=`${Math.max(12,Math.min(window.innerWidth-w-12,rect.right-w))}px`;
-  abilityFloat.style.top=`${Math.max(12,Math.min(window.innerHeight-h-12,rect.top-h-8>12?rect.top-h-8:rect.bottom+8))}px`;
+  abilityFloat.innerHTML=source.innerHTML;
+  abilityFloat.style.width=`${Math.max(0,Math.min(430,window.innerWidth-24))}px`;
+  abilityFloat.classList.remove('hidden');
+  const rect=button.getBoundingClientRect();
+  const bounds=abilityFloat.getBoundingClientRect();
+  const left=Math.max(12,Math.min(window.innerWidth-bounds.width-12,rect.right-bounds.width));
+  const above=rect.top-bounds.height-10;
+  const below=rect.bottom+10;
+  const top=Math.max(12,Math.min(window.innerHeight-bounds.height-12,
+    above>=12?above:below));
+  abilityFloat.style.left=`${left}px`;
+  abilityFloat.style.top=`${top}px`;
 }
 function hideAbility():void {if(!abilityPinned)abilityFloat.classList.add('hidden');}
 document.addEventListener('mouseover',e=>{const button=(e.target as HTMLElement).closest<HTMLElement>('.inspector-ability');if(button&&!abilityPinned)showAbility(button);});
 document.addEventListener('mouseout',e=>{if((e.target as HTMLElement).closest('.inspector-ability'))hideAbility();});
+document.addEventListener('focusin',e=>{const button=(e.target as HTMLElement).closest<HTMLElement>('.inspector-ability');if(button&&!abilityPinned)showAbility(button);});
+document.addEventListener('focusout',e=>{if((e.target as HTMLElement).closest('.inspector-ability'))hideAbility();});
 document.addEventListener('click',e=>{
  const button=(e.target as HTMLElement).closest<HTMLElement>('.inspector-ability');
- if(button){abilityPinned=!abilityPinned;if(abilityPinned)showAbility(button);else abilityFloat.classList.add('hidden');}
- else {abilityPinned=false;abilityFloat.classList.add('hidden');}
+ if(button){
+   abilityPinned=!abilityPinned;
+   abilityFloat.classList.toggle('is-pinned',abilityPinned);
+   if(abilityPinned)showAbility(button);
+   else abilityFloat.classList.add('hidden');
+ } else if(!abilityFloat.contains(e.target as Node)) {
+   abilityPinned=false;abilityFloat.classList.remove('is-pinned');abilityFloat.classList.add('hidden');
+ }
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){abilityPinned=false;abilityFloat.classList.add('hidden');}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){abilityPinned=false;abilityFloat.classList.remove('is-pinned');abilityFloat.classList.add('hidden');}});
 
 /** Rich hover/focus tooltip shared by every inventory component and equipped item.
  * The item description remains authoritative in server/systems/items.ts. */

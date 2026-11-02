@@ -1,9 +1,9 @@
 import type { Configurator } from './configurator/editor';
 import { alternativeForm,MEGA } from '../../server/forms';
-import { ATTACKS, ELEMENTS, getStageData, rangeLabel, RARITY_COLORS, SPECIES, evolutionCopies } from '../../server/data';
+import { ATTACKS, ELEMENTS, getStageData, RARITY_COLORS, SPECIES, evolutionCopies } from '../../server/data';
 import type { MoveData } from '../../server/data';
-import { previewAbility, previewBasic } from '../../server/damage-preview';
-import { damageRows, damageHtml } from './damage-labels';
+import { previewBasic } from '../../server/damage-preview';
+import { abilityCard, damageHtml } from './damage-labels';
 import type { Family, Stats } from '../../server/types';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -36,7 +36,7 @@ export function moveDescription(move: MoveData): string {
     chain:'Lança energia que salta entre inimigos próximos.',
     blast:'Desencadeia uma explosão de dano em área.',
     pollen:'Dispara pólen em área e cura aliados próximos.',
-    'solar-beam':'Dispara um raio solar perfurante em linha reta, atingindo inimigos ao longo do trajeto. O alcance aumenta de 2 para 3 e 4 conforme evolui.',
+    'solar-beam':'Dispara um raio solar perfurante em linha reta, atingindo inimigos ao longo do trajeto. Seu dano e os atributos melhoram conforme evolui.',
     spin:'Gira, atingindo adversários ao redor e fortalecendo a própria defesa.',
     'flame-strike':'Golpe de fogo poderoso contra um alvo.',
     shock:'Descarga elétrica que se propaga para outros inimigos.',
@@ -215,7 +215,6 @@ export class Menus {
     const move = ATTACKS.moves[data.move];
     const stats = alternativeForm(family,stage,formId)?.base || species.stageBases?.[stage] || species.base;
     const total = Math.round(stats.hp / 5 + stats.atk + stats.def + stats.spa + stats.spd + stats.speed);
-    const damage = previewAbility(family, stage, stats,formId);
     const basic = previewBasic(family, stage, stats);
     const chain = species.eeveeBranch ? ['Eevee', name] : species.names;
     const copies = evolutionCopies(family,stage);
@@ -223,7 +222,7 @@ export class Menus {
       <div class="detail-scroll">
       <div class="detail-section"><span class="detail-label">LINHA EVOLUTIVA</span><div class="detail-evolution">${chain.map((n,i) => `${i ? '<span class="detail-arrow">›</span>' : ''}<span class="${n === name ? 'current' : ''}">${escapeHTML(n)}</span>`).join('')}</div>${species.eeveeBranch ? `<p class="detail-tip">Evolui de Eevee, reunindo ${evolutionCopies('eevee')} cópias e escolhendo o ramo.</p>` : chain.length === 1 ? '<p class="detail-tip">Forma final: pode absorver uma cópia idêntica para ganhar +5 níveis.</p>' : `<p class="detail-tip">Evolução por ${copies} cópias da mesma forma. Formas finais idênticas se fundem: +5 níveis.</p>`}</div>
       <div class="detail-section"><div class="detail-heading"><span class="detail-label">STATUS BASE</span><strong>${total} <small>PODER</small></strong></div><div class="detail-stats">${(Object.keys(statNames) as Array<keyof Stats>).map(key => `<div class="detail-stat"><span>${statNames[key]}</span><div class="detail-stat-track"><i style="width:${Math.min(100,stats[key]/(key === 'hp' ? 600 : 120)*100)}%"></i></div><b>${stats[key]}</b></div>`).join('')}</div><p class="detail-tip">Atributos sem IV e sem bônus de nível • HP conta como 1/5 do poder total.</p></div>
-      <div class="detail-section"><span class="detail-label">HABILIDADE CARREGADA</span><div class="detail-ability"><b>${escapeHTML(move.name)}</b><span>${data.energy} ENERGIA • ${rangeLabel(data.range)} DE ALCANCE</span><p>${moveDescription(move)}</p><div class="detail-damage-list">${damageRows(damage)}</div></div><p class="detail-basic">Ataque regular: ${damageHtml(basic)} de dano ${basic.kind === 'special' ? 'especial (SPA)' : 'físico (ATK)'} • gera energia. Valores de base, sem IV/nível ou defesa do alvo.</p></div>
+      <div class="detail-section detail-ability-section">${abilityCard(family,stage,moveDescription(move),formId)}<p class="detail-basic">Ataque regular: ${damageHtml(basic)} de dano ${basic.kind === 'special' ? 'especial (SPA)' : 'físico (ATK)'} • gera energia. Valores de base, sem IV/nível ou defesa do alvo.</p></div>
       <div class="detail-note">${species.shop ? `Disponível na loja • custo ${species.rarity} de ouro` : species.bossOnly ? 'Encontro especial: chefe lendário' : 'Adquirido por evolução de outra forma'}</div></div>`;
   }
 }

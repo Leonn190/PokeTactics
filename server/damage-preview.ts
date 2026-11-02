@@ -80,3 +80,196 @@ export function previewAbility(family: Family, stage: number, stats: Stats, form
     default: return [special('DANO',move.baseDamage+a*(move.attackRatio || 0)+s*move.specialRatio)];
   }
 }
+
+/** Coefficients read directly from the same move config consumed by the combat engine.
+ * No client-side damage simulation or invented level scaling: these are raw formulas,
+ * before defense, type effectiveness, crits and any temporary modifiers. */
+export type AbilityScalingRow = {
+  label: string;
+  flat?: number;
+  atk?: number;
+  spa?: number;
+  def?: number;
+  hp?: number;
+  suffix?: string;
+  note?: string;
+};
+
+export function abilityScaling(move: MoveData, stage: number, family?: Family): AbilityScalingRow[] {
+  const rows: AbilityScalingRow[] = [];
+  const add = (label: string, flat = 0, ratios: Partial<Pick<AbilityScalingRow,'atk'|'spa'|'def'|'hp'>> = {}, note?: string, suffix?: string): void => {
+    rows.push({label, flat, ...ratios, ...(note ? {note} : {}), ...(suffix ? {suffix} : {})});
+  };
+  const base = move.baseDamage || 0;
+  const a = move.attackRatio || 0;
+  const s = move.specialRatio || 0;
+  const byStage = (values: number[] | undefined, fallback = 0) => stageValue(values,stage,fallback);
+  switch(move.effect) {
+    case 'ditto-transform':
+      return rows;
+    case 'withdraw-guard':
+      add('Redução de dano', Math.round((move.guardReduction??.35)*100), {}, `+ ${((move.guardSpaRatio||0)*100).toLocaleString('pt-BR',{maximumFractionDigits:3})} ponto percentual por SPA, até o limite.`, '%');
+      return rows;
+    case 'lullaby':
+      add('Duração inicial',byStage(move.durationBaseByStage,move.sleepSeconds||0),{},`+ ${(move.durationSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, até o limite.`, 's');
+      return rows;
+    case 'shield':
+      add('Barreira',move.shieldBase||0,{def:move.shieldDefenseRatio,spa:move.shieldSpaRatio});
+      return rows;
+    case 'healing-egg':
+    case 'heal-powder':
+      add('Cura por aliado',byStage(move.healByStage,move.healBase||0),{spa:move.healRatio});
+      return rows;
+    case 'mew-blessing':
+      add('Cura',move.healBase||0,{spa:move.healRatio});
+      add('Barreira',move.shieldBase||0,{spa:move.shieldSpaRatio});
+      add('Extra por ataque',move.bonusBase||0,{spa:move.bonusSpaRatio});
+      return rows;
+    case 'star-ward':
+      add('Barreira',byStage(move.shieldBaseByStage,move.shieldBase||0),{spa:move.shieldSpaRatio});
+      add('Dano por estrela',byStage(move.starBaseByStage),{spa:move.specialRatio});
+      return rows;
+    case 'mime-wall':
+      add('Dano da parede',move.pillarDamageBase||0,{spa:move.pillarSpaRatio});
+      add('Extra no básico',0,{spa:move.wallBonusRatio});
+      return rows;
+    case 'star-refraction':
+      add('Extra por ataque regular',0,{spa:s});
+      add('Alvos por ataque',byStage(move.secondaryTargetsByStage,2));
+      return rows;
+    case 'moltres-fire':
+      add('Dano da aura',move.auraBase||0,{spa:move.auraSpaRatio});
+      add('Queimadura por segundo',move.burnBase||0,{spa:move.burnSpaRatio});
+      add('Barreira por inimigo queimado',move.barrierPerBurn||65,{},'Limitada pela porcentagem de Vida máxima configurada.');
+      return rows;
+    case 'mewtwo-impact':
+      add('Dano do soco',base,{atk:a});
+      add('Barreira por uso',0,{hp:move.barrierMaxHpFraction??.13});
+      return rows;
+    case 'mewtwo-barrage':
+      add('Dano por projétil',base,{spa:s});
+      add('Projétil final',move.finalDamage||0,{spa:move.finalSpaRatio});
+      return rows;
+    case 'psychic-teleport':
+      if(byStage(move.shotCountByStage)>0) {
+        add('Dano por projétil',base,{spa:s});
+        add('Quantidade de tiros',byStage(move.shotCountByStage));
+      }
+      return rows;
+    case 'flame-strike':
+      add('Dano físico',0,{atk:byStage(move.damageRatioByStage,1.55)});
+      break;
+    case 'shock':
+      add('Dano elétrico',0,{spa:byStage(move.damageRatioByStage,1.05)});
+      add('Dano do salto',Math.round(byStage(move.secondaryRatioByStage,.5)*100),{},'Em relação ao dano inicial.','%');
+      add('Alvos adicionais',byStage(move.secondaryTargetsByStage,1));
+      return rows;
+    case 'gas':
+      add('Nuvem após a barreira',byStage(move.damageByStage),{atk:move.gasAttackRatio},'Acrescenta dano conforme o tempo protegido.');
+      break;
+    case 'solar-beam':
+    case 'pollen':
+    case 'spin':
+      add(move.effect==='spin'?'Dano por segundo':move.effect==='pollen'?'Dano em área':'Dano do raio',byStage(move.damageByStage),{spa:s});
+      break;
+    case 'furious-leap':
+      add('Dano do salto',byStage(move.damageByStage,base),{spa:byStage(move.damageRatioByStage,s)});
+      add('ATK e VEL por acerto recebido',Math.round(byStage(move.ragePercentByStage)*10000)/100,{},undefined,'%');
+      return rows;
+    case 'absorbing-vine':
+      add('Dano ao conectar',byStage(move.damageByStage,base),{spa:s});
+      add('Cura na execução',Math.round((move.executeHealRatio||0)*100),{},'Da própria Vida máxima.','%');
+      return rows;
+    case 'electromagnetic-ball':
+      add('Dano inicial',base,{spa:s});
+      add('Dano por pulso',move.pulseBase||0,{spa:move.pulseSpaRatio});
+      add('Número de pulsos',byStage(move.pulsesByStage));
+      return rows;
+    case 'sludge-absorb':
+      add('Dano inicial',base,{spa:s});
+      add('Dano por absorção',move.absorbDamageBase||0,{spa:move.absorbDamageRatio});
+      return rows;
+    case 'hitmonchan-uppercut':
+      add('Dano do soco',base,{atk:a});
+      add('Atordoamento inicial',move.stunBase||0,{},`+ ${(move.stunSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, reduzido pela Vida do alvo e limitado pela habilidade.`,'s');
+      return rows;
+    case 'hitmonlee-spin-kick':
+      add('Dano por chute',base,{atk:a});
+      add('Barreira (outra opção)',move.shieldBase||0,{spa:move.shieldSpaRatio});
+      return rows;
+    case 'scizor-double':
+      add('Dano por golpe',base,{spa:s});
+      add('Quantidade de golpes',move.hits||2);
+      return rows;
+    case 'brutal-kick':
+      add('Dano do chute',base,{atk:a,spa:s});
+      add('Colisão com a parede',move.wallDamage||0);
+      return rows;
+    case 'fang-tail':
+      add('Mordida',base,{atk:a,spa:s});
+      add('Caudada',move.tailBase||0,{atk:move.tailRatio});
+      return rows;
+    case 'desperate-splash':
+      add('Cura (50% de chance)',move.healBase||0,{spa:move.healRatio});
+      add('Bônus no próximo ataque',move.bonusBase||0,{spa:move.bonusSpaRatio});
+      return rows;
+    case 'multi':
+      add('Dano por golpe físico',base,{atk:a});
+      add('Golpe final venenoso',0,{spa:s});
+      return rows;
+    case 'stomp':
+      add('Dano físico',base,{atk:a});
+      add('Cura por instância',move.sleepHealBase||0,{spa:move.sleepHealSpaRatio});
+      return rows;
+    case 'lapras-surf':
+      add('Dano na passagem',base,{spa:s});
+      add('Dano da onda',Math.round((move.continuationMultiplier??.5)*100),{},'Em relação ao dano na passagem.','%');
+      return rows;
+    case 'eevee-ball':
+      add('Impacto',base,{atk:a});
+      if(s) add('Explosão',0,{spa:s});
+      return rows;
+    case 'dragon-cyclone':
+      add('Dano central',base,{spa:s});
+      add('Dano adjacente',Math.round((move.splashMultiplier??.5)*100),{},'Em relação ao dano central.','%');
+      return rows;
+    case 'meteor-rain':
+      add('Dano por meteoro',base,{spa:s});
+      add('Dano do fragmento',Math.round((move.fragmentRatio??.25)*100),{},'Em relação ao dano do meteoro.','%');
+      return rows;
+    case 'electric-punch':
+      add('Dano no alvo',base,{spa:s});
+      if(byStage(move.secondaryRatioByStage)>0)
+        add('Dano adjacente',Math.round(byStage(move.secondaryRatioByStage)*100),{},'Em relação ao dano no alvo.','%');
+      if(stage>0 && move.shieldSpaRatio) add('Barreira',move.shieldBase||0,{spa:move.shieldSpaRatio},'A energia drenada também aumenta a barreira.');
+      return rows;
+    case 'flame-jet':
+      add('Dano por acerto',base,{spa:s});
+      add('Duração do jato',family==='magby'?(move.babyDuration??2):byStage(move.durationByStage,3),{},undefined,'s');
+      return rows;
+    case 'terrain-poison-shot':
+      add('Poder da semente venenosa',base,{spa:s});
+      add('Duração do terreno',byStage(move.initialSecondsByStage),{},undefined,'s');
+      return rows;
+    case 'self-explosion':
+      add('Dano da explosão',base,{spa:s});
+      add('Vida consumida',Math.round((move.selfHpCost??.2)*100),{},'Da própria Vida máxima.','%');
+      return rows;
+    default:
+      if(base||a||s) add('Dano da habilidade',base,{atk:a,spa:s});
+  }
+
+  // Additional independent effects (one formula for each, rather than obscuring
+  // their scaling in the prose).
+  if(move.effect==='pollen') add('Cura por aliado',byStage(move.healByStage,move.healBase||0),{spa:move.healRatio});
+  if(move.effect==='spin') add('Redução de dano',Math.round(byStage(move.shieldByStage)*100),{},undefined,'%');
+  if(move.effect==='flame-strike'||move.effect==='poison-shot'||move.effect==='burn'||move.effect==='sting')
+    if(move.dotBase||move.dotRatio) add(move.effect==='burn'||move.effect==='flame-strike'?'Queimadura por segundo':'Veneno por segundo',move.dotBase||0,{spa:move.dotRatio});
+  if(move.effect==='chain') add('Dano dos saltos',move.chainBase||0,{spa:move.chainRatio});
+  if(move.effect==='drain') add('Cura',move.healBase||0,{spa:move.healRatio});
+  if(move.effect==='poison-shot' && move.shieldBase) add('Barreira',move.shieldBase,{def:move.shieldDefenseRatio,spa:move.shieldSpaRatio});
+  if(move.effect==='jynx-kiss') add('Congelamento inicial',move.freezeBase||0,{},`+ ${(move.freezeSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, até o limite.`,'s');
+  if(move.effect==='gas') add('Barreira',move.shieldBase||0,{spa:move.shieldSpaRatio});
+  if(move.effect==='bite-shred'||move.effect==='bone-throw') add('Redução da defesa',move.shredBase||0,{spa:move.shredRatio},'Aplicada ao alvo.');
+  return rows;
+}

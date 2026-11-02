@@ -1,6 +1,12 @@
-# PokéTactics — V25.4 (Arena natural, banco e suporte de itens)
+# PokéTactics — V25.5 (Tooltips de habilidades no estilo TFT)
 
 PokéTactics é um jogo de estratégia com combates automáticos, Pokémon, loja, evoluções, itens, espólios, augments e sinergias. Ele usa **Astro + TypeScript**, Canvas e sprites/animações PMD. As partidas atuais são **simuladas localmente**, com adversários controlados por bots; ainda não existe multiplayer real nem backend de partidas online.
+
+## V25.5 — habilidades explicadas com escalamento
+
+A habilidade de cada Pokémon agora aparece num card inspirado no TFT, na ficha da partida e no catálogo. Os valores são lidos do arquivo original de ataques: dano, cura e barreira mostram parcelas fixas e percentuais de ATK/SPA/DEF/Vida quando aplicáveis. Abaixo ficam as diferenças entre estágios evolutivos, com a forma atual destacada; evoluções que trocam o golpe também mostram seu novo nome. Alcance e energia deixam de ocupar a tooltip da habilidade (o indicador separado de alcance do ataque regular continua na ficha). O popover funciona ao passar o mouse, focar com teclado ou clicar e respeita as bordas da janela.
+
+O motor de combate, o balanceamento e os arquivos de configuração não foram alterados.
 
 ## V25.4 — arena e banco integrados (referência TFT de 2023)
 
