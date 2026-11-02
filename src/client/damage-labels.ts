@@ -65,7 +65,7 @@ function stageSummary(family: Family, stage: number): {moveName:string; primary:
 export function abilityCard(family: Family, stage: number, description: string, formId?: string, mewtwoMode?: 'melee'|'ranged'): string {
   const stageData = getStageData(family,stage,formId,mewtwoMode);
   const move = ATTACKS.moves[stageData.move];
-  const rows = abilityScaling(move,stage);
+  const rows = abilityScaling(move,stage,family);
   const hasAttack = rows.some(row => (row.atk || 0) > 0);
   const hasSpecial = rows.some(row => (row.spa || 0) > 0);
   const theme = hasAttack && hasSpecial ? 'hybrid' : hasAttack ? 'physical' : hasSpecial ? 'special' : 'utility';
