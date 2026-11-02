@@ -1214,3 +1214,6 @@
   .ability-evolution-grid{grid-template-columns:repeat(auto-fit,minmax(83px,1fr))}
   .ability-evolution-stage{padding:7px 6px}
 }
+
+/* A tooltip fixada pode ser rolada e inspecionada sem fechar. */
+.floating-ability-tooltip.is-pinned{pointer-events:auto}
