@@ -108,10 +108,10 @@ export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow
     case 'ditto-transform':
       return rows;
     case 'withdraw-guard':
-      add('Redução de dano', Math.round((move.guardReduction??.35)*100), {}, 'Aumenta com SPA, até o limite da habilidade.', '%');
+      add('Redução de dano', Math.round((move.guardReduction??.35)*100), {}, `+ ${((move.guardSpaRatio||0)*100).toLocaleString('pt-BR',{maximumFractionDigits:3})} ponto percentual por SPA, até o limite.`, '%');
       return rows;
     case 'lullaby':
-      add('Duração inicial',byStage(move.durationBaseByStage,move.sleepSeconds||0),{},'Aumenta com SPA, até o limite da habilidade.','s');
+      add('Duração inicial',byStage(move.durationBaseByStage,move.sleepSeconds||0),{},`+ ${(move.durationSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, até o limite.`, 's');
       return rows;
     case 'shield':
       add('Barreira',move.shieldBase||0,{def:move.shieldDefenseRatio,spa:move.shieldSpaRatio});
@@ -131,7 +131,7 @@ export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow
       return rows;
     case 'mime-wall':
       add('Dano da parede',move.pillarDamageBase||0,{spa:move.pillarSpaRatio});
-      add('Bônus do básico',Math.round((move.wallBonusRatio||0)*100),{},undefined,'%');
+      add('Extra no básico',0,{spa:move.wallBonusRatio});
       return rows;
     case 'star-refraction':
       add('Extra por ataque regular',0,{spa:s});
@@ -143,6 +143,7 @@ export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow
       return rows;
     case 'mewtwo-impact':
       add('Dano do soco',base,{atk:a});
+      add('Barreira por uso',0,{hp:move.barrierMaxHpFraction??.13});
       return rows;
     case 'mewtwo-barrage':
       add('Dano por projétil',base,{spa:s});
@@ -231,7 +232,7 @@ export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow
       add('Dano no alvo',base,{spa:s});
       if(byStage(move.secondaryRatioByStage)>0)
         add('Dano adjacente',Math.round(byStage(move.secondaryRatioByStage)*100),{},'Em relação ao dano no alvo.','%');
-      if(move.shieldSpaRatio) add('Barreira',move.shieldBase||0,{spa:move.shieldSpaRatio});
+      if(stage>0 && move.shieldSpaRatio) add('Barreira',move.shieldBase||0,{spa:move.shieldSpaRatio},'A energia drenada também aumenta a barreira.');
       return rows;
     case 'flame-jet':
       add('Dano por acerto',base,{spa:s});
@@ -256,6 +257,8 @@ export function abilityScaling(move: MoveData, stage: number): AbilityScalingRow
     if(move.dotBase||move.dotRatio) add(move.effect==='burn'||move.effect==='flame-strike'?'Queimadura por segundo':'Veneno por segundo',move.dotBase||0,{spa:move.dotRatio});
   if(move.effect==='chain') add('Dano dos saltos',move.chainBase||0,{spa:move.chainRatio});
   if(move.effect==='drain') add('Cura',move.healBase||0,{spa:move.healRatio});
+  if(move.effect==='poison-shot' && move.shieldBase) add('Barreira',move.shieldBase,{def:move.shieldDefenseRatio,spa:move.shieldSpaRatio});
+  if(move.effect==='jynx-kiss') add('Congelamento inicial',move.freezeBase||0,{},`+ ${(move.freezeSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, até o limite.`,'s');
   if(move.effect==='gas') add('Barreira',move.shieldBase||0,{spa:move.shieldSpaRatio});
   if(move.effect==='bite-shred'||move.effect==='bone-throw') add('Redução da defesa',move.shredBase||0,{spa:move.shredRatio},'Aplicada ao alvo.');
   return rows;
