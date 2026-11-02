@@ -1112,3 +1112,105 @@
 @keyframes elimination-fade{from{opacity:0}to{opacity:1}}
 @keyframes elimination-reveal{from{opacity:0;transform:translateY(30px) scale(.93);filter:blur(4px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
 @media(prefers-reduced-motion:reduce){.elimination-overlay,.elimination-panel{animation:none}.elimination-actions button{transition:none}}
+
+/* V25.5 — TFT-style ability details. The same card is used in the floating
+   inspector tooltip and the roster, including stage-by-stage comparisons. */
+.floating-ability-tooltip{
+  box-sizing:border-box;width:430px;max-width:calc(100vw - 24px);
+  max-height:min(78vh,640px);padding:0;overflow-x:hidden;overflow-y:auto;
+  border:1px solid #91a6b9;border-top:2px solid #efcc85;border-radius:9px;
+  background:linear-gradient(150deg,#233146f9 0%,#151f35fc 48%,#101a29fe 100%);
+  box-shadow:0 22px 60px #000e,0 0 0 1px #0b152c,inset 0 1px #fff2;
+  scrollbar-width:thin;scrollbar-color:#788da6 #152033;pointer-events:none;
+}
+.ability-card{min-width:0;color:#dce5f3;font:500 12px/1.5 Inter,sans-serif}
+.floating-ability-tooltip .ability-card{padding:16px 18px 12px}
+.detail-ability-section .ability-card{
+  padding:15px 16px 12px;background:linear-gradient(150deg,#1b2c44,#111d30);
+  border:1px solid #71849c96;border-top:2px solid #cfb77d;border-radius:9px;
+  box-shadow:inset 0 1px #fff1,0 8px 22px #0005;
+}
+.ability-card-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+.ability-card-eyebrow{color:#98abc3;font:800 9px/1.3 Inter,sans-serif;letter-spacing:1.65px}
+.ability-card-category{
+  padding:3px 7px;border:1px solid #72839bb3;border-radius:3px;
+  background:#30435b88;color:#c6d9f2;font:800 9px/1 Inter,sans-serif;letter-spacing:.7px;
+}
+.ability-card-physical .ability-card-category{color:#ffd6ab;border-color:#b88255}
+.ability-card-special .ability-card-category{color:#bad7ff;border-color:#7299ce}
+.ability-card-hybrid .ability-card-category{color:#dfd2ff;border-color:#b0a0df}
+.ability-card-name{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 9px;
+  color:#f7e2b3;font:900 23px/1.05 'Barlow Condensed',sans-serif;
+  letter-spacing:.3px;text-shadow:0 1px 0 #0007;
+}
+.ability-mode{
+  padding:3px 6px;border-radius:4px;background:#48668b50;color:#c8dcf9;
+  font:800 9px/1.2 Inter,sans-serif;letter-spacing:.7px;text-shadow:none;
+}
+.ability-card-description,.floating-ability-tooltip .ability-card-description{
+  margin:0 0 13px;color:#d1d8e5;font:500 12px/1.57 Inter,sans-serif;
+}
+.ability-section-title{
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;
+  color:#dfc58f;font:800 10px/1.2 Inter,sans-serif;letter-spacing:1.1px;
+}
+.ability-section-title:after{content:"";height:1px;background:linear-gradient(90deg,#c6ac7659,transparent);flex:1}
+.ability-section-title span{
+  margin-left:auto;color:#91a1b7;letter-spacing:.2px;font:700 8px/1.2 Inter,sans-serif;
+}
+.ability-scaling{display:flex;flex-direction:column;gap:1px;margin-bottom:13px;border:1px solid #62748e52;border-radius:6px;overflow:hidden}
+.ability-scaling-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  gap:3px 12px;padding:8px 10px;background:#26365065;
+}
+.ability-scaling-row:nth-child(even){background:#1d2c446d}
+.ability-scaling-label{min-width:0;color:#bfcbda;font:600 11px/1.4 Inter,sans-serif}
+.ability-scaling-values{
+  display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:3px 4px;
+  min-width:0;max-width:215px;text-align:right;
+  font:800 14px/1.2 'Barlow Condensed',sans-serif;font-variant-numeric:tabular-nums;
+}
+.ability-flat{color:#f3e5c6}
+.ability-plus{font:700 11px/1 Inter,sans-serif;color:#8a9ab2}
+.ability-coefficient{white-space:nowrap;color:#b8ddff}
+.ability-coefficient small{font:800 9px/1 Inter,sans-serif;color:inherit;opacity:.92}
+.ability-coefficient-atk{color:#f4b777}
+.ability-coefficient-spa{color:#9fc9ff}
+.ability-coefficient-def{color:#9de1ca}
+.ability-coefficient-hp{color:#eaa6ae}
+.ability-scaling-note{grid-column:1 / -1;font:500 10px/1.4 Inter,sans-serif;color:#9eafc5}
+.ability-utility-note{margin:6px 0 14px;color:#b3c4dc;font:600 11px/1.5 Inter,sans-serif}
+.ability-evolution{margin:11px 0 9px}
+.ability-evolution-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:6px}
+.ability-evolution-stage{
+  min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  padding:9px 8px;min-height:95px;background:#18283cd9;
+  border:1px solid #53688299;border-radius:5px;
+}
+.ability-evolution-stage.is-current{
+  background:linear-gradient(150deg,#28505a,#1c3549);border-color:#cfb77e;
+  box-shadow:inset 0 0 0 1px #f3d7a322;
+}
+.ability-evolution-stage>small{color:#92a5be;font:800 8px/1 Inter,sans-serif;letter-spacing:.8px}
+.ability-evolution-stage.is-current>small{color:#f1cf91}
+.ability-evolution-stage>b{max-width:100%;color:#f2e9d6;font:800 13px/1.15 'Barlow Condensed',sans-serif;overflow-wrap:anywhere}
+.ability-evolution-stage>span{color:#a8b9d0;font:500 9px/1.25 Inter,sans-serif;overflow-wrap:anywhere}
+.ability-evolution-power{
+  margin-top:auto;display:flex;align-items:center;flex-wrap:wrap;gap:3px 4px;
+  font:800 12px/1.25 'Barlow Condensed',sans-serif;
+}
+.ability-evolution-power .ability-coefficient small{font-size:8px}
+.ability-card-footer{
+  padding-top:9px;border-top:1px solid #6c80934d;color:#92a4bb;
+  font:500 9px/1.55 Inter,sans-serif;
+}
+.detail-ability-section .detail-basic{margin:12px 0 0}
+@media(max-width:520px){
+  .floating-ability-tooltip .ability-card{padding:13px 12px 10px}
+  .ability-card-name{font-size:21px}
+  .ability-scaling-row{grid-template-columns:1fr;gap:4px}
+  .ability-scaling-values{justify-content:flex-start;max-width:100%;text-align:left}
+  .ability-evolution-grid{grid-template-columns:repeat(auto-fit,minmax(83px,1fr))}
+  .ability-evolution-stage{padding:7px 6px}
+}
