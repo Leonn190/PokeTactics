@@ -1217,3 +1217,8 @@
 
 /* A tooltip fixada pode ser rolada e inspecionada sem fechar. */
 .floating-ability-tooltip.is-pinned{pointer-events:auto}
+
+.ability-evolution-extra{margin-top:4px;padding-top:5px;border-top:1px solid #59738a55;color:#acbed1;font:600 9px/1.35 Inter,sans-serif}
+.ability-evolution-extra .ability-flat{color:#e0d3b4}
+.ability-evolution-extra .ability-coefficient{font:800 11px/1.2 'Barlow Condensed',sans-serif}
+.ability-evolution-extra .ability-coefficient small{font:800 8px/1 Inter,sans-serif}
