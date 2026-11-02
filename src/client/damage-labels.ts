@@ -58,7 +58,6 @@ function stageSummary(family: Family, stage: number): {moveName:string; primary:
 
 /** Shared rich TFT-style skill card for all normal stages, forms and Mewtwo modes. */
 export function abilityCard(family: Family, stage: number, description: string, formId?: string, mewtwoMode?: 'melee'|'ranged'): string {
-  const species = SPECIES[family];
   const stageData = getStageData(family,stage,formId,mewtwoMode);
   const move = ATTACKS.moves[stageData.move];
   const rows = abilityScaling(move,stage);
