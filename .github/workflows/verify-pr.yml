@@ -20,4 +20,5 @@ jobs:
       - run: npm ci
       - run: npm run validate:config
       - run: npm run check
+      - run: npx tsx scripts/check-v25-6-tooltips.ts
       - run: npm run build
