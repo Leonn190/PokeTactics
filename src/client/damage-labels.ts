@@ -52,7 +52,7 @@ function evolutionLine(family: Family): EvolutionStage[] {
 
 function stageSummary(family: Family, stage: number): {moveName:string; primary:string; extra?:string} {
   const move = ATTACKS.moves[getStageData(family,stage).move];
-  const rows=abilityScaling(move,stage);
+  const rows=abilityScaling(move,stage,family);
   const primary=rows[0] ? formula(rows[0]) : '<span class="ability-flat">Efeito utilitário</span>';
   // A few abilities improve their number of hits, healing, protection or
   // duration rather than their first damage line. Show that evolution too.
