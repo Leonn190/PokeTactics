@@ -212,3 +212,11 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 - **Integração:** HUD continua renderizando os mesmos slots e tooltips em `src/client/hud.ts`; `ObservedItemRacks` reaproveita a aparência sem permitir arraste de itens de adversários. `main.ts` atualiza projeção em zoom, resize e mudança de fase/arena.
 - **Revisão:** verificar `npm run validate:config`, `npm run check`, `npm run build`; visualmente conferir gramado e borda em zoom mínimo/máximo, slots de banco, arraste e devolução de itens, scouting, arena quádrupla e espectador eliminado. Sem novas dependências, suites de testes ou alterações de configuração.
 
+
+## V25.5 — apresentação única das habilidades e coeficientes
+
+- **Fonte de verdade:** `server/damage-preview.ts#abilityScaling` expõe coeficientes de dano, cura, barreira e efeitos diretamente de `config/ataques.json`. Não define novas fórmulas autoritativas nem altera o simulador; preserva `previewAbility` para usos existentes.
+- **Componente:** `src/client/damage-labels.ts#abilityCard` cria o mesmo card para a ficha do Pokémon e o catálogo, com descrições reutilizadas de `src/client/menus.ts#moveDescription`; não duplicar rótulos/evoluções em dois templates.
+- **Evoluções:** a linha por estágio consulta `getStageData` para cada forma, inclusive famílias cuja habilidade troca por completo; destaca o estágio selecionado. Mewtwo respeita modo de combate do snapshot.
+- **Interação e estilo:** `src/client/main.ts` mantém o portal flutuante fora dos painéis, com abertura por mouse/foco/clique e posicionamento adaptativo. `src/styles/global.css` concentra a apresentação e rolagem em telas menores. A antiga linha redundante de energia e alcance da habilidade foi removida, mas o quadrado separado de alcance do ataque regular continua na ficha.
+- **Revisão:** conferir habilidades ofensivas, híbridas, de cura, proteção, controle e sem dano; famílias com habilidades distintas na evolução, Mega e modos de Mewtwo, além de preparação, combate, espectador e elenco. Executar `npm run validate:config`, `npm run check` e `npm run build`. Sem suites de testes, sem mudanças em assets ou balanceamento.
