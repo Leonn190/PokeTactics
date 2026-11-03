@@ -1,6 +1,6 @@
 import type { Configurator } from './configurator/editor';
 import { alternativeForm,MEGA } from '../../server/forms';
-import { ATTACKS, ELEMENTS, getStageData, RARITY_COLORS, SPECIES, evolutionCopies } from '../../server/data';
+import { ATTACKS, ELEMENTS, getStageData, RARITY_COLORS, SPECIES, evolutionCopies, baseStats } from '../../server/data';
 import type { MoveData } from '../../server/data';
 import { previewBasic } from '../../server/damage-preview';
 import { abilityCard, damageHtml } from './damage-labels';
@@ -220,7 +220,7 @@ export class Menus {
     const species = SPECIES[family];
     const data = getStageData(family, stage,formId);
     const move = ATTACKS.moves[data.move];
-    const stats = alternativeForm(family,stage,formId)?.base || species.stageBases?.[stage] || species.base;
+    const stats = baseStats(family,stage,formId);
     const total = Math.round(stats.hp / 5 + stats.atk + stats.def + stats.spa + stats.spd + stats.speed);
     const basic = previewBasic(family, stage, stats);
     const chain = species.eeveeBranch ? ['Eevee', name] : species.names;
