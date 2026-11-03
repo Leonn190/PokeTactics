@@ -1,7 +1,7 @@
 /** V25: immutable alternative-form definitions. Only the owning server may write formId. */
 import config from '../config/mega_formas.json';
 import type { Element, Family, Stats, Pokemon } from './types';
-export interface AlternativeForm {id:string;family:Family;stage:number;name:string;elements:Element[];base:Stats;pokedexId:number}
+export interface AlternativeForm {id:string;family:Family;stage:number;name:string;elements:Element[];base:Stats;pokedexId:number;pmdVariant:string}
 export const MEGA = config;
 const entries=config.forms as AlternativeForm[];
 const index=new Map(entries.map(form=>[`${form.family}:${form.stage}:${form.id}`,form]));

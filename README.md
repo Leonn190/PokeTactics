@@ -1,6 +1,13 @@
-# PokéTactics — V25.5 (Tooltips de habilidades no estilo TFT)
+# PokéTactics — V25.9 (Mega e novas famílias)
 
 PokéTactics é um jogo de estratégia com combates automáticos, Pokémon, loja, evoluções, itens, espólios, augments e sinergias. Ele usa **Astro + TypeScript**, Canvas e sprites/animações PMD. As partidas atuais são **simuladas localmente**, com adversários controlados por bots; ainda não existe multiplayer real nem backend de partidas online.
+
+## V25.9 — Mega Evolução e novas famílias
+
+- Mega Evoluções e formas regionais agora utilizam as animações PMD de suas pastas de variantes (não mais o ID alternativo da PokeAPI). Os atributos-base da forma transformada nunca ficam abaixo dos valores da forma original, preservando nível e IV.
+- **Porygon → Porygon2 → Porygon-Z (raro):** Pulso de Conversão encadeia energia digital em até 2/3/4 inimigos, com dano especial baseado em SpA decrescendo 37% a cada salto.
+- **Shellder → Cloyster (incomum):** Estilhaços de Concha distribui 2/4 disparos gelados entre até 1/2 inimigos e concede uma barreira temporária baseada em SpA.
+- Todos utilizam os sprites PMD e retratos locais existentes. O manifesto de animações é gerado no `predev`/`prebuild` a partir do acervo do repositório.
 
 ## V25.5 — habilidades explicadas com escalamento
 

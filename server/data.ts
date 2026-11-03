@@ -43,7 +43,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam' | 'mewtwo-barrage' | 'mewtwo-impact' | 'moltres-fire' | 'zapdos-storm' | 'articuno-blizzard' | 'tentacle-grasp';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam' | 'mewtwo-barrage' | 'mewtwo-impact' | 'moltres-fire' | 'zapdos-storm' | 'articuno-blizzard' | 'tentacle-grasp' | 'digital-chain' | 'ice-shards';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -101,6 +101,8 @@ export type MoveData = {
   tentacleDamageByStage?:number[]; tentacleRatioByStage?:number[]; tentacleMaxTargetsByStage?:number[];
   tentacleRadius?:number; tentacleTickSeconds?:number; tentacleSlowSeconds?:number;
   tentacleSlowFraction?:number; tentacleShareFraction?:number; tentaclePullDistance?:number;
+  /** V25.9: chain attenuation and the number of shell projectiles by evolution stage. */
+  bounceMultiplier?:number; shotsByStage?:number[];
   /** V25.8: protected SpD passive and evolved physical regular attack. */
   shieldSpdBonusPercentByStage?:number[]; basicSpdFractionByStage?:number[];
 };
@@ -220,9 +222,17 @@ export const BOARD_COLUMNS = RULES.boardColumns;
 export const BOARD_ROWS = RULES.boardRows;
 
 /** Níveis além de 100 são intencionais: chefes PvE continuam escalando a cada capítulo. */
-export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false, effectiveIv = false, formId?:string): Stats {
+/** Mega and regional variants are upgrades: never discard an existing base stat. */
+export function baseStats(family: Family, stage: number, formId?:string, boss = false): Stats {
   const species = SPECIES[family];
-  const base = (!boss && alternativeForm(family,stage,formId)?.base) || (boss && species.bossBase) || species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
+  const regular = (boss && species.bossBase) || species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
+  const form = !boss ? alternativeForm(family, stage, formId) : undefined;
+  if (!form) return regular;
+  return Object.fromEntries((Object.keys(regular) as Array<keyof Stats>)
+    .map(key => [key, Math.max(regular[key], form.base[key])])) as unknown as Stats;
+}
+export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false, effectiveIv = false, formId?:string): Stats {
+  const base = baseStats(family, stage, formId, boss);
   const formula = RULES.statFormula;
   const levelScale = 1 + Math.max(0, level - 1) * formula.levelPerPoint;
   return Object.fromEntries((Object.keys(base) as Array<keyof Stats>).map(key => [

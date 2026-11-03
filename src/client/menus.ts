@@ -1,6 +1,6 @@
 import type { Configurator } from './configurator/editor';
 import { alternativeForm,MEGA } from '../../server/forms';
-import { ATTACKS, ELEMENTS, getStageData, RARITY_COLORS, SPECIES, evolutionCopies } from '../../server/data';
+import { ATTACKS, ELEMENTS, getStageData, RARITY_COLORS, SPECIES, evolutionCopies, baseStats } from '../../server/data';
 import type { MoveData } from '../../server/data';
 import { previewBasic } from '../../server/damage-preview';
 import { abilityCard, damageHtml } from './damage-labels';
@@ -23,6 +23,8 @@ function portrait(dex: number, name: string, className: string,formId?:string): 
 
 export function moveDescription(move: MoveData): string {
   const effects: Record<MoveData['effect'], string> = {
+    'digital-chain':'Projeta um pulso digital contra o alvo e salta para 1/2/3 adversários próximos. Cada salto causa 63% do dano do anterior, escalando com SpA.',
+    'ice-shards':'Dispara 2/4 estilhaços gelados entre até 1/2 inimigos próximos; cada estilhaço causa dano especial baseado em SpA. Recebe barreira de SpA por 4 segundos.',
     'mewtwo-barrage':'Lança 3 projéteis angulados, depois 5 e um grande projétil perfurante, com impacto real e dano especial.',
     'mewtwo-impact':'Soco físico em área: empurra inimigos uma casa e concede barreira.',
     'moltres-fire':'Passiva: aura de fogo periódica. Ativa: incendeia inimigos próximos e recebe barreira por adversário queimado.',
@@ -220,7 +222,7 @@ export class Menus {
     const species = SPECIES[family];
     const data = getStageData(family, stage,formId);
     const move = ATTACKS.moves[data.move];
-    const stats = alternativeForm(family,stage,formId)?.base || species.stageBases?.[stage] || species.base;
+    const stats = baseStats(family,stage,formId);
     const total = Math.round(stats.hp / 5 + stats.atk + stats.def + stats.spa + stats.spd + stats.speed);
     const basic = previewBasic(family, stage, stats);
     const chain = species.eeveeBranch ? ['Eevee', name] : species.names;

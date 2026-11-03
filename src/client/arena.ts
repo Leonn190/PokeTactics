@@ -5,6 +5,7 @@ import { PerformanceProfiler } from './performance/profiler';
 import { SnapshotClock } from './animation/snapshot-clock';
 import { EffectTimeline } from './animation/effect-timeline';
 import { SpriteManager } from './animation/sprite-manager';
+import { pmdSource } from './animation/pmd-source';
 import { UnitInterpolator } from './animation/unit-interpolator';
 import { VisualEventManager } from './animation/visual-event-manager';
 import { OrientationController } from './animation/orientation';
@@ -71,7 +72,7 @@ export class Arena {
   private profiler = new PerformanceProfiler();
   private renderLead = 0;
   private spriteBounds = new SpriteBoundsCache();
-  private warmedSpecies = new Set<number>();
+  private warmedSpecies = new Set<string>();
   private planningCache: { key: string; scout: string; markers: Marker[] } | null = null;
   private pillarPreview:{unitId:string;index:number;col:number;row:number}|null=null;
   previewPillar(value:{unitId:string;index:number;col:number;row:number}|null):void{this.pillarPreview=value;}
@@ -141,9 +142,10 @@ export class Arena {
       this.unitInterpolator.sync(snapshot.visibleBattle.id, snapshot.visibleBattle.units, arrivedAt);
       // Download Rotate during the 1.5s arrival, before the first orientation turn.
       for (const unit of snapshot.visibleBattle.units) {
-        const dex = SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
-        const anims = PMD[String(dex)];
-        if (anims && !this.warmedSpecies.has(dex)) this.warmAnimationSheets(dex, anims, unit.family, unit.stage);
+        const source = pmdSource(unit.family,unit.stage,unit.formId);
+        const available = PMD[source.key] ? source : pmdSource(unit.family,unit.stage);
+        const anims = PMD[available.key];
+        if (anims && !this.warmedSpecies.has(available.key)) this.warmAnimationSheets(available, anims, unit.family, unit.stage);
       }
     }
     else this.unitInterpolator.reset();
@@ -390,9 +392,9 @@ export class Arena {
     return this.spriteManager.get(url);
   }
 
-  private warmAnimationSheets(dex: number, anims: PmdEntry, family: Family, stage: number): void {
-    if (this.warmedSpecies.has(dex)) return;
-    this.warmedSpecies.add(dex);
+  private warmAnimationSheets(source: ReturnType<typeof pmdSource>, anims: PmdEntry, family: Family, stage: number): void {
+    if (this.warmedSpecies.has(source.key)) return;
+    this.warmedSpecies.add(source.key);
     const moves=getStageData(family,stage);
     const extras=family==='magikarp' && stage===1?['RearUp','Rumble']
       :family==='staryu'?['Twirl']
@@ -401,7 +403,7 @@ export class Arena {
       :[];
     for (const action of new Set([...RENDER_SETTINGS.idleSpritePreload,'Rotate',
       moves.basic.animation,moves.chargedAnimation,...extras])) {
-      if (anims[action]) this.image(`${import.meta.env.BASE_URL}sprite/${String(dex).padStart(4, '0')}/${anims[action].file}`);
+      if (anims[action]) this.image(`${import.meta.env.BASE_URL}sprite/${source.folder}/${anims[action].file}`);
     }
   }
 
@@ -413,10 +415,12 @@ export class Arena {
   /** Retorna o topo VISÍVEL do sprite para posicionar nível/vida/energia. */
   private drawPokemonSprite(x: number, y: number, unit: Marker, time: number): number {
     const ctx = this.context;
-    const id = alternativeForm(unit.family,unit.stage,unit.formId)?.pokedexId||SPECIES[unit.family].pokedexIds[Math.min(unit.stage, SPECIES[unit.family].pokedexIds.length - 1)];
-    const anims = PMD[String(id)];
+    const source = pmdSource(unit.family,unit.stage,unit.formId);
+    const available = PMD[source.key] ? source : pmdSource(unit.family,unit.stage);
+    const id = alternativeForm(unit.family,unit.stage,unit.formId)?.pokedexId || source.dex;
+    const anims = PMD[available.key];
     if (anims) {
-      this.warmAnimationSheets(id, anims, unit.family, unit.stage);
+      this.warmAnimationSheets(available, anims, unit.family, unit.stage);
       const statusTime=this.snapshot?.visibleBattle?.elapsed||0;
       const status=unit.statuses;
       const asleep=!!status?.sleeping&&status.sleeping.until>statusTime;
@@ -439,11 +443,11 @@ export class Arena {
         : ['Charge','Attack','Shoot','Idle'];
       let selectedAction = turning ? 'Rotate' : anims[action] ? action : fallbacks.find(name=>anims[name]) || 'Idle';
       let animation = anims[selectedAction];
-      let url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
+      let url = `${import.meta.env.BASE_URL}sprite/${available.folder}/${animation.file}`;
       let sprite = this.image(url);
       if ((!sprite.complete || !sprite.naturalWidth) && selectedAction !== 'Idle') {
         selectedAction = 'Idle'; animation = anims.Idle;
-        url = `${import.meta.env.BASE_URL}sprite/${String(id).padStart(4, '0')}/${animation.file}`;
+        url = `${import.meta.env.BASE_URL}sprite/${available.folder}/${animation.file}`;
         sprite = this.image(url);
       }
       if (sprite.complete && sprite.naturalWidth) {
@@ -913,8 +917,9 @@ export class Arena {
     }
     // The PMD sprite itself already contains the ground under Diglett/Dugtrio.
     // Shadow markers are metadata, never an additional soil decal.
-    const dex=alternativeForm(unit.family,unit.stage,unit.formId)?.pokedexId||SPECIES[unit.family].pokedexIds[Math.min(unit.stage,SPECIES[unit.family].pokedexIds.length-1)];
-    const sheetSet=PMD[String(dex)];
+    const source=pmdSource(unit.family,unit.stage,unit.formId);
+    const key=PMD[source.key]?source.key:pmdSource(unit.family,unit.stage).key;
+    const sheetSet=PMD[key];
     const action=unit.animation?.name || (unit.moving?'Walk':'Idle');
     const sheet=sheetSet?.[action] || sheetSet?.Idle;
     const currentFrame=sheet&&unit.animation?.duration
@@ -944,13 +949,13 @@ export class Arena {
     }
     // With ground markers, Hop art already describes vertical body travel.
     // Do not stack the physics jump on top of the sprite's built-in jump.
-    const bakedHop=unit.animation?.name==='Hop' && !!PMD[String(dex)]?.Hop?.shadowMarkers;
+    const bakedHop=unit.animation?.name==='Hop' && !!PMD[key]?.Hop?.shadowMarkers;
     const lift = (bakedHop?0:(unit.jumpHeight || 0)) +
       (unit.knockUpTime ? .55 * Math.sin(Math.PI * (1 - Math.min(1, unit.knockUpTime / (unit.knockUpDuration || .35)))) : 0);
     if(ghost?.phase==='appear'){ctx.save();ctx.globalAlpha=.38+.62*ghost.time/ghost.duration;ctx.shadowColor='#c99dff';ctx.shadowBlur=16;}
     const motion = cosmeticMotion({family:unit.family,stage:unit.stage,animation:unit.animation||null,
       facingX:unit.facingX||0,facingY:unit.facingY||0,leap:unit.leap||null,jumpHeight:unit.jumpHeight||0},
-      this.cellScale,unit.animation?.name==='Hop'&&!!PMD[String(dex)]?.Hop);
+      this.cellScale,unit.animation?.name==='Hop'&&!!PMD[key]?.Hop);
     const spriteX = p.x + motion.dx, spriteY = p.y - lift * this.cellScale + motion.dy;
     ctx.save();
     if (motion.scale !== 1) { ctx.translate(spriteX,spriteY);ctx.scale(motion.scale,motion.scale);ctx.translate(-spriteX,-spriteY); }

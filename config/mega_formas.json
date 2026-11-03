@@ -23,7 +23,8 @@
         "spd": 104,
         "speed": 121
       },
-      "pokedexId": 10034
+      "pokedexId": 10034,
+      "pmdVariant": "0001"
     },
     {
       "id": "mega-alakazam",
@@ -41,7 +42,8 @@
         "spd": 117,
         "speed": 171
       },
-      "pokedexId": 10037
+      "pokedexId": 10037,
+      "pmdVariant": "0001"
     },
     {
       "id": "mega-gengar",
@@ -60,7 +62,8 @@
         "spd": 108,
         "speed": 150
       },
-      "pokedexId": 10038
+      "pokedexId": 10038,
+      "pmdVariant": "0001"
     },
     {
       "id": "mega-steelix",
@@ -79,7 +82,8 @@
         "spd": 104,
         "speed": 48
       },
-      "pokedexId": 10072
+      "pokedexId": 10072,
+      "pmdVariant": "0001"
     },
     {
       "id": "mega-aerodactyl",
@@ -98,7 +102,8 @@
         "spd": 109,
         "speed": 150
       },
-      "pokedexId": 10042
+      "pokedexId": 10042,
+      "pmdVariant": "0001"
     },
     {
       "id": "mega-mewtwo-y",
@@ -116,7 +121,8 @@
         "spd": 140,
         "speed": 155
       },
-      "pokedexId": 10044
+      "pokedexId": 10044,
+      "pmdVariant": "0003"
     },
     {
       "id": "galar",
@@ -135,7 +141,8 @@
         "spd": 130,
         "speed": 113
       },
-      "pokedexId": 10169
+      "pokedexId": 10169,
+      "pmdVariant": "0001"
     },
     {
       "id": "galar",
@@ -154,7 +161,8 @@
         "spd": 108,
         "speed": 126
       },
-      "pokedexId": 10170
+      "pokedexId": 10170,
+      "pmdVariant": "0001"
     },
     {
       "id": "galar",
@@ -173,7 +181,8 @@
         "spd": 130,
         "speed": 110
       },
-      "pokedexId": 10171
+      "pokedexId": 10171,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -192,7 +201,8 @@
         "spd": 47,
         "speed": 85
       },
-      "pokedexId": 10091
+      "pokedexId": 10091,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -211,7 +221,8 @@
         "spd": 75,
         "speed": 118
       },
-      "pokedexId": 10092
+      "pokedexId": 10092,
+      "pmdVariant": "0001"
     },
     {
       "id": "galar",
@@ -230,7 +241,8 @@
         "spd": 133,
         "speed": 52
       },
-      "pokedexId": 10167
+      "pokedexId": 10167,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -249,7 +261,8 @@
         "spd": 51,
         "speed": 34
       },
-      "pokedexId": 10109
+      "pokedexId": 10109,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -268,7 +281,8 @@
         "spd": 79,
         "speed": 46
       },
-      "pokedexId": 10110
+      "pokedexId": 10110,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -287,7 +301,8 @@
         "spd": 105,
         "speed": 62
       },
-      "pokedexId": 10111
+      "pokedexId": 10111,
+      "pmdVariant": "0001"
     },
     {
       "id": "hisui",
@@ -306,7 +321,8 @@
         "spd": 66,
         "speed": 66
       },
-      "pokedexId": 10229
+      "pokedexId": 10229,
+      "pmdVariant": "0001"
     },
     {
       "id": "hisui",
@@ -325,7 +341,8 @@
         "spd": 105,
         "speed": 112
       },
-      "pokedexId": 10230
+      "pokedexId": 10230,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -343,7 +360,8 @@
         "spd": 79,
         "speed": 77
       },
-      "pokedexId": 10103
+      "pokedexId": 10103,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -362,7 +380,8 @@
         "spd": 130,
         "speed": 130
       },
-      "pokedexId": 10104
+      "pokedexId": 10104,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -381,7 +400,8 @@
         "spd": 58,
         "speed": 103
       },
-      "pokedexId": 10105
+      "pokedexId": 10105,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -400,7 +420,8 @@
         "spd": 99,
         "speed": 135
       },
-      "pokedexId": 10106
+      "pokedexId": 10106,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -419,7 +440,8 @@
         "spd": 66,
         "speed": 39
       },
-      "pokedexId": 10112
+      "pokedexId": 10112,
+      "pmdVariant": "0001"
     },
     {
       "id": "alola",
@@ -438,7 +460,8 @@
         "spd": 117,
         "speed": 60
       },
-      "pokedexId": 10113
+      "pokedexId": 10113,
+      "pmdVariant": "0001"
     }
   ]
 }

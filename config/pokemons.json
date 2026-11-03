@@ -5533,6 +5533,189 @@
         4
       ],
       "rangeLevel": 3
+    },
+    "porygon": {
+      "names": [
+        "Porygon",
+        "Porygon2",
+        "Porygon-Z"
+      ],
+      "pokedexIds": [
+        137,
+        233,
+        474
+      ],
+      "rarity": 3,
+      "shop": true,
+      "glow": "#f39fb5",
+      "base": {
+        "hp": 350,
+        "atk": 48,
+        "def": 57,
+        "spa": 80,
+        "spd": 67,
+        "speed": 45
+      },
+      "stageBases": [
+        {
+          "hp": 350,
+          "atk": 48,
+          "def": 57,
+          "spa": 80,
+          "spd": 67,
+          "speed": 45
+        },
+        {
+          "hp": 510,
+          "atk": 68,
+          "def": 83,
+          "spa": 108,
+          "spd": 99,
+          "speed": 57
+        },
+        {
+          "hp": 575,
+          "atk": 83,
+          "def": 95,
+          "spa": 120,
+          "spd": 104,
+          "speed": 99
+        }
+      ],
+      "energy": 85,
+      "attack": "conversion-pulse",
+      "elements": [
+        "normal"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "spell"
+      },
+      "stages": [
+        {
+          "elements": [
+            "normal"
+          ],
+          "energy": 85,
+          "move": "conversion-pulse",
+          "chargedType": "normal",
+          "chargedAnimation": "Shoot",
+          "rangeLevel": 4
+        },
+        {
+          "elements": [
+            "normal"
+          ],
+          "energy": 95,
+          "move": "conversion-pulse",
+          "chargedType": "normal",
+          "chargedAnimation": "Shoot",
+          "rangeLevel": 4
+        },
+        {
+          "elements": [
+            "normal"
+          ],
+          "energy": 105,
+          "move": "conversion-pulse",
+          "chargedType": "normal",
+          "chargedAnimation": "Shoot",
+          "rangeLevel": 4
+        }
+      ],
+      "physicalSizes": [
+        0.95,
+        1,
+        1.12
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ],
+      "rangeLevel": 4
+    },
+    "shellder": {
+      "names": [
+        "Shellder",
+        "Cloyster"
+      ],
+      "pokedexIds": [
+        90,
+        91
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#8bcbe9",
+      "base": {
+        "hp": 315,
+        "atk": 43,
+        "def": 83,
+        "spa": 66,
+        "spd": 47,
+        "speed": 37
+      },
+      "stageBases": [
+        {
+          "hp": 315,
+          "atk": 43,
+          "def": 83,
+          "spa": 66,
+          "spd": 47,
+          "speed": 37
+        },
+        {
+          "hp": 510,
+          "atk": 68,
+          "def": 119,
+          "spa": 106,
+          "spd": 72,
+          "speed": 59
+        }
+      ],
+      "energy": 70,
+      "attack": "shell-shards",
+      "elements": [
+        "water"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "water"
+      },
+      "stages": [
+        {
+          "elements": [
+            "water"
+          ],
+          "energy": 70,
+          "move": "shell-shards",
+          "chargedType": "ice",
+          "chargedAnimation": "Shoot",
+          "rangeLevel": 3
+        },
+        {
+          "elements": [
+            "water",
+            "ice"
+          ],
+          "energy": 85,
+          "move": "shell-shards",
+          "chargedType": "ice",
+          "chargedAnimation": "Shoot",
+          "rangeLevel": 3
+        }
+      ],
+      "physicalSizes": [
+        0.87,
+        1.1
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "rangeLevel": 3
     }
   }
 }

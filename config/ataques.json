@@ -1214,6 +1214,58 @@
         0,
         0.4
       ]
+    },
+    "conversion-pulse": {
+      "name": "Pulso de Conversão",
+      "effect": "digital-chain",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "damageByStage": [
+        48,
+        66,
+        90
+      ],
+      "damageRatioByStage": [
+        0.66,
+        0.76,
+        0.88
+      ],
+      "secondaryTargetsByStage": [
+        1,
+        2,
+        3
+      ],
+      "chainRange": 2.25,
+      "bounceMultiplier": 0.63
+    },
+    "shell-shards": {
+      "name": "Estilhaços de Concha",
+      "effect": "ice-shards",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "damageByStage": [
+        21,
+        27
+      ],
+      "damageRatioByStage": [
+        0.25,
+        0.29
+      ],
+      "shotsByStage": [
+        2,
+        4
+      ],
+      "secondaryTargetsByStage": [
+        1,
+        2
+      ],
+      "splashRange": 1.75,
+      "shieldBaseByStage": [
+        26,
+        58
+      ],
+      "shieldSpaRatio": 0.48,
+      "shieldDuration": 4
     }
   }
 }

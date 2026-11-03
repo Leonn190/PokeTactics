@@ -1,8 +1,9 @@
 /** Static, read-only configuration validation; not a test suite. Run: npm run validate:config */
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
 const read = name => JSON.parse(readFileSync(new URL('../config/' + name, import.meta.url), 'utf8'));
 const pokemons = read('pokemons.json');
+const mega = read('mega_formas.json');
 const ataques = read('ataques.json');
 const alcances = read('alcances.json');
 const regras = read('regras_gerais.json');
@@ -64,6 +65,19 @@ for (const [family, species] of Object.entries(pokemons.species)) {
     species.physicalSizes.forEach((n,i) => check(finite(n) && n >= .5 && n <= 1.8, label + ': tamanho inválido na forma ' + i));
   }
   if (species.evolutionCopies) species.evolutionCopies.forEach((n,i) => check(Number.isInteger(n) && n >= 2 && n <= 15, label + ': cópias inválidas na etapa ' + i));
+}
+// Mega/regionais must refer to an animated folder inside their regular species Dex.
+for (const form of mega.forms) {
+  const species = pokemons.species[form.family];
+  check(Boolean(species), 'Mega: família desconhecida ' + form.family);
+  check(Number.isInteger(form.stage) && form.stage >= 0 && form.stage < (species?.names.length ?? 0), 'Mega: estágio inválido ' + form.id);
+  assertStats(form.base, 'Mega ' + form.id + '.base');
+  check(/^\d{4}$/.test(form.pmdVariant || ''), 'Mega: variante PMD ausente ' + form.id);
+  if (species?.pokedexIds[form.stage] && /^\d{4}$/.test(form.pmdVariant || '')) {
+    const dex = String(species.pokedexIds[form.stage]).padStart(4,'0');
+    check(existsSync(new URL(`../public/sprite/${dex}/${form.pmdVariant}/AnimData.xml`,import.meta.url)),
+      'Mega: PMD não encontrado ' + form.id + ' (' + dex + '/' + form.pmdVariant + ')');
+  }
 }
 const odds = regras.shopOddsByLevel;
 check(Array.isArray(odds) && odds.length > 0, 'Tabela de probabilidades da loja ausente');

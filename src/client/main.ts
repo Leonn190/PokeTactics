@@ -9,9 +9,10 @@ import { SandboxView } from './sandbox';
 import { GameAudio } from './audio';
 import { BENCH_SIZE, SPECIES, physicalSize } from '../../server/data';
 import { markerAt, type PmdSheet } from './animation/pmd-metadata';
+import { pmdSource } from './animation/pmd-source';
 import { ITEMS } from '../../server/systems/items';
 import pmdManifest from './pmd-manifest.json';
-import { eligibleForm } from '../../server/forms';
+import { eligibleForm, alternativeForm } from '../../server/forms';
 import type { BallKind, ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
 // The provided PMD manifest does not yet include every portrait (notably
@@ -344,10 +345,11 @@ function startDrag(id: string, event: PointerEvent): void {
   hud.render(state, view);
 }
 
-function setDragSprite(family: keyof typeof SPECIES, stage: number, bench:boolean): void {
+function setDragSprite(family: keyof typeof SPECIES, stage: number, formId:string|undefined, bench:boolean): void {
   const species = SPECIES[family];
-  const dex = species.pokedexIds[Math.min(stage, species.pokedexIds.length - 1)];
-  ghostIdle = pmd[String(dex)]?.Idle || null;
+  const source = pmdSource(family,stage,formId);
+  const available = pmd[source.key] ? source : pmdSource(family,stage);
+  ghostIdle = pmd[available.key]?.Idle || null;
   const scale = arena.dragSpriteScale()*physicalSize(family,stage)*(bench ? .95/1.13 : 1);
   const size = ghostIdle ? { w: ghostIdle.width * scale, h: ghostIdle.height * scale } : { w: scale * 48, h: scale * 48 };
   const ground=ghostIdle ? markerAt(ghostIdle,'shadow',0,0)?.ground : undefined;
@@ -362,7 +364,8 @@ function setDragSprite(family: keyof typeof SPECIES, stage: number, bench:boolea
   ghostImage.decoding = 'async';
   const fallbackPath=species.sprites[Math.min(stage, species.sprites.length-1)];
   ghostImage.src=ghostIdle
-    ? `${import.meta.env.BASE_URL}sprite/${String(dex).padStart(4, '0')}/${ghostIdle.file}`
+    ? `${import.meta.env.BASE_URL}sprite/${available.folder}/${ghostIdle.file}`
+    : formId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${alternativeForm(family,stage,formId)?.pokedexId||source.dex}.png`
     : /^https?:\/\//.test(fallbackPath) ? fallbackPath : `${import.meta.env.BASE_URL}${fallbackPath.replace(/^\.\//, '')}`;
   ghostStarted = performance.now();
 }
@@ -393,7 +396,7 @@ function updateGhost(event: PointerEvent): void {
     dragStarted = true;
     view.dragging = true;
     const unit = (state.sandbox?state.players.flatMap(p=>p.units):state.players[0].units).find(u => u.id === view.dragId);
-    if (unit) setDragSprite(unit.family, unit.stage, unit.position.area==='bench');
+    if (unit) setDragSprite(unit.family, unit.stage, unit.formId, unit.position.area==='bench');
     ghost.classList.remove('hidden');
     requestAnimationFrame(drawDraggedIdle);
     document.querySelector('.shop-row')?.classList.add('drag-selling');
