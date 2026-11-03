@@ -852,7 +852,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   // Share actual special ability damage across the Tentacruel web, but never
   // retransmit DOT, reflected, or shared hits.
   const link=target.tentacle;
-  if(mode==='normal' && magical && charged && damage>0 && link?.until>battle.elapsed){
+  if(mode==='normal' && magical && charged && damage>0 && link && link.until>battle.elapsed){
     const tetherCaster=battle.units.find(u=>u.id===link.sourceId&&u.hp>0);
     if(tetherCaster?.stage && tetherCaster.playerId===source.playerId && tetherCaster.id!==source.id){
       const ratio=ATTACKS.moves['abyssal-embrace'].tentacleShareFraction??0;
