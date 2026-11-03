@@ -1193,6 +1193,27 @@
       "tentacleSlowFraction": 0.3,
       "tentacleShareFraction": 0.2,
       "tentaclePullDistance": 0.8
+    },
+    "coconut-guard": {
+      "name": "Coroa Protetora",
+      "effect": "shield",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "shieldBaseByStage": [
+        42,
+        78
+      ],
+      "shieldBase": 42,
+      "shieldSpaRatio": 0.72,
+      "shieldDuration": 4.5,
+      "shieldSpdBonusPercentByStage": [
+        0.25,
+        0.35
+      ],
+      "basicSpdFractionByStage": [
+        0,
+        0.4
+      ]
     }
   }
 }

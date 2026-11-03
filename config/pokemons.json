@@ -5450,6 +5450,89 @@
         3
       ],
       "rangeLevel": 2
+    },
+    "exeggcute": {
+      "names": [
+        "Exeggcute",
+        "Exeggutor"
+      ],
+      "pokedexIds": [
+        102,
+        103
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#a9df79",
+      "base": {
+        "hp": 245,
+        "atk": 36,
+        "def": 45,
+        "spa": 56,
+        "spd": 57,
+        "speed": 47
+      },
+      "stageBases": [
+        {
+          "hp": 245,
+          "atk": 36,
+          "def": 45,
+          "spa": 56,
+          "spd": 57,
+          "speed": 47
+        },
+        {
+          "hp": 445,
+          "atk": 68,
+          "def": 80,
+          "spa": 94,
+          "spd": 99,
+          "speed": 59
+        }
+      ],
+      "energy": 65,
+      "attack": "coconut-guard",
+      "elements": [
+        "grass",
+        "psychic"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "seed"
+      },
+      "stages": [
+        {
+          "elements": [
+            "grass",
+            "psychic"
+          ],
+          "energy": 65,
+          "move": "coconut-guard",
+          "chargedType": "grass",
+          "chargedAnimation": "Charge",
+          "rangeLevel": 3
+        },
+        {
+          "elements": [
+            "grass",
+            "psychic"
+          ],
+          "energy": 75,
+          "move": "coconut-guard",
+          "chargedType": "grass",
+          "chargedAnimation": "Charge",
+          "rangeLevel": 3
+        }
+      ],
+      "physicalSizes": [
+        0.8,
+        1.14
+      ],
+      "evolutionCopies": [
+        4
+      ],
+      "rangeLevel": 3
     }
   }
 }

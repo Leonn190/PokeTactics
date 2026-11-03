@@ -65,7 +65,12 @@ function stat(unit: CombatUnit, key: StatKey): number {
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
   const rage=(key==='atk'||key==='speed')&&unit.family==='mankey'
     ?base*(unit.rageStacks||0)*(ATTACKS.moves['furious-leap'].ragePercentByStage?.[unit.stage]??0)*(unit.rageEmpowered?(ATTACKS.moves['furious-leap'].reviveRageMultiplier??1.5):1):0;
-  return Math.max(0, base + rage + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
+  const result = Math.max(0, base + rage + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
+  if (key==='spd' && unit.family==='exeggcute' && (((unit.barrier?.hp||0)>0 && (unit.barrier?.time||0)>0) || unit.barriers.some(b=>b.hp>0 && b.until>unit.itemNow))) {
+    const boost=ATTACKS.moves[moveIdOf(unit)].shieldSpdBonusPercentByStage?.[unit.stage]||0;
+    return result*(1+boost);
+  }
+  return result;
 }
 
 type AnimationName = NonNullable<CombatUnit['animation']>['name'];
@@ -972,7 +977,7 @@ function revertDitto(battle:Battle,ditto:CombatUnit):void {
 }
 function grantBarrier(battle: Battle, source: CombatUnit, moveId: string): void {
   const move = ATTACKS.moves[moveId];
-  const hp = ((move.shieldBase || 0) + (move.shieldDefenseRatio || 0) * stat(source,'def') + (move.shieldSpaRatio || 0) * stat(source,'spa')) * shieldMultiplier(source)*sourceShieldMultiplier(source);
+  const hp = ((move.shieldBaseByStage?.[source.stage] ?? move.shieldBase ?? 0) + (move.shieldDefenseRatio || 0) * stat(source,'def') + (move.shieldSpaRatio || 0) * stat(source,'spa')) * shieldMultiplier(source)*sourceShieldMultiplier(source);
   source.barrier = { hp, maxHp: hp, time: move.shieldDuration || 4 }; // Renova; nunca empilha.
   effect(battle, source, source, 'shield', hp);
 }
@@ -2733,7 +2738,8 @@ export function tickBattle(battle: Battle, dt: number): void {
       animate(unit, stage.basic.animation, Math.min(.4, unit.cooldown * .82), undefined, 'basic');
       const basic = ATTACKS.basic;
       const spaFraction=unit.family==='abra'?(ATTACKS.moves['psychic-teleport'].basicSpaFraction??.3):0;
-      const raw = rawBasicDamage(stat(unit,'atk')*(1-spaFraction)+stat(unit,'spa')*spaFraction,basic.offensiveRatio);
+      const spdFraction=unit.family==='exeggcute'?(ATTACKS.moves[stage.move].basicSpdFractionByStage?.[unit.stage]??0):0;
+      const raw = rawBasicDamage(stat(unit,'atk')*(1-spaFraction-spdFraction)+stat(unit,'spa')*spaFraction+stat(unit,'spd')*spdFraction,basic.offensiveRatio);
       const ranged = !!stage.basic.projectile;
       const projectileKind = ranged ? 'basic-projectile' : 'physical';
       // Refraction targets must be distinct, targetable, in the *ordinary* range
