@@ -1324,6 +1324,40 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   }
   if(legendaryAbility(battle,source,target,moveId))return;
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='digital-chain' && target){
+    const count=1+stageValue(move.secondaryTargetsByStage,source.stage,0);
+    const raw=stageValue(move.damageByStage,source.stage)+s*stageValue(move.damageRatioByStage,source.stage);
+    const visited=new Set<string>();
+    let victim:CombatUnit|undefined=target;
+    // Subsequent pulses search near the previous victim; stable ties do not consume RNG.
+    for(let hit=0;hit<count && victim;hit++){
+      visited.add(victim.id);
+      projectile(battle,source,victim,'spell',raw*Math.pow(move.bounceMultiplier??.63,hit),true,true,1,
+        undefined,source,moveId,stage.chargedType);
+      victim=battle.units.filter(unit=>unit.playerId!==source.playerId && isTargetable(unit)
+        && !visited.has(unit.id) && distance(unit,victim!)<=(move.chainRange??2.25))
+        .sort((left,right)=>distance(left,victim!)-distance(right,victim!)||left.id.localeCompare(right.id))[0];
+    }
+    animate(source,stage.chargedAnimation,.48);
+    return;
+  }
+  if(move.effect==='ice-shards' && target){
+    const count=stageValue(move.shotsByStage,source.stage,2);
+    const countTargets=stageValue(move.secondaryTargetsByStage,source.stage,1);
+    const nearby=battle.units.filter(unit=>unit.playerId!==source.playerId && unit.id!==target.id
+      && isTargetable(unit) && distance(unit,target)<=(move.splashRange??1.75))
+      .sort((left,right)=>distance(left,target)-distance(right,target)||left.id.localeCompare(right.id));
+    const victims=[target,...nearby.slice(0,Math.max(0,countTargets-1))];
+    const raw=stageValue(move.damageByStage,source.stage)+s*stageValue(move.damageRatioByStage,source.stage);
+    for(let hit=0;hit<count;hit++)projectile(battle,source,victims[hit%victims.length],
+      'spell',raw,true,true,1,undefined,source,moveId,stage.chargedType);
+    const barrier=((stageValue(move.shieldBaseByStage,source.stage)+s*(move.shieldSpaRatio||0))
+      *shieldMultiplier(source)*sourceShieldMultiplier(source));
+    source.barrier={hp:barrier,maxHp:barrier,time:move.shieldDuration||4};
+    effect(battle,source,source,'shield',barrier);
+    animate(source,stage.chargedAnimation,.46);
+    return;
+  }
   if(move.effect==='tentacle-grasp' && target){
     const duration=Math.min(move.tentacleControlMax??2.35,
       (move.tentacleDurationByStage?.[source.stage]??1.5)+s*(move.tentacleControlSpaRatio??0));
