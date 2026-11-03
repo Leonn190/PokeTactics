@@ -23,6 +23,11 @@ export function previewAbility(family: Family, stage: number, stats: Stats, form
   const physical = (label: string, value: number) => entry(label, value, 'physical');
   const special = (label: string, value: number) => entry(label, value, 'special');
   switch (move.effect) {
+    case 'digital-chain':return [special('PRIMEIRO PULSO',stageValue(move.damageByStage,stage)+s*stageValue(move.damageRatioByStage,stage)),
+      special('PULSO SEGUINTE (ATENUAÇÃO)',(stageValue(move.damageByStage,stage)+s*stageValue(move.damageRatioByStage,stage))*(move.bounceMultiplier??.63))];
+    case 'ice-shards':return [special(`ESTILHAÇO × ${stageValue(move.shotsByStage,stage,2)}`,
+      stageValue(move.damageByStage,stage)+s*stageValue(move.damageRatioByStage,stage)),
+      entry('BARREIRA',stageValue(move.shieldBaseByStage,stage)+s*(move.shieldSpaRatio||0),'heal')];
     case 'mewtwo-barrage':return [special('RAJADA (3 + 5)',move.baseDamage+s*move.specialRatio),special('PROJÉTIL FINAL PERFORANTE',(move.finalDamage||0)+s*(move.finalSpaRatio||0))];
     case 'mewtwo-impact':return [physical('SOCO EM ÁREA',move.baseDamage+a*(move.attackRatio||0)),entry('BARREIRA',stats.hp*(move.barrierMaxHpFraction||0),'heal')];
     case 'moltres-fire':return [special('AURA POR INTERVALO',(move.auraBase||0)+s*(move.auraSpaRatio||0)),special('QUEIMADURA POR SEGUNDO',(move.burnBase||0)+s*(move.burnSpaRatio||0))];
@@ -106,6 +111,18 @@ export function abilityScaling(move: MoveData, stage: number, family?: Family): 
   const s = move.specialRatio || 0;
   const byStage = (values: number[] | undefined, fallback = 0) => stageValue(values,stage,fallback);
   switch(move.effect) {
+    case 'digital-chain':
+      add('Pulso inicial',byStage(move.damageByStage),{spa:byStage(move.damageRatioByStage)});
+      add('Alvos adicionais',byStage(move.secondaryTargetsByStage));
+      add('Dano preservado no salto',Math.round((move.bounceMultiplier??.63)*100),{},'Cada salto preserva esta fração do anterior.','%');
+      return rows;
+    case 'ice-shards':
+      add('Dano por estilhaço',byStage(move.damageByStage),{spa:byStage(move.damageRatioByStage)});
+      add('Estilhaços lançados',byStage(move.shotsByStage));
+      add('Alvos distribuídos',byStage(move.secondaryTargetsByStage));
+      add('Barreira própria',byStage(move.shieldBaseByStage),{spa:move.shieldSpaRatio},
+        `Não acumula; dura ${move.shieldDuration||4} s.`);
+      return rows;
     case 'ditto-transform':
       return rows;
     case 'tentacle-grasp':
