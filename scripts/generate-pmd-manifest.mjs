@@ -12,8 +12,17 @@ const skipMissing = process.argv.includes('--skip-missing');
 const target = join(root, 'src/client/pmd-manifest.json');
 const old = JSON.parse(readFileSync(target, 'utf8'));
 const pokemon = JSON.parse(readFileSync(join(root, 'config/pokemons.json'), 'utf8'));
+const mega = JSON.parse(readFileSync(join(root, 'config/mega_formas.json'), 'utf8'));
 const ids = [...new Set(Object.values(pokemon.species).flatMap(species => species.pokedexIds))];
-const permitted = new Set(ids.map(String));
+// Alternative PMD sheets live under the original species Dex folder, NOT PokéAPI's special-form Dex.
+const sources = [
+  ...ids.map(id => ({ key: String(id), folder: `public/sprite/${String(id).padStart(4,'0')}` })),
+  ...mega.forms.filter(form => form.pmdVariant).map(form => {
+    const dex = pokemon.species[form.family].pokedexIds[form.stage];
+    return { key: `${dex}/${form.pmdVariant}`, folder: `public/sprite/${String(dex).padStart(4,'0')}/${form.pmdVariant}` };
+  })
+];
+const permitted = new Set(sources.map(source => source.key));
 // Old manifests must not restore deleted species (or obsolete stages).
 const output = Object.fromEntries(Object.entries(old).filter(([id]) => permitted.has(id)));
 function has(path) {
@@ -108,8 +117,7 @@ function markers(file,fw,fh,dirs,frames,kind) {
   } catch(e) { console.warn(`PMD metadata skipped (${file}): ${e.message}`); return undefined; }
 }
 let generated=0, unavailable=0;
-for(const id of ids) {
-  const folder=`public/sprite/${String(id).padStart(4,'0')}`;
+for(const {key,folder} of sources) {
   if(!has(`${folder}/AnimData.xml`)) {unavailable++;if(!skipMissing)throw Error(`${folder}/AnimData.xml missing`);continue;}
   const xml=read(`${folder}/AnimData.xml`).toString('utf8');
   const shadowSize=Number(field(xml,'ShadowSize')||1);
@@ -120,7 +128,7 @@ for(const id of ids) {
       durations:[...block.matchAll(/<Duration>(\d+)<\/Duration>/g)].map(m=>Number(m[1]))}
   ]));
   function resolveName(name,seen=new Set()) {
-    if(seen.has(name)||!raw[name])throw Error(`Invalid PMD alias: ${id}/${name}`);
+    if(seen.has(name)||!raw[name])throw Error(`Invalid PMD alias: ${key}/${name}`);
     if(!raw[name].copy)return { ...raw[name],source:name };
     return resolveName(raw[name].copy,new Set([...seen,name]));
   }
@@ -144,8 +152,8 @@ for(const id of ids) {
       ...(Number.isFinite(shadowSize)?{shadowSize}:{}),
       ...(shadow?{shadowMarkers:shadow}:{}),...(offsets?{bodyMarkers:offsets}:{})};
   }
-  if(!animations.Idle) {console.warn(`PMD ${id}: missing Idle, retaining prior entry`);continue;}
-  output[String(id)]=animations;generated++;
+  if(!animations.Idle) {console.warn(`PMD ${key}: missing Idle, retaining prior entry`);continue;}
+  output[key]=animations;generated++;
 }
 writeFileSync(target,JSON.stringify(output)+'\n');
 console.log(`V18.9 PMD: ${generated} generated, ${unavailable} missing assets, ${Object.keys(output).length} manifest entries`);
