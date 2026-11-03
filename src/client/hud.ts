@@ -133,7 +133,7 @@ export class Hud {
     this.region('shopOffers',()=>[shopKey,human.gold,human.eliminated,snapshot.phase,influenceRoster],()=>this.renderShopOffers(snapshot,view));
     this.region('shopInfo',()=>[human.gold,human.level,human.eliminated,human.locked,human.augmentCounters?.['B02:free'],snapshot.phase,influenceRoster],()=>this.renderShopInfo(snapshot,view));
     this.region('inventory',()=>[human.itemInventory,human.consumables,human.eliminated,view.spectating,view.scoutId,view.selectedBall,view.inventoryItemId,this.inventoryPage,snapshot.lootMessageId],()=>this.renderInventory(snapshot,view));
-    this.region('synergies',()=>[view.scoutId,watched.augments,watched.units.map(u=>[u.id,u.family,u.stage,u.position])],()=>this.renderSynergies(snapshot,view));
+    this.region('synergies',()=>[view.scoutId,watched.augments,watched.units.map(u=>[u.id,u.family,u.stage,u.formId,u.position])],()=>this.renderSynergies(snapshot,view));
     this.region('ranking',()=>[view.scoutId,snapshot.players.map(p=>[p.id,p.name,p.health,p.eliminated,p.placement,p.streak]),snapshot.phase,snapshot.stageType,snapshot.possibleOpponents.p0,snapshot.battleStatuses,snapshot.visualEvents.filter(e=>e.kind==='trainer-damage'&&e.age<1.05).map(e=>[e.id,e.ownerId,e.age,e.value])],()=>this.renderRanking(snapshot,view));
     this.region('timeline',()=>[snapshot.chapter,snapshot.stage,snapshot.stageName,human.history],()=>this.renderTimeline(snapshot,view));
     this.region('status',()=>[view.scoutId,snapshot.phase,snapshot.accelerated,snapshot.stageName,snapshot.log,snapshot.visibleBattle?.goldDrops.map(d=>[d.claimed,d.ownerId]),snapshot.players.map(p=>[p.id,p.name])],()=>this.renderStatus(snapshot,view));

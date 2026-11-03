@@ -24,6 +24,7 @@ import { visualProfile, cosmeticMotion } from './animation/visual-profiles';
 import { markerAt, frameAt, impactFraction, type PmdSheet, type PmdEntry } from './animation/pmd-metadata';
 import type { BodyPoints } from './render/projectile-origin';
 import { tierFor } from '../../server/systems/synergies/registry';
+import { countTraits } from '../../server/systems/synergies/counting';
 import { randomIndex } from '../../server/systems/synergies/positioning';
 import type { CombatUnit, Family, GameSnapshot, Pokemon, UnitPosition } from '../../server/types';
 import { trainerSpot } from '../../server/combat/trainer-position';
@@ -852,7 +853,7 @@ export class Arena {
     if(!this.snapshot || (this.view.spectating&&this.view.scoutId==='p0'))return;
     const snapshot=this.snapshot,watched=snapshot.players.find(p=>p.id===this.view.scoutId);
     if(!watched)return;
-    const count=new Set(watched.units.filter(u=>u.position.area==='board'&&getStageData(u.family,u.stage).elements.includes('dragon')).map(u=>`${u.family}:${u.stage}`)).size;
+    const count=countTraits(watched).dragon||0;
     if(!tierFor('dragon',count))return;
     const salt=[...watched.id].reduce((n,c)=>n+c.charCodeAt(0),0);
     const fixed=snapshot.visibleBattle?.sacredTiles?.[watched.id];
@@ -932,7 +933,7 @@ export class Arena {
     const battle=this.snapshot?.visibleBattle;
     if(battle&&this.snapshot?.phase!=='planning'&&unit.synergy){
       const elements=getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).elements;
-      const tones:Record<string,string>={fire:'#ff9b5c',steel:'#c5e1e7',fighting:'#d98c63',psychic:'#f1b0f5',rock:'#cabb91',water:'#75d6ff',grass:'#8cec9c',electric:'#ffe580',flying:'#cde9ff',fairy:'#ffaaff',normal:'#d8ded0',ghost:'#bfa7ff',dark:'#8f85bd',bug:'#c9ef75',dragon:'#aba8ff',ground:'#d9ab81',poison:'#b777f2',ice:'#c7faff'};
+      const tones:Record<string,string>={fire:'#ff9b5c',steel:'#c5e1e7',fighting:'#d98c63',psychic:'#f1b0f5',rock:'#cabb91',water:'#75d6ff',grass:'#8cec9c',electric:'#ffe580',flying:'#cde9ff',fairy:'#ffaaff',normal:'#d8ded0',ghost:'#bfa7ff',dark:'#8f85bd',bug:'#c9ef75',dragon:'#aba8ff',ground:'#d9ab81',poison:'#b777f2',ice:'#c7faff',sound:'#7ff2f0',cosmic:'#c6b6ff'};
       const active=elements.filter(type=>tierFor(type,battle.traitsByPlayer[unit.ownerId]?.[type]||0));
       active.slice(0,2).forEach((type,i)=>{
         ctx.save();ctx.globalAlpha=.26+.09*Math.sin(time*2.5+i*2);
@@ -1030,6 +1031,15 @@ export class Arena {
       ctx.beginPath();ctx.arc(spriteX,spriteY-this.cellScale*.52,radius*.9,-Math.PI/2,-Math.PI/2+remaining*PI2);ctx.stroke();ctx.restore();
     }
     if(ghost?.phase==='appear')ctx.restore();
+    if(battle&&unit.synergy?.cosmicOrbits){
+      ctx.save();ctx.fillStyle='#f1daff';ctx.shadowColor='#a6b6ff';ctx.shadowBlur=7;
+      for(let i=0;i<Math.min(3,unit.synergy.cosmicOrbits);i++){
+        const angle=time*1.25+i*PI2/Math.min(3,unit.synergy.cosmicOrbits);
+        const x=spriteX+Math.cos(angle)*radius*1.1,y=spriteY-this.cellScale*.45+Math.sin(angle)*radius*.47;
+        ctx.beginPath();ctx.arc(x,y,Math.max(1.5,this.cellScale*.035),0,PI2);ctx.fill();
+      }
+      ctx.restore();
+    }
     if (unit.bench) return;
     // Three equipment sprites fit the bar, even on smaller Pokémon.
     // Life is above energy; all equipment sits below the bars.
