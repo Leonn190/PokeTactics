@@ -24,14 +24,15 @@ export { trainerSpot } from '../combat/trainer-position';
 
 const baby = (unit: CombatUnit): boolean => !!SPECIES[unit.family].babyEvolution;
 const fleeing = (unit: CombatUnit): boolean => baby(unit) && unit.hp>0 && unit.hp < unit.maxHp * RULES.baby.fleeHpFraction;
-const movementSpeed = (unit: CombatUnit):number => RULES.movement.unitsPerSecond * (baby(unit)?RULES.baby.moveSpeedMultiplier:1) * (unit.slow?.65:1);
+const movementSpeed = (unit: CombatUnit):number => RULES.movement.unitsPerSecond * (baby(unit)?RULES.baby.moveSpeedMultiplier:1) * (unit.slow?.65:1) * (unit.tentacleSlowUntil && unit.tentacleSlowUntil>unit.itemNow ? 1-(ATTACKS.moves['abyssal-embrace'].tentacleSlowFraction??.3):1);
 /** A physical interpolation step towards a hex waypoint (or the final contact).
  * Refuses colliding/boundary-crossing movement; pathfinding chooses a different cell. */
 function walkStep(
  battle:Battle,unit:CombatUnit,point:{x:number;y:number},dt:number,
  bounds:{minX:number;maxX:number;minY:number;maxY:number},stopDistance=0
 ):boolean {
- const dx=point.x-unit.x,dy=point.y-unit.y,len=Math.hypot(dx,dy);
+ if(unit.tentacle && unit.tentacle.until>battle.elapsed)return false;
+  const dx=point.x-unit.x,dy=point.y-unit.y,len=Math.hypot(dx,dy);
  if(len<=stopDistance+.001)return false;
  const travel=Math.min(dt*movementSpeed(unit),len-stopDistance);
  if(travel<=.001)return false;
@@ -111,7 +112,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     moving: false, facingX: 0, facingY: upper ? 1 : -1,
     animation: null,
     spinTime: 0, spinDuration: 0, spinReduction: 0, waterFxClock: 0, pendingPollen: null,
-    flash: 0, effects: [], damageOverTime: null, poison: null, barrier: null,
+    flash: 0, effects: [], damageOverTime: null, poison: null, tentacle:undefined,tentacleSlowUntil:0, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
     babyFlee:false,flameJet:undefined,persianPursuit: undefined, dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], statuses:{}, lullaby:null, starWard:null, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
     gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range + equipment.filter(i=>i.recipe==='red+red').length*numberParam('longbow','range'),energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
@@ -848,6 +849,20 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   const hpBefore=target.hp;
   target.hp -= damage;
   poisonousHealth(battle,target,stat(target,'spa'));
+  // Share actual special ability damage across the Tentacruel web, but never
+  // retransmit DOT, reflected, or shared hits.
+  const link=target.tentacle;
+  if(mode==='normal' && magical && charged && damage>0 && link?.until>battle.elapsed){
+    const tetherCaster=battle.units.find(u=>u.id===link.sourceId&&u.hp>0);
+    if(tetherCaster?.stage && tetherCaster.playerId===source.playerId && tetherCaster.id!==source.id){
+      const ratio=ATTACKS.moves['abyssal-embrace'].tentacleShareFraction??0;
+      if(ratio>0)for(const linked of battle.units){
+        if(linked!==target && linked.hp>0 && linked.tentacle?.groupId===link.groupId && linked.tentacle.until>battle.elapsed){
+          deal(battle,source,linked,damage*ratio,true,true,attackType,'extra');
+        }
+      }
+    }
+  }
   if(absorbRedirect){
     // Secondary hit enters the normal shield/resistance/death pipeline, but cannot redirect again.
     deal(battle,source,absorbRedirect.target,absorbRedirect.damage,magical,charged,attackType,'extra');
@@ -1304,6 +1319,37 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   }
   if(legendaryAbility(battle,source,target,moveId))return;
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='tentacle-grasp' && target){
+    const duration=Math.min(move.tentacleControlMax??2.35,
+      (move.tentacleDurationByStage?.[source.stage]??1.5)+s*(move.tentacleControlSpaRatio??0));
+    const radius=move.tentacleRadius??1.65;
+    const victims=[target,...battle.units.filter(u=>u!==target && u.playerId!==source.playerId &&
+      isTargetable(u) && distance(u,target)<=radius)
+      .sort((u,v)=>distance(u,target)-distance(v,target)||u.id.localeCompare(v.id))]
+      .slice(0,move.tentacleMaxTargetsByStage?.[source.stage]??1);
+    const groupId=`${source.id}:${source.metrics.casts}`;
+    const bounds=arenaBoundary(battle), pullDistance=move.tentaclePullDistance??.8;
+    for(const victim of victims){
+      if(victim.controlImmune)continue;
+      // Tentacruel can pull one short step, never through walls, occupants or the arena edge.
+      if(source.stage>0){
+        const d=distance(source,victim);
+        if(d>pullDistance+.1){
+          const nextX=victim.x+(source.x-victim.x)/d*pullDistance;
+          const nextY=victim.y+(source.y-victim.y)/d*pullDistance;
+          if(nextX>=bounds.minX && nextX<=bounds.maxX && nextY>=bounds.minY && nextY<=bounds.maxY &&
+            clearStep(battle,victim,nextX,nextY)){victim.x=nextX;victim.y=nextY;}
+        }
+      }
+      victim.tentacle={sourceId:source.id,groupId,until:battle.elapsed+duration,
+        nextTick:battle.elapsed+(move.tentacleTickSeconds??.5),
+        rawPerTick:(move.tentacleDamageByStage?.[source.stage]??25)+s*(move.tentacleRatioByStage?.[source.stage]??.35)};
+      source.metrics.controlSeconds+=duration;
+      effect(battle,source,victim,'poison',duration);
+    }
+    animate(source,stage.chargedAnimation,.50);
+    return;
+  }
   if(move.effect==='furious-leap' && target){
     const spot=furyLanding(battle,source,target,3.5,false);
     if(!spot){ animate(source,'Attack',.34);return; }
@@ -2269,7 +2315,7 @@ function resolve(battle: Battle): void {
   battle.loser = battle.rankings[battle.rankings.length - 1] || null;
   for (const unit of battle.units) {
     if (unit.hp <= 0) continue;
-    unit.orbitFlames=[];unit.statuses={};unit.lullaby=null;unit.starWard=null;
+    unit.orbitFlames=[];unit.statuses={};unit.lullaby=null;unit.starWard=null;unit.tentacle=undefined;
     unit.moving = false;
     unit.spinTime = 0;
     unit.pendingPollen = null;
@@ -2398,6 +2444,23 @@ export function tickBattle(battle: Battle, dt: number): void {
   for(const unit of battle.units)tickLegendaryPassive(battle,unit);
   for(const unit of battle.units)if(unit.absorb)tickAbsorb(battle,unit);
   for(const unit of battle.units)if(unit.vine)tickVine(battle,unit);
+  // Fixed-step tentacle damage: combat logic never depends on rendering FPS.
+  for(const unit of battle.units){
+    const hold=unit.tentacle;
+    if(!hold)continue;
+    const caster=battle.units.find(u=>u.id===hold.sourceId&&u.hp>0);
+    if(!caster || unit.hp<=0){unit.tentacle=undefined;continue;}
+    const tick=ATTACKS.moves['abyssal-embrace'].tentacleTickSeconds??.5;
+    while(hold.nextTick<=Math.min(battle.elapsed,hold.until)+1e-7 && unit.hp>0){
+      deal(battle,caster,unit,hold.rawPerTick,true,true,'poison','dot');
+      hold.nextTick+=tick;
+    }
+    if(unit.hp<=0){unit.tentacle=undefined;continue;}
+    if(battle.elapsed>=hold.until){
+      unit.tentacle=undefined;
+      unit.tentacleSlowUntil=Math.max(unit.tentacleSlowUntil||0,battle.elapsed+(ATTACKS.moves['abyssal-embrace'].tentacleSlowSeconds??1));
+    }
+  }
   summonPreparedPillars(battle,deal);
   expireObstacles(battle);
   tickSynergies(battle,dt,{deal,heal,effect,stat});
@@ -2489,7 +2552,7 @@ export function tickBattle(battle: Battle, dt: number): void {
   }
   for (const unit of battle.units) {
     if (unit.hp <= 0) {
-      unit.dig = null; unit.ghost = null; unit.fear = null; unit.storm = null; unit.psychicImbuement = null;
+      unit.dig = null; unit.ghost = null; unit.fear = null; unit.storm = null; unit.psychicImbuement = null;unit.tentacle=undefined;
       unit.buffs = []; unit.defenseShreds = []; unit.barriers = []; unit.guardUntil = 0;
       continue;
     }
