@@ -109,3 +109,47 @@ export function sourceShieldMultiplier(source:CombatUnit):number {
  const tier=source.synergy?.percents.healingShieldAmp||0;
  return 1+tier;
 }
+
+/** Triggered exactly once for each true charged cast in the authoritative simulation. */
+export function onSynergyCast(battle:Battle,source:CombatUnit,mainTarget:CombatUnit|null,hooks:CombatHooks):void {
+ const state=source.synergy;if(!state||source.hp<=0)return;
+ const cosmic=synergyTier(battle,source,'cosmic');
+ if(cosmic){
+   if(state.cosmicBaseSpa===undefined){state.cosmicBaseSpa=source.stats.spa;state.cosmicBaseSpd=source.stats.spd;}
+   const limit=param('cosmic','maxOrbits');
+   if((state.cosmicOrbits||0)<limit){
+     state.cosmicOrbits=(state.cosmicOrbits||0)+1;
+     source.stats.spa=state.cosmicBaseSpa+Math.round(state.cosmicBaseSpa*state.cosmicOrbits*numeric(cosmic,'spa'));
+     source.stats.spd=state.cosmicBaseSpd!+Math.round(state.cosmicBaseSpd!*state.cosmicOrbits*numeric(cosmic,'spd'));
+     if(state.cosmicOrbits===limit&&!state.cosmicStarFired){
+       state.cosmicStarFired=true;
+       const closest=battle.units.filter(u=>u.playerId!==source.playerId&&u.hp>0)
+         .sort((a,b)=>Math.hypot(a.x-source.x,a.y-source.y)-Math.hypot(b.x-source.x,b.y-source.y)||a.id.localeCompare(b.id))[0];
+       if(closest){
+         hooks.deal(battle,source,closest,numeric(cosmic,'damage')+hooks.stat(source,'spa')*numeric(cosmic,'spaRatio'),true,true,'cosmic','extra');
+         hooks.effect(battle,source,closest,'cosmic-star',0);
+       }
+     }
+   }
+ }
+ const sound=synergyTier(battle,source,'sound');if(!sound)return;
+ const last=state.timers['sound:last']??-1e6;
+ if(battle.elapsed-last<param('sound','interval'))return;
+ const enemies=battle.units.filter(u=>u.playerId!==source.playerId&&u.hp>0);
+ const center=mainTarget&&mainTarget.hp>0&&mainTarget.playerId!==source.playerId?mainTarget:
+   enemies.sort((a,b)=>Math.hypot(a.x-source.x,a.y-source.y)-Math.hypot(b.x-source.x,b.y-source.y)||a.id.localeCompare(b.id))[0];
+ if(!center)return;
+ state.timers['sound:last']=battle.elapsed;
+ const victims=enemies.filter(u=>u.id===center.id||Math.hypot(u.x-center.x,u.y-center.y)<=param('sound','radius'))
+   .sort((a,b)=>Number(b.id===center.id)-Number(a.id===center.id)
+     ||Math.hypot(a.x-center.x,a.y-center.y)-Math.hypot(b.x-center.x,b.y-center.y)||a.id.localeCompare(b.id))
+   .slice(0,numeric(sound,'targets'));
+ for(const target of victims){
+   hooks.deal(battle,source,target,numeric(sound,'damage')+hooks.stat(source,'spa')*numeric(sound,'spaRatio'),true,true,'sound','extra');
+   const debuff=target.synergy!;
+   const proposed=numeric(sound,'spdReduction'),previous=debuff.soundShred;
+   if(!previous||previous.until<=battle.elapsed||proposed>=previous.amount)
+     debuff.soundShred={amount:proposed,until:battle.elapsed+param('sound','duration')};
+ }
+ hooks.effect(battle,source,center,'synergy-resonance',param('sound','radius'));
+}

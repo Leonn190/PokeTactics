@@ -110,6 +110,8 @@ export interface SynergyUnitState {
   flight?: { fromX:number; fromY:number; toX:number; toY:number; elapsed:number; duration:number };
   splashBonus?: number;
   cosmicOrbits?:number;
+  cosmicBaseSpa?:number;
+  cosmicBaseSpd?:number;
   cosmicStarFired?:boolean;
   soundShred?:{amount:number;until:number};
   pendingSkill?: {kind:'kick'|'fang-tail'|'explosion';targetId:string;until:number;moveId:string};
