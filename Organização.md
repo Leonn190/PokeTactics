@@ -228,3 +228,12 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 - `src/client/arena.ts` desenha as divisões pretas a cada 150 HP também na preparação, usa HP real em marcadores aliados e permite seleção do banco adversário. `server/data.ts#ITEM_RACK_WORLD` e `Arena.ownerPlacement` aproximam a prateleira física do banco sem ponte.
 - `src/client/hud.ts`, `src/pages/index.astro` e `src/styles/global.css` removem o limite de 15 e o cabeçalho do painel de combate, restringem expansão das barras a DANO/MITIGAÇÃO, fixam o slot de streak e marcador do possível adversário, exibem streak a partir de 3 e corrigem sobreposições de ficha, renda e prateleira.
 - Conferir `npm run check`, `npm run build`, configurações, VFX, batalhas 1v1/quádruplas, banco inimigo e tooltips. Não adicionar testes ao repositório.
+
+## V25.8 — Exeggcute, âncoras de VFX, arraste e ficha
+
+- `config/pokemons.json` inclui Exeggcute/Exeggutor comum (4 cópias), Grama/Psíquico, dex 102/103. `config/ataques.json` define Coroa Protetora, barreira por SpA, SpD aumentada apenas sob barreira e ataques regulares físicos com 40% de SpD no estágio evoluído.
+- `server/systems/combat.ts#stat` aplica o bônus de SpD sobre o atributo efetivo enquanto a barreira estiver ativa. `grantBarrier` aceita `shieldBaseByStage`; o ataque regular preserva dano físico com coeficientes do JSON. Prévia e descrição em `server/damage-preview.ts` e `src/client/menus.ts`.
+- `src/client/render/projectile-origin.ts`, `projectiles.ts`, `effects.ts` e `src/client/vfx/travel-effects.ts` removem deslocamentos verticais acumulados nos tiros, feixes e ataques especiais. O marcador PMD do corpo tem preferência sobre o fallback visual.
+- `src/client/arena.ts#dragUnitScreenPosition` recupera a posição do chão do Pokémon; `src/client/main.ts` usa âncora PMD, tamanho físico e deslocamento relativo ao início do arraste para evitar saltos.
+- `src/client/main.ts#positionInspectorBelowRightPanel` alinha a ficha abaixo do painel direito e acompanha redimensionamento; `src/styles/global.css` reserva altura e rolagem independente.
+- Assets PMD 102/103 já existem em `public/sprite/` e `public/portrait/`; o prebuild regenera o manifesto sem baixar nem modificar imagens. Sem novos arquivos de testes.

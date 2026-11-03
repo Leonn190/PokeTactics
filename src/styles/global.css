@@ -1252,3 +1252,12 @@
  #rightPanel .rank-streak{font-size:10px;padding:2px}
  #rightPanel .combat-raws{font-size:8px}
 }
+
+/* V25.8: selected Pokémon details docked under right panel, never beside it. */
+#app:has(#unitInspector:not(.hidden)) #rightPanel.right-panel{
+  height:clamp(150px,26vh,285px);max-height:none;min-height:0;
+}
+#unitInspector.unit-inspector{
+  box-sizing:border-box;margin:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:#739991 #10252d;
+}

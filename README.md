@@ -129,3 +129,7 @@ O painel de jogadores exibe sequências de vitórias/derrotas. O painel de comba
 ### V25.7 — Abraço Abissal e interface
 
 Tentacool e Tentacruel (Água/Veneno) são incomuns. Abraço Abissal prende sem cancelar ataques, aplica veneno periódico e, com Tentacruel, captura até três inimigos com puxão e dano especial compartilhado. As barras de vida recuperam marcações a cada 150 HP; o ranking, a inspeção de banco inimigo, tooltips e prateleira física foram ajustados.
+
+### V25.8 — Exeggcute e alinhamento visual
+
+Exeggcute/Exeggutor entram na loja como comuns, com barreira e SpD melhorada enquanto protegidos; Exeggutor usa ATK e 40% de SpD nos ataques regulares físicos. Melhorados os pontos de origem dos projéteis, o alinhamento do sprite arrastado e a ficha Pokémon logo abaixo do ranking/combate. Confira os checks de JSON, TypeScript e build no workflow do PR.

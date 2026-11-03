@@ -7,7 +7,8 @@ import { Menus } from './menus';
 import { PlayerSettings } from './player-settings';
 import { SandboxView } from './sandbox';
 import { GameAudio } from './audio';
-import { BENCH_SIZE, SPECIES } from '../../server/data';
+import { BENCH_SIZE, SPECIES, physicalSize } from '../../server/data';
+import { markerAt, type PmdSheet } from './animation/pmd-metadata';
 import { ITEMS } from '../../server/systems/items';
 import pmdManifest from './pmd-manifest.json';
 import { eligibleForm } from '../../server/forms';
@@ -27,6 +28,26 @@ const view: ClientView = { scoutId: 'p0', spectating:false, selectedId: null, dr
 const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
+
+/** Keep selected Pokémon details directly below ranking and combat. */
+const rightPanelNode=document.getElementById('rightPanel')!;
+const inspectorNode=document.getElementById('unitInspector')!;
+function positionInspectorBelowRightPanel():void {
+  if(inspectorNode.classList.contains('hidden'))return;
+  const app=document.getElementById('app')!.getBoundingClientRect();
+  const panel=rightPanelNode.getBoundingClientRect();
+  const shop=document.getElementById('shopFooter')?.getBoundingClientRect();
+  inspectorNode.style.left='auto';
+  inspectorNode.style.right=`${Math.max(0,app.right-panel.right)}px`;
+  inspectorNode.style.top=`${panel.bottom-app.top+6}px`;
+  inspectorNode.style.bottom='auto';
+  inspectorNode.style.maxHeight=`${Math.max(90,Math.min(510,(shop?.top??app.bottom)-panel.bottom-14))}px`;
+}
+new ResizeObserver(positionInspectorBelowRightPanel).observe(rightPanelNode);
+new MutationObserver(()=>requestAnimationFrame(positionInspectorBelowRightPanel))
+  .observe(inspectorNode,{attributes:true,attributeFilter:['class']});
+window.addEventListener('resize',positionInspectorBelowRightPanel);
+
 const opponentItems=new ObservedItemRacks();
 const audio = new GameAudio();
 const playerSettings = new PlayerSettings(volume => audio.setVolume(volume), fps => arena.setFrameRate(fps));
@@ -69,13 +90,16 @@ ghostCanvas.width = 96; ghostCanvas.height = 96;
 ghostCanvas.className = 'pokemon-drag-idle';
 ghost.append(ghostCanvas);
 const ghostContext = ghostCanvas.getContext('2d')!;
-type GhostSheet = { file: string; width: number; height: number; durations: number[]; directions: number };
+type GhostSheet = PmdSheet;
 const pmd = pmdManifest as Record<string, Record<string, GhostSheet>>;
 let ghostImage: HTMLImageElement | null = null;
 let ghostIdle: GhostSheet | null = null;
 let ghostStarted = 0;
 let ghostWidth = 96;
 let ghostHeight = 96;
+let ghostAnchorX = 48;
+let ghostAnchorY = 77;
+let dragStartGround: {x:number;y:number}|null = null;
 let state: GameSnapshot | null = null;
 let eliminationShown=false;
 const eliminationOverlay=document.getElementById('eliminationOverlay')!;
@@ -314,17 +338,21 @@ function startDrag(id: string, event: PointerEvent): void {
   view.selectedId = id;
   view.dragId = id;
   pointerStart = { x: event.clientX, y: event.clientY };
+  dragStartGround = arena.dragUnitScreenPosition(id);
   dragStarted = false;
   updateGhost(event);
   hud.render(state, view);
 }
 
-function setDragSprite(family: keyof typeof SPECIES, stage: number): void {
+function setDragSprite(family: keyof typeof SPECIES, stage: number, bench:boolean): void {
   const species = SPECIES[family];
   const dex = species.pokedexIds[Math.min(stage, species.pokedexIds.length - 1)];
   ghostIdle = pmd[String(dex)]?.Idle || null;
-  const scale = arena.dragSpriteScale();
-  const size = ghostIdle ? { w: ghostIdle.width * scale, h: ghostIdle.height * scale } : { w: arena.dragSpriteScale() * 48, h: arena.dragSpriteScale() * 48 };
+  const scale = arena.dragSpriteScale()*physicalSize(family,stage)*(bench ? .95/1.13 : 1);
+  const size = ghostIdle ? { w: ghostIdle.width * scale, h: ghostIdle.height * scale } : { w: scale * 48, h: scale * 48 };
+  const ground=ghostIdle ? markerAt(ghostIdle,'shadow',0,0)?.ground : undefined;
+  ghostAnchorX=(ground?.[0] ?? (ghostIdle?.width ?? 48)/2)*scale;
+  ghostAnchorY=(ground?.[1] ?? (ghostIdle?.height ?? 48)*.80)*scale;
   ghostWidth = Math.ceil(size.w);
   ghostHeight = Math.ceil(size.h);
   ghostCanvas.width = ghostWidth; ghostCanvas.height = ghostHeight;
@@ -365,14 +393,15 @@ function updateGhost(event: PointerEvent): void {
     dragStarted = true;
     view.dragging = true;
     const unit = (state.sandbox?state.players.flatMap(p=>p.units):state.players[0].units).find(u => u.id === view.dragId);
-    if (unit) setDragSprite(unit.family, unit.stage);
+    if (unit) setDragSprite(unit.family, unit.stage, unit.position.area==='bench');
     ghost.classList.remove('hidden');
     requestAnimationFrame(drawDraggedIdle);
     document.querySelector('.shop-row')?.classList.add('drag-selling');
     if(!state.sandbox||state.players[0].units.some(u=>u.id===view.dragId))document.getElementById('sellOverlay')?.classList.remove('hidden');
   }
   if (!dragStarted) return;
-  ghost.style.transform = `translate3d(${event.clientX - ghostWidth / 2}px,${event.clientY - ghostHeight + 6}px,0)`;
+  const ground=dragStartGround||pointerStart;
+  ghost.style.transform = `translate3d(${ground.x+event.clientX-pointerStart.x-ghostAnchorX}px,${ground.y+event.clientY-pointerStart.y-ghostAnchorY}px,0)`;
   view.hoveringBench = arena.pickBench(event.clientX, event.clientY);
   view.hoveringHex = state.phase === 'planning' && view.scoutId === 'p0' ? arena.pickHex(event.clientX, event.clientY) : null;
 }
@@ -381,6 +410,7 @@ function clearDrag(): void {
   view.dragId = null;
   view.dragging = false;
   ghostImage = null;
+  dragStartGround = null;
   view.hoveringHex = null;
   view.hoveringBench = null;
   dragStarted = false;
