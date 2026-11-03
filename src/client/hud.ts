@@ -268,7 +268,7 @@ export class Hud {
     });
     const legend=topTypes.map(type=>`<div class="type-wheel-legend-row"><i style="background:${ELEMENTS[type].color}"></i>${typeIcon(type,16)}<span>${safe(ELEMENTS[type].name)}</span><b>${((influence.shares[type]||0)*100).toFixed(1)}%</b></div>`).join('');
     const summary=topTypes.length?topTypes.map(type=>`${ELEMENTS[type].name} ${((influence.shares[type]||0)*100).toFixed(0)}%`).join(', '):'Sem tipos ativos';
-    this.updateHTML('typeInfluence',`<div class="type-wheel" tabindex="0" role="img" aria-label="Influência dos tipos: ${safe(summary)}" title="${safe(summary)}"><div class="type-wheel-chart" style="background:conic-gradient(${wheelStops.length?wheelStops.join(','):'#334952 0% 100%'})">${wheelIcons.join('')}<span class="type-wheel-center" aria-hidden="true"></span></div><div class="type-wheel-popover" role="tooltip"><strong>INFLUÊNCIA DA EQUIPE</strong>${legend||'<small>Coloque Pokémon no campo ou banco</small>'}<small>Exibe até 4 tipos. Fatias proporcionais aos tipos exibidos; percentuais reais da equipe.</small></div></div>`);
+    this.updateHTML('typeInfluence',`<div class="type-wheel" tabindex="0" role="img" aria-label="Influência dos tipos: ${safe(summary)}" title="${safe(summary)}"><div class="type-wheel-chart" style="background:conic-gradient(${wheelStops.length?wheelStops.join(','):'#334952 0% 100%'})">${wheelIcons.join('')}<span class="type-wheel-center" aria-hidden="true"></span></div><div class="type-wheel-popover" role="tooltip"><strong>INFLUÊNCIA DA EQUIPE</strong>${legend||'<small>Coloque Pokémon no campo ou banco</small>'}</div></div>`);
     const freeShopReroll=(player.augmentCounters?.['B02:free']||0)>0;
     element('rerollButton').toggleAttribute('disabled', snapshot.phase === 'finished' || (!freeShopReroll&&player.gold < RULES.rerollCost) || player.eliminated);
     element('rerollButton').setAttribute('title',freeShopReroll?'Atualização gratuita do Comprador Persistente':`Atualizar loja por ${RULES.rerollCost} de ouro`);
@@ -331,12 +331,12 @@ export class Hud {
       ? 'Batalhando<span class="rank-dots"><i>.</i><i>.</i><i>.</i></span>'
       : snapshot.battleStatuses[id] === 'victorious' ? 'Vitorioso'
       : snapshot.battleStatuses[id] === 'defeated' ? 'Derrotado' : '';
-    const streakBadge=(p:Player):string => p.streak>0?`<span class="rank-streak winning" title="${p.streak} vitórias seguidas" aria-label="${p.streak} vitórias seguidas">🔥 ${p.streak}</span>`:p.streak<0?`<span class="rank-streak losing" title="${-p.streak} derrotas seguidas" aria-label="${-p.streak} derrotas seguidas">▼ ${-p.streak}</span>`:'';
+    const streakBadge=(p:Player):string => p.streak>=3?`<span class="rank-streak winning" title="${p.streak} vitórias seguidas" aria-label="${p.streak} vitórias seguidas">🔥 ${p.streak}</span>`:p.streak<=-3?`<span class="rank-streak losing" title="${-p.streak} derrotas seguidas" aria-label="${-p.streak} derrotas seguidas">▼ ${-p.streak}</span>`:'';
     const shownHp=(p:Player):number => p.health;
     const rowHpClass = (health: number): string => health === 0 ? 'dead' : health < 30 ? 'low' : '';
     if (this.lastRank !== rankOrder || element('rankRows').children.length!==ranked.length || ranked.some((p,i)=>(element('rankRows').children[i] as HTMLElement | undefined)?.dataset.scout!==p.id)) {
       const ranks = ranked.map((p,i)=>`<button class="rank-row ${p.id==='p0'?'you':''} ${view.scoutId===p.id&&p.id!=='p0'?'scouting':''} ${p.eliminated?'out':''}" data-scout="${p.id}" title="${p.id==='p0'?'Sua arena':`Inspecionar arena de ${safe(p.name)}`}" >
-        <span class="rank-position">${p.placement||i+1}</span><span class="rank-token"></span><span class="rank-name">${safe(p.name)}</span>${streakBadge(p)}<span class="rank-combat-status ${snapshot.battleStatuses[p.id]||''}">${rankStatus(p.id)}</span>${likely.has(p.id)?'<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>':''}<span class="rank-hp ${rowHpClass(shownHp(p))}">${shownHp(p)}</span></button>`).join('');
+        <span class="rank-position">${p.placement||i+1}</span><span class="rank-token"></span><span class="rank-name">${safe(p.name)}</span><span class="rank-streak-slot">${streakBadge(p)}</span><span class="rank-combat-status ${snapshot.battleStatuses[p.id]||''}">${rankStatus(p.id)}</span><span class="rank-match-slot">${likely.has(p.id)?'<span class="match-icon" title="Pode ser seu adversário nesta rodada">⚔</span>':''}</span><span class="rank-hp ${rowHpClass(shownHp(p))}">${shownHp(p)}</span></button>`).join('');
       element('rankRows').innerHTML = ranks;
       this.lastRank = rankOrder;
     } else {
@@ -387,7 +387,7 @@ export class Hud {
         return {unit,ownerId:id,side:id===view.scoutId?'ally':'enemy',value,hp,maxHp,phys,special,physicalMitigated,specialMitigated,healed,barrierAbsorbed};
       });
     }).sort((a,b)=>b.value-a.value || a.ownerId.localeCompare(b.ownerId) || a.unit.id.localeCompare(b.unit.id));
-    const entries = allEntries.slice(0,15);
+    const entries = allEntries;
     const max = Math.max(1,...entries.map(e=>e.value));
     const rows = entries.map(({unit,side,value,hp,maxHp,phys,special,physicalMitigated,specialMitigated,healed,barrierAbsorbed},index)=>{
       const isDamage=this.metric==='damage',isStatus=this.metric==='status';
@@ -398,15 +398,13 @@ export class Hud {
         ? `<div class="damage-split mitigation-split"><div class="mitigation-def" style="width:${physicalMitigated/max*100}%"></div><div class="mitigation-spd" style="width:${specialMitigated/max*100}%"></div><div class="mitigation-heal" style="width:${healed/max*100}%"></div></div>`
         : `<div class="combat-track"><div class="combat-fill" style="width:${Math.round(hp/maxHp*100)}%"></div></div>`;
       const name=safe(displayName(unit.family,unit.stage,unit.formId));
-      const details=`<div class="combat-breakdown" aria-label="Estatísticas detalhadas">
-        <span>FÍSICO <b>${Math.round(phys)}</b></span><span>ESPECIAL <b>${Math.round(special)}</b></span>
-        <span>DEF <b>${Math.round(physicalMitigated)}</b></span><span>SPD <b>${Math.round(specialMitigated)}</b></span>
-        <span>CURA <b>${Math.round(healed)}</b></span><span>BARREIRA <b>${Math.round(barrierAbsorbed)}</b></span>
-      </div>`;
-      const tooltip=`Dano físico: ${Math.round(phys)} | especial: ${Math.round(special)} | DEF: ${Math.round(physicalMitigated)} | SPD: ${Math.round(specialMitigated)} | Cura: ${Math.round(healed)} | Barreira: ${Math.round(barrierAbsorbed)}`;
-      return `<div class="combat-entry ${side}" tabindex="0" title="${safe(tooltip)}" aria-label="${name}: ${valueText}">
+      const detailText=isDamage
+        ? `<span class="combat-raws">FÍS ${Math.round(phys)} · ESP ${Math.round(special)}</span>`
+        : !isStatus ? `<span class="combat-raws">DEF ${Math.round(physicalMitigated)} · SPD ${Math.round(specialMitigated)} · CURA ${Math.round(healed)}</span>` : '';
+      const meter=isStatus?bar:`<div class="combat-meter">${bar}${detailText}</div>`;
+      return `<div class="combat-entry ${side} ${isStatus?'is-status':'has-metrics'}" tabindex="0" aria-label="${name}: ${valueText}">
         <div class="combat-line"><span class="combat-position">${index+1}</span><span class="combat-mini-shape">${portrait(unit.family,31,unit.stage,unit.formId)}</span>
-          <span class="combat-name">${name}</span><span class="combat-val">${valueText}</span></div>${bar}${details}</div>`;
+          <span class="combat-name">${name}</span><span class="combat-val">${valueText}</span></div>${meter}</div>`;
     }).join('');
     const legend=this.metric==='damage'
       ? '<div class="metric-legend"><span><i class="phys"></i>FÍSICO</span><span><i class="spec"></i>ESPECIAL</span></div>'
@@ -547,7 +545,6 @@ export class Hud {
     <div class="inspector-stats" aria-label="Atributos e IV individuais">${statCards}</div>
     <div class="inspector-percentages" aria-label="Atributos percentuais">${percentCards}</div>
     <div class="inspector-ability-wrap">
-      <span class="inspector-ability-label">HABILIDADE CARREGADA</span>
       <div class="inspector-ability-row">
         <button type="button" class="inspector-ability" aria-describedby="inspectorAbilityTooltip" aria-label="Detalhes da habilidade ${safe(move.name)}">${safe(move.name)}</button>
         <div class="inspector-range" title="Alcance de ataque regular: ${rangeTitle}"><small>ALCANCE</small><b>${rangeTitle}</b></div>
