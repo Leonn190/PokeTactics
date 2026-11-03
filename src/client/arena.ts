@@ -935,7 +935,7 @@ export class Arena {
       const elements=getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).elements;
       const tones:Record<string,string>={fire:'#ff9b5c',steel:'#c5e1e7',fighting:'#d98c63',psychic:'#f1b0f5',rock:'#cabb91',water:'#75d6ff',grass:'#8cec9c',electric:'#ffe580',flying:'#cde9ff',fairy:'#ffaaff',normal:'#d8ded0',ghost:'#bfa7ff',dark:'#8f85bd',bug:'#c9ef75',dragon:'#aba8ff',ground:'#d9ab81',poison:'#b777f2',ice:'#c7faff',sound:'#7ff2f0',cosmic:'#c6b6ff'};
       const active=elements.filter(type=>tierFor(type,battle.traitsByPlayer[unit.ownerId]?.[type]||0));
-      active.slice(0,2).forEach((type,i)=>{
+      active.slice(0,3).forEach((type,i)=>{
         ctx.save();ctx.globalAlpha=.26+.09*Math.sin(time*2.5+i*2);
         ctx.strokeStyle=tones[type];ctx.lineWidth=1.5;ctx.shadowColor=tones[type];ctx.shadowBlur=8;
         ctx.beginPath();ctx.ellipse(p.x,p.y-3,radius*(1.22+i*.2),radius*(.44+i*.13),0,0,PI2);ctx.stroke();ctx.restore();

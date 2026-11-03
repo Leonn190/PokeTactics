@@ -30,7 +30,7 @@ const canvas = document.getElementById('battlefield') as HTMLCanvasElement;
 const arena = new Arena(canvas, view);
 const hud = new Hud();
 
-/** Keep selected Pokémon details directly below ranking and combat. */
+/** Keep selected Pokémon details immediately beneath the measured right panel. */
 const rightPanelNode=document.getElementById('rightPanel')!;
 const inspectorNode=document.getElementById('unitInspector')!;
 function positionInspectorBelowRightPanel():void {

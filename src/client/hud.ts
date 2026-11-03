@@ -491,7 +491,11 @@ export class Hud {
     const ivAverage = Object.values(pokemon.iv).reduce((a, b) => a + b, 0) / Object.keys(pokemon.iv).length;
     const power = totalPower(stats);
     const move = ATTACKS.moves[stage.move];
-    const description = moveDescription(move);
+    const description = move.effect==='ultrasonic-wave'
+      ? 'Onda sonora: '+[22,35,52][displayStage]+' + '+[50,70,90][displayStage]+'% do SpA; atinge até '+[2,3,3][displayStage]+' inimigos (65% secundários) e concede Velocidade por 2,5 s.'
+      : move.effect==='spiral-jet'
+      ? 'Jato perfurante: '+[27,41,57][displayStage]+' + '+[65,86,110][displayStage]+'% do SpA; atravessa até '+[1,2,3][displayStage]+' inimigos adicionais com 65% do dano.'+(displayStage===2?' Kingdra cria uma explosão aquática no primeiro impacto.':'')
+      : moveDescription(move);
     const hp = combatant?.hp??stats.hp;
     const maxHp = Math.max(1,combatant?.maxHp??stats.hp);
     const energy = combatant?.energy??0;

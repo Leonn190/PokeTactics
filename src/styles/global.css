@@ -287,7 +287,7 @@
 .barrier-absorbed { display:block; margin-top:2px; color:#d7b6f5; font-size:10px; letter-spacing:.02em; }
 
 /* Refactor: the right-hand ranking panel is no longer compressed by an open inspector. */
-#app:has(#unitInspector:not(.hidden)) .right-panel{height:auto;max-height:calc(100% - 290px);min-height:410px;overflow:visible}
+#app:has(#unitInspector:not(.hidden)) .right-panel{height:auto;max-height:calc(100% - 290px);min-height:0;overflow:auto}
 /* The shorter inspector sits below the ranking panel on tall displays. */
 .unit-inspector{top:auto;bottom:clamp(189px,22vh,234px);height:auto;max-height:360px;padding:11px 14px 12px}
 .inspector-top{min-height:43px;gap:9px;margin-bottom:7px}
@@ -1261,3 +1261,6 @@
   box-sizing:border-box;margin:0;overflow-y:auto;overscroll-behavior:contain;
   scrollbar-width:thin;scrollbar-color:#739991 #10252d;
 }
+
+/* V26: the measured ranking panel owns the inspector's vertical anchor. */
+#app .unit-inspector:not(.hidden){position:absolute;bottom:auto;height:auto;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#668e74 transparent}
