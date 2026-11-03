@@ -1,27 +1,29 @@
-import { bonusTraits } from '../../../server/systems/augments';
-import { getStageData, SPECIES } from '../../../server/data';
+import { countTraits, traitFamily } from '../../../server/systems/synergies/counting';
+import { displayName, getStageData, SPECIES } from '../../../server/data';
+import { MEGA } from '../../../server/forms';
 import type { Family } from '../../../server/types';
 import { SYNERGIES,tierFor } from '../../../server/systems/synergies/registry';
 import type { Element,Player } from '../../../server/types';
 const safe=(text:string)=>text.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-const labels:Record<string,string>={amplification:'Amplificação',durability:'Durabilidade',atk:'ATK',def:'DEF',spa:'SpA',spd:'SpD',shield:'Barreira (HP máx.)',energyPerSecond:'Energia/s',hp:'Vida máxima',regen:'Regeneração/s',speed:'Velocidade',damage:'Dano base',spaRatio:'Escala SpA',maxSpeed:'Limite de Vel.',landingSpeed:'Vel. ao pousar',healingShieldAmp:'Amplifica cura/barreira',emergencyShield:'Barreira emergência',share:'Compartilhamento',vampirism:'Vampirismo',reviveHp:'Vida ao reviver',critChance:'Chance crítica',critDamage:'Dano crítico extra',inherit:'Herança',iv:'IV da casa',dragonIv:'IV extra (Dragão)',waves:'Ondas',dot:'Veneno/s',deathHeal:'Cura por morte',healReduction:'Anticura',durabilityReduction:'Redução Durabilidade',speedReduction:'Redução Vel.'};
-const percentKeys=new Set(['amplification','durability','atk','def','spa','spd','shield','hp','regen','speed','maxSpeed','landingSpeed','healingShieldAmp','emergencyShield','share','vampirism','reviveHp','critChance','critDamage','inherit','dot','deathHeal','healReduction','durabilityReduction','speedReduction','spaRatio']);
+const labels:Record<string,string>={amplification:'Amplificação',durability:'Durabilidade',atk:'ATK',def:'DEF',spa:'SpA',spd:'SpD',shield:'Barreira (HP máx.)',energyPerSecond:'Energia/s',hp:'Vida máxima',regen:'Regeneração/s',speed:'Velocidade',damage:'Dano base',spaRatio:'Escala SpA',maxSpeed:'Limite de Vel.',landingSpeed:'Vel. ao pousar',healingShieldAmp:'Amplifica cura/barreira',emergencyShield:'Barreira emergência',share:'Compartilhamento',vampirism:'Vampirismo',reviveHp:'Vida ao reviver',critChance:'Chance crítica',critDamage:'Dano crítico extra',inherit:'Herança',iv:'IV da casa',dragonIv:'IV extra (Dragão)',waves:'Ondas',dot:'Veneno/s',deathHeal:'Cura por morte',healReduction:'Anticura',durabilityReduction:'Redução Durabilidade',speedReduction:'Redução Vel.',targets:'Alvos',spdReduction:'Redução SpD'};
+const percentKeys=new Set(['amplification','durability','atk','def','spa','spd','shield','hp','regen','speed','maxSpeed','landingSpeed','healingShieldAmp','emergencyShield','share','vampirism','reviveHp','critChance','critDamage','inherit','dot','deathHeal','healReduction','durabilityReduction','speedReduction','spaRatio','spdReduction']);
 function tierText(tier:Record<string,number|number[]>):string {
  return Object.entries(tier).filter(([k])=>k!=='count').map(([k,v])=>{
   if(Array.isArray(v))return `${labels[k]||k}: ${v.join(' / ')}`;
   return `${labels[k]||k}: ${percentKeys.has(k)?`${Math.round(v*1000)/10}%`:Number.isInteger(v)?v:v.toFixed(1)}`;
  }).join(' · ');
 }
+const evolutionRank=(family:Family,stage:number):number=>SPECIES[family].babyEvolution?-1:SPECIES[family].eeveeBranch?1:stage;
 export class SynergyPanel {
  private visible:Element|null=null;
  private counts:Partial<Record<Element,number>>={};
- private contributing:Partial<Record<Element,Array<{family:Family;stage:number}>>>={};
+ private watched:Player|null=null;
  private tooltip:HTMLElement;
  private latestTypes='';
  private latestOwnership='';
  private owned=new Set<string>();
  private onBoard=new Set<string>();
- constructor(private rows:HTMLElement,private typeIcon:(type:Element,size:number)=>string,private portrait:(family:Family,size:number,stage:number)=>string){
+ constructor(private rows:HTMLElement,private typeIcon:(type:Element,size:number)=>string,private portrait:(family:Family,size:number,stage:number,formId?:string)=>string){
    this.tooltip=document.createElement('aside');
    this.tooltip.className='synergy-tooltip';this.tooltip.setAttribute('role','tooltip');this.tooltip.hidden=true;
    document.body.appendChild(this.tooltip);
@@ -39,22 +41,14 @@ export class SynergyPanel {
    rows.addEventListener('keydown',ev=>{if(ev.key==='Escape')this.hide();});
    this.tooltip.addEventListener('pointerleave',ev=>{if(!this.rows.contains(ev.relatedTarget as Node|null))this.hide();});
  }
- reset():void {this.latestTypes='';this.latestOwnership='';this.visible=null;this.counts={};this.contributing={};this.rows.innerHTML='';this.tooltip.hidden=true;}
+ reset():void {this.latestTypes='';this.latestOwnership='';this.visible=null;this.counts={};this.watched=null;this.rows.innerHTML='';this.tooltip.hidden=true;}
  update(watched:Player):void {
-   const unique=new Set<string>();this.counts={};this.contributing={};
-   this.owned=new Set(watched.units.map(u=>`${u.family}:${u.stage}`));
-   this.onBoard=new Set(watched.units.filter(u=>u.position.area==='board').map(u=>`${u.family}:${u.stage}`));
-   const ownershipKey=[...this.owned].sort().join('|')+';'+[...this.onBoard].sort().join('|');
+   this.watched=watched;
+   this.counts=countTraits(watched);
+   this.owned=new Set(watched.units.map(u=>`${u.family}:${u.stage}:${u.formId||''}`));
+   this.onBoard=new Set(watched.units.filter(u=>u.position.area==='board').map(u=>`${u.family}:${u.stage}:${u.formId||''}`));
+   const ownershipKey=watched.units.map(u=>`${u.id}:${u.family}:${u.stage}:${u.formId||''}:${u.position.area}`).sort().join('|');
    const ownershipChanged=ownershipKey!==this.latestOwnership;this.latestOwnership=ownershipKey;
-   for(const unit of watched.units){
-     if(unit.position.area!=='board')continue;
-     const key=`${unit.family}:${unit.stage}:${unit.formId||''}`;if(unique.has(key))continue;unique.add(key);
-     for(const element of getStageData(unit.family,unit.stage,unit.formId).elements){
-       this.counts[element]=(this.counts[element]||0)+1;
-       (this.contributing[element]||=[]).push({family:unit.family,stage:unit.stage});
-     }
-   }
-   this.counts=bonusTraits(this.counts,watched.augments||[]);
    const order=(Object.keys(SYNERGIES) as Element[]).filter(type=>!!this.counts[type]);
    const level=(type:Element)=>SYNERGIES[type].tiers.filter(t=>t.count<=(this.counts[type]||0)).length;
    const closeness=(type:Element)=>{
@@ -78,13 +72,27 @@ export class SynergyPanel {
  private show(type:Element,row:HTMLElement):void {
    const config=SYNERGIES[type];if(!config)return;
    const count=this.counts[type]||0,level=config.tiers.filter(t=>t.count<=count).length;
-   // Catalog-wide portraits, not only the player's currently deployed contributors.
-   const list=(Object.keys(SPECIES) as Family[]).flatMap(family=>SPECIES[family].names.map((_,stage)=>({family,stage})))
-     .filter(u=>getStageData(u.family,u.stage).elements.includes(type))
-     .sort((a,b)=>SPECIES[a.family].pokedexIds[a.stage]-SPECIES[b.family].pokedexIds[b.stage]);
+   // One representative per evolutionary lineage. Only the ACTIVE form grants a type.
+   type Candidate={family:Family;stage:number;formId?:string};
+   const all:Candidate[]=(Object.keys(SPECIES) as Family[]).flatMap(family=>SPECIES[family].names.map((_,stage)=>({family,stage})));
+   all.push(...MEGA.forms.map(f=>({family:f.family as Family,stage:f.stage,formId:f.id})));
+   const groups=new Map<string,Candidate[]>();
+   for(const unit of all){
+     if(!getStageData(unit.family,unit.stage,unit.formId).elements.includes(type))continue;
+     const key=traitFamily(unit.family);
+     if(!groups.has(key))groups.set(key,[]);groups.get(key)!.push(unit);
+   }
+   const list=[...groups.values()].map(candidates=>{
+     const key=traitFamily(candidates[0].family);
+     const owned=(this.watched?.units||[]).filter(u=>traitFamily(u.family)===key&&getStageData(u.family,u.stage,u.formId).elements.includes(type));
+     owned.sort((a,b)=>evolutionRank(b.family,b.stage)-evolutionRank(a.family,a.stage)||Number(!!b.formId)-Number(!!a.formId)||a.id.localeCompare(b.id));
+     candidates.sort((a,b)=>evolutionRank(a.family,a.stage)-evolutionRank(b.family,b.stage)||Number(!!a.formId)-Number(!!b.formId));
+     const chosen=owned[0]||candidates[0];
+     return {...chosen,owned:!!owned.length,deployed:owned.some(u=>u.position.area==='board')};
+   }).sort((a,b)=>SPECIES[a.family].pokedexIds[a.stage]-SPECIES[b.family].pokedexIds[b.stage]);
    const html=`<header><span class="sy-tooltip-icon">${this.typeIcon(type,27)}</span><div><strong>${safe(config.name.toUpperCase())}</strong><small>${safe(config.subtitle)}</small></div></header>
      <p>${safe(config.description)}</p><div class="sy-tooltip-tiers">${config.tiers.map((tier,i)=>`<div class="sy-tooltip-tier ${i===level-1?'current':i<level?'reached':'future'}"><b>${tier.count}</b><span>${safe(tierText(tier))}</span></div>`).join('')}</div>
-     <div class="sy-tooltip-contributors"><b>POKÉMON DA SINERGIA · ${list.length}</b><div class="sy-portraits">${list.map(u=>`<span title="${safe(SPECIES[u.family].names[u.stage])}" class="${this.onBoard.has(`${u.family}:${u.stage}`)?'owned deployed':this.owned.has(`${u.family}:${u.stage}`)?'owned':'unowned'}">${this.portrait(u.family,37,u.stage)}</span>`).join('')}</div></div>`;
+     <div class="sy-tooltip-contributors"><b>POKÉMON DA SINERGIA · ${list.length}</b><div class="sy-portraits">${list.map(u=>`<span title="${safe(displayName(u.family,u.stage,u.formId))}" class="${u.deployed?'owned deployed':u.owned?'owned':'unowned'}">${this.portrait(u.family,37,u.stage,u.formId)}</span>`).join('')}</div></div>`;
    if(this.tooltip.innerHTML!==html)this.tooltip.innerHTML=html;
    this.visible=type;this.tooltip.hidden=false;
    const r=row.getBoundingClientRect(),width=340;
