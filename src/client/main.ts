@@ -12,7 +12,7 @@ import { markerAt, type PmdSheet } from './animation/pmd-metadata';
 import { pmdSource } from './animation/pmd-source';
 import { ITEMS } from '../../server/systems/items';
 import pmdManifest from './pmd-manifest.json';
-import { eligibleForm } from '../../server/forms';
+import { eligibleForm, alternativeForm } from '../../server/forms';
 import type { BallKind, ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
 
 // The provided PMD manifest does not yet include every portrait (notably
@@ -365,7 +365,7 @@ function setDragSprite(family: keyof typeof SPECIES, stage: number, formId:strin
   const fallbackPath=species.sprites[Math.min(stage, species.sprites.length-1)];
   ghostImage.src=ghostIdle
     ? `${import.meta.env.BASE_URL}sprite/${available.folder}/${ghostIdle.file}`
-    : formId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${source.dex}.png`
+    : formId ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${alternativeForm(family,stage,formId)?.pokedexId||source.dex}.png`
     : /^https?:\/\//.test(fallbackPath) ? fallbackPath : `${import.meta.env.BASE_URL}${fallbackPath.replace(/^\.\//, '')}`;
   ghostStarted = performance.now();
 }
