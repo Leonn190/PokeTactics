@@ -56,7 +56,7 @@ function stageSummary(family: Family, stage: number): {moveName:string; primary:
   const primary=rows[0] ? formula(rows[0]) : '<span class="ability-flat">Efeito utilitário</span>';
   // A few abilities improve their number of hits, healing, protection or
   // duration rather than their first damage line. Show that evolution too.
-  const priority=/Quantidade de tiros|Número de pulsos|Alvos por ataque|Alvos adicionais|Redução de dano|Duração do terreno|Duração do jato|ATK e VEL por acerto recebido|Dano adjacente|Cura por aliado|Barreira/;
+  const priority=/Quantidade de tiros|Número de pulsos|Alvos por ataque|Alvos adicionais|Inimigos presos|Redução de dano|Duração do terreno|Duração do jato|ATK e VEL por acerto recebido|Dano adjacente|Cura por aliado|Barreira/;
   const extra=rows.slice(1).find(row=>priority.test(row.label));
   return {moveName:move.name,primary,...(extra?{extra:`${escapeHTML(extra.label)}: ${formula(extra)}`}:{})};
 }
@@ -92,7 +92,7 @@ export function abilityCard(family: Family, stage: number, description: string, 
     : '';
   return `<div class="ability-card ability-card-${theme}">
     <div class="ability-card-header">
-      <span class="ability-card-eyebrow">HABILIDADE CARREGADA</span><span class="ability-card-category">${tag}</span>
+      <span class="ability-card-eyebrow">HABILIDADE</span><span class="ability-card-category">${tag}</span>
     </div>
     <div class="ability-card-name">${escapeHTML(move.name)}${mode}</div>
     <p class="ability-card-description">${escapeHTML(description)}</p>

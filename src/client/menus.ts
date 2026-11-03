@@ -86,7 +86,8 @@ export function moveDescription(move: MoveData): string {
     'star-ward':'Ganha um escudo rosa que invoca estrelas sobre o inimigo que mais causou dano até o escudo acabar.',
     'mime-wall':'Cria duas paredes direcionais que bloqueiam os inimigos e fortalecem o próprio ataque regular.',
     'furious-leap':'Salta no inimigo, causa pouco dano especial e recua para um espaço livre. Cada golpe inimigo efetivo recebido aumenta ATK e VEL; Annihilape ressuscita uma vez com Fúria reforçada.',
-    'flame-orbit':'Invoca duas chamas que orbitam o corpo e queimam inimigos por contato. Enquanto houver chamas, recebe bônus de VEL, DEF e SpD.'
+    'flame-orbit':'Invoca duas chamas que orbitam o corpo e queimam inimigos por contato. Enquanto houver chamas, recebe bônus de VEL, DEF e SpD.',
+    'tentacle-grasp':'Prende inimigos sem impedir ataques e causa veneno especial a cada 0,5 s. Tentacruel puxa até três alvos e transmite 20% do dano especial direto de habilidades de outros aliados entre eles. Ao soltar, reduz a velocidade de movimento em 30% por 1 s.'
   };
   const conversion = move.conversion;
   const buffs: Record<string,string> = { atk:'ATAQUE', def:'DEFESA', spa:'ATAQUE ESPECIAL', spd:'DEFESA ESPECIAL', speed:'VELOCIDADE' };

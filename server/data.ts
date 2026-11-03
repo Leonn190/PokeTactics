@@ -43,7 +43,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam' | 'mewtwo-barrage' | 'mewtwo-impact' | 'moltres-fire' | 'zapdos-storm' | 'articuno-blizzard';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam' | 'mewtwo-barrage' | 'mewtwo-impact' | 'moltres-fire' | 'zapdos-storm' | 'articuno-blizzard' | 'tentacle-grasp';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -97,6 +97,10 @@ export type MoveData = {
   cells?:number;strikeInterval?:number;paralysisSeconds?:number;energyDrainFraction?:number;freezeSeconds?:number;iceSeconds?:number;slowFraction?:number;areaRadius?:number;
   jumpDuration?:number; landingDuration?:number; jumpSearchRadius?:number;
   continuationMultiplier?: number; levelBonusCap?: number; revertHealthRatio?: number;
+  tentacleDurationByStage?:number[]; tentacleControlSpaRatio?:number; tentacleControlMax?:number;
+  tentacleDamageByStage?:number[]; tentacleRatioByStage?:number[]; tentacleMaxTargetsByStage?:number[];
+  tentacleRadius?:number; tentacleTickSeconds?:number; tentacleSlowSeconds?:number;
+  tentacleSlowFraction?:number; tentacleShareFraction?:number; tentaclePullDistance?:number;
 };
 
 export const ATTACKS = movesConfig as unknown as {

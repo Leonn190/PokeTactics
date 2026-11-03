@@ -167,6 +167,9 @@ export interface CombatUnit {
   effects: { kind: string; time: number }[];
   damageOverTime: { amount: number; time: number; sourceId: string; accumulator?: number; tickTime?: number } | null;
   poison: { amount: number; time: number; sourceId: string; accumulator: number } | null;
+  /** V25.7: snared units cannot walk, but continue using attacks. */
+  tentacle?: {sourceId:string;groupId:string;until:number;nextTick:number;rawPerTick:number};
+  tentacleSlowUntil?:number;
   barrier: { hp: number; time: number; maxHp: number } | null;
   barriers: TimedBarrier[];
   buffs: TimedStatEffect[];

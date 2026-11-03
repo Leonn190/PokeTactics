@@ -208,6 +208,10 @@
       "./portrait/0043/Normal.png",
       "./portrait/0044/Normal.png",
       "./portrait/0045/Normal.png"
+    ],
+    "tentacool": [
+      "./portrait/0072/Normal.png",
+      "./portrait/0073/Normal.png"
     ]
   },
   "species": {
@@ -5363,6 +5367,89 @@
         3
       ],
       "rangeLevel": 4
+    },
+    "tentacool": {
+      "names": [
+        "Tentacool",
+        "Tentacruel"
+      ],
+      "pokedexIds": [
+        72,
+        73
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#7ac9cc",
+      "base": {
+        "hp": 310,
+        "atk": 37,
+        "def": 49,
+        "spa": 71,
+        "spd": 76,
+        "speed": 55
+      },
+      "stageBases": [
+        {
+          "hp": 310,
+          "atk": 37,
+          "def": 49,
+          "spa": 71,
+          "spd": 76,
+          "speed": 55
+        },
+        {
+          "hp": 495,
+          "atk": 64,
+          "def": 77,
+          "spa": 112,
+          "spd": 112,
+          "speed": 74
+        }
+      ],
+      "energy": 85,
+      "attack": "abyssal-embrace",
+      "elements": [
+        "water",
+        "poison"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "water"
+      },
+      "stages": [
+        {
+          "elements": [
+            "water",
+            "poison"
+          ],
+          "energy": 85,
+          "move": "abyssal-embrace",
+          "chargedType": "poison",
+          "chargedAnimation": "Attack",
+          "rangeLevel": 2
+        },
+        {
+          "elements": [
+            "water",
+            "poison"
+          ],
+          "energy": 100,
+          "move": "abyssal-embrace",
+          "chargedType": "poison",
+          "chargedAnimation": "Attack",
+          "rangeLevel": 2
+        }
+      ],
+      "physicalSizes": [
+        0.87,
+        1.22
+      ],
+      "evolutionCopies": [
+        3
+      ],
+      "rangeLevel": 2
     }
   }
 }

@@ -107,6 +107,13 @@ export function abilityScaling(move: MoveData, stage: number, family?: Family): 
   switch(move.effect) {
     case 'ditto-transform':
       return rows;
+    case 'tentacle-grasp':
+      add('Veneno por 0,5 s',byStage(move.tentacleDamageByStage,25),{spa:byStage(move.tentacleRatioByStage,.35)});
+      add('Duração dos tentáculos',byStage(move.tentacleDurationByStage,1.5),{},
+        `+ ${(move.tentacleControlSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, até ${move.tentacleControlMax??2.35} s.`,'s');
+      add('Inimigos presos',byStage(move.tentacleMaxTargetsByStage,1));
+      if(stage>0)add('Dano especial compartilhado',Math.round((move.tentacleShareFraction||0)*100),{},'Somente habilidades de outros aliados; não retransmite.','%');
+      return rows;
     case 'withdraw-guard':
       add('Redução de dano', Math.round((move.guardReduction??.35)*100), {}, `+ ${((move.guardSpaRatio||0)*100).toLocaleString('pt-BR',{maximumFractionDigits:3})} ponto percentual por SPA, até o limite.`, '%');
       return rows;
