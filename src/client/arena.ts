@@ -1,6 +1,5 @@
 import { alternativeForm } from '../../server/forms';
 import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, ITEM_RACK_WORLD, RULES, ATTACKS, physicalSize, collisionRadius, calculateStats } from '../../server/data';
-import { bonusStats } from '../../server/systems/items';
 import { FrameScheduler } from './performance/frame-scheduler';
 import { PerformanceProfiler } from './performance/profiler';
 import { SnapshotClock } from './animation/snapshot-clock';
@@ -624,6 +623,30 @@ export class Arena {
       ctx.restore();
     }
   }
+  /** V25.7: purple tentacle graphics never control the simulation. */
+  private drawTentacles(time:number):void {
+    const battle=this.snapshot?.visibleBattle;
+    if(!battle||battle.resolved||this.snapshot?.phase!=='combat')return;
+    const flip=battle.participants.length===2&&battle.playerB===this.view.scoutId;
+    const ctx=this.context;
+    for(const victim of battle.units){
+      const hold=victim.tentacle;
+      if(!hold||hold.until<=battle.elapsed||victim.hp<=0)continue;
+      const source=battle.units.find(u=>u.id===hold.sourceId&&u.hp>0);
+      if(!source)continue;
+      const a=this.toScreen(source.x,flip?-source.y:source.y);
+      const b=this.toScreen(victim.x,flip?-victim.y:victim.y);
+      const wave=Math.sin(time*5+victim.x*1.5)*this.cellScale*.13;
+      const midX=(a.x+b.x)/2+wave,midY=(a.y+b.y)/2-this.cellScale*.28;
+      ctx.save();ctx.lineCap='round';
+      ctx.shadowColor='#b66bee';ctx.shadowBlur=this.cellScale*.14;
+      ctx.strokeStyle='#513583de';ctx.lineWidth=Math.max(3,this.cellScale*.065);
+      ctx.beginPath();ctx.moveTo(a.x,a.y-this.cellScale*.21);
+      ctx.quadraticCurveTo(midX,midY,b.x,b.y-this.cellScale*.2);ctx.stroke();
+      ctx.shadowBlur=0;ctx.strokeStyle='#dda2f5d8';ctx.lineWidth=Math.max(1.2,this.cellScale*.022);ctx.stroke();
+      ctx.restore();
+    }
+  }
   private drawAbsorptions(time:number):void {
     const battle=this.snapshot?.visibleBattle;
     if(!battle||battle.resolved||this.snapshot?.phase!=='combat')return;
@@ -744,8 +767,8 @@ export class Arena {
       const row = own ? 4 + pos.row : 3 - pos.row;
       const p = gridXY(pos.col, row);
       return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage,formId:u.formId,
-        level: u.level, own, equipment:u.equipment||[],hp: bonusStats(calculateStats(u.family,u.level,u.iv,u.stage,false,false,u.formId),u.equipment).hp,
-        maxHp: bonusStats(calculateStats(u.family,u.level,u.iv,u.stage,false,false,u.formId),u.equipment).hp,
+        level: u.level, own, equipment:u.equipment||[],hp: bonusStats(calculateStats(u.family,u.level,u.iv,u.stage,false,false,u.formId),u.equipment||[]).hp,
+        maxHp: bonusStats(calculateStats(u.family,u.level,u.iv,u.stage,false,false,u.formId),u.equipment||[]).hp,
         energy: 0, required: getStageData(u.family, u.stage,u.formId).energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
@@ -1245,7 +1268,7 @@ export class Arena {
       drawMarkers.push(marker);
     }
     drawMarkers.sort((a, b) => a.y - b.y);
-    if(!emptyOwnBoard)this.drawVines(this.frame);
+    if(!emptyOwnBoard){this.drawVines(this.frame);this.drawTentacles(this.frame);}
     for (const marker of drawMarkers) this.drawUnit(marker, this.frame);
     if(!emptyOwnBoard)this.drawAbsorptions(this.frame);
     if(!emptyOwnBoard&&battle&&this.snapshot?.phase!=='planning')this.drawObstacles(battle,this.frame);

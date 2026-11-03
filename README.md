@@ -125,3 +125,7 @@ O painel de jogadores exibe sequências de vitórias/derrotas. O painel de comba
 - **Eliminação:** ao perder a última vida, o jogador vê uma tela animada com sua colocação, “Espectar partida” e “Voltar ao menu”. Espectar oculta a própria loja, bandeja, tabuleiro e equipe, sem interromper o jogo dos demais.
 - **Visitação:** um espectador pode continuar clicando com o botão direito para andar e escolhendo arenas no ranking, mas não consegue comprar, roletar, reorganizar Pokémon nem coletar recompensas. O motor continua sendo a fonte única de verdade.
 - As habilidades de movimento especial e os valores de alcance/dano não foram alterados. Verificações previstas no CI: `npm run validate:config`, `npm run check` e `npm run build`; revisar manualmente duelos, quádruplos, corredores congestionados e eliminação durante o resultado.
+
+### V25.7 — Abraço Abissal e interface
+
+Tentacool e Tentacruel (Água/Veneno) são incomuns. Abraço Abissal prende sem cancelar ataques, aplica veneno periódico e, com Tentacruel, captura até três inimigos com puxão e dano especial compartilhado. As barras de vida recuperam marcações a cada 150 HP; o ranking, a inspeção de banco inimigo, tooltips e prateleira física foram ajustados.
