@@ -140,3 +140,8 @@ Tentacool e Tentacruel (Água/Veneno) são incomuns. Abraço Abissal prende sem 
 ### V25.8 — Exeggcute e alinhamento visual
 
 Exeggcute/Exeggutor entram na loja como comuns, com barreira e SpD melhorada enquanto protegidos; Exeggutor usa ATK e 40% de SpD nos ataques regulares físicos. Melhorados os pontos de origem dos projéteis, o alinhamento do sprite arrastado e a ficha Pokémon logo abaixo do ranking/combate. Confira os checks de JSON, TypeScript e build no workflow do PR.
+
+## V26 — Ressonância e Constelações
+
+A V26 inclui Zubat e Horsea com suas evoluções, introduz Sonoro e Cósmico, revisa tipagens e permite até três tipos por forma. Sinergias agora contam famílias únicas, não estágios repetidos; a tooltip mostra um Pokémon representativo por família. Há novos efeitos de combate e fundos metálicos para os tiers das sinergias.
+
