@@ -1266,6 +1266,61 @@
       ],
       "shieldSpaRatio": 0.48,
       "shieldDuration": 4
+    },
+    "ultrasonic-wave": {
+      "name": "Ultrassom",
+      "effect": "ultrasonic-wave",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "damageByStage": [
+        22,
+        35,
+        52
+      ],
+      "damageRatioByStage": [
+        0.5,
+        0.7,
+        0.9
+      ],
+      "secondaryTargetsByStage": [
+        2,
+        3,
+        3
+      ],
+      "splashMultiplier": 0.65,
+      "splashRange": 1.4,
+      "speedBonusByStage": [
+        0.08,
+        0.12,
+        0.16
+      ],
+      "buffDuration": 2.5
+    },
+    "spiral-jet": {
+      "name": "Jato Espiral",
+      "effect": "spiral-jet",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "damageByStage": [
+        27,
+        41,
+        57
+      ],
+      "damageRatioByStage": [
+        0.65,
+        0.86,
+        1.1
+      ],
+      "pierceTargetsByStage": [
+        1,
+        2,
+        3
+      ],
+      "pierceMultiplier": 0.65,
+      "pierceRadius": 0.43,
+      "explosionBase": 14,
+      "explosionSpaRatio": 0.25,
+      "splashRange": 1.1
     }
   }
 }

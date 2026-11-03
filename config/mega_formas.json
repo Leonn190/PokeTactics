@@ -52,7 +52,7 @@
       "name": "Mega Gengar",
       "elements": [
         "ghost",
-        "poison"
+        "dark"
       ],
       "base": {
         "hp": 475,
@@ -130,8 +130,7 @@
       "stage": 0,
       "name": "Articuno de Galar",
       "elements": [
-        "psychic",
-        "flying"
+        "psychic"
       ],
       "base": {
         "hp": 645,
@@ -150,8 +149,7 @@
       "stage": 0,
       "name": "Zapdos de Galar",
       "elements": [
-        "fighting",
-        "flying"
+        "fighting"
       ],
       "base": {
         "hp": 640,
@@ -170,8 +168,7 @@
       "stage": 0,
       "name": "Moltres de Galar",
       "elements": [
-        "dark",
-        "flying"
+        "dark"
       ],
       "base": {
         "hp": 650,
@@ -231,6 +228,7 @@
       "name": "Weezing de Galar",
       "elements": [
         "poison",
+        "ghost",
         "fairy"
       ],
       "base": {
@@ -462,6 +460,27 @@
       },
       "pokedexId": 10113,
       "pmdVariant": "0001"
+    },
+    {
+      "id": "mega-gyarados",
+      "family": "magikarp",
+      "stage": 1,
+      "name": "Mega Gyarados",
+      "elements": [
+        "water",
+        "dragon",
+        "dark"
+      ],
+      "base": {
+        "hp": 650,
+        "atk": 156,
+        "def": 112,
+        "spa": 100,
+        "spd": 120,
+        "speed": 109
+      },
+      "pokedexId": 10041,
+      "pmdVariant": "0002"
     }
   ]
 }

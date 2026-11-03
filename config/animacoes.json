@@ -116,6 +116,18 @@
       "trail": "#8c5140",
       "shape": "diamond",
       "arrival": 1
+    },
+    "sound": {
+      "color": "#7ce9eb",
+      "trail": "#3b9dbf",
+      "shape": "orb",
+      "arrival": 1
+    },
+    "cosmic": {
+      "color": "#d6c1ff",
+      "trail": "#8ea6e8",
+      "shape": "spark",
+      "arrival": 1
     }
   },
   "visualProfiles": {
@@ -134,7 +146,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -149,7 +161,7 @@
       {
         "launch": "body",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -182,7 +194,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -197,7 +209,7 @@
       {
         "launch": "body",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -277,7 +289,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -292,7 +304,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -324,7 +336,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -339,7 +351,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -354,7 +366,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -371,7 +383,7 @@
       {
         "launch": "body",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -386,7 +398,7 @@
       {
         "launch": "body",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -510,7 +522,7 @@
       {
         "launch": "hands",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -545,7 +557,7 @@
       {
         "launch": "hands",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -560,7 +572,7 @@
       {
         "launch": "hands",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -663,7 +675,7 @@
       {
         "launch": "hands",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -678,7 +690,7 @@
       {
         "launch": "hands",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -695,7 +707,7 @@
       {
         "launch": "front",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -712,7 +724,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -729,7 +741,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -746,7 +758,7 @@
       {
         "launch": "body",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -763,7 +775,7 @@
       {
         "launch": "body",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -780,7 +792,7 @@
       {
         "launch": "hands",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -797,7 +809,7 @@
       {
         "launch": "back",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -814,7 +826,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -831,7 +843,7 @@
       {
         "launch": "head",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -895,7 +907,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -910,7 +922,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -976,7 +988,7 @@
       {
         "launch": "front",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8,
           "mode": "embedded"
         },
@@ -997,7 +1009,7 @@
       {
         "launch": "front",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8,
           "mode": "embedded"
         },
@@ -1116,7 +1128,7 @@
       {
         "launch": "front",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -1148,7 +1160,7 @@
       {
         "launch": "front",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {
@@ -1163,7 +1175,7 @@
       {
         "launch": "mouth",
         "shadow": {
-          "scale": 1.0,
+          "scale": 1,
           "opacity": 0.8
         },
         "actions": {

@@ -9,7 +9,7 @@ export interface LootReward { kind: 'gold'|'pokemon'|'component'|'mega-stone'; a
 export interface LootDrop { id: string; ownerId: string; x: number; y: number; color: LootColor; claimed: boolean; reward: LootReward; pending?: boolean }
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
-export type Element = 'ghost' | 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'dragon' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy' | 'fighting';
+export type Element = 'ghost' | 'grass' | 'poison' | 'fire' | 'water' | 'electric' | 'ice' | 'flying' | 'psychic' | 'bug' | 'normal' | 'dragon' | 'ground' | 'rock' | 'steel' | 'dark' | 'fairy' | 'fighting' | 'sound' | 'cosmic';
 export type Rarity = 1 | 2 | 3 | 4 | 5;
 export type StageType = 'battle' | 'gold' | 'quad' | 'bot' | 'double' | 'boss';
 export type StageResult = 'win' | 'loss' | 'second' | 'third' | 'fourth' | null;
@@ -109,6 +109,9 @@ export interface SynergyUnitState {
   chilled?: { durability:number; speed:number; until:number };
   flight?: { fromX:number; fromY:number; toX:number; toY:number; elapsed:number; duration:number };
   splashBonus?: number;
+  cosmicOrbits?:number;
+  cosmicStarFired?:boolean;
+  soundShred?:{amount:number;until:number};
   pendingSkill?: {kind:'kick'|'fang-tail'|'explosion';targetId:string;until:number;moveId:string};
   poisonDurabilityReduction?: number;
   poisonHealReduction?: number;
@@ -252,7 +255,7 @@ export interface CombatEffect {
   y: number;
   targetX: number;
   targetY: number;
-  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact' | 'meteor-fall' | 'meteor-warning' | 'meteor-fragment' | 'meteor-impact' | 'cone-slash' | 'scizor-dash' | 'scizor-impact' | 'claw-strip' | 'electro-shot' | 'electro-field' | 'electro-pulse' | 'electro-absorb' | 'flame-jet' | 'electric-punch' | 'psychic-shot' | 'psychic-final' | 'vine-pull' | 'solar-beam';
+  kind: 'basic-projectile' | 'physical' | 'spell' | 'heal' | 'ko' | 'damage' | 'pollen' | 'seed' | 'water' | 'flame' | 'lightning' | 'trainer-hit' | 'poison' | 'shield' | 'gas' | 'stomp' | 'ball' | 'bone' | 'egg' | 'impact' | 'piercing-flame' | 'dragon-orb' | 'dragon-tornado' | 'dragon-wave' | 'earth-trail' | 'earth-burst' | 'psychic-blessing' | 'psychic-spark' | 'explosion' | 'ghost-trail' | 'ghost-slash' | 'ghost-scare' | 'synergy-lightning' | 'earthquake' | 'frost' | 'fairy-link' | 'flight' | 'swarm' | 'ghost-revive' | 'kick-impact' | 'tail-sweep' | 'wind-tornado' | 'bite-impact' | 'hitmon-spin' | 'surf-wave' | 'transform' | 'falling-star' | 'lullaby-note' | 'wall-impact' | 'meteor-fall' | 'meteor-warning' | 'meteor-fragment' | 'meteor-impact' | 'cone-slash' | 'scizor-dash' | 'scizor-impact' | 'claw-strip' | 'electro-shot' | 'electro-field' | 'electro-pulse' | 'electro-absorb' | 'flame-jet' | 'electric-punch' | 'psychic-shot' | 'psychic-final' | 'vine-pull' | 'solar-beam' | 'synergy-resonance' | 'cosmic-star' | 'ultrasonic-wave' | 'spiral-jet';
   magnet?:{ownerId:string;radius:number;attractionRadius:number;absorptionRadius:number;
     pullSpeed:number;pulseRaw:number;pulseCount:number;pulseIndex:number;interval:number};
   magnetPull?:{orbId:string;fromX:number;fromY:number;toX:number;toY:number;startTime:number;duration:number};
@@ -267,7 +270,7 @@ export interface CombatEffect {
   time: number;
   duration: number;
   value: number;
-  piercing?: { sourceId: string; raw: number; attackType: Element; hitIds: string[] };
+  piercing?: { sourceId: string; raw: number; attackType: Element; hitIds: string[]; maxHits?:number; secondaryMultiplier?:number; explosionBase?:number; explosionSpaRatio?:number; explosionRadius?:number };
   legendary?: {kind:'psychic'|'lightning'|'blizzard';sourceId:string;activateAt:number;raw:number;radius:number;hitIds:string[];drain?:number;statusSeconds?:number;iceSeconds?:number;slow?:number;};
   wind?: { sourceId:string; raw:number; attackType:Element; dx:number; dy:number; speed:number;
     traveled:number; maxDistance:number; radius:number; hitIds:string[]; slowFactor:number; speedFactor:number; };

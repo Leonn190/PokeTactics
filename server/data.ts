@@ -43,7 +43,7 @@ export interface SpeciesData {
 }
 
 export type MoveData = {
-  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam' | 'mewtwo-barrage' | 'mewtwo-impact' | 'moltres-fire' | 'zapdos-storm' | 'articuno-blizzard' | 'tentacle-grasp' | 'digital-chain' | 'ice-shards';
+  name: string; effect: 'drain' | 'burn' | 'slow' | 'chain' | 'blast' | 'pollen' | 'spin' | 'flame-strike' | 'shock' | 'poison-shot' | 'heal-powder' | 'sting' | 'shield' | 'multi' | 'gas' | 'stomp' | 'eevee-ball' | 'bone-throw' | 'single-knockup' | 'rock-strike' | 'withdraw-guard' | 'healing-egg' | 'rock-charge' | 'piercing-fire' | 'dragon-breath' | 'dragon-cyclone' | 'dragon-storm' | 'ghost-ambush' | 'burrow' | 'mew-blessing' | 'self-explosion' | 'brutal-kick' | 'desperate-splash' | 'fang-tail' | 'star-refraction' | 'bite-shred' | 'wind-tornado' | 'hitmonchan-uppercut' | 'hitmonlee-spin-kick' | 'flame-orbit' | 'lapras-surf' | 'ditto-transform' | 'lullaby' | 'star-ward' | 'mime-wall' | 'meteor-rain' | 'cone-slash' | 'scizor-double' | 'jynx-kiss' | 'claw-strip' | 'electromagnetic-ball' | 'flame-jet' | 'electric-punch' | 'psychic-teleport' | 'terrain-poison-shot' | 'sludge-absorb' | 'absorbing-vine' | 'furious-leap' | 'solar-beam' | 'mewtwo-barrage' | 'mewtwo-impact' | 'moltres-fire' | 'zapdos-storm' | 'articuno-blizzard' | 'tentacle-grasp' | 'digital-chain' | 'ice-shards' | 'ultrasonic-wave' | 'spiral-jet';
   baseDamage: number; attackRatio?: number; specialRatio: number;
   healBase?: number; healRatio?: number; dotBase?: number; dotRatio?: number;
   dotDuration?: number; slowDuration?: number; chainBase?: number;
@@ -105,6 +105,8 @@ export type MoveData = {
   bounceMultiplier?:number; shotsByStage?:number[];
   /** V25.8: protected SpD passive and evolved physical regular attack. */
   shieldSpdBonusPercentByStage?:number[]; basicSpdFractionByStage?:number[];
+  speedBonusByStage?:number[]; pierceTargetsByStage?:number[]; pierceMultiplier?:number; pierceRadius?:number;
+  explosionBase?:number; explosionSpaRatio?:number;
 };
 
 export const ATTACKS = movesConfig as unknown as {
@@ -195,6 +197,8 @@ export const LEGENDARY_FAMILIES = (Object.keys(SPECIES) as Family[]).filter(f =>
 export const EEVEE_BRANCHES = ['vaporeon','flareon','jolteon','umbreon','sylveon','leafeon','glaceon','espeon'] as Family[];
 
 export const ELEMENTS: Record<Element, { name: string; color: string; description: string }> = {
+  sound: { name: 'Sonoro', color: '#65d9e2', description: 'Ecos de habilidades e redução de SpD' },
+  cosmic: { name: 'Cósmico', color: '#ae9df3', description: 'Órbitas que ampliam SpA e SpD' },
   ghost: { name: 'Fantasma', color: '#b58af8', description: 'Sem bônus de sinergia por enquanto' },
   dragon: { name: 'Dragão', color: '#afa1ff', description: 'Sem bônus de sinergia por enquanto' },
   grass: { name: 'Planta', color: '#81d9a2', description: 'Sem bônus de sinergia por enquanto' },
