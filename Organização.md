@@ -237,3 +237,13 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 - `src/client/arena.ts#dragUnitScreenPosition` recupera a posição do chão do Pokémon; `src/client/main.ts` usa âncora PMD, tamanho físico e deslocamento relativo ao início do arraste para evitar saltos.
 - `src/client/main.ts#positionInspectorBelowRightPanel` alinha a ficha abaixo do painel direito e acompanha redimensionamento; `src/styles/global.css` reserva altura e rolagem independente.
 - Assets PMD 102/103 já existem em `public/sprite/` e `public/portrait/`; o prebuild regenera o manifesto sem baixar nem modificar imagens. Sem novos arquivos de testes.
+
+## V25.9 — Mega/regionais com PMD e duas famílias
+
+- `config/mega_formas.json` associa cada Mega/regional ao índice `pmdVariant` existente no PMD original (Mega Mewtwo Y usa `0003`; demais formas listadas usam `0001`). Não use o número especial da PokeAPI como diretório de animação.
+- `scripts/generate-pmd-manifest.mjs` lê as subpastas `public/sprite/NNNN/0001` e publica entradas de manifesto como `"37/0001"`. `src/client/animation/pmd-source.ts` resolve exatamente a mesma chave e pasta para arena, sombras, pré-carregamento e arraste. A PokeAPI continua sendo fallback estático para imagens sem folha PMD.
+- `server/data.ts#baseStats` impede que uma Mega/regional perca qualquer atributo-base no ato da transformação; conserva o escalamento de IV/nível já aplicado ao Pokémon. O motor ainda recalcula sinergias pela tipagem efetiva da forma.
+- `server/engine.ts#applyMegaStone` consome a pedra do inventário do proprietário correto também no sandbox.
+- `config/pokemons.json` inclui Porygon/Porygon2/Porygon-Z (raro, Normal) e Shellder/Cloyster (incomum, Água; Cloyster Água/Gelo). Usam PMD e retratos locais já existentes, sem download ou mudança do acervo.
+- `config/ataques.json` e o despachante de `server/systems/combat.ts` implementam Pulso de Conversão (alvos encadeados, dano decrescente) e Estilhaços de Concha (2/4 projéteis distribuídos e barreira própria por SpA, sem acumular). Prévia/tooltip compartilha coeficientes da configuração em `server/damage-preview.ts`.
+- Conferir configuração, TypeScript, tooltips V25.6 e build na CI. Revisão manual pendente: antes/depois da Mega (atributos, tipagem, retratos, animações Idle/Walk/Shoot/Hurt), evolução regional, arraste, 1v1, quatro jogadores, Porygon e Cloyster.
