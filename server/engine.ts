@@ -704,7 +704,7 @@ export class GameEngine {
     const form=eligibleForm(unit);
     if(!form)return 'Este estágio não possui Mega Evolução';
     unit.formId=form.id;
-    if(!this.sandbox||!item.id.startsWith('sandbox:'))this.players[0].itemInventory=this.players[0].itemInventory!.filter(i=>i.id!==item.id);
+    if(!this.sandbox||!item.id.startsWith('sandbox:'))owner.itemInventory=(owner.itemInventory||[]).filter(i=>i.id!==item.id);
     this.visualEvents.push({id:this.id(),unitId:unit.id,ownerId:owner.id,kind:'evolve',age:0,pokemon:{family:unit.family,stage:unit.stage,formId:unit.formId,level:unit.level,position:{...unit.position}}});
     this.log=`${form.name} megaevoluiu!`;
     return null;
