@@ -131,7 +131,8 @@ export function renderCombatEffects(context: CanvasRenderingContext2D, effects: 
       }
       if (renderSynergyEffect(ctx, fx, from, to, t, cellScale, time)) continue;
       if (renderV16Effect(ctx, fx, from, to, t, cellScale, time)) continue;
-      if (renderTravelEffects(ctx, fx, from, to, t, cellScale)) continue;
+      // Shared source and target body anchors prevent duplicate vertical offsets.
+      if (renderTravelEffects(ctx, fx, from, {x:to.x,y:to.y-cellScale*.24}, t, cellScale)) continue;
       if (renderImpactEffects(ctx, fx, from, to, t, cellScale)) continue;
       ctx.save();
       if(fx.kind==='meteor-fall' && fx.meteor){

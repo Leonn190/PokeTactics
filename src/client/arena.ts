@@ -247,6 +247,14 @@ export class Arena {
   // Mesmo fator aplicado ao Pokémon que aparece fisicamente sobre a arena.
   dragSpriteScale(): number { return this.cellScale / 48 * 1.13; }
 
+  /** Ground anchor of a board or bench Pokémon in client pixel coordinates. */
+  dragUnitScreenPosition(id:string): {x:number;y:number}|null {
+    const marker=this.markers().find(unit=>unit.id===id||unit.sourceId===id);
+    if(!marker)return null;
+    const point=this.toScreen(marker.x,marker.y),rect=this.canvas.getBoundingClientRect();
+    return {x:rect.left+point.x,y:rect.top+point.y};
+  }
+
   toScreen(x: number, y: number): { x: number; y: number } {
     const o = this.origin;
     return { x: o.x + x * this.cellScale, y: o.y + y * this.cellScale };

@@ -24,18 +24,18 @@ export function renderTravelEffects(ctx: CanvasRenderingContext2D, fx: CombatEff
         ctx.shadowColor='#ffe979';ctx.shadowBlur=22;
         for(const [width,color] of [[.37,'#5add6180'],[.23,'#e3f775'],[.105,'#fffbd1']] as const){
           ctx.strokeStyle=color;ctx.lineWidth=Math.max(2,cellScale*width);
-          ctx.beginPath();ctx.moveTo(from.x,from.y-cellScale*.24);ctx.lineTo(tip.x,tip.y-cellScale*.24);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(tip.x,tip.y);ctx.stroke();
         }
         ctx.restore();return true;
       }
       if(fx.kind==='psychic-final'){
-        const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-cellScale*.28;
+        const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t;
         ctx.save();ctx.shadowColor='#ba87ff';ctx.shadowBlur=28;ctx.strokeStyle='#c18bff';ctx.lineWidth=Math.max(4,cellScale*.22);
-        ctx.beginPath();ctx.moveTo(from.x,from.y-cellScale*.28);ctx.lineTo(x,y);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(x,y);ctx.stroke();
         ctx.fillStyle='#f7ddff';ctx.beginPath();ctx.arc(x,y,Math.max(6,cellScale*.22),0,PI2);ctx.fill();ctx.restore();return true;
       }
       if(fx.kind==='psychic-shot'){
-        const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t-cellScale*.28;
+        const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t;
         const dx=to.x-from.x,dy=to.y-from.y,length=Math.hypot(dx,dy)||1;
         ctx.save();ctx.strokeStyle='#d5a8ff';ctx.fillStyle='#f5e2ff';ctx.shadowColor='#a66bff';ctx.shadowBlur=17;ctx.lineWidth=Math.max(2,cellScale*.055);
         ctx.beginPath();ctx.moveTo(x-dx/length*cellScale*.38,y-dy/length*cellScale*.38);ctx.lineTo(x,y);ctx.stroke();
@@ -47,7 +47,7 @@ export function renderTravelEffects(ctx: CanvasRenderingContext2D, fx: CombatEff
       }
       if (fx.kind === 'piercing-flame') {
         const x = from.x + (to.x - from.x) * t;
-        const y = from.y + (to.y - from.y) * t - cellScale * .23;
+        const y = from.y + (to.y - from.y) * t;
         const dx = to.x - from.x, dy = to.y - from.y;
         const length = Math.hypot(dx, dy) || 1;
         ctx.save();

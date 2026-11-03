@@ -10,7 +10,7 @@ export function paintBasicProjectile(ctx: CanvasRenderingContext2D, type: Elemen
   // The projectile travels for the entire authoritative server travel time.
   const progress = Math.max(0, Math.min(1, normalizedTime));
   const x = from.x + (to.x - from.x) * progress;
-  const y = from.y + (to.y - from.y) * progress - cellScale * .2 - Math.sin(progress * Math.PI) * cellScale * .16;
+  const y = from.y + (to.y - from.y) * progress - Math.sin(progress * Math.PI) * cellScale * .12;
   const r = Math.max(4, cellScale * .105);
   ctx.save();
   ctx.globalAlpha = 1;

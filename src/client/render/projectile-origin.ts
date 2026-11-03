@@ -15,12 +15,12 @@ export function projectileOrigin(fx:CombatEffect,from:Point,to:Point,scale:numbe
       const hands=[points.leftHand,points.rightHand].filter((p):p is Point=>!!p);
       if(hands.length)return hands.length===1?hands[0]:hands.sort((a,b)=>(b.x-a.x)*ux+(b.y-a.y)*uy)[0];
     }
-    if(shape==='back'&&points.body)return {x:points.body.x-ux*scale*.10,y:points.body.y-scale*.17};
+    if(shape==='back'&&points.body)return {x:points.body.x-ux*scale*.07,y:points.body.y};
     if((shape==='body'||shape==='core')&&points.body)return points.body;
   }
   // Back/bulb and Staryu core are anatomical anchors, not the generic frontal muzzle.
-  const offsets:Record<Launch,[number,number]>={mouth:[.22,-.60],hands:[.21,-.42],wings:[.26,-.58],
-    body:[0,-.48],front:[.21,-.44],back:[-.09,-.68],head:[.10,-.70],core:[0,-.52]};
+  const offsets:Record<Launch,[number,number]>={mouth:[.18,-.45],hands:[.18,-.34],wings:[.22,-.43],
+    body:[0,-.34],front:[.18,-.34],back:[-.08,-.42],head:[.08,-.50],core:[0,-.36]};
   const [ahead,up]=offsets[shape];
   return {x:from.x+ux*ahead*scale,y:from.y+up*scale+uy*ahead*scale*.35};
 }

@@ -89,6 +89,12 @@ export function moveDescription(move: MoveData): string {
     'flame-orbit':'Invoca duas chamas que orbitam o corpo e queimam inimigos por contato. Enquanto houver chamas, recebe bônus de VEL, DEF e SpD.',
     'tentacle-grasp':'Prende inimigos sem impedir ataques e causa veneno especial a cada 0,5 s. Tentacruel puxa até três alvos e transmite 20% do dano especial direto de habilidades de outros aliados entre eles. Ao soltar, reduz a velocidade de movimento em 30% por 1 s.'
   };
+  if(move.shieldSpdBonusPercentByStage){
+    const first=Math.round((move.shieldSpdBonusPercentByStage[0]||0)*100);
+    const evolved=Math.round((move.shieldSpdBonusPercentByStage[1]||0)*100);
+    const fraction=Math.round((move.basicSpdFractionByStage?.[1]||0)*100);
+    return `Ganha uma barreira que escala com SpA. Enquanto estiver protegido, recebe +${first}% de SpD como Exeggcute ou +${evolved}% como Exeggutor. Ao evoluir, seus ataques regulares físicos usam ${100-fraction}% de ATK e ${fraction}% de SpD.`;
+  }
   const conversion = move.conversion;
   const buffs: Record<string,string> = { atk:'ATAQUE', def:'DEFESA', spa:'ATAQUE ESPECIAL', spd:'DEFESA ESPECIAL', speed:'VELOCIDADE' };
   const effect = conversion?.kind === 'stat_buff' ? ` A energia gerada aumenta ${buffs[conversion.stat || 'atk']} dos aliados.`
@@ -223,7 +229,7 @@ export class Menus {
       <div class="detail-scroll">
       <div class="detail-section"><span class="detail-label">LINHA EVOLUTIVA</span><div class="detail-evolution">${chain.map((n,i) => `${i ? '<span class="detail-arrow">›</span>' : ''}<span class="${n === name ? 'current' : ''}">${escapeHTML(n)}</span>`).join('')}</div>${species.eeveeBranch ? `<p class="detail-tip">Evolui de Eevee, reunindo ${evolutionCopies('eevee')} cópias e escolhendo o ramo.</p>` : chain.length === 1 ? '<p class="detail-tip">Forma final: pode absorver uma cópia idêntica para ganhar +5 níveis.</p>' : `<p class="detail-tip">Evolução por ${copies} cópias da mesma forma. Formas finais idênticas se fundem: +5 níveis.</p>`}</div>
       <div class="detail-section"><div class="detail-heading"><span class="detail-label">STATUS BASE</span><strong>${total} <small>PODER</small></strong></div><div class="detail-stats">${(Object.keys(statNames) as Array<keyof Stats>).map(key => `<div class="detail-stat"><span>${statNames[key]}</span><div class="detail-stat-track"><i style="width:${Math.min(100,stats[key]/(key === 'hp' ? 600 : 120)*100)}%"></i></div><b>${stats[key]}</b></div>`).join('')}</div><p class="detail-tip">Atributos sem IV e sem bônus de nível • HP conta como 1/5 do poder total.</p></div>
-      <div class="detail-section detail-ability-section">${abilityCard(family,stage,moveDescription(move),formId)}<p class="detail-basic">Ataque regular: ${damageHtml(basic)} de dano ${basic.kind === 'special' ? 'especial (SPA)' : 'físico (ATK)'} • gera energia. Valores de base, sem IV/nível ou defesa do alvo.</p></div>
+      <div class="detail-section detail-ability-section">${abilityCard(family,stage,moveDescription(move),formId)}<p class="detail-basic">Ataque regular: ${damageHtml(basic)} de dano ${basic.kind === 'special' ? 'especial (SPA)' : family==='exeggcute' && stage>0 ? 'físico (60% ATK + 40% SpD)' : 'físico (ATK)'} • gera energia. Valores de base, sem IV/nível ou defesa do alvo.</p></div>
       <div class="detail-note">${species.shop ? `Disponível na loja • custo ${species.rarity} de ouro` : species.bossOnly ? 'Encontro especial: chefe lendário' : 'Adquirido por evolução de outra forma'}</div></div>`;
   }
 }

@@ -101,6 +101,8 @@ export type MoveData = {
   tentacleDamageByStage?:number[]; tentacleRatioByStage?:number[]; tentacleMaxTargetsByStage?:number[];
   tentacleRadius?:number; tentacleTickSeconds?:number; tentacleSlowSeconds?:number;
   tentacleSlowFraction?:number; tentacleShareFraction?:number; tentaclePullDistance?:number;
+  /** V25.8: protected SpD passive and evolved physical regular attack. */
+  shieldSpdBonusPercentByStage?:number[]; basicSpdFractionByStage?:number[];
 };
 
 export const ATTACKS = movesConfig as unknown as {

@@ -11,7 +11,8 @@ const entry = (label: string, amount: number, kind: DamagePreview['kind']): Dama
 export function previewBasic(family: Family, stage: number, stats: Stats): DamagePreview {
   const attack = getStageData(family, stage).basic;
   const fraction=family==='abra'?(ATTACKS.moves['psychic-teleport'].basicSpaFraction??.3):0;
-  return entry('ATAQUE REGULAR',rawBasicDamage(stats.atk*(1-fraction)+stats.spa*fraction,ATTACKS.basic.offensiveRatio),attack.category);
+  const spdFraction=family==='exeggcute'?(ATTACKS.moves[getStageData(family,stage).move].basicSpdFractionByStage?.[stage]??0):0;
+  return entry('ATAQUE REGULAR',rawBasicDamage(stats.atk*(1-fraction-spdFraction)+stats.spa*fraction+stats.spd*spdFraction,ATTACKS.basic.offensiveRatio),attack.category);
 }
 
 /** Raw values before enemy mitigation. Special effects are annotated by hit/DPS. */
@@ -121,7 +122,12 @@ export function abilityScaling(move: MoveData, stage: number, family?: Family): 
       add('Duração inicial',byStage(move.durationBaseByStage,move.sleepSeconds||0),{},`+ ${(move.durationSpaRatio||0).toLocaleString('pt-BR',{maximumFractionDigits:3})} s por SPA, até o limite.`, 's');
       return rows;
     case 'shield':
-      add('Barreira',move.shieldBase||0,{def:move.shieldDefenseRatio,spa:move.shieldSpaRatio});
+      add('Barreira',byStage(move.shieldBaseByStage,move.shieldBase||0),{def:move.shieldDefenseRatio,spa:move.shieldSpaRatio});
+      if(move.shieldSpdBonusPercentByStage){
+        add('SpD com barreira',Math.round(byStage(move.shieldSpdBonusPercentByStage)*100),{},'Bônus somente enquanto houver barreira.','%');
+        const fraction=byStage(move.basicSpdFractionByStage);
+        if(fraction)add('Ataque regular: SpD',Math.round(fraction*100),{},`Os outros ${Math.round((1-fraction)*100)}% da força vêm de ATK; o dano continua físico.`,'%');
+      }
       return rows;
     case 'healing-egg':
     case 'heal-powder':
