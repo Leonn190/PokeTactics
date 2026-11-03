@@ -179,7 +179,7 @@ export class Configurator {
   const modifiedFamilies=new Set(modifications().filter(c=>c.file==='pokemons.json' && c.path[0]==='species').map(c=>String(c.path[1])));
   const list=entries.filter(e=>{
    const s=pokemon.species[e.family];
-   return (this.rarity==='all'||String(s.rarity)===this.rarity)&& (this.type==='all'||s.elements.includes(this.type)) &&
+   return (this.rarity==='all'||String(s.rarity)===this.rarity)&& (this.type==='all'||(s.stages?.[e.stage]?.elements||s.elements).includes(this.type)) &&
     (!this.onlyShop||s.shop) && (!this.search || `${e.name} ${e.dex} ${s.elements.join(' ')} ${e.family}`.toLowerCase().includes(this.search.toLowerCase()));
   });
   const e=this.entry,s=pokemon.species[e.family],stage=s.stages?.[e.stage]||{},
@@ -194,14 +194,15 @@ export class Configurator {
   const stageMatrix=stageKeys.length?`<div class="cfg-stage-scroll"><table class="cfg-stage-table"><thead><tr><th>EVOLUÇÃO</th>${stageKeys.map(key=>`<th>${safe(pretty(key))}</th>`).join('')}</tr></thead><tbody>${s.names.map((name:string,i:number)=>`<tr><th>${safe(name)}</th>${stageKeys.map(key=>`<td>${field('ataques.json',['moves',moveId,key,i],pretty(key))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'';
   const size=s.physicalSizes?.[e.stage]??1;
   const moved=modifications().some(c=>c.file==='pokemons.json' && c.path[0]==='species' && c.path[1]===e.family);
-  const types=Array.from(new Set(Object.values(pokemon.species).flatMap((v:any)=>v.elements))).sort() as string[];
+  const types=Array.from(new Set(Object.values(pokemon.species).flatMap((v:any)=>[...v.elements,...(v.stages||[]).flatMap((st:any)=>st.elements||[])]))).sort() as string[];
   const controls=`<div class="cfg-poke-content">
    <div class="cfg-poke-head" style="--cfg-pokemon-glow:${safe(s.glow)}">
      ${portrait(e.dex,e.name)}<div><span>#${String(e.dex).padStart(3,'0')} · ${rarities[s.rarity-1]}</span><h2>${safe(e.name)}</h2>
-     <p>${safe(s.elements.join(' / ').toUpperCase())} · ESTÁGIO ${e.stage+1}/${s.names.length}</p><strong>${total} <small>PODER BASE</small></strong></div>
+     <p>${safe((stage.elements||s.elements).join(' / ').toUpperCase())} · ESTÁGIO ${e.stage+1}/${s.names.length}</p><strong>${total} <small>PODER BASE</small></strong></div>
      ${moved?'<span class="cfg-changed-chip">MODIFICADO</span>':''}
    </div>
    ${section('ATRIBUTOS BÁSICOS',`<div class="cfg-fields">${stats.map(key=>field('pokemons.json',statPath(key),{hp:'VIDA',atk:'ATK',def:'DEF',spa:'SpA',spd:'SpD',speed:'VEL'}[key])).join('')}</div>`,'Valores consumidos pelo motor de combate, separados por evolução.')}
+   ${section('TIPAGENS DO ESTÁGIO',`<p class="cfg-context">Uma a três tipagens por evolução; os valores serão exportados para config/pokemons.json.</p><div class="cfg-fields">${[0,1,2].map(slot=>`<label class="cfg-field"><span class="cfg-field-label">TIPO ${slot+1}</span><select data-cfg-stage-type="${slot}" data-cfg-stage-family="${safe(e.family)}" data-cfg-stage-index="${e.stage}"><option value="">— VAZIO —</option>${types.map(t=>`<option value="${safe(t)}" ${(stage.elements||s.elements)[slot]===t?'selected':''}>${safe(t)}</option>`).join('')}</select></label>`).join('')}</div>`,'Tipos específicos da evolução e compatibilidade com o sistema de sinergias.')}
    ${section('ATAQUE REGULAR',`<div class="cfg-kv"><span>Atributo</span><strong>${safe(stage.basic?.stat||s.basic?.stat||'atk').toUpperCase()}</strong><span>Tipo de golpe</span><strong>${safe((stage.basic?.category||s.basic?.category)==='special'?'Especial':'Físico')}</strong></div><div class="cfg-fields">${fields('ataques.json',['basic'],documentOf('ataques.json').basic)}</div>`,'Parâmetros compartilhados entre as espécies.')}
    ${section('HABILIDADE · '+move.name,`<p class="cfg-context">${safe(moveId)} · Valores utilizados diretamente pelo servidor.</p>${stageMatrix}<div class="cfg-fields">${fields('ataques.json',['moves',moveId],otherMove)}</div>`,'Se outra forma usar a mesma habilidade, seus valores também serão afetados.')}
    ${section('ENERGIA E ALCANCE',`<div class="cfg-fields">${typeof stage.energy==='number'?field('pokemons.json',['species',e.family,'stages',e.stage,'energy'],'CUSTO DE ENERGIA'):field('pokemons.json',['species',e.family,'energy'],'CUSTO DE ENERGIA')}${field('pokemons.json',['species',e.family,'stages',e.stage,'rangeLevel'],'ALCANCE (1, 2, 3...)')}</div><p class="cfg-context">O número é exibido ao jogador; o motor converte automaticamente para a distância física.</p>`)}
@@ -213,7 +214,7 @@ export class Configurator {
   </div>`;
   return `<div class="cfg-poke-layout"><aside class="cfg-poke-list"><div class="cfg-poke-filter"><input data-cfg-search placeholder="⌕ Buscar Pokémon..." value="${safe(this.search)}" />
     <div class="cfg-filter-line"><select data-cfg-rarity><option value="all">Todas raridades</option>${rarities.map((name,i)=>`<option value="${i+1}" ${this.rarity===String(i+1)?'selected':''}>${name}</option>`).join('')}</select>
-    <select data-cfg-type><option value="all">Todos tipos</option>${types.map(t=>`<option ${t===this.type?'selected':''} value="${safe(t)}">${safe(({normal:'Normal',water:'Água',ice:'Gelo',fire:'Fogo',grass:'Planta',poison:'Venenoso',steel:'Aço',fighting:'Lutador',rock:'Pedra',psychic:'Psíquico',electric:'Elétrico',ground:'Terrestre',fairy:'Fada',dark:'Sombrio',ghost:'Fantasma',bug:'Inseto',dragon:'Dragão',flying:'Voador'} as Record<string,string>)[t]||t)}</option>`).join('')}</select></div>
+    <select data-cfg-type><option value="all">Todos tipos</option>${types.map(t=>`<option ${t===this.type?'selected':''} value="${safe(t)}">${safe(({normal:'Normal',water:'Água',ice:'Gelo',fire:'Fogo',grass:'Planta',poison:'Venenoso',steel:'Aço',fighting:'Lutador',rock:'Pedra',psychic:'Psíquico',electric:'Elétrico',ground:'Terrestre',fairy:'Fada',dark:'Sombrio',ghost:'Fantasma',bug:'Inseto',dragon:'Dragão',flying:'Voador',sound:'Sonoro',cosmic:'Cósmico'} as Record<string,string>)[t]||t)}</option>`).join('')}</select></div>
     <label class="cfg-shop-toggle"><input type="checkbox" data-cfg-shoponly ${this.onlyShop?'checked':''}/> Apenas loja</label>
     <span class="cfg-context">${list.length} de ${entries.length} formas</span></div>
     <div class="cfg-poke-cards">${list.map(a=>{const sp=pokemon.species[a.family];return `<button class="cfg-poke-card ${a===this.entry?'active':''}" data-cfg-pokemon="${entries.indexOf(a)}" style="--rarity:${['#758492','#8fcd9c','#77b8f1','#cf91ec','#ffc96c'][sp.rarity-1]}">
@@ -282,6 +283,17 @@ export class Configurator {
  }
  private onChange(event:Event):void {
   const el=event.target as HTMLInputElement;
+  if(el.matches('[data-cfg-stage-type]')){
+    const family=el.dataset.cfgStageFamily!,stage=Number(el.dataset.cfgStageIndex),slot=Number(el.dataset.cfgStageType);
+    const path=['species',family,'stages',stage,'elements'] as PathPart[];
+    const current=[...(get('pokemons.json',path)||[])];
+    if(el.value)current[slot]=el.value;else current.splice(slot,1);
+    const result=[...new Set(current.filter(Boolean))].slice(0,3);
+    if(!result.length){this.render();return;}
+    setValue('pokemons.json',path,result);
+    if(stage===0)setValue('pokemons.json',['species',family,'elements'],result);
+    this.render();return;
+  }
   if(el.matches('[data-cfg-rarity]')){this.rarity=el.value;this.render();return;}
   if(el.matches('[data-cfg-type]')){this.type=el.value;this.render();return;}
   if(el.matches('[data-cfg-shoponly]')){this.onlyShop=el.checked;this.render();return;}

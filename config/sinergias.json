@@ -1,5 +1,5 @@
 {
-  "version": 18,
+  "version": 26,
   "synergies": {
     "fire": {
       "name": "Fogo",
@@ -553,6 +553,77 @@
       ],
       "params": {
         "duration": 3
+      }
+    },
+    "sound": {
+      "name": "Sonoro",
+      "subtitle": "Ressonância",
+      "description": "Habilidades Sonoras emitem ecos que causam dano especial e reduzem a SpD dos inimigos.",
+      "tiers": [
+        {
+          "count": 2,
+          "damage": 14,
+          "spaRatio": 0.2,
+          "targets": 1,
+          "spdReduction": 0.05
+        },
+        {
+          "count": 3,
+          "damage": 22,
+          "spaRatio": 0.3,
+          "targets": 1,
+          "spdReduction": 0.07
+        },
+        {
+          "count": 4,
+          "damage": 33,
+          "spaRatio": 0.45,
+          "targets": 2,
+          "spdReduction": 0.1
+        },
+        {
+          "count": 5,
+          "damage": 48,
+          "spaRatio": 0.6,
+          "targets": 2,
+          "spdReduction": 0.13
+        }
+      ],
+      "params": {
+        "interval": 3,
+        "duration": 2,
+        "radius": 1.35
+      }
+    },
+    "cosmic": {
+      "name": "Cósmico",
+      "subtitle": "Constelação",
+      "description": "Cada habilidade carregada cria uma órbita (até três), que concede SpA e SpD. A terceira chama uma estrela cadente.",
+      "tiers": [
+        {
+          "count": 1,
+          "spa": 0.03,
+          "spd": 0.02,
+          "damage": 18,
+          "spaRatio": 0.25
+        },
+        {
+          "count": 2,
+          "spa": 0.06,
+          "spd": 0.035,
+          "damage": 30,
+          "spaRatio": 0.35
+        },
+        {
+          "count": 3,
+          "spa": 0.09,
+          "spd": 0.05,
+          "damage": 46,
+          "spaRatio": 0.5
+        }
+      ],
+      "params": {
+        "maxOrbits": 3
       }
     }
   }

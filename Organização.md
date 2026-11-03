@@ -247,3 +247,16 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 - `config/pokemons.json` inclui Porygon/Porygon2/Porygon-Z (raro, Normal) e Shellder/Cloyster (incomum, Água; Cloyster Água/Gelo). Usam PMD e retratos locais já existentes, sem download ou mudança do acervo.
 - `config/ataques.json` e o despachante de `server/systems/combat.ts` implementam Pulso de Conversão (alvos encadeados, dano decrescente) e Estilhaços de Concha (2/4 projéteis distribuídos e barreira própria por SpA, sem acumular). Prévia/tooltip compartilha coeficientes da configuração em `server/damage-preview.ts`.
 - Conferir configuração, TypeScript, tooltips V25.6 e build na CI. Revisão manual pendente: antes/depois da Mega (atributos, tipagem, retratos, animações Idle/Walk/Shoot/Hurt), evolução regional, arraste, 1v1, quatro jogadores, Porygon e Cloyster.
+
+## V26 — Ressonância e Constelações
+
+- Tipos customizados `sound` (Sonoro) e `cosmic` (Cósmico), com até **3** elementos por estágio ou forma. O tipo efetivo sempre vem de `getStageData(family,stage,formId)`; `config/pokemons.json` e `config/mega_formas.json` são as fontes de verdade.
+- `server/systems/synergies/counting.ts#countTraits`: cada família evolutiva pontua no máximo uma vez *por tipo presente*, independentemente da quantidade de estágios, formas e cópias no tabuleiro. `traitFamily` agrupa Eevee e suas ramificações, bebês com a evolução de origem e os Hitmons. Augments são somados após a contagem das famílias. Banco não pontua.
+- `server/systems/synergies/combat-events.ts#onSynergyCast`: somente conjurações carregadas autênticas acionam Sonoro e Cósmico. Ressonância tem cooldown por Pokémon e aplica dano especial/redução de SpD; Cósmico acumula até três órbitas por batalha e atinge com estrela cadente uma única vez. O Worker é autoritativo.
+- `server/systems/combat.ts`: Zubat/Golbat/Crobat usam `ultrasonic-wave`, dano a vários inimigos e bônus temporário de Velocidade. Horsea/Seadra/Kingdra usam `spiral-jet`, com colisão perfurante do sistema existente e explosão aquática em Kingdra. Os parâmetros ficam em `config/ataques.json`.
+- `src/client/synergies/panel.ts`: tooltip com representante único por família, exibindo evolução/forma elegível realmente adquirida e diferenciando tabuleiro/banco/não adquirido. O painel usa a mesma `countTraits` que o combate. `synergies.css` colore a linha inteira por tier metálico e respeita movimento reduzido.
+- `src/client/render/synergy-effects.ts` e `src/client/arena.ts`: efeitos de ressonância/estrelas e órbitas leves originados por snapshots do Worker. Ícones dos novos tipos em `public/tipos/`.
+- Editor `src/client/configurator/editor.ts`: pode escolher os tipos por estágio até três, e continua exportando configuração como ZIP.
+
+**Verificação exigida:** `npm run validate:config`, `npm run check`, `npm run build`; inspeção do jogo em preparação, combate, dupla/quádrupla e espectador. Não criar testes automatizados no repositório.
+

@@ -682,7 +682,8 @@
         },
         {
           "elements": [
-            "water"
+            "water",
+            "steel"
           ],
           "rangeLevel": 1
         }
@@ -795,7 +796,8 @@
       "energy": 60,
       "attack": "gas-cloud",
       "elements": [
-        "poison"
+        "poison",
+        "ghost"
       ],
       "basic": {
         "stat": "atk",
@@ -806,14 +808,16 @@
         {
           "chargedAnimation": "Gas",
           "elements": [
-            "poison"
+            "poison",
+            "ghost"
           ],
           "rangeLevel": 1
         },
         {
           "chargedAnimation": "Gas",
           "elements": [
-            "poison"
+            "poison",
+            "ghost"
           ],
           "rangeLevel": 1
         }
@@ -921,8 +925,7 @@
       "energy": 75,
       "attack": "articuno-blizzard",
       "elements": [
-        "ice",
-        "flying"
+        "ice"
       ],
       "stageBases": [
         {
@@ -938,8 +941,7 @@
       "stages": [
         {
           "elements": [
-            "ice",
-            "flying"
+            "ice"
           ],
           "rangeLevel": 3,
           "move": "articuno-blizzard",
@@ -984,8 +986,7 @@
       "energy": 85,
       "attack": "zapdos-storm",
       "elements": [
-        "electric",
-        "flying"
+        "electric"
       ],
       "stageBases": [
         {
@@ -1001,8 +1002,7 @@
       "stages": [
         {
           "elements": [
-            "electric",
-            "flying"
+            "electric"
           ],
           "rangeLevel": 2,
           "move": "zapdos-storm",
@@ -1047,8 +1047,7 @@
       "energy": 80,
       "attack": "moltres-sacred-fire",
       "elements": [
-        "fire",
-        "flying"
+        "fire"
       ],
       "stageBases": [
         {
@@ -1064,8 +1063,7 @@
       "stages": [
         {
           "elements": [
-            "fire",
-            "flying"
+            "fire"
           ],
           "rangeLevel": 2,
           "move": "moltres-sacred-fire",
@@ -1171,7 +1169,7 @@
       "energy": 80,
       "attack": "mew-blessing",
       "elements": [
-        "psychic"
+        "cosmic"
       ],
       "stageBases": [
         {
@@ -1187,7 +1185,7 @@
       "stages": [
         {
           "elements": [
-            "psychic"
+            "cosmic"
           ],
           "energy": 80,
           "move": "mew-blessing",
@@ -2524,7 +2522,8 @@
       "energy": 70,
       "attack": "voltorb-explosion",
       "elements": [
-        "electric"
+        "electric",
+        "sound"
       ],
       "basic": {
         "stat": "atk",
@@ -2537,14 +2536,22 @@
           "move": "voltorb-explosion",
           "chargedType": "electric",
           "chargedAnimation": "Attack",
-          "rangeLevel": 1
+          "rangeLevel": 1,
+          "elements": [
+            "electric",
+            "sound"
+          ]
         },
         {
           "energy": 70,
           "move": "electrode-explosion",
           "chargedType": "electric",
           "chargedAnimation": "Attack",
-          "rangeLevel": 1
+          "rangeLevel": 1,
+          "elements": [
+            "electric",
+            "sound"
+          ]
         }
       ],
       "physicalSizes": [
@@ -2582,7 +2589,7 @@
       "attack": "gastly-phantom",
       "elements": [
         "ghost",
-        "poison"
+        "dark"
       ],
       "basic": {
         "stat": "atk",
@@ -2619,7 +2626,7 @@
         {
           "elements": [
             "ghost",
-            "poison"
+            "dark"
           ],
           "energy": 65,
           "move": "gastly-phantom",
@@ -2629,7 +2636,7 @@
         {
           "elements": [
             "ghost",
-            "poison"
+            "dark"
           ],
           "energy": 70,
           "move": "haunter-phantom",
@@ -2639,7 +2646,7 @@
         {
           "elements": [
             "ghost",
-            "poison"
+            "dark"
           ],
           "energy": 80,
           "move": "gengar-phantom",
@@ -2814,7 +2821,7 @@
         {
           "elements": [
             "water",
-            "flying"
+            "dragon"
           ],
           "move": "gyarados-fang-tail",
           "energy": 75,
@@ -2872,7 +2879,8 @@
       "energy": 60,
       "attack": "star-refraction",
       "elements": [
-        "water"
+        "water",
+        "cosmic"
       ],
       "basic": {
         "stat": "atk",
@@ -2882,7 +2890,8 @@
       "stages": [
         {
           "elements": [
-            "water"
+            "water",
+            "cosmic"
           ],
           "move": "star-refraction",
           "energy": 60,
@@ -2893,7 +2902,8 @@
         {
           "elements": [
             "water",
-            "psychic"
+            "psychic",
+            "cosmic"
           ],
           "move": "star-refraction",
           "energy": 65,
@@ -3052,7 +3062,8 @@
         {
           "elements": [
             "normal",
-            "flying"
+            "flying",
+            "dark"
           ],
           "move": "fearow-tornado",
           "energy": 70,
@@ -3261,7 +3272,8 @@
       "attack": "lapras-surf",
       "elements": [
         "water",
-        "ice"
+        "ice",
+        "sound"
       ],
       "basic": {
         "stat": "atk",
@@ -3274,7 +3286,12 @@
           "energy": 80,
           "chargedAnimation": "Charge",
           "chargedType": "water",
-          "rangeLevel": 3
+          "rangeLevel": 3,
+          "elements": [
+            "water",
+            "ice",
+            "sound"
+          ]
         }
       ],
       "physicalSizes": [
@@ -3382,7 +3399,8 @@
       "attack": "lullaby",
       "elements": [
         "normal",
-        "fairy"
+        "fairy",
+        "sound"
       ],
       "basic": {
         "stat": "atk",
@@ -3393,7 +3411,8 @@
         {
           "elements": [
             "normal",
-            "fairy"
+            "fairy",
+            "sound"
           ],
           "energy": 65,
           "move": "lullaby",
@@ -3404,7 +3423,8 @@
         {
           "elements": [
             "normal",
-            "fairy"
+            "fairy",
+            "sound"
           ],
           "energy": 70,
           "move": "lullaby",
@@ -3463,7 +3483,8 @@
       "energy": 70,
       "attack": "star-ward",
       "elements": [
-        "fairy"
+        "fairy",
+        "cosmic"
       ],
       "basic": {
         "stat": "atk",
@@ -3473,7 +3494,8 @@
       "stages": [
         {
           "elements": [
-            "fairy"
+            "fairy",
+            "cosmic"
           ],
           "energy": 70,
           "move": "star-ward",
@@ -3483,7 +3505,8 @@
         },
         {
           "elements": [
-            "fairy"
+            "fairy",
+            "cosmic"
           ],
           "energy": 75,
           "move": "star-ward",
@@ -3825,7 +3848,8 @@
       "attack": "jynx-kiss",
       "elements": [
         "ice",
-        "psychic"
+        "psychic",
+        "sound"
       ],
       "basic": {
         "stat": "atk",
@@ -3836,7 +3860,8 @@
         {
           "elements": [
             "ice",
-            "psychic"
+            "psychic",
+            "sound"
           ],
           "energy": 70,
           "move": "jynx-kiss",
@@ -4098,7 +4123,8 @@
         },
         {
           "elements": [
-            "fire"
+            "fire",
+            "fighting"
           ],
           "energy": 90,
           "move": "flame-jet",
@@ -4177,7 +4203,8 @@
         },
         {
           "elements": [
-            "electric"
+            "electric",
+            "fighting"
           ],
           "energy": 85,
           "move": "electric-punch",
@@ -4285,7 +4312,8 @@
       "attack": "lullaby",
       "elements": [
         "normal",
-        "fairy"
+        "fairy",
+        "sound"
       ],
       "basic": {
         "stat": "atk",
@@ -4296,7 +4324,8 @@
         {
           "elements": [
             "normal",
-            "fairy"
+            "fairy",
+            "sound"
           ],
           "energy": 65,
           "move": "lullaby",
@@ -4346,7 +4375,8 @@
       "energy": 70,
       "attack": "star-ward",
       "elements": [
-        "fairy"
+        "fairy",
+        "cosmic"
       ],
       "basic": {
         "stat": "atk",
@@ -4356,7 +4386,8 @@
       "stages": [
         {
           "elements": [
-            "fairy"
+            "fairy",
+            "cosmic"
           ],
           "energy": 70,
           "move": "star-ward",
@@ -5125,7 +5156,8 @@
       "energy": 75,
       "attack": "absorbing-vine",
       "elements": [
-        "grass"
+        "grass",
+        "dark"
       ],
       "basic": {
         "stat": "atk",
@@ -5136,7 +5168,8 @@
       "stages": [
         {
           "elements": [
-            "grass"
+            "grass",
+            "dark"
           ],
           "rangeLevel": 3,
           "energy": 75,
@@ -5146,7 +5179,8 @@
         },
         {
           "elements": [
-            "grass"
+            "grass",
+            "dark"
           ],
           "rangeLevel": 3,
           "energy": 80,
@@ -5316,8 +5350,7 @@
       "energy": 50,
       "attack": "pollen-mortar",
       "elements": [
-        "grass",
-        "poison"
+        "grass"
       ],
       "basic": {
         "stat": "atk",
@@ -5328,8 +5361,7 @@
       "stages": [
         {
           "elements": [
-            "grass",
-            "poison"
+            "grass"
           ],
           "rangeLevel": 4,
           "move": "pollen-mortar",
@@ -5338,8 +5370,7 @@
         },
         {
           "elements": [
-            "grass",
-            "poison"
+            "grass"
           ],
           "rangeLevel": 4,
           "move": "pollen-mortar",
@@ -5348,8 +5379,7 @@
         },
         {
           "elements": [
-            "grass",
-            "poison"
+            "grass"
           ],
           "rangeLevel": 4,
           "move": "pollen-mortar",
@@ -5410,7 +5440,7 @@
       "attack": "abyssal-embrace",
       "elements": [
         "water",
-        "poison"
+        "ghost"
       ],
       "basic": {
         "stat": "atk",
@@ -5422,7 +5452,7 @@
         {
           "elements": [
             "water",
-            "poison"
+            "ghost"
           ],
           "energy": 85,
           "move": "abyssal-embrace",
@@ -5433,7 +5463,7 @@
         {
           "elements": [
             "water",
-            "poison"
+            "ghost"
           ],
           "energy": 100,
           "move": "abyssal-embrace",
@@ -5585,7 +5615,7 @@
       "energy": 85,
       "attack": "conversion-pulse",
       "elements": [
-        "normal"
+        "cosmic"
       ],
       "basic": {
         "stat": "atk",
@@ -5596,7 +5626,7 @@
       "stages": [
         {
           "elements": [
-            "normal"
+            "cosmic"
           ],
           "energy": 85,
           "move": "conversion-pulse",
@@ -5606,7 +5636,7 @@
         },
         {
           "elements": [
-            "normal"
+            "cosmic"
           ],
           "energy": 95,
           "move": "conversion-pulse",
@@ -5616,7 +5646,7 @@
         },
         {
           "elements": [
-            "normal"
+            "cosmic"
           ],
           "energy": 105,
           "move": "conversion-pulse",
@@ -5716,6 +5746,218 @@
         3
       ],
       "rangeLevel": 3
+    },
+    "zubat": {
+      "names": [
+        "Zubat",
+        "Golbat",
+        "Crobat"
+      ],
+      "pokedexIds": [
+        41,
+        42,
+        169
+      ],
+      "rarity": 1,
+      "shop": true,
+      "glow": "#71cde2",
+      "base": {
+        "hp": 235,
+        "atk": 38,
+        "def": 35,
+        "spa": 49,
+        "spd": 37,
+        "speed": 85
+      },
+      "stageBases": [
+        {
+          "hp": 235,
+          "atk": 38,
+          "def": 35,
+          "spa": 49,
+          "spd": 37,
+          "speed": 85
+        },
+        {
+          "hp": 370,
+          "atk": 66,
+          "def": 54,
+          "spa": 76,
+          "spd": 64,
+          "speed": 101
+        },
+        {
+          "hp": 535,
+          "atk": 90,
+          "def": 78,
+          "spa": 110,
+          "spd": 88,
+          "speed": 118
+        }
+      ],
+      "energy": 65,
+      "attack": "ultrasonic-wave",
+      "elements": [
+        "flying",
+        "dark",
+        "sound"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot"
+      },
+      "stages": [
+        {
+          "elements": [
+            "flying",
+            "dark",
+            "sound"
+          ],
+          "move": "ultrasonic-wave",
+          "energy": 65,
+          "chargedAnimation": "Shoot",
+          "chargedType": "sound",
+          "rangeLevel": 2
+        },
+        {
+          "elements": [
+            "flying",
+            "dark",
+            "sound"
+          ],
+          "move": "ultrasonic-wave",
+          "energy": 70,
+          "chargedAnimation": "Shoot",
+          "chargedType": "sound",
+          "rangeLevel": 2
+        },
+        {
+          "elements": [
+            "flying",
+            "dark",
+            "sound"
+          ],
+          "move": "ultrasonic-wave",
+          "energy": 75,
+          "chargedAnimation": "Shoot",
+          "chargedType": "sound",
+          "rangeLevel": 2
+        }
+      ],
+      "physicalSizes": [
+        0.7,
+        0.98,
+        1.18
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ],
+      "rangeLevel": 2
+    },
+    "horsea": {
+      "names": [
+        "Horsea",
+        "Seadra",
+        "Kingdra"
+      ],
+      "pokedexIds": [
+        116,
+        117,
+        230
+      ],
+      "rarity": 2,
+      "shop": true,
+      "glow": "#66c9e9",
+      "base": {
+        "hp": 285,
+        "atk": 37,
+        "def": 48,
+        "spa": 72,
+        "spd": 65,
+        "speed": 52
+      },
+      "stageBases": [
+        {
+          "hp": 285,
+          "atk": 37,
+          "def": 48,
+          "spa": 72,
+          "spd": 65,
+          "speed": 52
+        },
+        {
+          "hp": 425,
+          "atk": 55,
+          "def": 67,
+          "spa": 105,
+          "spd": 82,
+          "speed": 73
+        },
+        {
+          "hp": 575,
+          "atk": 82,
+          "def": 88,
+          "spa": 120,
+          "spd": 103,
+          "speed": 96
+        }
+      ],
+      "energy": 70,
+      "attack": "spiral-jet",
+      "elements": [
+        "water"
+      ],
+      "basic": {
+        "stat": "atk",
+        "category": "physical",
+        "animation": "Shoot",
+        "projectile": "water"
+      },
+      "stages": [
+        {
+          "elements": [
+            "water"
+          ],
+          "move": "spiral-jet",
+          "energy": 70,
+          "chargedAnimation": "Shoot",
+          "chargedType": "water",
+          "rangeLevel": 4
+        },
+        {
+          "elements": [
+            "water"
+          ],
+          "move": "spiral-jet",
+          "energy": 75,
+          "chargedAnimation": "Shoot",
+          "chargedType": "water",
+          "rangeLevel": 4
+        },
+        {
+          "elements": [
+            "water",
+            "dragon"
+          ],
+          "move": "spiral-jet",
+          "energy": 85,
+          "chargedAnimation": "Shoot",
+          "chargedType": "water",
+          "rangeLevel": 4
+        }
+      ],
+      "physicalSizes": [
+        0.7,
+        0.94,
+        1.16
+      ],
+      "evolutionCopies": [
+        3,
+        3
+      ],
+      "rangeLevel": 4
     }
   }
 }

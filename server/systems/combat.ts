@@ -12,7 +12,7 @@ import { trainerSpot } from '../combat/trainer-position';
 import { bonusStats, effectivePercents, effectCount, numberParam, bumpStack, bonusStat, shieldMultiplier, ITEMS } from './items';
 import { countTraits } from './synergies/counting';
 import { initializeSynergies, updateSacredTiles, synergyTier } from './synergies/stats';
-import { onSynergyHit, onSynergyDeath, sourceShieldMultiplier } from './synergies/combat-events';
+import { onSynergyHit, onSynergyDeath, onSynergyCast, sourceShieldMultiplier } from './synergies/combat-events';
 import { tickSynergies } from './synergies/periodic';
 import { clearStep, resolveBodies } from './physical-collision';
 import { pushTarget } from './synergies/positioning';
@@ -65,7 +65,8 @@ function stat(unit: CombatUnit, key: StatKey): number {
   const frostSpeed=key==='speed' && unit.synergy?.chilled && unit.synergy.chilled.until>unit.itemNow?base*unit.synergy.chilled.speed:0;
   const rage=(key==='atk'||key==='speed')&&unit.family==='mankey'
     ?base*(unit.rageStacks||0)*(ATTACKS.moves['furious-leap'].ragePercentByStage?.[unit.stage]??0)*(unit.rageEmpowered?(ATTACKS.moves['furious-leap'].reviveRageMultiplier??1.5):1):0;
-  const result = Math.max(0, base + rage + increase - decrease + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
+  const soundReduction=key==='spd'&&unit.synergy?.soundShred&&unit.synergy.soundShred.until>unit.itemNow ? base*unit.synergy.soundShred.amount : 0;
+  const result = Math.max(0, base + rage + increase - decrease - soundReduction + bonusStat(unit,key,unit.itemNow,unit.focusCount) + synergySpeed - frostSpeed + (unit.synergy?.inherit[key]||0)) * (key==='spa'&&baby(unit)?RULES.baby.abilitySpaMultiplier:1) * (key==='speed' ? 1-(unit.windSlow||0) : 1) * (unit.orbitFlames?.length && (key==='speed'||key==='def'||key==='spd') ? 1+(ATTACKS.moves[getStageData(unit.family,unit.stage,unit.formId,unit.mewtwoMode).move]?.[key==='speed'?'speedBonusPercent':key==='def'?'defBonusPercent':'spdBonusPercent']||0) : 1);
   if (key==='spd' && unit.family==='exeggcute' && (((unit.barrier?.hp||0)>0 && (unit.barrier?.time||0)>0) || unit.barriers.some(b=>b.hp>0 && b.until>unit.itemNow))) {
     const boost=ATTACKS.moves[moveIdOf(unit)].shieldSpdBonusPercentByStage?.[unit.stage]||0;
     return result*(1+boost);
@@ -217,7 +218,7 @@ function bestCharge(battle: Battle, source: CombatUnit, primary: CombatUnit | nu
 }
 
 function piercingFire(battle: Battle, source: CombatUnit, target: CombatUnit, raw: number, moveId: string, type: Element,
-  maxRange=Infinity, visual: 'piercing-flame'|'solar-beam'='piercing-flame', radius=0, fixedDuration?:number): void {
+  maxRange=Infinity, visual: 'piercing-flame'|'solar-beam'|'spiral-jet'='piercing-flame', radius=0, fixedDuration?:number): void {
   const d = Math.max(.001, distance(source, target));
   const dx = (target.x - source.x) / d, dy = (target.y - source.y) / d;
   const startX = source.x + dx * .34, startY = source.y + dy * .34;
@@ -572,10 +573,19 @@ function landProjectiles(battle: Battle, dt: number): void {
         fx.time=fx.duration;effect(battle,caster,{x:bx,y:by},'wall-impact',0);}
       for (const target of battle.units) {
         if (target.playerId === caster.playerId || !isTargetable(target) || hit.hitIds.includes(target.id)) continue;
-        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > ((fx.kind==='psychic-shot'||fx.kind==='psychic-final'||fx.kind==='solar-beam') ? fx.value : .43) ** 2) continue;
+        if (segmentDistanceSq(ax, ay, bx, by, target.x, target.y) > ((fx.kind==='psychic-shot'||fx.kind==='psychic-final'||fx.kind==='solar-beam'||fx.kind==='spiral-jet') ? fx.value : .43) ** 2) continue;
         if(firstObstacle(battle,caster.playerId,ax,ay,target.x,target.y))continue;
         hit.hitIds.push(target.id);
-        deal(battle, caster, target, hit.raw, true, true, hit.attackType);
+        deal(battle,caster,target,hit.raw*(hit.hitIds.length>1?(hit.secondaryMultiplier??1):1),true,true,hit.attackType);
+        if(fx.kind==='spiral-jet' && hit.hitIds.length===1 && hit.explosionBase){
+          const splash=battle.units.filter(u=>u.playerId!==caster.playerId&&u.id!==target.id&&isTargetable(u)
+            && Math.hypot(u.x-target.x,u.y-target.y)<=(hit.explosionRadius??1.1))
+            .sort((a,b)=>Math.hypot(a.x-target.x,a.y-target.y)-Math.hypot(b.x-target.x,b.y-target.y)||a.id.localeCompare(b.id))
+            .slice(0,2);
+          for(const other of splash)deal(battle,caster,other,(hit.explosionBase||0)+stat(caster,'spa')*(hit.explosionSpaRatio||0),true,true,'water','extra');
+          effect(battle,caster,target,'water',.7);
+        }
+        if(hit.maxHits && hit.hitIds.length>=hit.maxHits){fx.time=fx.duration;break;}
         if(fx.kind==='psychic-shot'){
           // Each angular bolt hits its first enemy, not an unlimited row of units.
           // The existing piercing sweep prevents tunneling in accelerated combat.
@@ -797,7 +807,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   let bits = (battle.seed ^ Math.imul(source.hitSerial, 0x9e3779b9)) >>> 0;
   bits ^= bits >>> 16; bits = Math.imul(bits, 0x7feb352d); bits ^= bits >>> 15;
   bits = Math.imul(bits, 0x846ca68b); bits ^= bits >>> 16;
-  const critical = mode==='normal' && (!charged || effectCount(source,'spell_critical')>0 || !!source.synergy?.flags.augmentSpellCritical || !!synergyTier(battle,source,'dark'))
+  const critical = (mode==='normal'||(mode==='extra'&&attackType==='sound')) && (!charged || effectCount(source,'spell_critical')>0 || !!source.synergy?.flags.augmentSpellCritical || !!synergyTier(battle,source,'dark'))
     && (bits >>> 0)/4294967296 < attacker.critChance;
   let critFactor=critical ? attacker.critDamage : 1;
   if (critical && effectCount(target,'bramble')) critFactor=1+(critFactor-1)*(1-numberParam('bramble','criticalExtraReduction'));
@@ -1313,6 +1323,7 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   const moveId = moveIdOf(source), move = ATTACKS.moves[moveId];
   source.metrics.casts++;
   onAugmentCast(battle,source);
+  onSynergyCast(battle,source,target,{deal,heal,effect,stat});
   if (effectCount(source,'cast_haste')) source.itemTimers.cast_haste=battle.elapsed+numberParam('cast_haste','duration');
   if (effectCount(source,'cast_wave')) {
     source.itemStacks.cast_wave=(source.itemStacks.cast_wave||0)+1;
@@ -1324,6 +1335,31 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   }
   if(legendaryAbility(battle,source,target,moveId))return;
   const a = stat(source,'atk'), s = stat(source,'spa');
+  if(move.effect==='ultrasonic-wave' && target){
+    const victims=[target,...battle.units.filter(u=>u.playerId!==source.playerId&&u.id!==target.id
+      && isTargetable(u)&&distance(u,target)<=(move.splashRange??1.4))
+      .sort((a,b)=>distance(a,target)-distance(b,target)||a.id.localeCompare(b.id))]
+      .slice(0,stageValue(move.secondaryTargetsByStage,source.stage,2));
+    const raw=stageValue(move.damageByStage,source.stage)+s*stageValue(move.damageRatioByStage,source.stage);
+    for(const [i,victim] of victims.entries())deal(battle,source,victim,raw*(i?(move.splashMultiplier??.65):1),true,true,'sound','extra');
+    const key='ultrasonic:'+source.id,amount=source.stats.speed*stageValue(move.speedBonusByStage,source.stage,.08);
+    const buff=source.buffs.find(b=>b.sourceId===key&&b.stat==='speed');
+    if(buff){buff.amount=amount;buff.until=battle.elapsed+(move.buffDuration??2.5);}
+    else source.buffs.push({sourceId:key,stat:'speed',amount,until:battle.elapsed+(move.buffDuration??2.5)});
+    effect(battle,source,target,'ultrasonic-wave',move.splashRange??1.4);
+    animate(source,stage.chargedAnimation,.42);return;
+  }
+  if(move.effect==='spiral-jet' && target){
+    const raw=stageValue(move.damageByStage,source.stage)+s*stageValue(move.damageRatioByStage,source.stage);
+    piercingFire(battle,source,target,raw,moveId,'water',10,'spiral-jet',move.pierceRadius??.43);
+    const fx=battle.effects[battle.effects.length-1];
+    if(fx.piercing){
+      fx.piercing.maxHits=1+stageValue(move.pierceTargetsByStage,source.stage,1);
+      fx.piercing.secondaryMultiplier=move.pierceMultiplier??.65;
+      if(source.stage===2){fx.piercing.explosionBase=move.explosionBase??14;fx.piercing.explosionSpaRatio=move.explosionSpaRatio??.25;fx.piercing.explosionRadius=move.splashRange??1.1;}
+    }
+    animate(source,stage.chargedAnimation,.48);return;
+  }
   if(move.effect==='digital-chain' && target){
     const count=1+stageValue(move.secondaryTargetsByStage,source.stage,0);
     const raw=stageValue(move.damageByStage,source.stage)+s*stageValue(move.damageRatioByStage,source.stage);

@@ -22,3 +22,13 @@
 .sy-portraits .unowned{opacity:.32;filter:grayscale(.78) brightness(.6)}
 .sy-portraits .owned{opacity:.85;border-color:#aacbb4}
 .sy-portraits .deployed{opacity:1;border-color:#f3d58d;box-shadow:0 0 0 1px #ddbd6977,0 0 7px #c9a76577}
+
+/* V26: metallic grade colors the whole trait row. */
+.trait-row.sy-row.tier-bronze{background:linear-gradient(110deg,#4f3328,#8c5b3f 48%,#4a302b);border-color:#bd8667}
+.trait-row.sy-row.tier-silver{background:linear-gradient(110deg,#354854,#788c9a 48%,#354d61);border-color:#a9c5d5}
+.trait-row.sy-row.tier-gold{background:linear-gradient(110deg,#5c482b,#a98547 48%,#67502c);border-color:#edc77a}
+.trait-row.sy-row.tier-prismatic{background:linear-gradient(115deg,#385e66,#5a4d86,#815575,#5f806f,#385e66);background-size:300% 100%;border-color:#beaccf;animation:sy-row-prismatic 9s linear infinite}
+.trait-row.sy-row.tier-bronze:hover,.trait-row.sy-row.tier-silver:hover,.trait-row.sy-row.tier-gold:hover,.trait-row.sy-row.tier-prismatic:hover{filter:brightness(1.14)}
+.trait-row.sy-row:not(.tier-inactive) .sy-name strong,.trait-row.sy-row:not(.tier-inactive) .sy-count{color:#fff6dc;text-shadow:0 1px 2px #0009}
+@keyframes sy-row-prismatic{to{background-position:100% 0}}
+@media(prefers-reduced-motion:reduce){.trait-row.sy-row.tier-prismatic{animation:none}}

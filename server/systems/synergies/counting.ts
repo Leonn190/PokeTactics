@@ -1,15 +1,27 @@
 import { bonusTraits } from '../augments';
-import { getStageData } from '../../data';
-import type { Element,Player } from '../../types';
-/** Distinct deployed forms; duplicates and benches never grant additional traits. */
+import { getStageData, SPECIES } from '../../data';
+import type { Element, Family, Player } from '../../types';
+
+/** Family identity is shared by all stages, regional forms, babies and Eevee branches. */
+export function traitFamily(family:Family):string {
+  const species=SPECIES[family];
+  if(species.babyEvolution)return species.babyEvolution;
+  if(species.eeveeBranch)return 'eevee';
+  if(family==='hitmonchan'||family==='hitmonlee')return 'tyrogue';
+  return family;
+}
+
+/** A family contributes at most once PER type; stage/form-specific types are unioned. */
 export function countTraits(player:Player):Partial<Record<Element,number>> {
-  const unique=new Set<string>(),result:Partial<Record<Element,number>>={};
+  const contributors=new Map<Element,Set<string>>();
   for(const pokemon of player.units){
     if(pokemon.position.area!=='board')continue;
-    const key=`${pokemon.family}:${pokemon.stage}:${pokemon.formId||''}`;
-    if(unique.has(key))continue;
-    unique.add(key);
-    for(const element of getStageData(pokemon.family,pokemon.stage,pokemon.formId).elements) result[element]=(result[element]||0)+1;
+    for(const type of new Set(getStageData(pokemon.family,pokemon.stage,pokemon.formId).elements)){
+      if(!contributors.has(type))contributors.set(type,new Set());
+      contributors.get(type)!.add(traitFamily(pokemon.family));
+    }
   }
-  return bonusTraits(result,player.augments||[]);
+  const counts:Partial<Record<Element,number>>={};
+  for(const [type,families] of contributors)counts[type]=families.size;
+  return bonusTraits(counts,player.augments||[]);
 }

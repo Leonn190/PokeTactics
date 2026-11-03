@@ -4,10 +4,23 @@ const PI2=Math.PI*2;
 /** Draws config-driven combat events from the simulation snapshot; no random allocation or browser timers. */
 export function renderSynergyEffect(ctx:CanvasRenderingContext2D,fx:CombatEffect,from:Point,to:Point,t:number,scale:number,time:number):boolean{
  const kind=fx.kind;
- if(!['synergy-lightning','earthquake','frost','fairy-link','flight','swarm','ghost-revive','kick-impact','tail-sweep'].includes(kind))return false;
+ if(!['synergy-lightning','earthquake','frost','fairy-link','flight','swarm','ghost-revive','kick-impact','tail-sweep','synergy-resonance','cosmic-star','ultrasonic-wave','spiral-jet'].includes(kind))return false;
  ctx.save();
  const fade=Math.pow(1-t,1.5);
- if(kind==='synergy-lightning'){
+ if(kind==='synergy-resonance'||kind==='ultrasonic-wave'){
+    ctx.globalAlpha=fade*.85;ctx.strokeStyle=kind==='synergy-resonance'?'#71f6f1':'#75d9f8';ctx.lineWidth=2.4;
+    const radius=(.2+t*(fx.value||1.3))*scale;
+    for(let k=0;k<2;k++){ctx.beginPath();ctx.ellipse(to.x,to.y-16,radius*(1+k*.23),radius*(.58+k*.13),0,0,PI2);ctx.stroke();}
+  }else if(kind==='cosmic-star'){
+    ctx.globalAlpha=fade;ctx.strokeStyle='#d9c6ff';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(to.x-scale*.48,to.y-scale*1.5);ctx.lineTo(to.x,to.y-15);ctx.stroke();
+    ctx.fillStyle='#fff1bb';ctx.beginPath();ctx.arc(to.x,to.y-16,Math.max(2,scale*.12*(1-t)),0,PI2);ctx.fill();
+  }else if(kind==='spiral-jet'){
+    const x=from.x+(to.x-from.x)*t,y=from.y+(to.y-from.y)*t;
+    ctx.globalAlpha=.9;ctx.strokeStyle='#98f2ff';ctx.fillStyle='#2cafffc4';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(x,y-13,scale*.12,0,PI2);ctx.fill();
+    for(let k=0;k<3;k++){const phase=time*8+k*PI2/3;ctx.beginPath();ctx.arc(x+Math.cos(phase)*scale*.1,y-13+Math.sin(phase)*scale*.06,scale*.11,phase,phase+Math.PI*1.2);ctx.stroke();}
+  }else if(kind==='synergy-lightning'){
    ctx.globalAlpha=fade;ctx.strokeStyle='#fff6ab';ctx.shadowColor='#ffe368';ctx.shadowBlur=18;ctx.lineWidth=4;
    ctx.beginPath();ctx.moveTo(to.x-12,to.y-120);ctx.lineTo(to.x+7,to.y-91);ctx.lineTo(to.x-6,to.y-56);ctx.lineTo(to.x+8,to.y-35);ctx.lineTo(to.x,to.y-7);ctx.stroke();
    ctx.beginPath();ctx.strokeStyle='#8cffff';ctx.arc(to.x,to.y-8,scale*.5*t,0,PI2);ctx.stroke();
