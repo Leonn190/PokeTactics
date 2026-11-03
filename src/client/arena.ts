@@ -1,5 +1,5 @@
 import { alternativeForm } from '../../server/forms';
-import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, ITEM_RACK_WORLD, RULES, ATTACKS, physicalSize, collisionRadius } from '../../server/data';
+import { getStageData, gridXY, SPECIES, RENDER_SETTINGS, ITEM_RACK_WORLD, RULES, ATTACKS, physicalSize, collisionRadius, calculateStats } from '../../server/data';
 import { FrameScheduler } from './performance/frame-scheduler';
 import { PerformanceProfiler } from './performance/profiler';
 import { SnapshotClock } from './animation/snapshot-clock';
@@ -228,7 +228,7 @@ export class Arena {
     if(ids.length>2){
       const left=slot<2,upper=slot===1||slot===2;
       // The item shelf sits next to its own bench, with a bridge towards the board.
-      return {rack:{x:left?-10.1:10.1,y:upper?-4.12:4.12},
+      return {rack:{x:left?-9.5:9.5,y:upper?-4.12:4.12},
         augments:{x:left?-9.65:9.65,y:upper?-1.35:1.35},side:left?'left':'right'};
     }
     const upper=ids.length===2 && id!==this.view.scoutId;
@@ -373,7 +373,7 @@ export class Arena {
 
   pickUnit(clientX: number, clientY: number): { id: string; ownerId: string; sourceId: string } | null {
     const pointer = this.pointerWorld(clientX, clientY);
-    const markers = this.markers().filter(u => !u.bench);
+    const markers = this.markers();
     const hit = [...markers].reverse().find(unit => Math.hypot(unit.x - pointer.x, unit.y - pointer.y) < .49);
     return hit ? { id: hit.id, ownerId: hit.ownerId, sourceId: hit.sourceId } : null;
   }
@@ -623,6 +623,30 @@ export class Arena {
       ctx.restore();
     }
   }
+  /** V25.7: purple tentacle graphics never control the simulation. */
+  private drawTentacles(time:number):void {
+    const battle=this.snapshot?.visibleBattle;
+    if(!battle||battle.resolved||this.snapshot?.phase!=='combat')return;
+    const flip=battle.participants.length===2&&battle.playerB===this.view.scoutId;
+    const ctx=this.context;
+    for(const victim of battle.units){
+      const hold=victim.tentacle;
+      if(!hold||hold.until<=battle.elapsed||victim.hp<=0)continue;
+      const source=battle.units.find(u=>u.id===hold.sourceId&&u.hp>0);
+      if(!source)continue;
+      const a=this.toScreen(source.x,flip?-source.y:source.y);
+      const b=this.toScreen(victim.x,flip?-victim.y:victim.y);
+      const wave=Math.sin(time*5+victim.x*1.5)*this.cellScale*.13;
+      const midX=(a.x+b.x)/2+wave,midY=(a.y+b.y)/2-this.cellScale*.28;
+      ctx.save();ctx.lineCap='round';
+      ctx.shadowColor='#b66bee';ctx.shadowBlur=this.cellScale*.14;
+      ctx.strokeStyle='#513583de';ctx.lineWidth=Math.max(3,this.cellScale*.065);
+      ctx.beginPath();ctx.moveTo(a.x,a.y-this.cellScale*.21);
+      ctx.quadraticCurveTo(midX,midY,b.x,b.y-this.cellScale*.2);ctx.stroke();
+      ctx.shadowBlur=0;ctx.strokeStyle='#dda2f5d8';ctx.lineWidth=Math.max(1.2,this.cellScale*.022);ctx.stroke();
+      ctx.restore();
+    }
+  }
   private drawAbsorptions(time:number):void {
     const battle=this.snapshot?.visibleBattle;
     if(!battle||battle.resolved||this.snapshot?.phase!=='combat')return;
@@ -743,7 +767,9 @@ export class Arena {
       const row = own ? 4 + pos.row : 3 - pos.row;
       const p = gridXY(pos.col, row);
       return { id: u.id, sourceId: u.id, ownerId, x: p.x, y: p.y, family: u.family, stage: u.stage,formId:u.formId,
-        level: u.level, own, equipment:u.equipment||[],hp: 1, maxHp: 1, energy: 0, required: getStageData(u.family, u.stage,u.formId).energy, flash: 0 };
+        level: u.level, own, equipment:u.equipment||[],hp: bonusStats(calculateStats(u.family,u.level,u.iv,u.stage,false,false,u.formId),u.equipment||[]).hp,
+        maxHp: bonusStats(calculateStats(u.family,u.level,u.iv,u.stage,false,false,u.formId),u.equipment||[]).hp,
+        energy: 0, required: getStageData(u.family, u.stage,u.formId).energy, flash: 0 };
     });
     // Nunca vazar a formação do próximo rival durante a preparação.
     const prepared = [...convert(liveUnits, true,watched.id), ...bench,
@@ -1020,13 +1046,12 @@ export class Arena {
     ctx.fillStyle='#091923';ctx.fillRect(bx,baseY+9,barWidth,4);
     ctx.fillStyle='#79caff';
     ctx.fillRect(bx,baseY+9,barWidth*Math.max(0,Math.min(1,unit.energy/Math.max(1,unit.required))),4);
+    // Draw HP segments after the health and shield fills, including in planning.
+    ctx.fillStyle='#02070cf5';
+    for(let hp=150;hp<scale;hp+=150)ctx.fillRect(bx+barWidth*hp/scale-1,baseY,2,7);
     ctx.restore();
     this.drawEquipmentIcons(unit,p.x,baseY+18,barWidth);
     if (this.snapshot?.phase !== 'planning') {
-      ctx.save();
-      ctx.fillStyle='#071820d9';
-      for(let hp=150;hp<scale;hp+=150)ctx.fillRect(bx+barWidth*hp/scale-.65,baseY,1.3,7);
-      ctx.restore();
       if (unit.psychicImbuement && unit.psychicImbuement.until > (this.snapshot?.visibleBattle?.elapsed || 0)) {
         const life = unit.psychicImbuement.until - (this.snapshot?.visibleBattle?.elapsed || 0);
         ctx.save();ctx.globalAlpha=.28+.12*Math.sin(time*7);ctx.strokeStyle='#e99fe8';ctx.lineWidth=2;
@@ -1243,7 +1268,7 @@ export class Arena {
       drawMarkers.push(marker);
     }
     drawMarkers.sort((a, b) => a.y - b.y);
-    if(!emptyOwnBoard)this.drawVines(this.frame);
+    if(!emptyOwnBoard){this.drawVines(this.frame);this.drawTentacles(this.frame);}
     for (const marker of drawMarkers) this.drawUnit(marker, this.frame);
     if(!emptyOwnBoard)this.drawAbsorptions(this.frame);
     if(!emptyOwnBoard&&battle&&this.snapshot?.phase!=='planning')this.drawObstacles(battle,this.frame);

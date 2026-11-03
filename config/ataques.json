@@ -1159,10 +1159,40 @@
       "baseDamage": 82,
       "specialRatio": 1.15,
       "warningSeconds": 0.35,
-      "freezeSeconds": 1.0,
+      "freezeSeconds": 1,
       "iceSeconds": 3.5,
       "slowFraction": 0.25,
       "areaRadius": 1.18
+    },
+    "abyssal-embrace": {
+      "name": "Abraço Abissal",
+      "effect": "tentacle-grasp",
+      "baseDamage": 0,
+      "specialRatio": 0,
+      "tentacleDurationByStage": [
+        1.5,
+        2
+      ],
+      "tentacleControlSpaRatio": 0.002,
+      "tentacleControlMax": 2.35,
+      "tentacleDamageByStage": [
+        25,
+        35
+      ],
+      "tentacleRatioByStage": [
+        0.35,
+        0.45
+      ],
+      "tentacleMaxTargetsByStage": [
+        1,
+        3
+      ],
+      "tentacleRadius": 1.65,
+      "tentacleTickSeconds": 0.5,
+      "tentacleSlowSeconds": 1,
+      "tentacleSlowFraction": 0.3,
+      "tentacleShareFraction": 0.2,
+      "tentaclePullDistance": 0.8
     }
   }
 }

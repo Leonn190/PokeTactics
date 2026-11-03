@@ -1222,3 +1222,33 @@
 .ability-evolution-extra .ability-flat{color:#e0d3b4}
 .ability-evolution-extra .ability-coefficient{font:800 11px/1.2 'Barlow Condensed',sans-serif}
 .ability-evolution-extra .ability-coefficient small{font:800 8px/1 Inter,sans-serif}
+
+/* V25.7 — readability, aligned scouting information and flush physical shelf. */
+.item-inventory::after,.item-inventory.rack-right::after{content:none}
+#shopFooter.bottom-hud:has(.income-tip:hover),
+#shopFooter.bottom-hud:has(.income-tip:focus-within){z-index:32}
+#shopFooter .shop-ledger .income-breakdown{z-index:40}
+#unitInspector.unit-inspector{z-index:26}
+#rightPanel .rank-streak-slot{flex:0 0 42px;width:42px;display:flex;justify-content:center;align-items:center}
+#rightPanel .rank-match-slot{flex:0 0 17px;width:17px;display:flex;justify-content:center;align-items:center}
+#rightPanel .rank-streak{min-width:0;max-width:100%;padding:3px 4px}
+#rightPanel .combat-entry:hover{filter:none}
+#rightPanel .combat-entry.ally:hover{border-color:#7293a159;border-left-color:#65aef7}
+#rightPanel .combat-entry.enemy:hover{border-color:#bd626871;border-left-color:#ec747b}
+#rightPanel .combat-meter{display:flex;align-items:center;gap:5px;min-height:13px}
+#rightPanel .combat-meter>.damage-split{flex:1;min-width:0;height:6px;transition:height .12s ease}
+#rightPanel .combat-entry.has-metrics:hover .combat-meter>.damage-split,
+#rightPanel .combat-entry.has-metrics:focus-visible .combat-meter>.damage-split{height:11px}
+#rightPanel .combat-raws{display:none;flex:none;white-space:nowrap;font:800 9px/1 'Barlow Condensed',sans-serif;color:#e4d6b8;font-variant-numeric:tabular-nums}
+#rightPanel .combat-entry.has-metrics:hover .combat-raws,
+#rightPanel .combat-entry.has-metrics:focus-visible .combat-raws{display:inline}
+@media(max-width:1300px){
+ #rightPanel .rank-streak-slot{flex-basis:35px;width:35px}
+ #rightPanel .rank-match-slot{flex-basis:14px;width:14px}
+}
+@media(max-width:980px){
+ #rightPanel .rank-streak-slot{flex-basis:29px;width:29px}
+ #rightPanel .rank-match-slot{flex-basis:11px;width:11px}
+ #rightPanel .rank-streak{font-size:10px;padding:2px}
+ #rightPanel .combat-raws{font-size:8px}
+}
