@@ -72,8 +72,8 @@ for (const form of mega.forms) {
   check(Boolean(species), 'Mega: família desconhecida ' + form.family);
   check(Number.isInteger(form.stage) && form.stage >= 0 && form.stage < (species?.names.length ?? 0), 'Mega: estágio inválido ' + form.id);
   assertStats(form.base, 'Mega ' + form.id + '.base');
-  check(/^\\d{4}$/.test(form.pmdVariant || ''), 'Mega: variante PMD ausente ' + form.id);
-  if (species?.pokedexIds[form.stage] && /^\\d{4}$/.test(form.pmdVariant || '')) {
+  check(/^\d{4}$/.test(form.pmdVariant || ''), 'Mega: variante PMD ausente ' + form.id);
+  if (species?.pokedexIds[form.stage] && /^\d{4}$/.test(form.pmdVariant || '')) {
     const dex = String(species.pokedexIds[form.stage]).padStart(4,'0');
     check(existsSync(new URL(`../public/sprite/${dex}/${form.pmdVariant}/AnimData.xml`,import.meta.url)),
       'Mega: PMD não encontrado ' + form.id + ' (' + dex + '/' + form.pmdVariant + ')');
