@@ -220,9 +220,17 @@ export const BOARD_COLUMNS = RULES.boardColumns;
 export const BOARD_ROWS = RULES.boardRows;
 
 /** Níveis além de 100 são intencionais: chefes PvE continuam escalando a cada capítulo. */
-export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false, effectiveIv = false, formId?:string): Stats {
+/** Mega and regional variants are upgrades: never discard an existing base stat. */
+export function baseStats(family: Family, stage: number, formId?:string, boss = false): Stats {
   const species = SPECIES[family];
-  const base = (!boss && alternativeForm(family,stage,formId)?.base) || (boss && species.bossBase) || species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
+  const regular = (boss && species.bossBase) || species.stageBases?.[Math.min(Math.max(0, stage), species.stageBases.length - 1)] || species.base;
+  const form = !boss ? alternativeForm(family, stage, formId) : undefined;
+  if (!form) return regular;
+  return Object.fromEntries((Object.keys(regular) as Array<keyof Stats>)
+    .map(key => [key, Math.max(regular[key], form.base[key])])) as unknown as Stats;
+}
+export function calculateStats(family: Family, level: number, iv: Stats, stage: number, boss = false, effectiveIv = false, formId?:string): Stats {
+  const base = baseStats(family, stage, formId, boss);
   const formula = RULES.statFormula;
   const levelScale = 1 + Math.max(0, level - 1) * formula.levelPerPoint;
   return Object.fromEntries((Object.keys(base) as Array<keyof Stats>).map(key => [
