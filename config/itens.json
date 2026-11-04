@@ -15,178 +15,342 @@
   },
   "components": {
     "green": {
-      "name": "Verde",
+      "name": "Cinto do Gigante",
       "color": "#69db90",
       "stat": "hp",
-      "value": 75
+      "value": 10
     },
     "blue": {
-      "name": "Azul",
+      "name": "Capa Negatron",
       "color": "#69b7ff",
       "stat": "spd",
-      "value": 8
+      "value": 10
     },
     "purple": {
-      "name": "Roxo",
+      "name": "Bastão Desnecessariamente Grande",
       "color": "#cb90ff",
       "stat": "spa",
-      "value": 8
+      "value": 10
     },
     "orange": {
-      "name": "Laranja",
+      "name": "Espada G.P.C.",
       "color": "#ffaa62",
       "stat": "atk",
-      "value": 8
+      "value": 10
     },
     "yellow": {
-      "name": "Amarelo",
+      "name": "Colete de Malha",
       "color": "#f8e16e",
       "stat": "def",
-      "value": 8
+      "value": 10
     },
     "red": {
-      "name": "Vermelho",
+      "name": "Arco Recurvo",
       "color": "#ff656d",
       "stat": "speed",
-      "value": 8
+      "value": 10
+    },
+    "cyan": {
+      "name": "Lágrima da Deusa",
+      "color": "#79d3fa",
+      "stat": "energy",
+      "value": 10
+    },
+    "white": {
+      "name": "Luva do Pugilista",
+      "color": "#f0e8d8",
+      "stat": "critChance",
+      "value": 10
     }
   },
   "recipes": {
     "green+green": {
-      "effect": "regeneration",
-      "description": "Vida máxima +15%; cura 1% da Vida máxima a cada 2s",
-      "hpPercent": 0.15,
-      "healPercent": 0.01,
-      "interval": 2
+      "name": "Armadura de Warmog",
+      "effect": "warmog",
+      "description": "Vida máxima +8%.",
+      "hpPercent": 0.08
     },
     "green+blue": {
-      "effect": "adaptive_shield",
-      "description": "Curas e barreiras recebidas +20%; barreira de 25% da Vida por 5s abaixo de 40% (uma vez)",
-      "receivedHealShield": 0.2,
+      "name": "Mortalha da Quietude",
+      "effect": "evenshroud",
+      "description": "Inimigos a até 2 casas sofrem -30% DEF. Nos primeiros 10s, +25 DEF e SpD.",
+      "shred": 0.3,
+      "radius": 2,
+      "def": 25,
+      "spd": 25,
+      "duration": 10
+    },
+    "green+purple": {
+      "name": "Morellonomicon",
+      "effect": "morello",
+      "description": "Ataques e habilidades queimam 1% da Vida máxima por segundo e reduzem cura em 33% durante 10s.",
+      "burnPercent": 0.01,
+      "healReduction": 0.33,
+      "duration": 10
+    },
+    "green+orange": {
+      "name": "Medidor de Sterak",
+      "effect": "sterak",
+      "description": "Uma vez por combate, ao cair abaixo de 60% Vida: +20% Vida máxima e +35% ATK.",
+      "threshold": 0.6,
+      "hpPercent": 0.2,
+      "atkPercent": 0.35
+    },
+    "green+yellow": {
+      "name": "Capa de Fogo Solar",
+      "effect": "sunfire",
+      "description": "A cada 2s, queima inimigo em até 2 casas: 1% Vida máxima por segundo e -33% cura por 10s.",
+      "interval": 2,
+      "radius": 2,
+      "burnPercent": 0.01,
+      "healReduction": 0.33,
+      "duration": 10
+    },
+    "green+red": {
+      "name": "Dente de Na'Shor",
+      "effect": "nashor",
+      "description": "Ao conjurar uma habilidade, +40% VEL durante 5s.",
+      "speedPercent": 0.4,
+      "duration": 5
+    },
+    "green+cyan": {
+      "name": "Redenção",
+      "effect": "redemption",
+      "description": "A cada 5s, cura aliados em até 2 casas em 15% da Vida perdida e concede 10% redução de dano por 5s.",
+      "interval": 5,
+      "radius": 2,
+      "healMissing": 0.15,
+      "durability": 0.1,
+      "duration": 5
+    },
+    "green+white": {
+      "name": "Quebra-Guardas",
+      "effect": "guardbreaker",
+      "description": "Ao danificar uma barreira, +25% de dano por 3s.",
+      "amplification": 0.25,
+      "duration": 3
+    },
+    "blue+blue": {
+      "name": "Garra do Dragão",
+      "effect": "dragonclaw",
+      "description": "Vida máxima +9%; cura 5% da Vida máxima a cada 2s.",
+      "hpPercent": 0.09,
+      "interval": 2,
+      "healPercent": 0.05
+    },
+    "blue+purple": {
+      "name": "Centelha Iônica",
+      "effect": "ionic",
+      "description": "Inimigos até 2 casas perdem 30% SpD. Ao conjurarem, sofrem dano especial igual a 160% da energia máxima.",
+      "shred": 0.3,
+      "radius": 2,
+      "manaRatio": 1.6
+    },
+    "blue+orange": {
+      "name": "Sedenta por Sangue",
+      "effect": "bloodthirster",
+      "description": "20% Vampirismo; uma vez por combate, abaixo de 40% Vida, barreira 25% Vida máxima por 5s.",
+      "vampirism": 0.2,
       "threshold": 0.4,
       "barrierFraction": 0.25,
       "duration": 5
     },
-    "green+purple": {
-      "effect": "ally_healing",
-      "description": "Habilidades curam aliado mais ferido em 20% do dano",
-      "healingShare": 0.2
-    },
-    "green+orange": {
-      "effect": "vampirism",
-      "description": "+20 pontos percentuais de Vampirismo",
-      "vampirism": 0.2
-    },
-    "green+yellow": {
-      "effect": "burn_aura",
-      "description": "A cada 3s queima alvo próximo: 4% da Vida máxima em 4s e -30% cura",
-      "interval": 3,
-      "burnPercent": 0.04,
-      "duration": 4,
-      "healReduction": 0.3,
-      "radius": 2
-    },
-    "green+red": {
-      "effect": "cast_haste",
-      "description": "Ao usar habilidade +30% VEL por 4s",
-      "speedPercent": 0.3,
-      "duration": 4
-    },
-    "blue+blue": {
-      "effect": "magic_guard",
-      "description": "-20% dano especial recebido; 3% Vida após habilidade recebida (4s recarga)",
-      "specialReduction": 0.2,
-      "healPercent": 0.03,
-      "cooldown": 4
-    },
-    "blue+purple": {
-      "effect": "scaling_spa",
-      "description": "+8% SpA a cada 5s, até +40%",
-      "interval": 5,
-      "step": 0.08,
-      "max": 0.4
-    },
-    "blue+orange": {
-      "effect": "opening_immunity",
-      "description": "Imune a controle e +15% amplificação nos primeiros 8s",
-      "duration": 8,
-      "amplification": 0.15
-    },
     "blue+yellow": {
-      "effect": "focused_defense",
-      "description": "+8 DEF e SpD por inimigo mirando no portador (máx 4)",
-      "perTarget": 8,
-      "maxTargets": 4
+      "name": "Placa Gargolítica",
+      "effect": "gargoyle",
+      "description": "Ganha 10 DEF e 10 SpD por inimigo que estiver atacando o portador.",
+      "perTarget": 10,
+      "maxTargets": 8
     },
     "blue+red": {
-      "effect": "bonus_energy",
-      "description": "Ataques básicos geram +5 de energia",
-      "energy": 5
+      "name": "Furacão de Runaan",
+      "effect": "runaan",
+      "description": "Ataques básicos disparam um segundo projétil em outro inimigo próximo com 55% do ATK.",
+      "atkRatio": 0.55,
+      "range": 3
+    },
+    "blue+cyan": {
+      "name": "Elmo Adaptativo",
+      "effect": "adaptive",
+      "description": "Frente: +40 DEF/SpD e +1 energia ao sofrer ataques. Traseira: +20 SpA e +10 energia a cada 3s.",
+      "frontDef": 40,
+      "frontSpd": 40,
+      "hitEnergy": 1,
+      "backSpa": 20,
+      "interval": 3,
+      "backEnergy": 10
+    },
+    "blue+white": {
+      "name": "Mercúrio",
+      "effect": "quicksilver",
+      "description": "Imune a controle por 14s; nesse período ganha 4% VEL a cada 2s.",
+      "duration": 14,
+      "interval": 2,
+      "speedPercent": 0.04
     },
     "purple+purple": {
-      "effect": "archmage",
-      "description": "SpA total +30%",
-      "spaPercent": 0.3
+      "name": "Capuz da Morte de Rabadon",
+      "effect": "rabadon",
+      "description": "SpA total +50% e habilidades causam +20% de dano.",
+      "spaPercent": 0.5,
+      "amplification": 0.2
     },
     "purple+orange": {
-      "effect": "spell_critical",
-      "description": "Habilidades podem critar; +20pp chance crítica e +15pp dano crítico",
-      "critChance": 0.2,
-      "critDamage": 0.15
+      "name": "Pistola Laminar Hextec",
+      "effect": "gunblade",
+      "description": "22% Vampirismo; cura também o aliado com menor proporção de Vida.",
+      "vampirism": 0.22
     },
     "purple+yellow": {
-      "effect": "magic_sunder",
-      "description": "Habilidades reduzem SpD em 25% por 5s; +25% dano contra barreiras",
-      "shred": 0.25,
-      "duration": 5,
-      "shieldBonus": 0.25
+      "name": "Proteção da Coroa",
+      "effect": "crownguard",
+      "description": "Início do combate: barreira de 30% da Vida por 8s; quando expira, +35 SpA.",
+      "barrierFraction": 0.3,
+      "duration": 8,
+      "spa": 35
     },
     "purple+red": {
-      "effect": "cast_wave",
-      "description": "A cada 2 habilidades, onda: 60% SpA aos inimigos perto do alvo",
-      "casts": 2,
-      "spaRatio": 0.6,
-      "radius": 1.7
+      "name": "Lâmina da Fúria de Guinsoo",
+      "effect": "guinsoo",
+      "description": "Cada ataque básico concede 5% VEL cumulativa durante o combate.",
+      "step": 0.05,
+      "maxStacks": 50
+    },
+    "purple+cyan": {
+      "name": "Cajado do Arcanjo",
+      "effect": "archangel",
+      "description": "Ganha 30 SpA a cada 5s do combate.",
+      "interval": 5,
+      "step": 30,
+      "maxStacks": 20
+    },
+    "purple+white": {
+      "name": "Manopla Adornada",
+      "effect": "jeweled",
+      "description": "Habilidades podem causar acerto crítico (se já podiam, +10 pp de dano crítico).",
+      "critDamage": 0.1
     },
     "orange+orange": {
-      "effect": "executioner",
-      "description": "ATK total +25%; básicos contra alvo abaixo de 30% Vida recebem +10% dano",
-      "atkPercent": 0.25,
-      "threshold": 0.3,
-      "amplification": 0.1
+      "name": "Lâmina Mortal",
+      "effect": "deathblade",
+      "description": "ATK total +50%.",
+      "atkPercent": 0.5
     },
     "orange+yellow": {
-      "effect": "armor_break",
-      "description": "Básicos reduzem DEF 25% por 5s",
-      "shred": 0.25,
-      "duration": 5
+      "name": "Limite da Noite",
+      "effect": "edge_night",
+      "description": "Uma vez por combate, abaixo de 60% Vida: limpa efeitos negativos, fica inalvejável por breve instante e ganha 15% VEL.",
+      "threshold": 0.6,
+      "duration": 0.65,
+      "speedPercent": 0.15
     },
     "orange+red": {
-      "effect": "guinsoo",
-      "description": "Cada básico +5% VEL até +100% durante combate",
-      "step": 0.05,
-      "max": 1
+      "name": "Mata-Gigantes",
+      "effect": "giant_slayer",
+      "description": "Causa 25% mais dano contra inimigos de Vida máxima acima de 500 (escala adaptada ao PokéTactics).",
+      "thresholdHp": 500,
+      "amplification": 0.25
+    },
+    "orange+cyan": {
+      "name": "Lança de Shojin",
+      "effect": "shojin",
+      "description": "Ataques básicos geram +5 energia.",
+      "energy": 5
+    },
+    "orange+white": {
+      "name": "Gume do Infinito",
+      "effect": "infinity",
+      "description": "Habilidades podem critar; +35% ATK total. Se já critavam, +10 pp dano crítico.",
+      "atkPercent": 0.35,
+      "critDamage": 0.1
     },
     "yellow+yellow": {
+      "name": "Colete Espinhoso",
       "effect": "bramble",
-      "description": "Reduz 50% do excesso de crítico recebido e reflete 10% dano de básicos",
-      "criticalExtraReduction": 0.5,
-      "reflect": 0.1
+      "description": "Vida máxima +5%, -8% dano de ataques. Ao receber ataque, causa 100 de dano especial aos adjacentes (2s de recarga).",
+      "basicReduction": 0.08,
+      "damage": 100,
+      "cooldown": 2,
+      "radius": 1.5,
+      "hpPercent": 0.05
     },
     "yellow+red": {
+      "name": "Determinação Titânica",
       "effect": "titan",
-      "description": "Básico ou dano recebido: +2% amplificação e +1% durabilidade, até 10",
-      "ampPerStack": 0.02,
-      "durPerStack": 0.01,
-      "maxStacks": 10
+      "description": "Atacar ou receber dano concede 2% ATK e +2 SpA (25 vezes). No máximo, +20 DEF e SpD.",
+      "atkPerStack": 0.02,
+      "spaPerStack": 2,
+      "maxStacks": 25,
+      "defAtMax": 20,
+      "spdAtMax": 20
+    },
+    "yellow+cyan": {
+      "name": "Juramento do Protetor",
+      "effect": "protector",
+      "description": "Uma vez por combate, abaixo de 40% Vida: barreira 25% Vida máxima por 5s e +20 DEF/SpD.",
+      "threshold": 0.4,
+      "barrierFraction": 0.25,
+      "duration": 5,
+      "def": 20,
+      "spd": 20
+    },
+    "yellow+white": {
+      "name": "Coração Firme",
+      "effect": "steadfast",
+      "description": "Recebe 8% menos dano (15% enquanto acima de 50% Vida).",
+      "reduction": 0.08,
+      "highReduction": 0.15,
+      "threshold": 0.5
     },
     "red+red": {
-      "effect": "longbow",
-      "description": "Ataque básico +1 alcance e +25% VEL",
-      "range": 1,
-      "speedPercent": 0.25
+      "name": "Efeito Vermelho",
+      "effect": "redbuff",
+      "description": "Causa 6% dano adicional; ataques e habilidades queimam 1% Vida máxima/seg e reduzem cura em 33% durante 5s.",
+      "amplification": 0.06,
+      "burnPercent": 0.01,
+      "healReduction": 0.33,
+      "duration": 5
+    },
+    "red+cyan": {
+      "name": "Faca de Statikk",
+      "effect": "statikk",
+      "description": "A cada 3 ataques, causa 35 de dano especial a até 4 inimigos e reduz SpD deles em 30% por 5s.",
+      "attacks": 3,
+      "damage": 35,
+      "targets": 4,
+      "shred": 0.3,
+      "duration": 5
+    },
+    "red+white": {
+      "name": "Último Sussurro",
+      "effect": "lastwhisper",
+      "description": "Dano físico reduz DEF do alvo em 30% por 3s.",
+      "shred": 0.3,
+      "duration": 3
+    },
+    "cyan+cyan": {
+      "name": "Efeito Azul",
+      "effect": "bluebuff",
+      "description": "Energia máxima necessária -10; após um abate, causa +8% dano durante 8s.",
+      "energyReduction": 10,
+      "amplification": 0.08,
+      "duration": 8
+    },
+    "cyan+white": {
+      "name": "Mão da Justiça",
+      "effect": "justice",
+      "description": "Recebe +15% ATK e +15 SpA, e 15% Vampirismo. A cada combate, dobra aleatoriamente um dos dois bônus.",
+      "atkPercent": 0.15,
+      "spa": 15,
+      "vampirism": 0.15
+    },
+    "white+white": {
+      "name": "Luvas do Ladrão",
+      "effect": "thief",
+      "description": "Ocupa os três espaços e equipa 2 itens completos aleatórios a cada combate.",
+      "temporaryItems": 2
     }
   },
   "combatIntroSeconds": 1.5,
-  "inventorySlots": 9
+  "inventorySlots": 12
 }

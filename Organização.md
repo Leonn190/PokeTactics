@@ -260,3 +260,12 @@ Uma atualização está pronta quando suas responsabilidades ficam claras, não 
 
 **Verificação exigida:** `npm run validate:config`, `npm run check`, `npm run build`; inspeção do jogo em preparação, combate, dupla/quádrupla e espectador. Não criar testes automatizados no repositório.
 
+
+
+## V26.5 — equipamentos do TFT Set 10
+
+- `config/itens.json` possui oito componentes (inclusive `cyan`/Lágrima e `white`/Luva), 36 receitas e os parâmetros de combate. Componentes dão +10 pontos puros; energia inicial e chance crítica são contabilizadas separadamente dos seis status primários.
+- `server/systems/items.ts` implementa receitas, leitura de efeitos, multiplicadores e tooltips; `server/systems/combat.ts` executa os efeitos durante o tick lógico com estado limitado à batalha; `server/engine.ts#useItemTool` aplica Removedor Magnético e Reforjador consumíveis no inventário persistente, sem remover itens gratuitamente ao clicar nos slots.
+- `src/client/item-sprites.ts` e `public/itens/manifest.json` mantêm URLs dos ícones TFT (CommunityDragon). A área física de itens permanece na arena e a câmera continua controlando a posição; o configurador utiliza as mesmas URLs.
+- Luvas do Ladrão bloqueiam os demais slots permanentes; dois itens temporários de combate são escolhidos deterministicamente a partir da semente da batalha. Reforjador não transforma pedras Mega nem ferramentas. O motor rejeita ferramentas quando a área de itens não comporta todos os equipamentos recuperados.
+- Atenção: os nomes/efeitos tomam como referência o Set 10; as escalas de HP, mana, ATK e sinergias foram adaptadas aos valores do PokéTactics. Sem emblemas de espátula, não há falsos tipos implementados por equipamentos.

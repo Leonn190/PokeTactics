@@ -10,7 +10,7 @@ import { GameAudio } from './audio';
 import { BENCH_SIZE, SPECIES, physicalSize } from '../../server/data';
 import { markerAt, type PmdSheet } from './animation/pmd-metadata';
 import { pmdSource } from './animation/pmd-source';
-import { ITEMS } from '../../server/systems/items';
+import { ITEMS, isUniqueRecipe, recipeKey } from '../../server/systems/items';
 import pmdManifest from './pmd-manifest.json';
 import { eligibleForm, alternativeForm } from '../../server/forms';
 import type { BallKind, ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
@@ -222,7 +222,7 @@ document.getElementById('unitInspector')!.addEventListener('click',event=>{
   const slot=(event.target as HTMLElement).closest<HTMLElement>('[data-gear-slot]');
   if(!slot) return;
   const unitId=slot.dataset.gearUnit!;
-  if(slot.classList.contains('occupied'))send({kind:'unequip-item',unitId,slot:Number(slot.dataset.gearSlot)});
+  // A remoção manual foi substituída pelo Removedor Magnético do Set 10.
 });
 // The board rack offers the same point-and-drag behavior as the Pokémon themselves.
 let trayDragId:string|null=null;
@@ -243,7 +243,19 @@ function validInventoryDrop(unitId:string|null,itemId:string|null,ball:BallKind|
   if(itemId){
     const item=player.itemInventory?.find(i=>i.id===itemId);
     if(item?.kind==='mega-stone')return !!eligibleForm(unit);
-    return !!item&&((unit.equipment||[]).length<ITEMS.maxSlots || (item.kind==='component'&&!!unit.equipment?.some(e=>e.kind==='component')));
+    if(item?.kind==='remover'||item?.kind==='reforger')return state.phase==='planning'&&!!unit.equipment?.length;
+    if(!item||unit.equipment?.some(e=>e.recipe==='white+white'))return false;
+    if(item.recipe==='white+white'&&!!unit.equipment?.length)return false;
+    if(isUniqueRecipe(item.recipe)&&unit.equipment?.some(e=>e.recipe===item.recipe))return false;
+    if(item.kind==='component'){
+      const other=unit.equipment?.find(e=>e.kind==='component');
+      if(other){
+        const recipe=recipeKey(item.components[0],other.components[0]);
+        if(isUniqueRecipe(recipe)&&unit.equipment?.some(e=>e.recipe===recipe))return false;
+        if(recipe==='white+white'&&(unit.equipment?.length||0)>1)return false;
+      }
+    }
+    return (unit.equipment||[]).length<ITEMS.maxSlots || (item.kind==='component'&&!!unit.equipment?.some(e=>e.kind==='component'));
   }
   if(ball){
     const tiers:Record<BallKind,number>={pokeball:1,greatball:2,ultraball:3,masterball:5};

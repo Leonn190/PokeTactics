@@ -9,7 +9,7 @@ import { distance, closestTwo, bestEnemyCluster, bestEggCenter, woundedAllies, c
 import { effect, floatingDamage } from '../combat/effects';
 import { heal } from '../combat/healing';
 import { trainerSpot } from '../combat/trainer-position';
-import { bonusStats, effectivePercents, effectCount, numberParam, bumpStack, bonusStat, shieldMultiplier, ITEMS } from './items';
+import { bonusStats, effectivePercents, effectCount, numberParam, bumpStack, bonusStat, shieldMultiplier, ITEMS, COMPLETED_KEYS } from './items';
 import { countTraits } from './synergies/counting';
 import { initializeSynergies, updateSacredTiles, synergyTier } from './synergies/stats';
 import { onSynergyHit, onSynergyDeath, onSynergyCast, sourceShieldMultiplier } from './synergies/combat-events';
@@ -45,7 +45,7 @@ function walkStep(
 const moveIdOf = (unit: CombatUnit): string => unit.bossMove || (unit.family==='tyrogue' ? (unit.metrics.casts%2===0?'hitmonchan-uppercut':'hitmonlee-spin-kick') : getStageData(unit.family, unit.stage,unit.formId,unit.mewtwoMode).move);
 const combatCooldown = (unit: CombatUnit, now: number): number =>
   attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
-const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !(unit.family==='diglett' && unit.moving) && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow);
+const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !(unit.family==='diglett' && unit.moving) && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow) && !(unit.itemTimers.edgeNightUntil && unit.itemTimers.edgeNightUntil>unit.itemNow);
 const metrics = (): CombatMetrics => ({ casts: 0, controlSeconds: 0, dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0, blockedPhysical: 0, blockedSpecial: 0, barrierAbsorbed: 0, abilityMitigated: 0 });
 function stat(unit: CombatUnit, key: StatKey): number {
   const base = unit.stats[key];
@@ -89,7 +89,7 @@ function advanceAnimation(unit: CombatUnit, dt: number): void {
   else unit.animation = null;
 }
 
-function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: boolean, boss = false): CombatUnit {
+function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: boolean, boss = false, battleSeed=0): CombatUnit {
   if (pokemon.position.area !== 'board') throw new Error('Only deployed Pokémon may battle');
   const { col, row: localRow } = pokemon.position;
   // Quádrupla: dois tabuleiros 7x8 completos unidos lado a lado (14x8).
@@ -100,16 +100,28 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
   const { x, y } = multi ? { x: point.x + (slot < 2 ? -4.35 : 4.35), y: point.y } : point;
   const bossMew = boss && pokemon.family === 'mew';
   const equipment = (pokemon.equipment || []).map(item=>({...item,components:[...item.components]}));
+  if(equipment.some(item=>item.recipe==='white+white')){
+    let seed=(battleSeed ^ [...pokemon.id].reduce((n,c)=>Math.imul(n^c.charCodeAt(0),16777619)>>>0,2166136261))>>>0;
+    for(let i=0;i<2;i++){
+      seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+      const pool=COMPLETED_KEYS.filter(k=>k!=='white+white');
+      const key=pool[seed%pool.length];
+      equipment.push({id:'thief:'+pokemon.id+':'+i,kind:'complete',components:key.split('+') as import('../types').ItemColor[],recipe:key});
+    }
+  }
   const mewtwoMode=pokemon.family==='mewtwo' && !boss ? (localRow<=1?'melee':'ranged') : undefined;
   const stats = bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage, boss, false, pokemon.formId),equipment);
   const stage = getStageData(pokemon.family, pokemon.stage,pokemon.formId,mewtwoMode);
   const maxHp = stats.hp;
+  const startingEnergy=equipment.flatMap(item=>item.components).filter(c=>c==='cyan').length*ITEMS.components.cyan.value;
+  const justiceSeed=[...pokemon.id].reduce((n,c)=>Math.imul(n^c.charCodeAt(0),16777619)>>>0,battleSeed);
+  const initialStacks={adaptiveFront:localRow<=1?1:0,justiceMode:justiceSeed%2+1};
   return {
     id: `${owner.id}:${pokemon.id}`, sourceId: pokemon.id, playerId: owner.id,
     family: pokemon.family, stage: pokemon.stage, formId:pokemon.formId,mewtwoMode,level: pokemon.level, iv: { ...pokemon.iv },
-    col, row, x, y, hp: maxHp, maxHp, energy: 0,
-    energyNeeded: boss&&SPECIES[pokemon.family].bossEnergy ? SPECIES[pokemon.family].bossEnergy! : stage.energy, range: (boss&&SPECIES[pokemon.family].bossRange ? effectiveRange(SPECIES[pokemon.family].bossRange!) : stage.range) + equipment.filter(i=>i.recipe && i.recipe==='red+red').length * numberParam('longbow','range'),
-    equipment, itemStacks:{},itemTimers:{regeneration:ITEMS.combatIntroSeconds+numberParam('regeneration','interval'),scaling_spa:ITEMS.combatIntroSeconds+numberParam('scaling_spa','interval'),burn_aura:ITEMS.combatIntroSeconds+numberParam('burn_aura','interval')},itemNow:0,hitSerial:0,focusCount:0,
+    col, row, x, y, hp: maxHp, maxHp, energy: startingEnergy,
+    energyNeeded: Math.max(1,(boss&&SPECIES[pokemon.family].bossEnergy ? SPECIES[pokemon.family].bossEnergy! : stage.energy)-equipment.filter(i=>i.recipe==='cyan+cyan').length*numberParam('bluebuff','energyReduction')), range: boss&&SPECIES[pokemon.family].bossRange ? effectiveRange(SPECIES[pokemon.family].bossRange!) : stage.range,
+    equipment, itemStacks:initialStacks,itemTimers:{dragonclaw:ITEMS.combatIntroSeconds+numberParam('dragonclaw','interval'),archangel:ITEMS.combatIntroSeconds+numberParam('archangel','interval'),sunfire:ITEMS.combatIntroSeconds+numberParam('sunfire','interval'),redemption:ITEMS.combatIntroSeconds+numberParam('redemption','interval'),adaptive:ITEMS.combatIntroSeconds+numberParam('adaptive','interval'),quicksilver:ITEMS.combatIntroSeconds+numberParam('quicksilver','interval')},itemNow:0,hitSerial:0,focusCount:0,
     ...(boss && SPECIES[pokemon.family].bossMove ? {bossMove:SPECIES[pokemon.family].bossMove} : {}),
     stats, mimePillars:pokemon.mimePillars?.map(p=>({...p})), cooldown: attackCooldown(stats.speed),
     attackClock: 0.5 + (col % 4) * 0.13,
@@ -121,7 +133,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     flash: 0, effects: [], damageOverTime: null, poison: null, tentacle:undefined,tentacleSlowUntil:0, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
     babyFlee:false,flameJet:undefined,persianPursuit: undefined, dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], statuses:{}, lullaby:null, starWard:null, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
-    gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range + equipment.filter(i=>i.recipe==='red+red').length*numberParam('longbow','range'),energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
+    gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range,energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
 }
@@ -134,7 +146,7 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     id, kind, goldRound: kind === 'gold', seed:[...id].reduce((n,c)=>Math.imul(n ^ c.charCodeAt(0),16777619) >>> 0,2166136261),
     playerA: players[0].id, playerB: players[1].id,
     participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
-    units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi, kind === 'boss' && p.id.startsWith('bot:')))),
+    units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi, kind === 'boss' && p.id.startsWith('bot:'),[...id].reduce((n,c)=>Math.imul(n^c.charCodeAt(0),16777619)>>>0,2166136261)))),
     effects: [], terrain:{}, obstacles:[], obstacleVersion:0, pillarsSpawned:false, knockupEvents: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
     benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
     traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)])),
@@ -240,7 +252,7 @@ function piercingFire(battle: Battle, source: CombatUnit, target: CombatUnit, ra
 
 function applyKnockup(battle: Battle, source: CombatUnit, target: CombatUnit, seconds: number, airborneSeconds=seconds): void {
   if (target.hp <= 0 || target.dig || target.controlImmune || target.knockUpUntil > battle.elapsed
-    || (effectCount(target,'opening_immunity') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) return;
+    || (effectCount(target,'quicksilver') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration'))) return;
   const until = battle.elapsed + seconds;
   source.metrics.controlSeconds += Math.max(0, until-Math.max(battle.elapsed,target.stunUntil));
   target.stunUntil = Math.max(target.stunUntil, until);
@@ -778,6 +790,7 @@ function preventDefinitiveDeath(battle:Battle,killer:CombatUnit,target:CombatUni
 
 function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage: number): void {
   poisonousDeath(battle,target,stat(target,'spa'));
+  if(effectCount(killer,'bluebuff'))killer.itemTimers.bluebuff=battle.elapsed+numberParam('bluebuff','duration');
   if(target.absorb){releaseAbsorb(battle,target);}
   // Only a definitive KO can transfer the prism's inheritance.
   onAugmentDeath(battle,target);
@@ -807,12 +820,12 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   let bits = (battle.seed ^ Math.imul(source.hitSerial, 0x9e3779b9)) >>> 0;
   bits ^= bits >>> 16; bits = Math.imul(bits, 0x7feb352d); bits ^= bits >>> 15;
   bits = Math.imul(bits, 0x846ca68b); bits ^= bits >>> 16;
-  const critical = (mode==='normal'||(mode==='extra'&&attackType==='sound')) && (!charged || effectCount(source,'spell_critical')>0 || !!source.synergy?.flags.augmentSpellCritical || !!synergyTier(battle,source,'dark'))
+  const critical = (mode==='normal'||(mode==='extra'&&attackType==='sound')) && (!charged || (effectCount(source,'jeweled')>0 || effectCount(source,'infinity')>0) || !!source.synergy?.flags.augmentSpellCritical || !!synergyTier(battle,source,'dark'))
     && (bits >>> 0)/4294967296 < attacker.critChance;
   let critFactor=critical ? attacker.critDamage : 1;
-  if (critical && effectCount(target,'bramble')) critFactor=1+(critFactor-1)*(1-numberParam('bramble','criticalExtraReduction'));
-  const execution= !charged && effectCount(source,'executioner') && target.hp/Math.max(1,target.maxHp)<numberParam('executioner','threshold')
-    ? 1+numberParam('executioner','amplification') : 1;
+  // Colete Espinhoso do Set 10 reduz dano de ataques, não modifica dano crítico.
+  const execution=effectCount(source,'giant_slayer')&&target.maxHp>numberParam('giant_slayer','thresholdHp')
+    ? 1+numberParam('giant_slayer','amplification') : 1;
   const unguarded = Math.max(0, raw) * typeFactor * (1 - target.spinReduction) *
     (1+attacker.amplification) * execution * critFactor;
   const afterAbility = unguarded * (target.guardUntil > battle.elapsed ? 1-(target.guardReductionEffective??.6) : 1);
@@ -825,11 +838,12 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (magical) target.metrics.blockedSpecial += blockedByStat;
   else target.metrics.blockedPhysical += blockedByStat;
   let damage = afterDefense * (1-Math.min(0.75, defender.durability+(active(target,'frozen',battle.elapsed)?STATUS_RULES.frozen.durabilityBonus:0)));
-  if (magical && effectCount(target,'magic_guard')) damage*=1-numberParam('magic_guard','specialReduction');
+  if((target.itemTimers.redemptionProtection||0)>battle.elapsed)damage*=1-numberParam('redemption','durability');
+  if(effectCount(target,'steadfast'))damage*=1-(target.hp/Math.max(1,target.maxHp)>numberParam('steadfast','threshold')?numberParam('steadfast','highReduction'):numberParam('steadfast','reduction'));
+  if(!charged&&!magical&&effectCount(target,'bramble'))damage*=1-numberParam('bramble','basicReduction');
   // Shield bonus applies to shield HP ONLY. Spillover into ordinary life
   // conserves the unamplified portion of the attack rather than multiplying it.
-  const shieldFactor = (charged && mode === 'normal' && effectCount(source,'magic_sunder')
-    ? 1 + numberParam('magic_sunder','shieldBonus') : 1) * (source.family==='scizor' && source.scizorAction && charged ? ATTACKS.moves['scizor-double'].shieldDamageMultiplier??2 : 1);
+  const shieldFactor = (source.family==='scizor' && source.scizorAction && charged ? ATTACKS.moves['scizor-double'].shieldDamageMultiplier??2 : 1);
   let absorbedTotal = 0;
   const absorbShield = (shieldHp: number): number => {
     const absorbed = Math.min(shieldHp, damage * shieldFactor);
@@ -847,6 +861,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
     if (damage <= 0) break;
   }
   target.barriers = target.barriers.filter(b => b.hp > 0);
+  if(absorbedTotal>0 && mode==='normal' && effectCount(source,'guardbreaker'))source.itemTimers.guardbreaker=battle.elapsed+numberParam('guardbreaker','duration');
   // Absorption redirects 15% of actual post-mitigation damage, without recursion.
   let absorbRedirect:{target:CombatUnit;damage:number}|null=null;
   if(target.absorb && source.id!==target.id && mode!=='dot' && mode!=='reflect' && mode!=='extra'){
@@ -911,42 +926,49 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   }
   if (mode==='normal' && actual>0) {
     if (attacker.vampirism>0 && source.hp>0) heal(battle,source,damage*attacker.vampirism,source);
-    if (charged && effectCount(source,'ally_healing')) {
-      const ally=battle.units.filter(u=>u.hp>0 && u.playerId===source.playerId)
-        .sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp || a.id.localeCompare(b.id))[0];
-      if (ally) heal(battle,ally,actual*numberParam('ally_healing','healingShare'),source);
+    if(effectCount(source,'gunblade')){
+      const ally=battle.units.filter(u=>u.hp>0&&u.playerId===source.playerId&&u.id!==source.id)
+        .sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp||a.id.localeCompare(b.id))[0];
+      if(ally)heal(battle,ally,damage*numberParam('gunblade','vampirism'),source);
     }
-    if (charged && effectCount(source,'magic_sunder') && target.hp>0) {
-      const duration=numberParam('magic_sunder','duration');
-      const key=`item:sunder:${source.id}`;
-      const amount=target.stats.spd*numberParam('magic_sunder','shred');
-      const previous=target.defenseShreds.find(e=>e.sourceId===key && e.stat==='spd');
-      if (previous) { previous.amount=Math.max(previous.amount,amount); previous.until=battle.elapsed+duration; }
-      else target.defenseShreds.push({sourceId:key,stat:'spd',amount,until:battle.elapsed+duration});
+    if(!magical&&effectCount(source,'lastwhisper')&&target.hp>0){
+      const key='item:whisper:'+source.id,amount=target.stats.def*numberParam('lastwhisper','shred');
+      const prev=target.defenseShreds.find(e=>e.sourceId===key&&e.stat==='def');
+      if(prev){prev.amount=amount;prev.until=battle.elapsed+numberParam('lastwhisper','duration');}
+      else target.defenseShreds.push({sourceId:key,stat:'def',amount,until:battle.elapsed+numberParam('lastwhisper','duration')});
     }
-    if (!charged && effectCount(source,'armor_break') && target.hp>0) {
-      const key=`item:armor:${source.id}`;
-      const amount=target.stats.def*numberParam('armor_break','shred');
-      const prev=target.defenseShreds.find(e=>e.sourceId===key && e.stat==='def');
-      if (prev) { prev.amount=Math.max(prev.amount,amount); prev.until=battle.elapsed+numberParam('armor_break','duration'); }
-      else target.defenseShreds.push({sourceId:key,stat:'def',amount,until:battle.elapsed+numberParam('armor_break','duration')});
+    for(const name of ['morello','redbuff'] as const)if(effectCount(source,name)&&target.hp>0){
+      const duration=numberParam(name,'duration'),dps=target.maxHp*numberParam(name,'burnPercent');
+      if(!target.itemBurn||target.itemBurn.until<=battle.elapsed||dps>=target.itemBurn.dps)
+        target.itemBurn={sourceId:source.id,dps,until:battle.elapsed+duration};
+      else target.itemBurn.until=battle.elapsed+duration;
+      target.itemTimers.burning=battle.elapsed+duration;
+      target.itemTimers.woundPct=numberParam(name,'healReduction');
     }
   }
   if (actual>0 && mode!=='reflect' && mode!=='dot') {
     if (effectCount(target,'titan') && battle.elapsed>=(target.itemTimers.titanHit||0)) {
       bumpStack(target,'titan'); target.itemTimers.titanHit=battle.elapsed+.1;
     }
-    if (effectCount(target,'adaptive_shield') && !target.itemTimers.shieldUsed && target.hp>0 && target.hp/target.maxHp<numberParam('adaptive_shield','threshold')) {
-      const amount=target.maxHp*numberParam('adaptive_shield','barrierFraction')*shieldMultiplier(target);
-      target.barriers.push({kind:'item',sourceId:target.id,hp:amount,until:battle.elapsed+numberParam('adaptive_shield','duration')});
-      target.itemTimers.shieldUsed=1; effect(battle,target,target,'shield',amount);
+    for(const kind of ['bloodthirster','protector','sterak','edge_night'] as const){
+      if(!effectCount(target,kind)||target.itemStacks[kind+'Used']||target.hp<=0||target.hp/target.maxHp>=numberParam(kind,'threshold'))continue;
+      target.itemStacks[kind+'Used']=1;
+      if(kind==='sterak'){const extra=target.maxHp*numberParam('sterak','hpPercent');target.maxHp+=extra;target.hp+=extra;}
+      else if(kind==='edge_night'){
+        target.statuses={};target.poison=null;target.damageOverTime=null;target.itemBurn=null;
+        target.stunTime=0;target.knockUpTime=0;target.knockUpUntil=0;target.fear=null;target.slow=0;
+        target.itemTimers.edgeNightUntil=battle.elapsed+numberParam('edge_night','duration');
+      }else{
+        const amount=target.maxHp*numberParam(kind,'barrierFraction')*shieldMultiplier(target);
+        target.barriers.push({kind:'item',sourceId:target.id,hp:amount,until:battle.elapsed+numberParam(kind,'duration')});
+        effect(battle,target,target,'shield',amount);
+      }
     }
-    if (magical && charged && effectCount(target,'magic_guard') && battle.elapsed>=(target.itemTimers.magicHeal||0)) {
-      target.itemTimers.magicHeal=battle.elapsed+numberParam('magic_guard','cooldown');
-      heal(battle,target,target.maxHp*numberParam('magic_guard','healPercent'));
-    }
-    if (!charged && effectCount(target,'bramble') && source.hp>0 && target!==source) {
-      deal(battle,target,source,actual*numberParam('bramble','reflect'),false,false,undefined,'reflect');
+    if(effectCount(target,'adaptive')&&target.itemStacks.adaptiveFront)target.energy=Math.min(target.energyNeeded,target.energy+numberParam('adaptive','hitEnergy'));
+    if(!charged&&!magical&&effectCount(target,'bramble')&&source.hp>0&&battle.elapsed>=(target.itemTimers.brambleHit||0)){
+      target.itemTimers.brambleHit=battle.elapsed+numberParam('bramble','cooldown');
+      for(const enemy of battle.units)if(enemy.playerId!==target.playerId&&enemy.hp>0&&distance(enemy,target)<=numberParam('bramble','radius'))
+        deal(battle,target,enemy,numberParam('bramble','damage'),true,false,undefined,'reflect');
     }
   }
   return actual;
@@ -1108,7 +1130,7 @@ function tickHitmonAction(battle:Battle,source:CombatUnit,dt:number):void {
     const hp=old.hp;
     deal(battle,source,old,move.baseDamage+stat(source,'atk')*(move.attackRatio||0),false,true,'fighting');
     const seconds=Math.max(move.stunMin||.45,Math.min(move.stunMax||1.8,(move.stunBase||.65)+stat(source,'spa')*(move.stunSpaRatio||.008)-hp*(move.stunHpRatio||.0007)));
-    if(old.hp>0&&!old.controlImmune && !(effectCount(old,'opening_immunity')&&battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))){
+    if(old.hp>0&&!old.controlImmune && !(effectCount(old,'quicksilver')&&battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration'))){
      source.metrics.controlSeconds+=Math.max(0,battle.elapsed+seconds-Math.max(battle.elapsed,old.stunUntil));
      old.stunUntil=Math.max(old.stunUntil,battle.elapsed+seconds);
      old.stunTime=Math.max(0,old.stunUntil-battle.elapsed);
@@ -1324,16 +1346,10 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   source.metrics.casts++;
   onAugmentCast(battle,source);
   onSynergyCast(battle,source,target,{deal,heal,effect,stat});
-  if (effectCount(source,'cast_haste')) source.itemTimers.cast_haste=battle.elapsed+numberParam('cast_haste','duration');
-  if (effectCount(source,'cast_wave')) {
-    source.itemStacks.cast_wave=(source.itemStacks.cast_wave||0)+1;
-    if (source.itemStacks.cast_wave % numberParam('cast_wave','casts',2)===0 && target) {
-      for (const enemy of battle.units.filter(u=>u.playerId!==source.playerId && u.hp>0 && distance(u,target)<=numberParam('cast_wave','radius')))
-        deal(battle,source,enemy,stat(source,'spa')*numberParam('cast_wave','spaRatio'),true,true,undefined,'extra');
-      effect(battle,source,target,'impact',numberParam('cast_wave','radius'));
-    }
-  }
-  if(legendaryAbility(battle,source,target,moveId))return;
+  if(effectCount(source,'nashor'))source.itemTimers.nashor=battle.elapsed+numberParam('nashor','duration');
+  for(const enemy of battle.units)if(enemy.hp>0&&enemy.playerId!==source.playerId&&effectCount(enemy,'ionic')&&distance(source,enemy)<=numberParam('ionic','radius'))
+    deal(battle,enemy,source,source.energyNeeded*numberParam('ionic','manaRatio'),true,false,undefined,'extra');
+    if(legendaryAbility(battle,source,target,moveId))return;
   const a = stat(source,'atk'), s = stat(source,'spa');
   if(move.effect==='ultrasonic-wave' && target){
     const victims=[target,...battle.units.filter(u=>u.playerId!==source.playerId&&u.id!==target.id
@@ -2266,8 +2282,8 @@ function startGhost(battle: Battle, caster: CombatUnit, moveId: string): void {
 }
 /** Push a frightened enemy up to one tile away, without overlapping another combatant. */
 function scareTarget(battle: Battle,caster: CombatUnit,victim: CombatUnit, duration:number): void {
-  if (victim.controlImmune || (effectCount(victim,'opening_immunity')
-    && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) return;
+  if (victim.controlImmune || (effectCount(victim,'quicksilver')
+    && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration'))) return;
   const dist=Math.max(.001,distance(caster,victim));
   const dx=(victim.x-caster.x)/dist,dy=(victim.y-caster.y)/dist;
   const bounds=arenaBoundary(battle);
@@ -2575,33 +2591,59 @@ export function tickBattle(battle: Battle, dt: number): void {
       }
     }
 
-    unit.controlImmune=effectCount(unit,'opening_immunity')>0 && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration');
+    unit.controlImmune=effectCount(unit,'quicksilver')>0 && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration');
     if (unit.hp<=0) continue;
     const enemies=battle.units.filter(e=>e.playerId!==unit.playerId && e.hp>0);
-    unit.focusCount=effectCount(unit,'focused_defense')
-      ? countClosestThreats(battle,unit,numberParam('focused_defense','maxTargets')) : 0;
-    if (effectCount(unit,'regeneration') && battle.elapsed>= (unit.itemTimers.regeneration||0)) {
-      unit.itemTimers.regeneration=battle.elapsed+numberParam('regeneration','interval');
-      heal(battle,unit,unit.maxHp*numberParam('regeneration','healPercent'));
+    unit.focusCount=effectCount(unit,'gargoyle')?countClosestThreats(battle,unit,numberParam('gargoyle','maxTargets')):0;
+    if(effectCount(unit,'dragonclaw')&&battle.elapsed>=(unit.itemTimers.dragonclaw||0)){
+      unit.itemTimers.dragonclaw=battle.elapsed+numberParam('dragonclaw','interval');
+      heal(battle,unit,unit.maxHp*numberParam('dragonclaw','healPercent'));
     }
-    if (effectCount(unit,'scaling_spa') && battle.elapsed>=(unit.itemTimers.scaling_spa||0)) {
-      unit.itemTimers.scaling_spa=battle.elapsed+numberParam('scaling_spa','interval');
-      bumpStack(unit,'scaling_spa');
+    if(effectCount(unit,'archangel')&&battle.elapsed>=(unit.itemTimers.archangel||0)){
+      unit.itemTimers.archangel=battle.elapsed+numberParam('archangel','interval');bumpStack(unit,'archangel');
     }
-    if (effectCount(unit,'burn_aura') && battle.elapsed>=(unit.itemTimers.burn_aura||0)) {
-      unit.itemTimers.burn_aura=battle.elapsed+numberParam('burn_aura','interval');
-      const target=enemies.filter(e=>distance(e,unit)<=numberParam('burn_aura','radius'))
+    if(effectCount(unit,'crownguard')&&!unit.itemTimers.crownEnd&&battle.elapsed>=ITEMS.combatIntroSeconds){
+      unit.itemTimers.crownEnd=battle.elapsed+numberParam('crownguard','duration');
+      const amount=unit.maxHp*numberParam('crownguard','barrierFraction');
+      unit.barriers.push({kind:'item',sourceId:unit.id,hp:amount,until:unit.itemTimers.crownEnd});effect(battle,unit,unit,'shield',amount);
+    }
+    if(effectCount(unit,'quicksilver')&&battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration')&&battle.elapsed>=(unit.itemTimers.quicksilver||0)){
+      unit.itemTimers.quicksilver=battle.elapsed+numberParam('quicksilver','interval');bumpStack(unit,'quicksilver');
+    }
+    if(effectCount(unit,'adaptive')&&!unit.itemStacks.adaptiveFront&&battle.elapsed>=(unit.itemTimers.adaptive||0)){
+      unit.itemTimers.adaptive=battle.elapsed+numberParam('adaptive','interval');
+      unit.energy=Math.min(unit.energyNeeded,unit.energy+numberParam('adaptive','backEnergy'));
+    }
+    if(effectCount(unit,'redemption')&&battle.elapsed>=(unit.itemTimers.redemption||0)){
+      unit.itemTimers.redemption=battle.elapsed+numberParam('redemption','interval');
+      for(const ally of battle.units)if(ally.hp>0&&ally.playerId===unit.playerId&&distance(ally,unit)<=numberParam('redemption','radius')){
+        heal(battle,ally,(ally.maxHp-ally.hp)*numberParam('redemption','healMissing'));
+        ally.itemTimers.redemptionProtection=battle.elapsed+numberParam('redemption','duration');
+      }
+    }
+    if(effectCount(unit,'sunfire')&&battle.elapsed>=(unit.itemTimers.sunfire||0)){
+      unit.itemTimers.sunfire=battle.elapsed+numberParam('sunfire','interval');
+      const target=enemies.filter(e=>distance(e,unit)<=numberParam('sunfire','radius'))
         .sort((a,b)=>distance(a,unit)-distance(b,unit)||a.id.localeCompare(b.id))[0];
-      if (target) {
-        target.itemTimers.burning=battle.elapsed+numberParam('burn_aura','duration');
-        // One burn source per victim, stronger refresh replaces weaker rather than stacking.
-        if (!target.itemBurn || target.itemBurn.until<=battle.elapsed || target.itemBurn.dps<target.maxHp*numberParam('burn_aura','burnPercent')/numberParam('burn_aura','duration'))
-          target.itemBurn={sourceId:unit.id,dps:target.maxHp*numberParam('burn_aura','burnPercent')/numberParam('burn_aura','duration'),until:target.itemTimers.burning};
+      if(target){
+        target.itemTimers.burning=battle.elapsed+numberParam('sunfire','duration');
+        target.itemTimers.woundPct=numberParam('sunfire','healReduction');
+        const dps=target.maxHp*numberParam('sunfire','burnPercent');
+        if(!target.itemBurn||target.itemBurn.until<=battle.elapsed||target.itemBurn.dps<=dps)
+          target.itemBurn={sourceId:unit.id,dps,until:target.itemTimers.burning};
         else target.itemBurn.until=target.itemTimers.burning;
         effect(battle,unit,target,'flame',0);
       }
     }
-    if (unit.itemBurn && unit.itemBurn.until>battle.elapsed-dt && unit.hp>0) {
+    for(const kind of ['ionic','evenshroud'] as const)if(effectCount(unit,kind))
+      for(const enemy of enemies)if(distance(enemy,unit)<=numberParam(kind,'radius')){
+        const key='item:'+kind+':'+unit.id,statKey=kind==='ionic'?'spd':'def';
+        const amount=enemy.stats[statKey]*numberParam(kind,'shred');
+        const prev=enemy.defenseShreds.find(x=>x.sourceId===key&&x.stat===statKey);
+        if(prev){prev.amount=amount;prev.until=battle.elapsed+dt+.001;}
+        else enemy.defenseShreds.push({sourceId:key,stat:statKey,amount,until:battle.elapsed+dt+.001});
+      }
+        if (unit.itemBurn && unit.itemBurn.until>battle.elapsed-dt && unit.hp>0) {
       const burner=battle.units.find(e=>e.id===unit.itemBurn!.sourceId);
       const burn=unit.itemBurn, portion=Math.min(dt,Math.max(0,burn.until-(battle.elapsed-dt)));
       burn.accumulator=(burn.accumulator||0)+burn.dps*portion;
@@ -2610,7 +2652,7 @@ export function tickBattle(battle: Battle, dt: number): void {
         deal(battle,burner,unit,burn.accumulator,true,true,undefined,'dot');burn.accumulator=0;burn.tickTime=0;
       }
     }
-    if (unit.itemBurn && unit.itemBurn.until<=battle.elapsed) unit.itemBurn=null;
+    if (unit.itemBurn && unit.itemBurn.until<=battle.elapsed){unit.itemBurn=null;unit.itemTimers.woundPct=0;}
   }
   // Expiração anterior ao impacto: nenhum buff ou escudo continua ativo um frame extra.
   for (const unit of battle.units) {
@@ -2687,7 +2729,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.surf) { surfTick(battle,unit,dt); continue; }
     if (unit.sleep) { sleepTick(battle,unit,dt); continue; }
     if (unit.gasCharge) { gasTick(battle,unit,dt); continue; }
-    if (unit.stunTime > 0 && !(effectCount(unit,'opening_immunity') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) {
+    if (unit.stunTime > 0 && !(effectCount(unit,'quicksilver') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration'))) {
       continue;
     }
     if(unit.persianPursuit){pursuePersian(battle,unit,dt);continue;}
@@ -2834,9 +2876,30 @@ export function tickBattle(battle: Battle, dt: number): void {
         projectile(battle,unit,target,'water',unit.synergy.splashBonus,true,false,ranged?ANIMATIONS.projectilesByType[stage.elements[0]].arrival:.35);
         unit.synergy.splashBonus=0;
       }
-      if (!blocksEnergy(unit,battle.elapsed)) unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain + (effectCount(unit,'bonus_energy') ? numberParam('bonus_energy','energy') : 0));
+      if(!blocksEnergy(unit,battle.elapsed))unit.energy=Math.min(unit.energyNeeded,unit.energy+basic.energyGain+(effectCount(unit,'shojin')?numberParam('shojin','energy'):0));
       onAugmentBasic(battle,unit);
-      bumpStack(unit,'guinsoo'); bumpStack(unit,'titan');
+      bumpStack(unit,'guinsoo');bumpStack(unit,'titan');
+      if(effectCount(unit,'runaan')){
+        const secondary=battle.units.filter(e=>e.hp>0&&e.playerId!==unit.playerId&&e.id!==target.id&&distance(e,target)<=numberParam('runaan','range'))
+          .sort((a,b)=>distance(a,target)-distance(b,target)||a.id.localeCompare(b.id))[0];
+        if(secondary)projectile(battle,unit,secondary,projectileKind,stat(unit,'atk')*numberParam('runaan','atkRatio'),false,false,
+          ranged?ANIMATIONS.projectilesByType[stage.elements[0]].arrival:.35);
+      }
+      if(effectCount(unit,'statikk')){
+        unit.itemStacks.statikk=(unit.itemStacks.statikk||0)+1;
+        if(unit.itemStacks.statikk%numberParam('statikk','attacks')===0){
+          const victims=battle.units.filter(e=>e.hp>0&&e.playerId!==unit.playerId)
+            .sort((a,b)=>distance(a,target)-distance(b,target)||a.id.localeCompare(b.id)).slice(0,numberParam('statikk','targets'));
+          for(const enemy of victims){
+            const key='item:statikk:'+unit.id,amount=enemy.stats.spd*numberParam('statikk','shred');
+            const prev=enemy.defenseShreds.find(x=>x.sourceId===key&&x.stat==='spd');
+            if(prev){prev.amount=amount;prev.until=battle.elapsed+numberParam('statikk','duration');}
+            else enemy.defenseShreds.push({sourceId:key,stat:'spd',amount,until:battle.elapsed+numberParam('statikk','duration')});
+            deal(battle,unit,enemy,numberParam('statikk','damage'),true,false,undefined,'extra');
+            effect(battle,unit,enemy,'lightning',0);
+          }
+        }
+      }
     }
     unit.cooldown=combatCooldown(unit,battle.elapsed);
     unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);

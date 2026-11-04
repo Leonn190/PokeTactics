@@ -26,6 +26,7 @@ export function rollReward(color: LootColor, random:()=>number): LootReward {
   const ball=Object.entries(bonus).find(([,chance])=>random()<chance)?.[0] as BallKind | undefined;
   let result:LootReward;
   if (reward.kind === 'gold') result = { kind:'gold', amount:reward.min!+Math.floor(random()*(reward.max!-reward.min!+1)) };
+  else if (reward.kind === 'remover' || reward.kind === 'reforger') result = {kind:reward.kind};
   else if (reward.kind === 'component') result = {kind:'component',color:ITEM_COLORS[Math.floor(random()*ITEM_COLORS.length)] as ItemColor};
   else {
     const pool=SHOP_FAMILIES.filter(f=>SPECIES[f].rarity===reward.rarity);

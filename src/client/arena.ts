@@ -13,7 +13,7 @@ import { drawUnitVisualEvent } from './animation/unit-visuals';
 import { paintArenaBackground } from './scene/background';
 import { drawCoin } from './scene/coin-renderer';
 import { bonusStats, ITEMS } from '../../server/systems/items';
-import { itemSprite } from './item-sprites';
+import { itemSprite, itemAssetUrl } from './item-sprites';
 import { renderTrainerAvatar } from './scene/trainer-renderer';
 import { renderFloatingNumber } from './vfx/floating-numbers';
 import { drawCastingGlints } from './vfx/casting-glints';
@@ -895,7 +895,7 @@ export class Arena {
     const total=Math.min(ITEMS.maxSlots,gear.length),ctx=this.context;
     for(let i=0;i<total;i++){
       const raw=itemSprite(gear[i]);if(!raw)continue;
-      const url=`${import.meta.env.BASE_URL}${raw.replace(/^\//,'')}`;
+      const url=itemAssetUrl(raw);
       let img=this.itemImageCache.get(url);
       if(!img){img=new Image();img.src=url;this.itemImageCache.set(url,img);}
       const left=x+(i-(total-1)/2)*scale*1.07-scale/2;

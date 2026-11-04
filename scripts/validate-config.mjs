@@ -93,7 +93,15 @@ for (const augment of augments.augments) {
   augmentIds.add(augment.id);
   check(['bronze','silver','gold','prismatic'].includes(augment.rarity), 'Augment com raridade inválida: ' + augment.id);
 }
-for (const recipe of Object.keys(itens.recipes)) {
+// A matriz do Set 10 adaptada não pode perder receitas ao editar o JSON.
+const cores=Object.keys(itens.components);
+check(cores.length===8,'Itens V26.5: devem existir 8 componentes');
+for(const cor of cores)check(itens.components[cor].value===10,'Componente '+cor+' deve dar 10 pontos puros');
+const receitasEsperadas=new Set(cores.flatMap((primeiro,i)=>cores.slice(i).map(segundo=>primeiro+'+'+segundo)));
+check(Object.keys(itens.recipes).length===receitasEsperadas.size,'Itens V26.5: matriz deve conter 36 receitas sem duplicatas');
+for(const receita of receitasEsperadas)check(Boolean(itens.recipes[receita]),'Receita ausente: '+receita);
+for(const recipe of Object.keys(itens.recipes)) {
+  check(receitasEsperadas.has(recipe),'Receita inesperada: '+recipe);
   for (const component of recipe.split('+')) check(Boolean(itens.components[component]), 'Item ' + recipe + ': componente inexistente ' + component);
 }
 check(fases.stages?.length === fases.stagesPerChapter, 'fases.json: tamanho do capítulo inconsistente');
