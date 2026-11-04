@@ -9,7 +9,7 @@ import { distance, closestTwo, bestEnemyCluster, bestEggCenter, woundedAllies, c
 import { effect, floatingDamage } from '../combat/effects';
 import { heal } from '../combat/healing';
 import { trainerSpot } from '../combat/trainer-position';
-import { bonusStats, effectivePercents, effectCount, numberParam, bumpStack, bonusStat, shieldMultiplier, ITEMS } from './items';
+import { bonusStats, effectivePercents, effectCount, numberParam, bumpStack, bonusStat, shieldMultiplier, ITEMS, COMPLETED_KEYS } from './items';
 import { countTraits } from './synergies/counting';
 import { initializeSynergies, updateSacredTiles, synergyTier } from './synergies/stats';
 import { onSynergyHit, onSynergyDeath, onSynergyCast, sourceShieldMultiplier } from './synergies/combat-events';
@@ -89,7 +89,7 @@ function advanceAnimation(unit: CombatUnit, dt: number): void {
   else unit.animation = null;
 }
 
-function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: boolean, boss = false): CombatUnit {
+function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: boolean, boss = false, battleSeed=0): CombatUnit {
   if (pokemon.position.area !== 'board') throw new Error('Only deployed Pokémon may battle');
   const { col, row: localRow } = pokemon.position;
   // Quádrupla: dois tabuleiros 7x8 completos unidos lado a lado (14x8).
@@ -100,16 +100,28 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
   const { x, y } = multi ? { x: point.x + (slot < 2 ? -4.35 : 4.35), y: point.y } : point;
   const bossMew = boss && pokemon.family === 'mew';
   const equipment = (pokemon.equipment || []).map(item=>({...item,components:[...item.components]}));
+  if(equipment.some(item=>item.recipe==='white+white')){
+    let seed=(battleSeed ^ [...pokemon.id].reduce((n,c)=>Math.imul(n^c.charCodeAt(0),16777619)>>>0,2166136261))>>>0;
+    for(let i=0;i<2;i++){
+      seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+      const pool=COMPLETED_KEYS.filter(k=>k!=='white+white');
+      const key=pool[seed%pool.length];
+      equipment.push({id:'thief:'+pokemon.id+':'+i,kind:'complete',components:key.split('+') as import('../types').ItemColor[],recipe:key});
+    }
+  }
   const mewtwoMode=pokemon.family==='mewtwo' && !boss ? (localRow<=1?'melee':'ranged') : undefined;
   const stats = bonusStats(calculateStats(pokemon.family, pokemon.level, pokemon.iv, pokemon.stage, boss, false, pokemon.formId),equipment);
   const stage = getStageData(pokemon.family, pokemon.stage,pokemon.formId,mewtwoMode);
   const maxHp = stats.hp;
+  const startingEnergy=equipment.flatMap(item=>item.components).filter(c=>c==='cyan').length*ITEMS.components.cyan.value;
+  const justiceSeed=[...pokemon.id].reduce((n,c)=>Math.imul(n^c.charCodeAt(0),16777619)>>>0,battleSeed);
+  const initialStacks={adaptiveFront:localRow<=1?1:0,justiceMode:justiceSeed%2+1};
   return {
     id: `${owner.id}:${pokemon.id}`, sourceId: pokemon.id, playerId: owner.id,
     family: pokemon.family, stage: pokemon.stage, formId:pokemon.formId,mewtwoMode,level: pokemon.level, iv: { ...pokemon.iv },
-    col, row, x, y, hp: maxHp, maxHp, energy: 0,
-    energyNeeded: boss&&SPECIES[pokemon.family].bossEnergy ? SPECIES[pokemon.family].bossEnergy! : stage.energy, range: (boss&&SPECIES[pokemon.family].bossRange ? effectiveRange(SPECIES[pokemon.family].bossRange!) : stage.range) + equipment.filter(i=>i.recipe && i.recipe==='red+red').length * numberParam('longbow','range'),
-    equipment, itemStacks:{},itemTimers:{regeneration:ITEMS.combatIntroSeconds+numberParam('regeneration','interval'),scaling_spa:ITEMS.combatIntroSeconds+numberParam('scaling_spa','interval'),burn_aura:ITEMS.combatIntroSeconds+numberParam('burn_aura','interval')},itemNow:0,hitSerial:0,focusCount:0,
+    col, row, x, y, hp: maxHp, maxHp, energy: startingEnergy,
+    energyNeeded: Math.max(1,(boss&&SPECIES[pokemon.family].bossEnergy ? SPECIES[pokemon.family].bossEnergy! : stage.energy)-equipment.filter(i=>i.recipe==='cyan+cyan').length*numberParam('bluebuff','energyReduction')), range: boss&&SPECIES[pokemon.family].bossRange ? effectiveRange(SPECIES[pokemon.family].bossRange!) : stage.range,
+    equipment, itemStacks:initialStacks,itemTimers:{dragonclaw:ITEMS.combatIntroSeconds+numberParam('dragonclaw','interval'),archangel:ITEMS.combatIntroSeconds+numberParam('archangel','interval'),sunfire:ITEMS.combatIntroSeconds+numberParam('sunfire','interval'),redemption:ITEMS.combatIntroSeconds+numberParam('redemption','interval'),adaptive:ITEMS.combatIntroSeconds+numberParam('adaptive','interval'),quicksilver:ITEMS.combatIntroSeconds+numberParam('quicksilver','interval')},itemNow:0,hitSerial:0,focusCount:0,
     ...(boss && SPECIES[pokemon.family].bossMove ? {bossMove:SPECIES[pokemon.family].bossMove} : {}),
     stats, mimePillars:pokemon.mimePillars?.map(p=>({...p})), cooldown: attackCooldown(stats.speed),
     attackClock: 0.5 + (col % 4) * 0.13,
@@ -121,7 +133,7 @@ function makeCombatUnit(pokemon: Pokemon, owner: Player, slot: number, multi: bo
     flash: 0, effects: [], damageOverTime: null, poison: null, tentacle:undefined,tentacleSlowUntil:0, barrier: null,
     barriers: [], buffs: [], defenseShreds: [], guardUntil: 0, combo: null,
     babyFlee:false,flameJet:undefined,persianPursuit: undefined, dig: null, ghost: null, ghostCasts: 0, orbitFlames: [], statuses:{}, lullaby:null, starWard:null, fear: null, storm: null, psychicImbuement: null, refractionUntil: 0, hitmonGuaranteed:false, hitmonAction:null, attackSpeedDebuffUntil: 0,
-    gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range + equipment.filter(i=>i.recipe==='red+red').length*numberParam('longbow','range'),energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
+    gasTime: 0, gasCharge: null, sleep:null, surf:null, ditto: pokemon.family==='ditto' ? {used:false,active:false,original:{family:pokemon.family,stage:pokemon.stage,stats:{...stats},iv:{...pokemon.iv},level:pokemon.level,range:stage.range,energyNeeded:stage.energy,hp:maxHp,maxHp}} : null, support: null, leap: null, charge: null, jumpHeight: 0, stunTime: 0, knockUpTime: 0, knockUpDuration: 0, stunUntil: 0, knockUpUntil: 0,
     slow: 0, metrics: metrics()
   };
 }
@@ -134,7 +146,7 @@ export function createBattleGroup(players: Player[], id: string, kind: StageType
     id, kind, goldRound: kind === 'gold', seed:[...id].reduce((n,c)=>Math.imul(n ^ c.charCodeAt(0),16777619) >>> 0,2166136261),
     playerA: players[0].id, playerB: players[1].id,
     participants: players.map(p => p.id), rankings: [], knockoutAt: {}, goldDrops: [],
-    units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi, kind === 'boss' && p.id.startsWith('bot:')))),
+    units: players.flatMap((p, slot) => p.units.filter(u => u.position.area === 'board').map(u => makeCombatUnit(u, p, slot, multi, kind === 'boss' && p.id.startsWith('bot:'),[...id].reduce((n,c)=>Math.imul(n^c.charCodeAt(0),16777619)>>>0,2166136261)))),
     effects: [], terrain:{}, obstacles:[], obstacleVersion:0, pillarsSpawned:false, knockupEvents: [], elapsed: 0, introElapsed: 0, outcomeElapsed: 0, resolved: false, winner: null, loser: null,
     benches: Object.fromEntries(players.map(p => [p.id, p.units.filter(u => u.position.area === 'bench').map(u => ({ ...u, position: { ...u.position }, iv: { ...u.iv } }))])),
     traitsByPlayer: Object.fromEntries(players.map(p => [p.id, countTraits(p)])),
@@ -240,7 +252,7 @@ function piercingFire(battle: Battle, source: CombatUnit, target: CombatUnit, ra
 
 function applyKnockup(battle: Battle, source: CombatUnit, target: CombatUnit, seconds: number, airborneSeconds=seconds): void {
   if (target.hp <= 0 || target.dig || target.controlImmune || target.knockUpUntil > battle.elapsed
-    || (effectCount(target,'opening_immunity') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) return;
+    || (effectCount(target,'quicksilver') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration'))) return;
   const until = battle.elapsed + seconds;
   source.metrics.controlSeconds += Math.max(0, until-Math.max(battle.elapsed,target.stunUntil));
   target.stunUntil = Math.max(target.stunUntil, until);
@@ -778,6 +790,7 @@ function preventDefinitiveDeath(battle:Battle,killer:CombatUnit,target:CombatUni
 
 function knockout(battle: Battle, killer: CombatUnit, target: CombatUnit, damage: number): void {
   poisonousDeath(battle,target,stat(target,'spa'));
+  if(effectCount(killer,'bluebuff'))killer.itemTimers.bluebuff=battle.elapsed+numberParam('bluebuff','duration');
   if(target.absorb){releaseAbsorb(battle,target);}
   // Only a definitive KO can transfer the prism's inheritance.
   onAugmentDeath(battle,target);
@@ -807,12 +820,12 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   let bits = (battle.seed ^ Math.imul(source.hitSerial, 0x9e3779b9)) >>> 0;
   bits ^= bits >>> 16; bits = Math.imul(bits, 0x7feb352d); bits ^= bits >>> 15;
   bits = Math.imul(bits, 0x846ca68b); bits ^= bits >>> 16;
-  const critical = (mode==='normal'||(mode==='extra'&&attackType==='sound')) && (!charged || effectCount(source,'spell_critical')>0 || !!source.synergy?.flags.augmentSpellCritical || !!synergyTier(battle,source,'dark'))
+  const critical = (mode==='normal'||(mode==='extra'&&attackType==='sound')) && (!charged || (effectCount(source,'jeweled')>0 || effectCount(source,'infinity')>0) || !!source.synergy?.flags.augmentSpellCritical || !!synergyTier(battle,source,'dark'))
     && (bits >>> 0)/4294967296 < attacker.critChance;
   let critFactor=critical ? attacker.critDamage : 1;
-  if (critical && effectCount(target,'bramble')) critFactor=1+(critFactor-1)*(1-numberParam('bramble','criticalExtraReduction'));
-  const execution= !charged && effectCount(source,'executioner') && target.hp/Math.max(1,target.maxHp)<numberParam('executioner','threshold')
-    ? 1+numberParam('executioner','amplification') : 1;
+  // Colete Espinhoso do Set 10 reduz dano de ataques, não modifica dano crítico.
+  const execution=effectCount(source,'giant_slayer')&&target.maxHp>numberParam('giant_slayer','thresholdHp')
+    ? 1+numberParam('giant_slayer','amplification') : 1;
   const unguarded = Math.max(0, raw) * typeFactor * (1 - target.spinReduction) *
     (1+attacker.amplification) * execution * critFactor;
   const afterAbility = unguarded * (target.guardUntil > battle.elapsed ? 1-(target.guardReductionEffective??.6) : 1);
@@ -825,11 +838,12 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   if (magical) target.metrics.blockedSpecial += blockedByStat;
   else target.metrics.blockedPhysical += blockedByStat;
   let damage = afterDefense * (1-Math.min(0.75, defender.durability+(active(target,'frozen',battle.elapsed)?STATUS_RULES.frozen.durabilityBonus:0)));
-  if (magical && effectCount(target,'magic_guard')) damage*=1-numberParam('magic_guard','specialReduction');
+  if((target.itemTimers.redemptionProtection||0)>battle.elapsed)damage*=1-numberParam('redemption','durability');
+  if(effectCount(target,'steadfast'))damage*=1-(target.hp/Math.max(1,target.maxHp)>numberParam('steadfast','threshold')?numberParam('steadfast','highReduction'):numberParam('steadfast','reduction'));
+  if(!charged&&!magical&&effectCount(target,'bramble'))damage*=1-numberParam('bramble','basicReduction');
   // Shield bonus applies to shield HP ONLY. Spillover into ordinary life
   // conserves the unamplified portion of the attack rather than multiplying it.
-  const shieldFactor = (charged && mode === 'normal' && effectCount(source,'magic_sunder')
-    ? 1 + numberParam('magic_sunder','shieldBonus') : 1) * (source.family==='scizor' && source.scizorAction && charged ? ATTACKS.moves['scizor-double'].shieldDamageMultiplier??2 : 1);
+  const shieldFactor = (source.family==='scizor' && source.scizorAction && charged ? ATTACKS.moves['scizor-double'].shieldDamageMultiplier??2 : 1);
   let absorbedTotal = 0;
   const absorbShield = (shieldHp: number): number => {
     const absorbed = Math.min(shieldHp, damage * shieldFactor);
@@ -847,6 +861,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
     if (damage <= 0) break;
   }
   target.barriers = target.barriers.filter(b => b.hp > 0);
+  if(absorbedTotal>0 && mode==='normal' && effectCount(source,'guardbreaker'))source.itemTimers.guardbreaker=battle.elapsed+numberParam('guardbreaker','duration');
   // Absorption redirects 15% of actual post-mitigation damage, without recursion.
   let absorbRedirect:{target:CombatUnit;damage:number}|null=null;
   if(target.absorb && source.id!==target.id && mode!=='dot' && mode!=='reflect' && mode!=='extra'){
@@ -1108,7 +1123,7 @@ function tickHitmonAction(battle:Battle,source:CombatUnit,dt:number):void {
     const hp=old.hp;
     deal(battle,source,old,move.baseDamage+stat(source,'atk')*(move.attackRatio||0),false,true,'fighting');
     const seconds=Math.max(move.stunMin||.45,Math.min(move.stunMax||1.8,(move.stunBase||.65)+stat(source,'spa')*(move.stunSpaRatio||.008)-hp*(move.stunHpRatio||.0007)));
-    if(old.hp>0&&!old.controlImmune && !(effectCount(old,'opening_immunity')&&battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))){
+    if(old.hp>0&&!old.controlImmune && !(effectCount(old,'quicksilver')&&battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration'))){
      source.metrics.controlSeconds+=Math.max(0,battle.elapsed+seconds-Math.max(battle.elapsed,old.stunUntil));
      old.stunUntil=Math.max(old.stunUntil,battle.elapsed+seconds);
      old.stunTime=Math.max(0,old.stunUntil-battle.elapsed);
@@ -2266,8 +2281,8 @@ function startGhost(battle: Battle, caster: CombatUnit, moveId: string): void {
 }
 /** Push a frightened enemy up to one tile away, without overlapping another combatant. */
 function scareTarget(battle: Battle,caster: CombatUnit,victim: CombatUnit, duration:number): void {
-  if (victim.controlImmune || (effectCount(victim,'opening_immunity')
-    && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) return;
+  if (victim.controlImmune || (effectCount(victim,'quicksilver')
+    && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration'))) return;
   const dist=Math.max(.001,distance(caster,victim));
   const dx=(victim.x-caster.x)/dist,dy=(victim.y-caster.y)/dist;
   const bounds=arenaBoundary(battle);
@@ -2575,7 +2590,7 @@ export function tickBattle(battle: Battle, dt: number): void {
       }
     }
 
-    unit.controlImmune=effectCount(unit,'opening_immunity')>0 && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration');
+    unit.controlImmune=effectCount(unit,'quicksilver')>0 && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration');
     if (unit.hp<=0) continue;
     const enemies=battle.units.filter(e=>e.playerId!==unit.playerId && e.hp>0);
     unit.focusCount=effectCount(unit,'focused_defense')
@@ -2687,7 +2702,7 @@ export function tickBattle(battle: Battle, dt: number): void {
     if (unit.surf) { surfTick(battle,unit,dt); continue; }
     if (unit.sleep) { sleepTick(battle,unit,dt); continue; }
     if (unit.gasCharge) { gasTick(battle,unit,dt); continue; }
-    if (unit.stunTime > 0 && !(effectCount(unit,'opening_immunity') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('opening_immunity','duration'))) {
+    if (unit.stunTime > 0 && !(effectCount(unit,'quicksilver') && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration'))) {
       continue;
     }
     if(unit.persianPursuit){pursuePersian(battle,unit,dt);continue;}
