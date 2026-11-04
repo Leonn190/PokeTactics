@@ -5,7 +5,7 @@ import { rollFamily, evolutionByInfluence } from './shop';
 import { grantTrainerXp, buyTrainerXp } from './trainer-xp';
 import { battleMetrics, createBattleGroup, forceResolveBattle, survivors, tickBattle } from './systems/combat';
 import { totalPower } from './formulas';
-import { craft, makeComponent, ITEM_COLORS, RECIPES, ITEMS } from './systems/items';
+import { craft, makeComponent, ITEM_COLORS, RECIPES, ITEMS, isUniqueRecipe } from './systems/items';
 import { LOOT, eligibleForLoot, rollColor, rollReward } from './systems/loot';
 import { chapterForRound, roundTimers } from './chapter-timers';
 import { eligibleForm,alternativeForm,nextFormStage } from './forms';
@@ -422,8 +422,8 @@ export class GameEngine {
         if(component && item.components[0]==='white' && component.components[0]==='white' && held.length>1)continue;
         if(component){
           const combined=craft(this.id(),component,item);
-          if(combined){held[held.indexOf(component)]=combined;pending.splice(pending.indexOf(item),1);break;}
-        }else if(held.length<ITEMS.maxSlots){held.push(item);pending.splice(pending.indexOf(item),1);break;}
+          if(combined && !(isUniqueRecipe(combined.recipe) && held.some(i=>i.recipe===combined.recipe))){held[held.indexOf(component)]=combined;pending.splice(pending.indexOf(item),1);break;}
+        }else if(held.length<ITEMS.maxSlots && !(isUniqueRecipe(item.recipe)&&held.some(i=>i.recipe===item.recipe))){held.push(item);pending.splice(pending.indexOf(item),1);break;}
       }
     }
   }
@@ -641,9 +641,11 @@ export class GameEngine {
       if(existing){
         const combined=craft(this.id(),actualItem,existing);
         if(!combined)return 'Combinação inválida';
+        if(isUniqueRecipe(combined.recipe) && gear.some(i=>i.recipe===combined.recipe))return 'Item único já equipado';
         gear.splice(gear.indexOf(existing),1,combined);
       }else{
         if(gear.length>=ITEMS.maxSlots)return 'Máximo de equipamentos';
+        if(isUniqueRecipe(actualItem.recipe)&&gear.some(i=>i.recipe===actualItem.recipe))return 'Item único já equipado';
         gear.push(actualItem);
       }
       if(!item.id.startsWith('sandbox:'))human.itemInventory=human.itemInventory!.filter(x=>x.id!==item.id);
@@ -657,6 +659,9 @@ export class GameEngine {
         unit.equipment!.splice(command.slot,1);return null;
       }
       if((unit.equipment||[]).length>=ITEMS.maxSlots)return 'Máximo de equipamentos';
+      if(unit.equipment?.some(i=>i.recipe==='white+white'))return 'Luvas do Ladrão ocupam três espaços';
+      if(command.recipe && isUniqueRecipe(command.recipe) && unit.equipment?.some(i=>i.recipe===command.recipe))return 'Item único já equipado';
+      if(command.recipe==='white+white' && unit.equipment?.length)return 'Luvas do Ladrão exigem três espaços livres';
       if(command.color&&ITEM_COLORS.includes(command.color))(unit.equipment||=[]).push(makeComponent(this.id(),command.color));
       else if(command.recipe&&RECIPES[command.recipe]){
         (unit.equipment||=[]).push({id:this.id(),kind:'complete',components:command.recipe.split('+') as import('./types').ItemColor[],recipe:command.recipe});
@@ -802,10 +807,12 @@ export class GameEngine {
       if (item.kind === 'component' && component?.kind === 'component') {
         const assembled=craft(this.id(),actualItem,component);
         if (!assembled) return 'Receita inválida';
+        if(isUniqueRecipe(assembled.recipe) && equipped.some(i=>i.recipe===assembled.recipe))return 'Item único já equipado';
         const index=equipped.findIndex(i=>i.id===component.id);
         equipped[index]=assembled;
       } else {
         if (equipped.length>=ITEMS.maxSlots) return `Limite de ${ITEMS.maxSlots} equipamentos`;
+        if(isUniqueRecipe(actualItem.recipe)&&equipped.some(i=>i.recipe===actualItem.recipe))return 'Item único já equipado';
         equipped.push(actualItem);
       }
       if(!this.sandbox||!item.id.startsWith('sandbox:'))human.itemInventory=human.itemInventory!.filter(i=>i.id!==item.id);
