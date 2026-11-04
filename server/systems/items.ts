@@ -63,8 +63,9 @@ export function effectivePercents(unit?:Pick<CombatUnit,'equipment'|'itemStacks'
   }
   for(const effect of ['bloodthirster','gunblade','justice'] as const)
     if(has(effect))result.vampirism+=numberParam(effect,'vampirism')*(effect==='justice' && unit.itemStacks.justiceMode===2?2:1);
-  if(has('jeweled'))result.critDamage+=numberParam('jeweled','critDamage');
-  if(has('infinity'))result.critDamage+=numberParam('infinity','critDamage');
+  const priorSpellCrit=!!unit.synergy?.flags?.augmentSpellCritical;
+  if(has('jeweled')&&(has('infinity')||priorSpellCrit))result.critDamage+=numberParam('jeweled','critDamage');
+  if(has('infinity')&&(has('jeweled')||priorSpellCrit))result.critDamage+=numberParam('infinity','critDamage');
   for(const effect of ['rabadon','redbuff'] as const)if(has(effect))result.amplification+=numberParam(effect,'amplification');
   if(has('guardbreaker') && (unit.itemTimers.guardbreaker||0)>elapsed)result.amplification+=numberParam('guardbreaker','amplification');
   if(has('bluebuff') && (unit.itemTimers.bluebuff||0)>elapsed)result.amplification+=numberParam('bluebuff','amplification');
