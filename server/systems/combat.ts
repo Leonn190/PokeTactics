@@ -926,42 +926,48 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
   }
   if (mode==='normal' && actual>0) {
     if (attacker.vampirism>0 && source.hp>0) heal(battle,source,damage*attacker.vampirism,source);
-    if (charged && effectCount(source,'ally_healing')) {
-      const ally=battle.units.filter(u=>u.hp>0 && u.playerId===source.playerId)
-        .sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp || a.id.localeCompare(b.id))[0];
-      if (ally) heal(battle,ally,actual*numberParam('ally_healing','healingShare'),source);
+    if(effectCount(source,'gunblade')){
+      const ally=battle.units.filter(u=>u.hp>0&&u.playerId===source.playerId&&u.id!==source.id)
+        .sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp||a.id.localeCompare(b.id))[0];
+      if(ally)heal(battle,ally,damage*numberParam('gunblade','vampirism'),source);
     }
-    if (charged && effectCount(source,'magic_sunder') && target.hp>0) {
-      const duration=numberParam('magic_sunder','duration');
-      const key=`item:sunder:${source.id}`;
-      const amount=target.stats.spd*numberParam('magic_sunder','shred');
-      const previous=target.defenseShreds.find(e=>e.sourceId===key && e.stat==='spd');
-      if (previous) { previous.amount=Math.max(previous.amount,amount); previous.until=battle.elapsed+duration; }
-      else target.defenseShreds.push({sourceId:key,stat:'spd',amount,until:battle.elapsed+duration});
+    if(!magical&&effectCount(source,'lastwhisper')&&target.hp>0){
+      const key='item:whisper:'+source.id,amount=target.stats.def*numberParam('lastwhisper','shred');
+      const prev=target.defenseShreds.find(e=>e.sourceId===key&&e.stat==='def');
+      if(prev){prev.amount=amount;prev.until=battle.elapsed+numberParam('lastwhisper','duration');}
+      else target.defenseShreds.push({sourceId:key,stat:'def',amount,until:battle.elapsed+numberParam('lastwhisper','duration')});
     }
-    if (!charged && effectCount(source,'armor_break') && target.hp>0) {
-      const key=`item:armor:${source.id}`;
-      const amount=target.stats.def*numberParam('armor_break','shred');
-      const prev=target.defenseShreds.find(e=>e.sourceId===key && e.stat==='def');
-      if (prev) { prev.amount=Math.max(prev.amount,amount); prev.until=battle.elapsed+numberParam('armor_break','duration'); }
-      else target.defenseShreds.push({sourceId:key,stat:'def',amount,until:battle.elapsed+numberParam('armor_break','duration')});
+    for(const name of ['morello','redbuff'] as const)if(effectCount(source,name)&&target.hp>0){
+      const duration=numberParam(name,'duration'),dps=target.maxHp*numberParam(name,'burnPercent');
+      if(!target.itemBurn||target.itemBurn.until<=battle.elapsed||dps>=target.itemBurn.dps)
+        target.itemBurn={sourceId:source.id,dps,until:battle.elapsed+duration};
+      else target.itemBurn.until=battle.elapsed+duration;
+      target.itemTimers.burning=battle.elapsed+duration;
+      target.itemTimers.woundPct=numberParam(name,'healReduction');
     }
   }
   if (actual>0 && mode!=='reflect' && mode!=='dot') {
     if (effectCount(target,'titan') && battle.elapsed>=(target.itemTimers.titanHit||0)) {
       bumpStack(target,'titan'); target.itemTimers.titanHit=battle.elapsed+.1;
     }
-    if (effectCount(target,'adaptive_shield') && !target.itemTimers.shieldUsed && target.hp>0 && target.hp/target.maxHp<numberParam('adaptive_shield','threshold')) {
-      const amount=target.maxHp*numberParam('adaptive_shield','barrierFraction')*shieldMultiplier(target);
-      target.barriers.push({kind:'item',sourceId:target.id,hp:amount,until:battle.elapsed+numberParam('adaptive_shield','duration')});
-      target.itemTimers.shieldUsed=1; effect(battle,target,target,'shield',amount);
+    for(const kind of ['bloodthirster','protector','sterak','edge_night'] as const){
+      if(!effectCount(target,kind)||target.itemStacks[kind+'Used']||target.hp<=0||target.hp/target.maxHp>=numberParam(kind,'threshold'))continue;
+      target.itemStacks[kind+'Used']=1;
+      if(kind==='sterak'){const extra=target.maxHp*numberParam('sterak','hpPercent');target.maxHp+=extra;target.hp+=extra;}
+      else if(kind==='edge_night'){
+        target.statuses={};target.poison=null;target.damageOverTime=null;target.itemBurn=null;
+        if(target.synergy)target.synergy.intangibleUntil=battle.elapsed+numberParam('edge_night','duration');
+      }else{
+        const amount=target.maxHp*numberParam(kind,'barrierFraction')*shieldMultiplier(target);
+        target.barriers.push({kind:'item',sourceId:target.id,hp:amount,until:battle.elapsed+numberParam(kind,'duration')});
+        effect(battle,target,target,'shield',amount);
+      }
     }
-    if (magical && charged && effectCount(target,'magic_guard') && battle.elapsed>=(target.itemTimers.magicHeal||0)) {
-      target.itemTimers.magicHeal=battle.elapsed+numberParam('magic_guard','cooldown');
-      heal(battle,target,target.maxHp*numberParam('magic_guard','healPercent'));
-    }
-    if (!charged && effectCount(target,'bramble') && source.hp>0 && target!==source) {
-      deal(battle,target,source,actual*numberParam('bramble','reflect'),false,false,undefined,'reflect');
+    if(effectCount(target,'adaptive')&&target.itemStacks.adaptiveFront)target.energy=Math.min(target.energyNeeded,target.energy+numberParam('adaptive','hitEnergy'));
+    if(!charged&&!magical&&effectCount(target,'bramble')&&source.hp>0&&battle.elapsed>=(target.itemTimers.brambleHit||0)){
+      target.itemTimers.brambleHit=battle.elapsed+numberParam('bramble','cooldown');
+      for(const enemy of battle.units)if(enemy.playerId!==target.playerId&&enemy.hp>0&&distance(enemy,target)<=numberParam('bramble','radius'))
+        deal(battle,target,enemy,numberParam('bramble','damage'),true,false,undefined,'reflect');
     }
   }
   return actual;
