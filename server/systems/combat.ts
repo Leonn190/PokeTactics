@@ -1345,16 +1345,10 @@ function spell(battle: Battle, source: CombatUnit, target: CombatUnit | null): v
   source.metrics.casts++;
   onAugmentCast(battle,source);
   onSynergyCast(battle,source,target,{deal,heal,effect,stat});
-  if (effectCount(source,'cast_haste')) source.itemTimers.cast_haste=battle.elapsed+numberParam('cast_haste','duration');
-  if (effectCount(source,'cast_wave')) {
-    source.itemStacks.cast_wave=(source.itemStacks.cast_wave||0)+1;
-    if (source.itemStacks.cast_wave % numberParam('cast_wave','casts',2)===0 && target) {
-      for (const enemy of battle.units.filter(u=>u.playerId!==source.playerId && u.hp>0 && distance(u,target)<=numberParam('cast_wave','radius')))
-        deal(battle,source,enemy,stat(source,'spa')*numberParam('cast_wave','spaRatio'),true,true,undefined,'extra');
-      effect(battle,source,target,'impact',numberParam('cast_wave','radius'));
-    }
-  }
-  if(legendaryAbility(battle,source,target,moveId))return;
+  if(effectCount(source,'nashor'))source.itemTimers.nashor=battle.elapsed+numberParam('nashor','duration');
+  for(const enemy of battle.units)if(enemy.hp>0&&enemy.playerId!==source.playerId&&effectCount(enemy,'ionic')&&distance(source,enemy)<=numberParam('ionic','radius'))
+    deal(battle,enemy,source,source.energyNeeded*numberParam('ionic','manaRatio'),true,false,undefined,'extra');
+    if(legendaryAbility(battle,source,target,moveId))return;
   const a = stat(source,'atk'), s = stat(source,'spa');
   if(move.effect==='ultrasonic-wave' && target){
     const victims=[target,...battle.units.filter(u=>u.playerId!==source.playerId&&u.id!==target.id
@@ -2599,30 +2593,56 @@ export function tickBattle(battle: Battle, dt: number): void {
     unit.controlImmune=effectCount(unit,'quicksilver')>0 && battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration');
     if (unit.hp<=0) continue;
     const enemies=battle.units.filter(e=>e.playerId!==unit.playerId && e.hp>0);
-    unit.focusCount=effectCount(unit,'focused_defense')
-      ? countClosestThreats(battle,unit,numberParam('focused_defense','maxTargets')) : 0;
-    if (effectCount(unit,'regeneration') && battle.elapsed>= (unit.itemTimers.regeneration||0)) {
-      unit.itemTimers.regeneration=battle.elapsed+numberParam('regeneration','interval');
-      heal(battle,unit,unit.maxHp*numberParam('regeneration','healPercent'));
+    unit.focusCount=effectCount(unit,'gargoyle')?countClosestThreats(battle,unit,numberParam('gargoyle','maxTargets')):0;
+    if(effectCount(unit,'dragonclaw')&&battle.elapsed>=(unit.itemTimers.dragonclaw||0)){
+      unit.itemTimers.dragonclaw=battle.elapsed+numberParam('dragonclaw','interval');
+      heal(battle,unit,unit.maxHp*numberParam('dragonclaw','healPercent'));
     }
-    if (effectCount(unit,'scaling_spa') && battle.elapsed>=(unit.itemTimers.scaling_spa||0)) {
-      unit.itemTimers.scaling_spa=battle.elapsed+numberParam('scaling_spa','interval');
-      bumpStack(unit,'scaling_spa');
+    if(effectCount(unit,'archangel')&&battle.elapsed>=(unit.itemTimers.archangel||0)){
+      unit.itemTimers.archangel=battle.elapsed+numberParam('archangel','interval');bumpStack(unit,'archangel');
     }
-    if (effectCount(unit,'burn_aura') && battle.elapsed>=(unit.itemTimers.burn_aura||0)) {
-      unit.itemTimers.burn_aura=battle.elapsed+numberParam('burn_aura','interval');
-      const target=enemies.filter(e=>distance(e,unit)<=numberParam('burn_aura','radius'))
+    if(effectCount(unit,'crownguard')&&!unit.itemTimers.crownEnd&&battle.elapsed>=ITEMS.combatIntroSeconds){
+      unit.itemTimers.crownEnd=battle.elapsed+numberParam('crownguard','duration');
+      const amount=unit.maxHp*numberParam('crownguard','barrierFraction');
+      unit.barriers.push({kind:'item',sourceId:unit.id,hp:amount,until:unit.itemTimers.crownEnd});effect(battle,unit,unit,'shield',amount);
+    }
+    if(effectCount(unit,'quicksilver')&&battle.elapsed<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration')&&battle.elapsed>=(unit.itemTimers.quicksilver||0)){
+      unit.itemTimers.quicksilver=battle.elapsed+numberParam('quicksilver','interval');bumpStack(unit,'quicksilver');
+    }
+    if(effectCount(unit,'adaptive')&&!unit.itemStacks.adaptiveFront&&battle.elapsed>=(unit.itemTimers.adaptive||0)){
+      unit.itemTimers.adaptive=battle.elapsed+numberParam('adaptive','interval');
+      unit.energy=Math.min(unit.energyNeeded,unit.energy+numberParam('adaptive','backEnergy'));
+    }
+    if(effectCount(unit,'redemption')&&battle.elapsed>=(unit.itemTimers.redemption||0)){
+      unit.itemTimers.redemption=battle.elapsed+numberParam('redemption','interval');
+      for(const ally of battle.units)if(ally.hp>0&&ally.playerId===unit.playerId&&distance(ally,unit)<=numberParam('redemption','radius')){
+        heal(battle,ally,(ally.maxHp-ally.hp)*numberParam('redemption','healMissing'));
+        ally.itemTimers.redemptionProtection=battle.elapsed+numberParam('redemption','duration');
+      }
+    }
+    if(effectCount(unit,'sunfire')&&battle.elapsed>=(unit.itemTimers.sunfire||0)){
+      unit.itemTimers.sunfire=battle.elapsed+numberParam('sunfire','interval');
+      const target=enemies.filter(e=>distance(e,unit)<=numberParam('sunfire','radius'))
         .sort((a,b)=>distance(a,unit)-distance(b,unit)||a.id.localeCompare(b.id))[0];
-      if (target) {
-        target.itemTimers.burning=battle.elapsed+numberParam('burn_aura','duration');
-        // One burn source per victim, stronger refresh replaces weaker rather than stacking.
-        if (!target.itemBurn || target.itemBurn.until<=battle.elapsed || target.itemBurn.dps<target.maxHp*numberParam('burn_aura','burnPercent')/numberParam('burn_aura','duration'))
-          target.itemBurn={sourceId:unit.id,dps:target.maxHp*numberParam('burn_aura','burnPercent')/numberParam('burn_aura','duration'),until:target.itemTimers.burning};
+      if(target){
+        target.itemTimers.burning=battle.elapsed+numberParam('sunfire','duration');
+        target.itemTimers.woundPct=numberParam('sunfire','healReduction');
+        const dps=target.maxHp*numberParam('sunfire','burnPercent');
+        if(!target.itemBurn||target.itemBurn.until<=battle.elapsed||target.itemBurn.dps<=dps)
+          target.itemBurn={sourceId:unit.id,dps,until:target.itemTimers.burning};
         else target.itemBurn.until=target.itemTimers.burning;
         effect(battle,unit,target,'flame',0);
       }
     }
-    if (unit.itemBurn && unit.itemBurn.until>battle.elapsed-dt && unit.hp>0) {
+    for(const kind of ['ionic','evenshroud'] as const)if(effectCount(unit,kind))
+      for(const enemy of enemies)if(distance(enemy,unit)<=numberParam(kind,'radius')){
+        const key='item:'+kind+':'+unit.id,statKey=kind==='ionic'?'spd':'def';
+        const amount=enemy.stats[statKey]*numberParam(kind,'shred');
+        const prev=enemy.defenseShreds.find(x=>x.sourceId===key&&x.stat===statKey);
+        if(prev){prev.amount=amount;prev.until=battle.elapsed+dt+.001;}
+        else enemy.defenseShreds.push({sourceId:key,stat:statKey,amount,until:battle.elapsed+dt+.001});
+      }
+        if (unit.itemBurn && unit.itemBurn.until>battle.elapsed-dt && unit.hp>0) {
       const burner=battle.units.find(e=>e.id===unit.itemBurn!.sourceId);
       const burn=unit.itemBurn, portion=Math.min(dt,Math.max(0,burn.until-(battle.elapsed-dt)));
       burn.accumulator=(burn.accumulator||0)+burn.dps*portion;
@@ -2631,7 +2651,7 @@ export function tickBattle(battle: Battle, dt: number): void {
         deal(battle,burner,unit,burn.accumulator,true,true,undefined,'dot');burn.accumulator=0;burn.tickTime=0;
       }
     }
-    if (unit.itemBurn && unit.itemBurn.until<=battle.elapsed) unit.itemBurn=null;
+    if (unit.itemBurn && unit.itemBurn.until<=battle.elapsed){unit.itemBurn=null;unit.itemTimers.woundPct=0;}
   }
   // Expiração anterior ao impacto: nenhum buff ou escudo continua ativo um frame extra.
   for (const unit of battle.units) {
@@ -2855,9 +2875,30 @@ export function tickBattle(battle: Battle, dt: number): void {
         projectile(battle,unit,target,'water',unit.synergy.splashBonus,true,false,ranged?ANIMATIONS.projectilesByType[stage.elements[0]].arrival:.35);
         unit.synergy.splashBonus=0;
       }
-      if (!blocksEnergy(unit,battle.elapsed)) unit.energy = Math.min(unit.energyNeeded, unit.energy + basic.energyGain + (effectCount(unit,'bonus_energy') ? numberParam('bonus_energy','energy') : 0));
+      if(!blocksEnergy(unit,battle.elapsed))unit.energy=Math.min(unit.energyNeeded,unit.energy+basic.energyGain+(effectCount(unit,'shojin')?numberParam('shojin','energy'):0));
       onAugmentBasic(battle,unit);
-      bumpStack(unit,'guinsoo'); bumpStack(unit,'titan');
+      bumpStack(unit,'guinsoo');bumpStack(unit,'titan');
+      if(effectCount(unit,'runaan')){
+        const secondary=battle.units.filter(e=>e.hp>0&&e.playerId!==unit.playerId&&e.id!==target.id&&distance(e,target)<=numberParam('runaan','range'))
+          .sort((a,b)=>distance(a,target)-distance(b,target)||a.id.localeCompare(b.id))[0];
+        if(secondary)projectile(battle,unit,secondary,projectileKind,stat(unit,'atk')*numberParam('runaan','atkRatio'),false,false,
+          ranged?ANIMATIONS.projectilesByType[stage.elements[0]].arrival:.35);
+      }
+      if(effectCount(unit,'statikk')){
+        unit.itemStacks.statikk=(unit.itemStacks.statikk||0)+1;
+        if(unit.itemStacks.statikk%numberParam('statikk','attacks')===0){
+          const victims=battle.units.filter(e=>e.hp>0&&e.playerId!==unit.playerId)
+            .sort((a,b)=>distance(a,target)-distance(b,target)||a.id.localeCompare(b.id)).slice(0,numberParam('statikk','targets'));
+          for(const enemy of victims){
+            const key='item:statikk:'+unit.id,amount=enemy.stats.spd*numberParam('statikk','shred');
+            const prev=enemy.defenseShreds.find(x=>x.sourceId===key&&x.stat==='spd');
+            if(prev){prev.amount=amount;prev.until=battle.elapsed+numberParam('statikk','duration');}
+            else enemy.defenseShreds.push({sourceId:key,stat:'spd',amount,until:battle.elapsed+numberParam('statikk','duration')});
+            deal(battle,unit,enemy,numberParam('statikk','damage'),true,false,undefined,'extra');
+            effect(battle,unit,enemy,'lightning',0);
+          }
+        }
+      }
     }
     unit.cooldown=combatCooldown(unit,battle.elapsed);
     unit.attackClock = unit.cooldown * (unit.slow ? 1.3 : 1);
