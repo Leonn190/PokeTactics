@@ -504,7 +504,7 @@ export class Hud {
     const energyPercent = Math.min(100, energy / energyNeeded * 100);
     const refraction=combatant?.family==='staryu'&&combatant.stage===1&&combatant.refractionUntil>combatant.itemNow;
     const stageRange=refraction ? steppedRange(stage.rangeLevel,1) : stage.range;
-    const basicRange=combatant?.range??(stageRange+(pokemon.equipment||[]).filter(item=>item.recipe==='red+red').length*numberParam('longbow','range'));
+    const basicRange=combatant?.range??stageRange;
     const rangeTitle=rangeLabel(basicRange);
     const percents=effectivePercents(combatant||{equipment:pokemon.equipment||[],itemStacks:{},itemTimers:{}},combatant?.itemNow||0);
     const powerClass=modifierClass(power,totalPower(naturalStats));
@@ -525,7 +525,7 @@ export class Hud {
     const slots = Array.from({length:ITEMS.maxSlots},(_,index)=>{
       const item=pokemon.equipment?.[index];
       const tag=owner==='VOCÊ'?'button':'span';
-      return `<${tag} ${tag==='button'?'type="button"':''} class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item)):'Espaço livre'}" ${item?'data-item-tooltip="'+safe(itemTooltip(item))+'"':''} ${tag==='span'?'tabindex="0" aria-disabled="true"':''}>${item?icon(item):'<span class="inspector-empty-slot">+</span>'}</${tag}>`;
+      return `<${tag} ${tag==='button'?'type="button"':''} class="inspector-slot ${item?'occupied':''}" data-gear-slot="${index}" data-gear-unit="${pokemon.id}" title="${item?safe(itemTooltip(item))+' · Use o Removedor Magnético para retirar':'Espaço livre'}" ${item?'data-item-tooltip="'+safe(itemTooltip(item))+'"':''} ${tag==='span'?'tabindex="0" aria-disabled="true"':''}>${item?icon(item):'<span class="inspector-empty-slot">+</span>'}</${tag}>`;
     }).join('');
     return `<div class="inspector-top">
       <div class="inspector-portrait">${portrait(displayFamily,64,displayStage,formId)}</div>
