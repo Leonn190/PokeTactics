@@ -9,7 +9,7 @@ export type ItemRecipe = { name:string; effect: string; description: string; [ke
 export const RECIPES = ITEMS.recipes as Record<string, ItemRecipe>;
 export const COMPLETED_KEYS = Object.keys(RECIPES);
 /** Itens marcados únicos pelo TFT Set 10: apenas uma cópia por Pokémon. */
-export const UNIQUE_RECIPES = new Set(['green+yellow','orange+yellow','blue+white','red+white','cyan+cyan']);
+export const UNIQUE_RECIPES = new Set(['green+yellow','green+purple','orange+yellow','blue+white','red+white','cyan+cyan']);
 export function isUniqueRecipe(recipe:string|undefined):boolean{return !!recipe&&UNIQUE_RECIPES.has(recipe);}
 export function recipeKey(a: ItemColor, b: ItemColor): string {
   const i=ITEM_COLORS.indexOf(a),j=ITEM_COLORS.indexOf(b);
@@ -45,7 +45,8 @@ export function bonusStats(stats:Stats,equipment:EquippedItem[]=[]):Stats {
     if(Object.hasOwn(copy,stat))copy[stat]+=component.value;
   }
   const count=(effect:string)=>equipment.filter(i=>i.kind==='complete'&&RECIPES[i.recipe||'']?.effect===effect).length;
-  copy.hp*=Math.pow(1+numberParam('warmog','hpPercent'),count('warmog'))
+  copy.hp*=Math.pow(1+numberParam('bramble','hpPercent'),count('bramble'))
+    *Math.pow(1+numberParam('warmog','hpPercent'),count('warmog'))
     *Math.pow(1+numberParam('dragonclaw','hpPercent'),count('dragonclaw'));
   copy.spa*=Math.pow(1+numberParam('rabadon','spaPercent'),count('rabadon'));
   copy.atk*=Math.pow(1+numberParam('deathblade','atkPercent'),count('deathblade'))
