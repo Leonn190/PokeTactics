@@ -145,3 +145,12 @@ Exeggcute/Exeggutor entram na loja como comuns, com barreira e SpD melhorada enq
 
 A V26 inclui Zubat e Horsea com suas evoluções, introduz Sonoro e Cósmico, revisa tipagens e permite até três tipos por forma. Sinergias agora contam famílias únicas, não estágios repetidos; a tooltip mostra um Pokémon representativo por família. Há novos efeitos de combate e fundos metálicos para os tiers das sinergias.
 
+
+
+### V26.5 — itens inspirados no TFT Set 10
+
+- Oito componentes: HP, DEF, ATK, SpA, SpD, VEL, **Lágrima da Deusa (energia inicial)** e **Luva do Pugilista (chance crítica)**; bônus de 10 pontos por componente, sem porcentagem no bônus básico.
+- 36 combinações de dois componentes, com três espaços de equipamento por Pokémon. Os itens de receita têm efeitos próprios no motor de combate, e as Luvas do Ladrão sorteiam itens apenas para a batalha.
+- **Removedor Magnético**: retira todos os equipamentos para a área física de itens. **Reforjador**: retira e transforma cada item na mesma classe (componente ou completo). Ambos consomem uma ferramenta e exigem espaço livre.
+- Ícones: `public/itens/manifest.json` documenta as URLs de CommunityDragon; a interface usa as mesmas referências remotas. Assets originais de `public/` foram preservados.
+- O motor mantém a composição autoritativa; o HUD envia comandos, não calcula efeitos. Os itens exclusivos do TFT que dependem de sistemas ausentes no PokéTactics (por exemplo, emblemas com espátula) não foram adicionados.
