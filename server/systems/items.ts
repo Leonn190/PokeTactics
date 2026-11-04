@@ -8,6 +8,9 @@ export type Recipe = keyof typeof ITEMS.recipes;
 export type ItemRecipe = { name:string; effect: string; description: string; [key: string]: number | string };
 export const RECIPES = ITEMS.recipes as Record<string, ItemRecipe>;
 export const COMPLETED_KEYS = Object.keys(RECIPES);
+/** Itens marcados únicos pelo TFT Set 10: apenas uma cópia por Pokémon. */
+export const UNIQUE_RECIPES = new Set(['green+yellow','orange+yellow','blue+white','red+white','cyan+cyan']);
+export function isUniqueRecipe(recipe:string|undefined):boolean{return !!recipe&&UNIQUE_RECIPES.has(recipe);}
 export function recipeKey(a: ItemColor, b: ItemColor): string {
   const i=ITEM_COLORS.indexOf(a),j=ITEM_COLORS.indexOf(b);
   if(i<0||j<0)throw Error('Componente inválido');
@@ -128,5 +131,5 @@ export function itemTooltip(item:EquippedItem):string {
   const stats=item.components.map(part).join(' • ');
   if(item.kind==='component')return `${ITEMS.components[item.components[0]].name.toUpperCase()}\n${stats}\nCombine com outro componente para criar um item completo.`;
   const completed=RECIPES[item.recipe||''];
-  return `${completed?.name.toUpperCase()||'ITEM COMPLETO'}\n${stats}\n${completed?.description||'Efeito especial'}`;
+  return `${completed?.name.toUpperCase()||'ITEM COMPLETO'}${isUniqueRecipe(item.recipe)?' · ÚNICO':''}\n${stats}\n${completed?.description||'Efeito especial'}`;
 }
