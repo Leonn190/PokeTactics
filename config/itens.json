@@ -116,9 +116,9 @@
     "green+cyan": {
       "name": "Redenção",
       "effect": "redemption",
-      "description": "A cada 5s, cura aliados adjacentes em 15% da Vida perdida e concede 10% redução de dano por 5s.",
+      "description": "A cada 5s, cura aliados em até 2 casas em 15% da Vida perdida e concede 10% redução de dano por 5s.",
       "interval": 5,
-      "radius": 1.5,
+      "radius": 2,
       "healMissing": 0.15,
       "durability": 0.1,
       "duration": 5
@@ -165,8 +165,8 @@
     "blue+red": {
       "name": "Furacão de Runaan",
       "effect": "runaan",
-      "description": "Ataques básicos disparam um segundo projétil em outro inimigo próximo com 110% do ATK.",
-      "atkRatio": 1.1,
+      "description": "Ataques básicos disparam um segundo projétil em outro inimigo próximo com 55% do ATK.",
+      "atkRatio": 0.55,
       "range": 3
     },
     "blue+cyan": {
@@ -267,11 +267,12 @@
     "yellow+yellow": {
       "name": "Colete Espinhoso",
       "effect": "bramble",
-      "description": "Reduz dano de ataques em 8%; ao receber um ataque, causa 100 de dano especial aos adjacentes (2s recarga).",
+      "description": "Vida máxima +5%, -8% dano de ataques. Ao receber ataque, causa 100 de dano especial aos adjacentes (2s de recarga).",
       "basicReduction": 0.08,
       "damage": 100,
       "cooldown": 2,
-      "radius": 1.5
+      "radius": 1.5,
+      "hpPercent": 0.05
     },
     "yellow+red": {
       "name": "Determinação Titânica",
