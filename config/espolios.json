@@ -49,6 +49,14 @@
       {
         "kind": "component",
         "weight": 30
+      },
+      {
+        "kind": "remover",
+        "weight": 4
+      },
+      {
+        "kind": "reforger",
+        "weight": 2
       }
     ],
     "yellow": [
@@ -67,6 +75,14 @@
         "kind": "pokemon",
         "rarity": 5,
         "weight": 10
+      },
+      {
+        "kind": "remover",
+        "weight": 4
+      },
+      {
+        "kind": "reforger",
+        "weight": 3
       }
     ]
   },
