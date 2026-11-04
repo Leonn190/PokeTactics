@@ -10,7 +10,7 @@ import { GameAudio } from './audio';
 import { BENCH_SIZE, SPECIES, physicalSize } from '../../server/data';
 import { markerAt, type PmdSheet } from './animation/pmd-metadata';
 import { pmdSource } from './animation/pmd-source';
-import { ITEMS } from '../../server/systems/items';
+import { ITEMS, isUniqueRecipe, recipeKey } from '../../server/systems/items';
 import pmdManifest from './pmd-manifest.json';
 import { eligibleForm, alternativeForm } from '../../server/forms';
 import type { BallKind, ClientToServer, GameCommand, GameSnapshot, ServerToClient } from '../../server/types';
@@ -246,6 +246,15 @@ function validInventoryDrop(unitId:string|null,itemId:string|null,ball:BallKind|
     if(item?.kind==='remover'||item?.kind==='reforger')return state.phase==='planning'&&!!unit.equipment?.length;
     if(!item||unit.equipment?.some(e=>e.recipe==='white+white'))return false;
     if(item.recipe==='white+white'&&!!unit.equipment?.length)return false;
+    if(isUniqueRecipe(item.recipe)&&unit.equipment?.some(e=>e.recipe===item.recipe))return false;
+    if(item.kind==='component'){
+      const other=unit.equipment?.find(e=>e.kind==='component');
+      if(other){
+        const recipe=recipeKey(item.components[0],other.components[0]);
+        if(isUniqueRecipe(recipe)&&unit.equipment?.some(e=>e.recipe===recipe))return false;
+        if(recipe==='white+white'&&(unit.equipment?.length||0)>1)return false;
+      }
+    }
     return (unit.equipment||[]).length<ITEMS.maxSlots || (item.kind==='component'&&!!unit.equipment?.some(e=>e.kind==='component'));
   }
   if(ball){
