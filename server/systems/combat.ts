@@ -45,7 +45,7 @@ function walkStep(
 const moveIdOf = (unit: CombatUnit): string => unit.bossMove || (unit.family==='tyrogue' ? (unit.metrics.casts%2===0?'hitmonchan-uppercut':'hitmonlee-spin-kick') : getStageData(unit.family, unit.stage,unit.formId,unit.mewtwoMode).move);
 const combatCooldown = (unit: CombatUnit, now: number): number =>
   attackCooldown(stat(unit,'speed')) * (unit.attackSpeedDebuffUntil > now ? 1 / .85 : 1);
-const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !(unit.family==='diglett' && unit.moving) && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow);
+const isTargetable = (unit: CombatUnit): boolean => unit.hp > 0 && !(unit.family==='diglett' && unit.moving) && !unit.dig && !unit.ghost && !unit.synergy?.flight && !(unit.synergy?.intangibleUntil && unit.synergy.intangibleUntil > unit.itemNow) && !(unit.itemTimers.edgeNightUntil && unit.itemTimers.edgeNightUntil>unit.itemNow);
 const metrics = (): CombatMetrics => ({ casts: 0, controlSeconds: 0, dealt: 0, physicalDealt: 0, specialDealt: 0, taken: 0, healed: 0, blocked: 0, blockedPhysical: 0, blockedSpecial: 0, barrierAbsorbed: 0, abilityMitigated: 0 });
 function stat(unit: CombatUnit, key: StatKey): number {
   const base = unit.stats[key];
@@ -956,7 +956,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
       if(kind==='sterak'){const extra=target.maxHp*numberParam('sterak','hpPercent');target.maxHp+=extra;target.hp+=extra;}
       else if(kind==='edge_night'){
         target.statuses={};target.poison=null;target.damageOverTime=null;target.itemBurn=null;
-        if(target.synergy)target.synergy.intangibleUntil=battle.elapsed+numberParam('edge_night','duration');
+        target.itemTimers.edgeNightUntil=battle.elapsed+numberParam('edge_night','duration');
       }else{
         const amount=target.maxHp*numberParam(kind,'barrierFraction')*shieldMultiplier(target);
         target.barriers.push({kind:'item',sourceId:target.id,hp:amount,until:battle.elapsed+numberParam(kind,'duration')});
