@@ -1,11 +1,11 @@
 import pokemonConfig from '../config/pokemons.json';
 export type Family = keyof typeof pokemonConfig.species;
-export type ItemColor = 'green' | 'blue' | 'purple' | 'orange' | 'yellow' | 'red';
+export type ItemColor = 'green' | 'blue' | 'purple' | 'orange' | 'yellow' | 'red' | 'cyan' | 'white';
 export type BallKind = 'pokeball' | 'greatball' | 'ultraball' | 'masterball';
 export type LootColor = 'gray' | 'blue' | 'yellow';
-export interface EquippedItem { id: string; kind: 'component' | 'complete' | 'mega-stone'; components: ItemColor[]; recipe?: string }
+export interface EquippedItem { id: string; kind: 'component' | 'complete' | 'mega-stone' | 'remover' | 'reforger'; components: ItemColor[]; recipe?: string }
 export interface PercentStats { vampirism: number; critChance: number; critDamage: number; durability: number; amplification: number }
-export interface LootReward { kind: 'gold'|'pokemon'|'component'|'mega-stone'; amount?: number; family?: Family; rarity?: Rarity; color?: ItemColor; bonusBall?: BallKind }
+export interface LootReward { kind: 'gold'|'pokemon'|'component'|'mega-stone'|'remover'|'reforger'; amount?: number; family?: Family; rarity?: Rarity; color?: ItemColor; bonusBall?: BallKind }
 export interface LootDrop { id: string; ownerId: string; x: number; y: number; color: LootColor; claimed: boolean; reward: LootReward; pending?: boolean }
 export type StatKey = 'hp' | 'speed' | 'atk' | 'def' | 'spa' | 'spd';
 export type Stats = Record<StatKey, number>;
