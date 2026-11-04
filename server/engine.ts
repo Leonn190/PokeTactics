@@ -87,7 +87,7 @@ export class GameEngine {
       this.duration=86400;this.opponentId='p1';this.lastOpponentId='p1';
       this.players[0].name='VOCÊ';this.players[1].name='EQUIPE INIMIGA';
       for(const player of this.players){player.level=6;player.gold=1_000_000;player.health=RULES.startingHealth;player.augments=[];player.augmentChoice=undefined;}
-      this.players[0].itemInventory=[...ITEM_COLORS.map(color=>makeComponent(`sandbox:${color}`,color)),{id:'sandbox:mega-stone',kind:'mega-stone',components:[]}];
+      this.players[0].itemInventory=[...ITEM_COLORS.map(color=>makeComponent(`sandbox:${color}`,color)),{id:'sandbox:remover',kind:'remover',components:[]},{id:'sandbox:reforger',kind:'reforger',components:[]},{id:'sandbox:mega-stone',kind:'mega-stone',components:[]}];
       this.refreshShop(this.players[0]);
       this.log='Modo Teste · preparação livre';
       return;
@@ -376,6 +376,9 @@ export class GameEngine {
     } else if (reward.kind === 'gold') {
       player.gold += reward.amount || 0;
       this.lootMessage = `Espólio: +${reward.amount} ouro`;
+    } else if(reward.kind==='remover'||reward.kind==='reforger'){
+      (player.itemInventory||=[]).push({id:this.id(),kind:reward.kind,components:[]});
+      this.lootMessage=reward.kind==='remover'?'Espólio: Removedor Magnético':'Espólio: Reforjador';
     } else if(reward.kind==='mega-stone'){
       (player.itemInventory||=[]).push({id:this.id(),kind:'mega-stone',components:[]});
       this.lootMessage='Espólio: Mega Pedra';
@@ -413,7 +416,10 @@ export class GameEngine {
     for(const item of [...pending]){
       for(const pokemon of targets){
         const held=pokemon.equipment ||= [];
+        if(item.kind==='remover'||item.kind==='reforger'||item.kind==='mega-stone')continue;
         const component=item.kind==='component' ? held.find(i=>i.kind==='component') : undefined;
+        if(held.some(i=>i.recipe==='white+white') || (item.recipe==='white+white'&&held.length))continue;
+        if(component && item.components[0]==='white' && component.components[0]==='white' && held.length>1)continue;
         if(component){
           const combined=craft(this.id(),component,item);
           if(combined){held[held.indexOf(component)]=combined;pending.splice(pending.indexOf(item),1);break;}
@@ -625,10 +631,13 @@ export class GameEngine {
       const unit=owner.units.find(x=>x.id===command.unitId);
       if(!item||!unit)return 'Item ou Pokémon inválido';
       if(item.kind==='mega-stone')return this.applyMegaStone(owner,unit,item);
+       if(item.kind==='remover'||item.kind==='reforger')return this.useItemTool(unit,item);
       const gear=unit.equipment||=[];
       unit.equipment=gear;
       const actualItem=this.sandbox&&item.id.startsWith('sandbox:')?makeComponent(this.id(),item.components[0]):item;
       const existing=item.kind==='component'?gear.find(x=>x.kind==='component'):undefined;
+       if(gear.some(x=>x.recipe==='white+white') || (item.recipe==='white+white'&&gear.length))return 'Luvas do Ladrão ocupam três espaços';
+       if(existing && item.components[0]==='white' && existing.components[0]==='white' && gear.length>1)return 'Luvas do Ladrão exigem os três espaços livres';
       if(existing){
         const combined=craft(this.id(),actualItem,existing);
         if(!combined)return 'Combinação inválida';
@@ -696,6 +705,34 @@ export class GameEngine {
     return 'Comando indisponível';
   }
 
+  /** Set 10: removedor retira todos os itens; reforjador altera cada um na mesma categoria. */
+  private useItemTool(target:Pokemon,item:import('./types').EquippedItem):string|null {
+    const human=this.players[0];
+    if(item.kind!=='remover'&&item.kind!=='reforger')return 'Ferramenta inválida';
+    if(this.phase!=='planning')return 'Use ferramentas apenas na preparação';
+    const equipped=target.equipment||[];
+    if(!equipped.length)return 'Este Pokémon não tem itens para remover';
+    const nextInventory=(human.itemInventory||[]).filter(i=>i.id!==item.id);
+    if(!canReceive({...human,itemInventory:nextInventory},equipped.length))return 'Sem espaços livres para receber todos os equipamentos';
+    const reforged=equipped.map(gear=>{
+      if(item.kind==='remover')return gear;
+      if(gear.kind==='component'){
+        const colors=ITEM_COLORS.filter(color=>color!==gear.components[0]);
+        return makeComponent(this.id(),this.rng.pick(colors));
+      }
+      if(gear.kind==='complete'){
+        const keys=Object.keys(RECIPES).filter(key=>key!==gear.recipe);
+        const key=this.rng.pick(keys);
+        return {id:this.id(),kind:'complete' as const,components:key.split('+') as import('./types').ItemColor[],recipe:key};
+      }
+      return gear;
+    });
+    human.itemInventory=[...nextInventory,...reforged];
+    target.equipment=[];
+    this.log=item.kind==='remover'?'Equipamentos removidos!':'Equipamentos reforjados!';
+    return null;
+  }
+
   private applyMegaStone(owner:Player,unit:Pokemon,item:import('./types').EquippedItem):string|null {
     if(this.phase!=='planning')return 'Mega Evolução somente na preparação';
     if(item.kind!=='mega-stone')return 'O item não é uma Mega Pedra';
@@ -753,12 +790,15 @@ export class GameEngine {
       const target=human.units.find(u=>u.id===command.unitId);
       if (!item || !target) return 'Item ou Pokémon inválido';
       if(item.kind==='mega-stone')return this.applyMegaStone(human,target,item);
+       if(item.kind==='remover'||item.kind==='reforger')return this.useItemTool(target,item);
       if (this.phase !== 'planning' && target.position.area === 'board') return 'Equipamentos de Pokémon em combate estão travados';
       const equipped=target.equipment ||= [];
       const actualItem=this.sandbox&&item.id.startsWith('sandbox:')?makeComponent(this.id(),item.components[0]):item;
       const slot=command.ontoSlot;
       const already=slot!==undefined && Number.isInteger(slot) && slot>=0 && slot<equipped.length ? equipped[slot] : null;
       const component=already || (item.kind === 'component' ? equipped.find(i=>i.kind==='component') : null);
+       if(equipped.some(i=>i.recipe==='white+white') || (item.recipe==='white+white'&&equipped.length))return 'Luvas do Ladrão ocupam três espaços';
+       if(item.kind==='component' && item.components[0]==='white' && component?.kind==='component' && component.components[0]==='white' && equipped.length>1)return 'Luvas do Ladrão exigem os três espaços livres';
       if (item.kind === 'component' && component?.kind === 'component') {
         const assembled=craft(this.id(),actualItem,component);
         if (!assembled) return 'Receita inválida';
@@ -772,17 +812,7 @@ export class GameEngine {
       this.releasePendingItems(human);
       return null;
     }
-    if (command.kind === 'unequip-item') {
-      const unit=human.units.find(u=>u.id===command.unitId);
-      if (!unit || !Number.isInteger(command.slot) || command.slot<0 || command.slot>=(unit.equipment?.length||0)) return 'Equipamento inválido';
-      if (this.phase !== 'planning' && unit.position.area==='board') return 'Equipamentos travados durante combate';
-      human.itemInventory ||= [];
-      const unequipped=unit.equipment![command.slot];
-      if(!(this.sandbox&&unequipped.kind==='component')&&!canReceive(human,1))return `Mochila cheia (${ITEMS.inventorySlots} itens)`;
-      unit.equipment!.splice(command.slot,1);
-      if(!(this.sandbox&&unequipped.kind==='component'))human.itemInventory.push(unequipped);
-      return null;
-    }
+    if (command.kind === 'unequip-item') return 'Use o Removedor Magnético para retirar os equipamentos';
     if (command.kind === 'use-ball') {
       const target=human.units.find(u=>u.id===command.unitId);
       const tier:Record<BallKind,number>={pokeball:1,greatball:2,ultraball:3,masterball:5};
