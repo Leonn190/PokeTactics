@@ -64,7 +64,7 @@ export function effectivePercents(unit?:Pick<CombatUnit,'equipment'|'itemStacks'
   for(const effect of ['rabadon','redbuff'] as const)if(has(effect))result.amplification+=numberParam(effect,'amplification');
   if(has('guardbreaker') && (unit.itemTimers.guardbreaker||0)>elapsed)result.amplification+=numberParam('guardbreaker','amplification');
   if(has('bluebuff') && (unit.itemTimers.bluebuff||0)>elapsed)result.amplification+=numberParam('bluebuff','amplification');
-  if(has('justice')&&unit.itemStacks.justiceMode===1)result.amplification+=numberParam('justice','atkPercent');
+
   const stacks=unit.itemStacks.titan||0;
   if(has('titan')&&stacks>=numberParam('titan','maxStacks'))result.durability+=0;
   result.vampirism=Math.min(ITEMS.limits.vampirism,Math.max(0,result.vampirism));
@@ -98,10 +98,12 @@ export function bonusStat(unit:CombatUnit,key:keyof Stats,now:number,focus:numbe
       + (now<ITEMS.combatIntroSeconds+numberParam('quicksilver','duration')?(unit.itemStacks.quicksilver||0)*numberParam('quicksilver','speedPercent'):0));
   }
   if(key==='spa')return (unit.itemStacks.archangel||0)*numberParam('archangel','step')
+    + (has('justice')&&unit.itemStacks.justiceMode===1?numberParam('justice','spa'):0)
     + (unit.itemStacks.titan||0)*numberParam('titan','spaPerStack')
     + (has('adaptive')&&!unit.itemStacks.adaptiveFront?numberParam('adaptive','backSpa'):0)
     + (has('crownguard')&&unit.itemTimers.crownEnd>0&&now>=unit.itemTimers.crownEnd?numberParam('crownguard','spa'):0);
-  if(key==='atk')return unit.stats.atk*((unit.itemStacks.titan||0)*numberParam('titan','atkPerStack')
+  if(key==='atk')return unit.stats.atk*((has('justice')&&unit.itemStacks.justiceMode===1?numberParam('justice','atkPercent'):0)
+    + (unit.itemStacks.titan||0)*numberParam('titan','atkPerStack')
     + (unit.itemStacks.sterakUsed?numberParam('sterak','atkPercent'):0));
   if(key==='def'||key==='spd')return (has('gargoyle')?focus*numberParam('gargoyle','perTarget'):0)
     + (has('adaptive')&&unit.itemStacks.adaptiveFront?numberParam('adaptive',key==='def'?'frontDef':'frontSpd'):0)
