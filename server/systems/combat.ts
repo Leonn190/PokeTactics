@@ -956,6 +956,7 @@ function deal(battle: Battle, source: CombatUnit, target: CombatUnit, raw: numbe
       if(kind==='sterak'){const extra=target.maxHp*numberParam('sterak','hpPercent');target.maxHp+=extra;target.hp+=extra;}
       else if(kind==='edge_night'){
         target.statuses={};target.poison=null;target.damageOverTime=null;target.itemBurn=null;
+        target.stunTime=0;target.knockUpTime=0;target.knockUpUntil=0;target.fear=null;target.slow=0;
         target.itemTimers.edgeNightUntil=battle.elapsed+numberParam('edge_night','duration');
       }else{
         const amount=target.maxHp*numberParam(kind,'barrierFraction')*shieldMultiplier(target);
