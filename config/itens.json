@@ -165,8 +165,8 @@
     "blue+red": {
       "name": "Furacão de Runaan",
       "effect": "runaan",
-      "description": "Ataques básicos dispararam um segundo projétil em outro inimigo próximo com 55% do ATK.",
-      "atkRatio": 0.55,
+      "description": "Ataques básicos disparam um segundo projétil em outro inimigo próximo com 110% do ATK.",
+      "atkRatio": 1.1,
       "range": 3
     },
     "blue+cyan": {
@@ -247,7 +247,7 @@
     "orange+red": {
       "name": "Mata-Gigantes",
       "effect": "giant_slayer",
-      "description": "Causa 25% mais dano contra inimigos de Vida máxima acima de 500.",
+      "description": "Causa 25% mais dano contra inimigos de Vida máxima acima de 500 (escala adaptada ao PokéTactics).",
       "thresholdHp": 500,
       "amplification": 0.25
     },
